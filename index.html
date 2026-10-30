@@ -994,6 +994,15 @@ Object.assign(POSE, {
   aTaunt: { ty: -.2, hy: .3, hz: -.15, alx: -.2, alz: .35, arx: -1.9, arz: .5, ary: .6, llx: -.1, lrx: .1 },
   aCatch: { ix: .2, tx: .25, by: -1.5, alx: -1.7, alz: -.15, arx: -1.7, arz: .15, llx: -.6, lrx: .5 },
 });
+// poses de lanza para las coreografías de Javicubito (arx + sx = 0 → la lanza apunta recto al frente; más sx = más abajo)
+Object.assign(POSE, {
+  jDraw: { ix: -.05, ty: -.55, tx: .05, by: -1.5, hy: .35, arx: -.9, sx: 1.55, arz: .2, alx: -.9, alz: .2, llx: -.5, lrx: .4 },
+  jStab: { ix: .12, tx: .1, ty: .3, by: -1.6, hy: -.25, arx: -1.5, sx: 1.65, arz: -.05, alx: -1.35, alz: -.3, llx: -.85, lrx: .55 },
+  jLift: { ix: -.15, tx: -.15, by: -2.2, hx: -.5, arx: -2.6, sx: 1.55, alx: -2.5, alz: -.25, llx: -.5, lrx: .45, llz: .15, lrz: -.15 },
+  jSlam: { ix: .25, tx: .35, by: -3, hx: .25, arx: -1.8, sx: 1.6, alx: -1.2, alz: -.2, llx: -1.1, lrx: .75 },
+  jSpin: { iz: .15, ty: -.9, tx: .1, by: -1.5, arx: -1.6, sx: 1.6, arz: .6, alx: -.4, alz: .9, llx: -.5, lrx: .5 },
+  jSwing: { ty: 1.0, tx: .2, by: -2, arx: -1.7, sx: 1.0, arz: -.7, alx: .2, alz: .6, llx: -.6, lrx: .5 },
+});
 POSE.downB = { ix: 1.45, ty: .3, alx: -2.6, alz: .7, arx: -2.9, arz: -.4, llx: -.3, lrx: .15, llz: .15, lrz: -.1, hx: .3, hy: .4 };
 POSE.idleM = mirror(POSE.idle);
 // poses de lanza: sx gira la lanza en la mano (arx + sx = 0 apunta al frente)
@@ -1060,7 +1069,7 @@ function buildTrack(list, from, t0) {
   }
   return keys;
 }
-function sampleTrack(keys, t, out) {
+function sampleTrack(keys, t, out, tens = TENS) {
   const n = keys.length;
   if (t >= keys[n - 1].t) { const p = keys[n - 1].p; for (const j of JOINTS) out[j] = jv(p, j); return out; }
   let i = 0; while (i < n - 2 && t >= keys[i + 1].t) i++;
@@ -1069,39 +1078,17 @@ function sampleTrack(keys, t, out) {
   const h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
   for (const j of JOINTS) {
     const p1 = jv(k1.p, j), p2 = jv(k2.p, j);
-    const m1 = i === 0 ? 0 : (p2 - jv(k0.p, j)) / (k2.t - k0.t) * h * TENS;
-    const m2 = i + 2 >= n ? 0 : (jv(k3.p, j) - p1) / (k3.t - k1.t) * h * TENS;
+    const m1 = i === 0 ? 0 : (p2 - jv(k0.p, j)) / (k2.t - k0.t) * h * tens;
+    const m2 = i + 2 >= n ? 0 : (jv(k3.p, j) - p1) / (k3.t - k1.t) * h * tens;
     out[j] = h00 * p1 + h10 * m1 + h01 * p2 + h11 * m2;
-  }
-  return out;
-}
-// Pose a pose estilo anime: cada pose clave se SOSTIENE (con una leve deriva hacia la próxima, "moving hold"),
-// el cambio a la siguiente es un latigazo corto (ease-out fuerte) que llega justo en el tiempo de la clave,
-// y al llegar sobrepasa un poco y rebota (follow-through). Así se lee cada pose en vez de un movimiento constante.
-const SNAP_TR = .12, SNAP_DRIFT = .08, SNAP_OVER = .16;
-function sampleSnap(keys, t, out) {
-  const n = keys.length;
-  let i = 0; while (i < n - 1 && t >= keys[i + 1].t) i++;
-  const k1 = keys[i], k2 = keys[Math.min(n - 1, i + 1)], k0 = i > 0 ? keys[i - 1] : null;
-  const e = t - k1.t, h = Math.max(.001, k2.t - k1.t), tr = Math.min(k2.tr || SNAP_TR, h * .8), hold = h - tr;
-  const last = i >= n - 1;
-  let w;
-  if (last) w = 0;
-  else if (e < hold) { const u = e / hold; w = SNAP_DRIFT * u * u * (3 - 2 * u); }
-  else { const u = clamp((e - hold) / tr, 0, 1); w = SNAP_DRIFT + (1 - SNAP_DRIFT) * (1 - Math.pow(1 - u, 4)); }
-  // rebote al llegar a k1: arranca en 0, sobrepasa en la dirección en que venía y se asienta
-  const ob = k0 ? SNAP_OVER * Math.sin(Math.min(e * 22, Math.PI)) * Math.exp(-e * 7) : 0;
-  for (const j of JOINTS) {
-    const p1 = jv(k1.p, j), p2 = jv(k2.p, j);
-    out[j] = p1 + (p2 - p1) * w + (ob ? (p1 - jv(k0.p, j)) * ob : 0);
   }
   return out;
 }
 class Animator {
   constructor(model) { this.m = model; this.x = {}; this.v = {}; this.o = {}; this.reset(); }
   // reproduce una pista Hermite; deja la velocidad para que el resorte siga sin saltos al terminar
-  play(keys, t, dt, snap) {
-    const x = this.x, v = this.v; if (snap) sampleSnap(keys, t, this.o); else sampleTrack(keys, t, this.o);
+  play(keys, t, dt, fluid) {
+    const x = this.x, v = this.v; sampleTrack(keys, t, this.o, fluid ? 1 : TENS);
     for (const j of JOINTS) {
       // arrastre secundario: cabeza y giros laterales de brazos/piernas siguen la curva con un pequeño retraso (overlapping action)
       const lag = DRAG[j], nv = lag && dt > 0 ? x[j] + (this.o[j] - x[j]) * Math.min(1, dt * lag) : this.o[j];
@@ -1969,9 +1956,9 @@ function hermArr(keys, t) {
   let i = 0; while (i < n - 2 && t >= keys[i + 1][0]) i++;
   const k1 = keys[i], k2 = keys[i + 1];
   if (k2[5] === 'c') return get(k1);
-  if (k2[5] !== 's') {
+  if (k2[5] === 'i' || k2[5] === 'o') {
     // anime: sale disparado y frena al llegar (ease-out), en vez de moverse a velocidad constante
-    const u = (t - k1[0]) / (k2[0] - k1[0]), w = k2[5] === 'i' ? u * u * u : 1 - Math.pow(1 - u, 3), a1 = get(k1), a2 = get(k2);  // 'i' = cae acelerando (remates contra el piso)
+    const u = (t - k1[0]) / (k2[0] - k1[0]), w = k2[5] === 'i' ? u * u * u : 1 - Math.pow(1 - u, 3), a1 = get(k1), a2 = get(k2);  // 'i' = cae acelerando, 'o' = frena al llegar
     return a1.map((v, j) => v + (a2[j] - v) * w);
   }
   const k0 = i > 0 && k1[5] !== 'c' ? keys[i - 1] : k1, k3 = i + 2 < n && keys[i + 2][5] !== 'c' ? keys[i + 2] : k2;
@@ -1979,7 +1966,7 @@ function hermArr(keys, t) {
   const h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
   const a0 = get(k0), a1 = get(k1), a2 = get(k2), a3 = get(k3);
   return a1.map((v, j) => {
-    const m1 = k0 === k1 ? 0 : (a2[j] - a0[j]) / (k2[0] - k0[0]) * h * .5, m2 = k3 === k2 ? 0 : (a3[j] - a1[j]) / (k3[0] - k1[0]) * h * .5;
+    const m1 = k0 === k1 ? 0 : (a2[j] - a0[j]) / (k2[0] - k0[0]) * h, m2 = k3 === k2 ? 0 : (a3[j] - a1[j]) / (k3[0] - k1[0]) * h;
     return h00 * v + h10 * m1 + h01 * a2[j] + h11 * m2;
   });
 }
@@ -2016,9 +2003,28 @@ function choreTick(st, dt) {
   if (!st.released && tg.alive && !tg.remote) {
     const vp = hermArr(st.vpos, t);
     tg.pos.copy(L2W(st.origin, st.yaw, vp[0], vp[1], vp[2])); tg.yaw = st.yaw + Math.PI + vp[3]; tg.vel.set(0, 0, 0); tg.choreTime = t; tg.stun = Math.max(tg.stun, .5);
+    choreAnchor(st, t);
   }
   D.ev.forEach((e, i) => { if (!st.fired.has(i) && t >= e.t) { st.fired.add(i); choreEvent(st, e); } });
   if (t >= D.dur) st.done = true;
+}
+// anclaje: durante [t0, t1] el pecho de la víctima queda pegado a la punta de la lanza ('tip') o a la mano ('hand'),
+// así la lanza la atraviesa de verdad y el agarre toca el cuello, sin importar la pose
+function anchorPoint(f, kind) {
+  f.model.root.updateMatrixWorld(true);
+  if (kind === 'tip' && f.spear) return f.spear.localToWorld(new V3(0, 0, 20 * PX));
+  return f.model.armR.localToWorld(new V3(0, -11 * PX, 0));
+}
+function choreAnchor(st, t) {
+  const { f, tg, D } = st; if (!D.anchor) return;
+  for (const [t0, t1, kind, dy] of D.anchor) {
+    if (t < t0 || t > t1) continue;
+    const w0 = clamp((t - t0) / .12, 0, 1), w = w0 * w0 * (3 - 2 * w0);  // entra suave y queda pegada hasta que la suelta el golpe final
+    tg.model.root.updateMatrixWorld(true);
+    const off = tg.model.torso.localToWorld(new V3(0, (kind === 'hand' ? 11 : 6) * PX, 0)).sub(tg.model.root.position);
+    const goal = anchorPoint(f, kind).sub(off); goal.y += dy || 0;
+    tg.pos.lerp(goal, w); tg.pos.y = Math.max(groundAt(tg.pos.x, tg.pos.z), tg.pos.y);
+  }
 }
 function choreEvent(st, e) {
   const { f, tg } = st, col = f.ch.color, at = e.at || 'vic';
@@ -2148,60 +2154,67 @@ function runChore(f, tg, D) {
 // ===== Las coreografías (cada una es una escena distinta, nada se reutiliza) =====
 const CHORE = {
   // ---------- JAVICUBITO ----------
-  // lo ensarta, lo alza sobre la cabeza con la lanza, gira y lo clava contra el piso
+  // lo ensarta a la altura del pecho, lo alza sobre la cabeza con la lanza, gira con él y lo clava contra el piso
   javiImpale: {
-    dur: 3.3,
-    att: [[.08, 'thrust_w'], [.2, 'thrust'], [.55, 'thrust'], [.85, 'upthrust'], [1.3, 'upthrust'], [1.6, 'spinPose'], [1.95, 'overhead'], [2.25, 'plunge'], [2.6, 'plunge'], [3.0, 'lancerRest']],
-    vic: [[.2, 'vGut'], [.55, 'vGut'], [.9, 'vLifted'], [1.3, 'vDangle'], [1.95, 'vFlip'], [2.25, 'downB'], [3.0, 'downB']],
-    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .4, 0], [1.4, 0, 0, .4, 0], [1.9, 0, 0, .4, 3.14], [2.3, 0, .9, 1.2, 3.14], [2.6, 0, 0, 1.6, 3.14, 'i']],
-    vpos: [[0, 0, 0, 1.2, 0], [.2, 0, .1, 1.5, 0], [.85, 0, .4, 1.6, 0], [1.3, 0, 2.4, .9, 0], [1.9, 0, 2.8, -.5, 3.14], [2.25, 0, 0, 2.5, 3.14, 'i'], [3.3, 0, 0, 2.6, 3.14]],
+    dur: 3.2, catch: 2,
+    att: [[.12, 'jDraw'], [.32, 'jStab'], [.75, 'jStab'], [1.3, 'jLift'], [1.95, 'jLift'], [2.25, 'jSlam'], [3.1, 'lancerRest']],
+    vic: [[.32, 'vGut'], [.75, 'vGut'], [1.3, 'vDangle'], [1.95, 'vDangle'], [2.25, 'downB'], [3.1, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.32, 0, 0, .45, 0], [1.3, 0, 0, .3, 0], [1.95, 0, 0, .3, 3.14], [2.25, 0, 0, .5, 3.14], [3.2, 0, 0, .5, 3.14]],
+    vpos: [[0, 0, 0, 1.9, 0], [1.3, 0, 0, 1.9, 0], [1.95, 0, 0, 1.9, 3.14], [3.2, 0, 0, 1.9, 3.14]],
+    anchor: [[.22, 2.27, 'tip']],
     ev: [
-      { t: .2, hit: 4, fx: 'stab', imp: 1, slow: .18, sfx: 'heavy' },
-      { t: .55, hit: 2, fx: 'impact', text: '¡ATRAVESADO!' },
-      { t: .9, fx: 'ring', at: 'vic', r: 2 },
-      { t: 1.3, hit: 2, fx: 'impact', at: 'vic' },
-      { t: 1.55, twirl: [1, .4], fx: 'ghost' },
+      { t: .32, hit: 4, fx: 'stab', imp: 1, slow: .15 },
+      { t: .7, hit: 2, fx: 'impact', text: '¡ATRAVESADO!' },
+      { t: 1.3, fx: 'ring', at: 'vic', r: 2.2 },
+      { t: 1.55, hit: 2, fx: 'impact' },
+      { t: 1.6, fx: 'ghost' },
       { t: 2.25, fx: 'boom', at: 'ground', big: 1, r: 3 },
-      { t: 2.27, fx: 'crack', at: 'ground', r: 5 },
-      { t: 2.3, rel: { dmg: 9, kb: 3, up: 3, rag: 2.2 }, slow: .3 },
+      { t: 2.26, fx: 'crack', at: 'ground', r: 5 },
+      { t: 2.28, rel: { dmg: 9, kb: 2, up: 4, rag: 2.2 }, slow: .3 },
     ],
-    shots: [[0, 'ots'], [.22, 'faceV'], [.75, 'lowA', { s: -1 }], [1.45, 'orbit', { spd: 2.4, r: 4.5, h: 1 }], [2.05, 'top'], [2.3, 'ground'], [2.8, 'hero']],
+    shots: [[0, 'ots'], [.6, 'lowA', { s: -1 }], [1.3, 'orbit', { spd: 1.3, r: 5.5, h: .8 }], [2.1, 'two', { s: -1 }], [2.6, 'hero']],
   },
-  // tres pasadas de relámpago entre medio del rival, cada una lo gira; la última lo deja en el aire y cae del cielo
+  // tres pasadas de relámpago a través del rival en una sola curva continua; lo lanza y cae del cielo clavándolo al piso
   javiDash: {
-    dur: 3.1, catch: 2.2,
-    att: [[.05, 'dash'], [.25, 'thrust'], [.45, 'dash'], [.65, 'sweep'], [.85, 'dash'], [1.05, 'thrust'], [1.45, 'jump'], [1.75, 'spearThrowW'], [1.95, 'plunge'], [2.5, 'plunge'], [2.85, 'javiHero']],
-    vic: [[.25, 'hurtSideL'], [.65, 'hurtSideR'], [1.05, 'vSpinA'], [1.45, 'vLaunch'], [1.9, 'vFloat'], [2.05, 'vBack'], [2.6, 'downB']],
-    apos: [[0, 0, 0, 0, 0], [.25, 0, 0, 3.2, 0, 'c'], [.3, 0, 0, 3.2, 3.14], [.45, -1.2, 0, 3.4, 3.14, 'c'], [.65, 1.6, 0, -1.4, 3.14], [.7, 1.6, 0, -1.4, -1.2], [.85, 1.8, 0, -1.2, -1.2, 'c'], [1.05, -2, 0, 3.6, -1.2], [1.4, -2.2, 0, 3.6, -2.4], [1.75, -.6, 4.6, 2.2, -3.6], [1.95, -.2, 2.6, 1.9, -3.14], [2.1, 0, 0, 1.4, -3.14, 'i'], [3.1, 0, 0, 1.4, -3.14]],
-    vpos: [[0, 0, 0, 1.4, 0], [.25, 0, 0, 1.5, .8], [.65, .2, 0, 1.5, 2.1], [1.05, 0, .3, 1.4, 3.6], [1.45, 0, 3.4, 1.3, 4.4], [1.9, 0, 3.6, 1.3, 4.6], [2.05, 0, 0, 1.4, 4.8, 'i'], [3.1, 0, 0, 1.4, 4.8]],
+    dur: 3.2, catch: 2.2,
+    att: [[.1, 'jStab'], [.38, 'jSpin'], [.62, 'jStab'], [.88, 'jSpin'], [1.08, 'jStab'], [1.4, 'jDraw'], [1.7, 'jLift'], [1.95, 'plunge'], [2.25, 'plunge'], [3.1, 'javiHero']],
+    vic: [[.18, 'hurtSideL'], [.62, 'hurtSideR'], [1.05, 'vGut'], [1.4, 'vLaunch'], [1.85, 'vFloat'], [2.25, 'downB'], [3.1, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.3, .2, 0, 4.0, 0], [.45, 1.3, 0, 4.4, 2.2], [.72, -.6, 0, -1.0, 3.14], [.86, -1.5, 0, -1.2, 1.0], [1.12, .3, 0, 3.8, 0], [1.4, .4, 0, 3.6, 3.14], [1.75, .1, 4.2, 2.4, 3.14], [1.95, 0, 4.0, 2.0, 3.14], [2.25, 0, 0, 2.2, 3.14, 'i'], [3.2, 0, 0, 2.2, 3.14]],
+    vpos: [[0, 0, 0, 1.6, 0], [.2, 0, 0, 1.6, .7], [.62, 0, 0, 1.6, -.5], [1.05, 0, 0, 1.6, 0], [1.45, 0, 2.6, 1.6, .3], [1.8, 0, 3.4, 1.6, .5], [2.25, 0, 0, 1.6, .5], [3.2, 0, 0, 1.6, .5]],
+    anchor: [[1.9, 2.27, 'tip']],
     ev: [
-      { t: .25, hit: 3, fx: 'line', imp: 1, sfx: 'dash' },
-      { t: .65, hit: 3, fx: 'line', sfx: 'dash' },
-      { t: 1.05, hit: 3, fx: 'xcut', slow: .2, text: '¡TRIPLE!', who: 'att' },
+      { t: .16, hit: 3, fx: 'line', imp: 1, sfx: 'dash' },
+      { t: .16, fx: 'ghost' },
+      { t: .6, hit: 3, fx: 'line', sfx: 'dash' },
+      { t: .6, fx: 'ghost' },
+      { t: 1.0, hit: 3, fx: 'xcut', slow: .2 },
       { t: 1.4, fx: 'ring', at: 'vic', r: 2.5 },
-      { t: 1.7, fx: 'charge', at: 'att' },
-      { t: 2.05, rel: { dmg: 8, kb: 2, up: -10, rag: 2 }, fx: 'stab' },
-      { t: 2.1, fx: 'boom', at: 'ground', big: 1, r: 2.6 },
-      { t: 2.12, fx: 'crack', at: 'ground' },
+      { t: 1.75, fx: 'charge', at: 'att', text: '¡DESDE ARRIBA!', who: 'att' },
+      { t: 1.95, fx: 'stab', hit: 2 },
+      { t: 2.25, fx: 'boom', at: 'ground', big: 1, r: 3 },
+      { t: 2.26, fx: 'crack', at: 'ground' },
+      { t: 2.28, rel: { dmg: 7, kb: 2, up: 3, rag: 2 } },
     ],
-    shots: [[0, 'follow'], [.25, 'wide'], [.65, 'two', { s: -1 }], [1.0, 'faceV'], [1.3, 'up'], [1.9, 'lowV'], [2.1, 'ground', { s: -1 }], [2.6, 'hero']],
+    shots: [[0, 'wide'], [.9, 'two', { s: -1 }], [1.35, 'up'], [1.95, 'ground'], [2.6, 'hero']],
   },
-  // cadena de lanza: lo engancha de lejos, lo arrastra, salto mortal por encima y clavada desde atrás
+  // cadena de lanza: lo trae volando, salta por encima, lo ensarta por la espalda, lo levanta y lo revolea
   javiChain: {
-    dur: 2.9, pull: 1,
-    att: [[.1, 'throw'], [.3, 'lance'], [.65, 'aCatch'], [.95, 'jump'], [1.3, 'aUpside'], [1.55, 'thrust_w'], [1.8, 'thrust'], [2.2, 'thrust'], [2.6, 'lancerRest']],
-    vic: [[.1, 'hurtFwd'], [.6, 'vLaunch'], [.95, 'vStagger'], [1.55, 'vConfused'], [1.8, 'vBack'], [2.3, 'vLaunch']],
-    apos: [[0, 0, 0, 0, 0], [.95, 0, 0, 0, 0], [1.25, 0, 3.2, 1.6, 1.57], [1.55, 0, 0, 3.2, 3.14], [1.8, 0, 0, 2.8, 3.14], [2.9, 0, 0, 2.6, 3.14]],
-    vpos: [[.6, 0, 1.4, 1.4, 0], [.95, 0, 0, 1.4, 0], [1.55, 0, 0, 1.5, .7], [1.8, 0, 0, 1.6, 0], [2.3, 0, .2, 1.7, 0]],
+    dur: 3.0, pull: 1,
+    att: [[.1, 'throw'], [.45, 'aCatch'], [.7, 'jump'], [.95, 'aUpside'], [1.2, 'jDraw'], [1.4, 'jStab'], [1.75, 'jLift'], [2.1, 'jSwing'], [2.9, 'lancerRest']],
+    vic: [[.1, 'hurtFwd'], [.6, 'vStagger'], [1.2, 'vConfused'], [1.4, 'hurtFwd'], [1.75, 'vDangle'], [2.1, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [.65, 0, 0, .4, 0], [.95, 0, 2.8, 1.7, 1.6], [1.2, 0, 0, 3.4, 3.14], [3.0, 0, 0, 3.4, 3.14]],
+    vpos: [[.6, 0, 0, 1.6, 0], [1.2, 0, 0, 1.6, .5], [1.4, 0, 0, 1.6, 0], [3.0, 0, 0, 1.6, 0]],
+    anchor: [[1.38, 2.1, 'tip']],
     ev: [
       { t: .05, fx: 'magic', text: '¡ENGANCHADO!' },
       { t: .6, hit: 3, fx: 'impact', imp: 1 },
-      { t: 1.1, fx: 'ghost', twirl: [1, .5] },
-      { t: 1.5, fx: 'ring', at: 'att', r: 2.2, face: 1 },
-      { t: 1.8, rel: { dmg: 9, kb: 22, up: 6, rag: 2 }, fx: 'stab', slow: .35, big: 1 },
-      { t: 1.82, fx: 'impact', big: 1 },
+      { t: .95, fx: 'ghost' },
+      { t: 1.4, hit: 3, fx: 'stab', slow: .2 },
+      { t: 1.75, fx: 'ring', at: 'vic', r: 2 },
+      { t: 2.1, rel: { dmg: 8, kb: 22, up: 7, rag: 2.2 }, fx: 'slash', tilt: .3, slow: .3 },
+      { t: 2.12, fx: 'impact', big: 1 },
     ],
-    shots: [[0, 'follow'], [.55, 'otsV'], [1.0, 'up', { s: -1 }], [1.45, 'faceV'], [1.75, 'two', { s: -1 }], [2.2, 'faceA']],
+    shots: [[0, 'follow'], [.55, 'two'], [1.2, 'otsV', { s: -1 }], [1.7, 'orbit', { spd: -1, r: 5 }], [2.2, 'wide']],
   },
 
   // ---------- ELGATOPRO300 ----------
