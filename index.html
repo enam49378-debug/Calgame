@@ -591,6 +591,17 @@ function disposeModel(m) {
   m.parent.remove(m.root);
   m.root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
   m.mats.forEach(x => x.dispose()); m.tex.dispose();
+  if (m.eyes) m.eyes.material.dispose();
+}
+// visor brillante a la altura de los ojos (fila 4 de la cara)
+function addEyes(model, col) {
+  const e = new THREE.Mesh(new THREE.BoxGeometry(6.4 * PX, 1.3 * PX, .6 * PX), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .4, depthWrite: false, blending: THREE.AdditiveBlending }));
+  e.position.set(0, 3.5 * PX, 4.45 * PX); model.head.add(e); model.eyes = e;
+}
+function eyeGlow(m, on, T) {
+  if (!m.eyes) return;
+  m.eyes.material.opacity = on ? .85 + .15 * Math.sin(T * 60) : .4;
+  m.eyes.scale.set(on ? 1.15 : 1, on ? 1.6 : 1, 1);
 }
 // Lanza de Minecraft hecha de vóxeles (1 vóxel = 1 píxel), apunta a +z, agarre en z=0
 function buildSpear(scale = 1) {
@@ -692,6 +703,8 @@ Object.assign(POSE, {
   spearThrow: { ty: .8, tx: .25, by: -2.5, arx: -1.5, sx: 1.5, alx: .5, alz: .3, llx: -.8, lrx: .6, hy: -.6 },
 });
 POSE.block.sx = 1.2;
+POSE.visorTouch = { ty: .15, by: -1, arx: -2.35, arz: .55, ary: .2, alx: -.3, alz: .2, hx: -.05, llx: -.3, lrx: .25 };
+POSE.lookDown = { hx: .9, tx: .4, by: -3, arx: -2.35, arz: .55, llx: -.3, lrx: .3 };
 function stancePose(ch, T, seed, out) {
   const b = POSE[out === false && POSE[ch.stance + 'Rest'] ? ch.stance + 'Rest' : ch.stance] || POSE.idle, s = Math.sin(T * 2.6 + seed);
   const o = Object.assign({}, b);
@@ -757,6 +770,22 @@ const CHARS = {
     ult: { n: 'Lluvia de Lanzas', d: 'Salta y hace llover lanzas sobre la zona; la última es gigante.', k: 'spearRain', o: {}, r: [0, 18] },
     intro: [[0, 'reach', 700], [.3, 'thrust_w', 800], [.45, 'thrust', 1100], [.75, 'sweep_w', 800], [.88, 'sweep', 1100], [1.25, 'lancer', 400]],
     cine: [[0, 'reach', 500], [.5, 'spearThrowW', 600], [1.05, 'lance', 700]],
+  },
+  redbird: {
+    name: 'Redbird', title: 'Visor Carmesí', role: 'LÁSER', color: '#ff2d55', hp: 95, spd: 1, ai: 'ranged', stance: 'loose', eyeLaser: true,
+    desc: 'Dispara rayos láser por los ojos a través de su visor. Barre la arena con el láser y se impulsa disparando al piso.',
+    stats: [3, 4, 3, 5, 3],
+    skinData: 'data:image/png;base64,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',
+    skin: { skin: '#e8c79c', hair: '#3e9b35', eye: '#ff2020', shirt: '#2b5fbf', pants: '#f0b400', shoes: '#1d3a8a', sleeve: 12, goggles: '#ff2020' },
+    skills: [
+      { n: 'Rayo Óptico', d: 'Láser continuo desde el visor que empuja.', k: 'beam', cd: 8, o: { eyes: true, len: 22, dur: .9, dmg: 2.4, width: .5, charge: .3, push: 5 }, r: [3, 20], tags: 'proj' },
+      { n: 'Ráfaga Óptica', d: 'Tres disparos rápidos de los ojos que persiguen.', k: 'eyeBolts', cd: 5, o: { speed: 48, dmg: 4, stun: .45, size: .22, long: 4, homing: 2 }, r: [3, 24], tags: 'proj' },
+      { n: 'Barrido Láser', d: 'Gira la cabeza disparando y barre todo lo que tenga adelante.', k: 'beam', cd: 10, o: { eyes: true, len: 16, dur: .9, dmg: 2.6, width: .55, charge: .3, push: 3, sweep: 2.2 }, r: [0, 15], tags: 'aoe' },
+      { n: 'Impulso Óptico', d: 'Dispara al piso: explota y te lanza por el aire.', k: 'optoJump', cd: 8, o: {}, r: [0, 3.5], tags: 'close aoe gb' },
+    ],
+    ult: { n: 'Visor Máximo', d: 'Abre el visor del todo: un rayo gigante que rompe guardias.', k: 'beam', o: { eyes: true, len: 45, width: 2.2, dur: 1.8, dmg: 3.4, gb: true, push: 11, charge: .8 }, r: [2, 32] },
+    intro: [[0, 'visorTouch', 600], [.6, 'point', 600], [1.1, 'loose', 400]],
+    cine: [[0, 'visorTouch', 400], [.9, 'cast', 600]],
   },
   kaiza: {
     name: 'Kaiza', title: 'Puño Carmesí', role: 'PELEADOR', color: '#ff4d4d', hp: 100, spd: 1, ai: 'melee', stance: 'idle',
@@ -884,6 +913,7 @@ class Fighter {
     this.model = buildModel(skin, o.skin ? !!o.slim : !!this.ch.slim, scene);
     this.anim = new Animator(this.model);
     if (this.ch.weapon === 'spear') { this.spear = buildSpear(); this.model.mats.push(this.spear.material); }
+    if (this.ch.eyeLaser) addEyes(this.model, this.ch.color);
     this.pos = new V3(); this.vel = new V3(); this.yaw = 0; this.prevYaw = 0; this.yawVel = 0; this.walk = 0;
     this.maxHp = this.ch.hp; this.kills = 0; this.deaths = 0;
     this.ai = (this.isPlayer || this.remote) ? null : { var: o.lvlVar || 0, P: aiParams(G.botLvl), target: null, retarget: 0, think: rand(0, .5), strafe: 1, strafeT: 0, blockT: 0, jumpT: rand(1, 4), flee: 0, seen: null, react: null, reactT: 0, m1hold: 0, dodgeDir: 0 };
@@ -1429,11 +1459,12 @@ const MOVES = {
   },
   beam(f, o) {
     const len = o.len || 22, w = o.width || .9, dur = o.dur || 1, charge = o.charge || .4;
-    let grp = null, acc = 0;
+    let grp = null, acc = 0, base = null;
     startAction(f, {
-      name: 'beam', dur: charge + dur, anim: [[0, 'charge', 500], [charge, 'cast', 900]], speedMul: 0, aim: true,
+      name: 'beam', dur: charge + dur, anim: o.eyes ? [[0, 'visorTouch', 700]] : [[0, 'charge', 500], [charge, 'cast', 900]], speedMul: 0, aim: true, eyes: !!o.eyes, noControl: !!o.sweep,
       tick: (a, t, dt) => {
-        const origin = front(f, .7, 1.15);
+        if (o.sweep && t >= charge) { if (base === null) base = f.yaw; f.yaw = base - o.sweep / 2 + o.sweep * clamp((t - charge) / dur, 0, 1); }
+        const origin = o.eyes ? front(f, .35, 1.72) : front(f, .7, 1.15);
         if (t < charge) { const an = rand(0, TAU); emit(origin.x + Math.cos(an), origin.y + rand(-1, 1), origin.z + Math.sin(an), -Math.cos(an) * 6, rand(-2, 2), -Math.sin(an) * 6, o.color, .14, .18, 0, 0); return; }
         if (!grp) {
           grp = new THREE.Group();
@@ -1533,6 +1564,23 @@ const MOVES = {
   },
   counter(f, o) {
     startAction(f, { name: 'counter', dur: .9, counter: true, anim: [[0, 'counter', 700]], speedMul: 0, start: () => { ringAt(chestOf(f), '#ffffff', 1.6, .35, 'face', f.yaw); sfx('block', f.pos); } });
+  },
+  eyeBolts(f, o) {
+    startAction(f, {
+      name: 'bolts', dur: .5, eyes: true, aim: true, speedMul: .4, anim: [[0, 'visorTouch', 800]],
+      steps: [.1, .2, .3].map(at => ({ at, fn: () => { f.yaw = aimYawFor(f); spawnProj(f, f.yaw, Object.assign({}, o, { eyes: true })); sfx('zap', f.pos, .6); } })),
+    });
+  },
+  optoJump(f, o) {
+    startAction(f, {
+      name: 'optojump', dur: .7, eyes: true, noControl: true, anim: [[0, 'lookDown', 800], [.18, 'jump', 500]],
+      steps: [{ at: .15, fn: () => {
+        const p = new V3(f.pos.x, f.pos.y + .3, f.pos.z), F = fwd(f.yaw);
+        slashLine(new V3(f.pos.x + F.x * .3, f.pos.y + 1.72, f.pos.z + F.z * .3), p, o.color, .25, .3);
+        explode(f, p, 3.5, { dmg: 7, kb: 14, up: 10, ragdoll: .9, guardBreak: true, color: o.color });
+        f.vel.set(F.x * 6, 17, F.z * 6); f.onGround = false; f.iframes = Math.max(f.iframes, .3);
+      } }],
+    });
   },
   lunge(f, o) {
     const set = new Set();
@@ -1701,7 +1749,7 @@ const PROJ = [];
 function spawnProj(f, yaw, o) {
   const F = fwd(yaw), size = o.size || .4, speed = o.speed || 32;
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size * (o.long || 1)), new THREE.MeshBasicMaterial({ color: o.color }));
-  const p = { owner: f, pos: front(f, .8, 1.15), vel: F.multiplyScalar(speed), speed, life: (o.range || 30) / speed, o, mesh, size };
+  const p = { owner: f, pos: o.eyes ? front(f, .5, 1.72) : front(f, .8, 1.15), vel: F.multiplyScalar(speed), speed, life: (o.range || 30) / speed, o, mesh, size };
   mesh.position.copy(p.pos); scene.add(mesh); PROJ.push(p);
 }
 function updateProj(dt) {
@@ -2024,6 +2072,7 @@ function animate(f, dt) {
   if (f.frozen <= 0) f.anim.update(dt, pose, k, z, spin);
   const m = f.model;
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
+  eyeGlow(m, !!(a && a.eyes) || f.awak > 0, T);
   if (f.alive) m.root.visible = !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
   const fl = Math.max(0, f.flashT) / .12, aw = f.awak > 0 ? .12 + .08 * Math.sin(T * 8) : 0;
   if (fl > 0) m.mats.forEach(x => x.emissive.setRGB(fl * .9, fl * .9, fl * .9));
@@ -2088,7 +2137,7 @@ function updateHUD(dt) {
   $('ultwrap').classList.toggle('full', p.ult >= 100);
   $('ulttxt').textContent = p.awak > 0 ? `DESPERTAR ${Math.ceil(p.awak)}s` : p.ult >= 100 ? '¡G PARA LA ULTI!' : `${Math.floor(p.ult)}%`;
   $('kills').textContent = p.kills; $('deaths').textContent = p.deaths;
-  $('ailvl').textContent = G.mp ? `${NET.code.slice(3)} · ${NET.proxies.size + 1} jugando` : (Math.round(G.botLvl * 10) / 10) + (G.auto ? ' ⇅' : '');
+  $('ailvl').textContent = G.mp ? `${NET.code.slice(3)} · ${NET.proxies.size + 1} jugando${NET.named && NET.named.isHost ? ' · anfitrión' : NET.named && NET.named.ping ? ` · ${NET.named.ping} ms` : ''}` : (Math.round(G.botLvl * 10) / 10) + (G.auto ? ' ⇅' : '');
   const slots = $('skills').children;
   p.ch.skills.forEach((s, i) => { const el = slots[i]; if (!el) return; el.firstChild.style.height = (p.cd[i] / s.cd * 100) + '%'; el.lastChild.textContent = p.cd[i] > 0 ? Math.ceil(p.cd[i]) : ''; });
   const us = slots[4]; if (us) { us.firstChild.style.height = (100 - p.ult) + '%'; us.classList.toggle('ready', p.ult >= 100); }
@@ -2201,6 +2250,7 @@ function showSelect(id, quiet) {
   const model = buildModel(skin, G.customSkin ? G.customSlim : !!ch.slim, SH.scene);
   SH.fig = { model, anim: new Animator(model), ch };
   if (ch.weapon === 'spear') { SH.fig.spear = buildSpear(); model.mats.push(SH.fig.spear.material); setSpear(SH.fig, false); }
+  if (ch.eyeLaser) addEyes(model, ch.color);
   model.root.position.set(0, 4, 0); model.root.rotation.y = .35;
   SH.drop = 0; SH.landed = false; SH.kf = null; SH.camZ = quiet ? 5 : 8; SH.flourT = rand(6, 8);
   SH.rim.color.set(ch.color); SH.rim2.color.set(ch.color); SH.ring.material.color.set(ch.color);
@@ -2255,6 +2305,7 @@ function updateShow(dt) {
     f.anim.update(dt, pose, k, .62);
   }
   f.model.root.rotation.y = .35 + Math.sin(SH.t * .45) * .12;
+  eyeGlow(f.model, !!(SH.kf && SH.kfT > .1 && SH.kfT < .7), SH.t);
   if (Math.random() < dt * 40) { const a = rand(0, TAU), r = rand(.3, 1.6); SH.parts.emit(Math.cos(a) * r, .15, Math.sin(a) * r, 0, rand(.8, 2), 0, Math.random() < .3 ? '#ffffff' : ch.color, rand(.04, .09), rand(1, 2), -.02, .3); }
   SH.parts.update(dt);
   SH.bgTex.offset.x += dt * .012;
@@ -2391,7 +2442,7 @@ addEventListener('resize', () => {
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const NET = { room: null, named: null, code: '', ready: false, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
+const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
 const _tp = new V3();
 function netAct(a) { a.s = ++NET.actSeq; NET.act = a; }
@@ -2406,31 +2457,57 @@ async function netInit() {
 function p2pRoom(code, tries = 0) {
   return new Promise((resolve, reject) => {
     const hostId = 'blockstrike-v1-' + code;
-    const R = { name: 'bs-' + code, my: {}, myId: null, isHost: false, states: new Map(), conns: new Map(), host: null, cbs: [], peer: null, closed: false, settled: false };
-    const done = (ok, v) => { if (R.settled) return; R.settled = true; ok ? resolve(v) : reject(v); };
+    const R = { name: 'bs-' + code, my: {}, myId: null, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), conns: new Map(), host: null, cbs: [], peer: null, closed: false, settled: false, ping: 0, mySkin: null, lastSend: 0, timer: 0 };
+    const STALE = 8000;
+    const done = (ok, v) => { if (R.settled) return; R.settled = true; if (!ok) clearInterval(R.timer); ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
-    R.peers = () => { const a = [{ peer: R.myId, sameTab: true, isMe: true, presence: R.my }]; for (const [id, d] of R.states) a.push({ peer: id, sameTab: false, isMe: false, presence: d }); return a; };
+    const toAll = (msg, except) => { for (const [cid, c] of R.conns) if (cid !== except && c.open) try { c.send(msg); } catch (e) { } };
+    const send = msg => { try { if (R.isHost) toAll(msg); else if (R.host && R.host.open) R.host.send(msg); } catch (e) { } };
+    R.peers = () => {
+      const now = Date.now(), a = [{ peer: R.myId, sameTab: true, isMe: true, presence: R.my }];
+      for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
+      return a;
+    };
     R.onPeers = fn => { R.cbs.push(fn); return () => { R.cbs = R.cbs.filter(x => x !== fn); }; };
     let lastKey = '';
     R.presence = patch => {
       for (const k in patch) { if (patch[k] === null) delete R.my[k]; else R.my[k] = patch[k]; }
-      const msg = { t: 'p', id: R.myId, d: R.my };
-      try { if (R.isHost) { for (const c of R.conns.values()) if (c.open) c.send(msg); } else if (R.host && R.host.open) R.host.send(msg); } catch (e) { }
+      send({ t: 'p', id: R.myId, d: R.my }); R.lastSend = Date.now();
       const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
       return Promise.resolve();
     };
-    R.leave = () => { R.closed = true; try { R.peer.destroy(); } catch (e) { } return Promise.resolve(); };
+    R.setSkin = d => { R.mySkin = d; if (R.myId) { R.skins.set(R.myId, d); send({ t: 'sk', id: R.myId, d }); } };
+    const forget = id => { R.states.delete(id); R.seen.delete(id); R.skins.delete(id); if (R.isHost) { const c = R.conns.get(id); R.conns.delete(id); if (c) try { c.close(); } catch (e) { } toAll({ t: 'x', id }); } notify(); };
+    R.leave = () => { R.closed = true; clearInterval(R.timer); try { R.peer.destroy(); } catch (e) { } return Promise.resolve(); };
+    // latido: reenvía el estado, mide el ping y borra a quien dejó de responder (recargas, cortes)
+    R.timer = setInterval(() => {
+      if (R.closed || !R.myId) return;
+      const now = Date.now();
+      if (now - R.lastSend > 1500) R.presence({});
+      if (!R.isHost) send({ t: 'pi', ts: now });
+      let gone = false;
+      for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) { forget(id); gone = true; }
+      if (gone) notify();
+    }, 2000);
     const onData = (fromId, m) => {
       if (!m || typeof m !== 'object') return;
       if (m.t === 'p' && m.d && typeof m.d === 'object') {
         const id = R.isHost ? fromId : String(m.id);
         if (id === R.myId) return;
-        const prev = R.states.get(id); R.states.set(id, m.d);
-        if (R.isHost) for (const [cid, c] of R.conns) if (cid !== fromId && c.open) c.send({ t: 'p', id, d: m.d });
+        const prev = R.states.get(id); R.states.set(id, m.d); R.seen.set(id, Date.now());
+        if (R.isHost) toAll({ t: 'p', id, d: m.d }, fromId);
         if (!prev || prev.st !== m.d.st || prev.nm !== m.d.nm || prev.ch !== m.d.ch) notify();
-      } else if (m.t === 'x' && !R.isHost) { R.states.delete(String(m.id)); notify(); }
+      } else if (m.t === 'x' && !R.isHost) { forget(String(m.id)); }
+      else if (m.t === 'sk') {
+        const id = R.isHost ? fromId : String(m.id), d = typeof m.d === 'string' && m.d.length < 24000 ? m.d : null;
+        if (id === R.myId) return;
+        R.skins.set(id, d); if (R.isHost) toAll({ t: 'sk', id, d }, fromId);
+        if (R.onSkin) R.onSkin(id, d);
+      }
+      else if (m.t === 'pi' && R.isHost) { const c = R.conns.get(fromId); if (c && c.open) c.send({ t: 'po', ts: m.ts }); }
+      else if (m.t === 'po' && !R.isHost) { R.ping = Math.max(0, Date.now() - (+m.ts || 0)); }
     };
-    const retry = () => { try { R.peer.destroy(); } catch (e) { } if (tries >= 5) done(false, { code: 'no_host' }); else setTimeout(() => p2pRoom(code, tries + 1).then(r => done(true, r), e => done(false, e)), 1500); };
+    const retry = () => { clearInterval(R.timer); try { R.peer.destroy(); } catch (e) { } if (tries >= 5) done(false, { code: 'no_host' }); else setTimeout(() => p2pRoom(code, tries + 1).then(r => done(true, r), e => done(false, e)), 1500); };
     const startClient = () => {
       R.peer = new Peer({ debug: 0 });
       R.peer.on('open', id => {
@@ -2438,24 +2515,43 @@ function p2pRoom(code, tries = 0) {
         const c = R.peer.connect(hostId, { serialization: 'json' });
         R.host = c;
         const to = setTimeout(retry, 9000);
-        c.on('open', () => { clearTimeout(to); done(true, R); });
+        c.on('open', () => { clearTimeout(to); if (R.mySkin) c.send({ t: 'sk', id: R.myId, d: R.mySkin }); done(true, R); });
         c.on('data', m => onData(hostId, m));
-        c.on('close', () => { R.states.clear(); notify(); if (!R.closed && R.onLost) R.onLost(); });
+        c.on('close', () => { R.states.clear(); R.seen.clear(); notify(); if (!R.closed && R.onLost) R.onLost(); });
       });
       R.peer.on('error', e => { if (e.type === 'peer-unavailable' && !R.settled) retry(); else if (!R.settled) done(false, { code: e.type }); });
     };
     R.peer = new Peer(hostId, { debug: 0 });
-    R.peer.on('open', id => { R.myId = id; R.isHost = true; done(true, R); });
+    R.peer.on('open', id => { R.myId = id; R.isHost = true; if (R.mySkin) R.skins.set(id, R.mySkin); done(true, R); });
     R.peer.on('connection', c => {
-      c.on('open', () => { R.conns.set(c.peer, c); if (Object.keys(R.my).length) c.send({ t: 'p', id: R.myId, d: R.my }); for (const [id, d] of R.states) c.send({ t: 'p', id, d }); });
+      c.on('open', () => {
+        R.conns.set(c.peer, c);
+        if (Object.keys(R.my).length) c.send({ t: 'p', id: R.myId, d: R.my });
+        const now = Date.now();
+        for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) c.send({ t: 'p', id, d });
+        for (const [id, d] of R.skins) if (d) c.send({ t: 'sk', id, d });
+      });
       c.on('data', m => onData(c.peer, m));
-      c.on('close', () => { R.conns.delete(c.peer); R.states.delete(c.peer); for (const c2 of R.conns.values()) if (c2.open) c2.send({ t: 'x', id: c.peer }); notify(); });
+      c.on('close', () => { if (R.conns.get(c.peer) === c) forget(c.peer); });
     });
     R.peer.on('error', e => {
       if (e.type === 'unavailable-id' && !R.settled) { try { R.peer.destroy(); } catch (x) { } startClient(); }
       else if (!R.settled) done(false, { code: e.type });
     });
   });
+}
+// skins personalizadas compartidas (solo en la sala directa: la de claude.ai tiene un límite de 4 KB por jugador)
+function netSkin(id, d) {
+  if (!d || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(d)) { if (NET.skins[id]) { delete NET.skins[id]; removeProxy(id); } return; }
+  const img = new Image();
+  img.onload = () => { const c = normalizeSkin(img); if (!c) return; NET.skins[id] = { c, slim: detectSlim(c) }; removeProxy(id); };
+  img.src = d;
+}
+function netShareSkin() {
+  if (!NET.named || !NET.named.setSkin) return;
+  let d = null;
+  try { if (G.customSkin) d = G.customSkin.toDataURL('image/png'); } catch (e) { }
+  NET.named.setSkin(d);
 }
 function inviteLink() { return location.origin + location.pathname + '#sala-' + cleanCode($('roomcode').value); }
 function cleanCode(s) { s = String(s || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 40); return s || 'amigos'; }
@@ -2468,7 +2564,12 @@ async function joinRoom() {
     $('netstat').textContent = 'Conectando…';
     NET.named = NET.room === 'p2p' ? await p2pRoom(code.slice(3)) : await NET.room.join(code); NET.code = code;
     NET.named.onPeers(() => renderLobby(), () => { NET.named = null; renderNetStatus(); });
-    if (NET.room === 'p2p') NET.named.onLost = () => { NET.named = null; addFeedText('El anfitrión salió: reconectando…', '#ffd166'); setTimeout(joinRoom, 800); };
+    if (NET.room === 'p2p') {
+      NET.named.onLost = () => { const old = NET.named; NET.named = null; try { old.leave(); } catch (e) { } addFeedText('Se cortó la conexión con el anfitrión: reconectando…', '#ffd166'); setTimeout(joinRoom, 800); };
+      NET.named.onSkin = netSkin;
+      for (const [id, d] of NET.named.skins) netSkin(id, d);
+      netShareSkin();
+    }
     netMenuPresence(); renderLobby();
     return true;
   } catch (e) {
@@ -2559,6 +2660,7 @@ function proxyUpdate(px, dt) {
   const fl = Math.max(0, px.flashT) / .12;
   m.mats.forEach(x => { if (fl > 0) x.emissive.setRGB(fl * .9, fl * .9, fl * .9); else if (px.awak) x.emissive.set(px.ch.color).multiplyScalar(.15); else x.emissive.setRGB(0, 0, 0); });
   if (px.action) updateAction(px, dt);
+  eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000);
 }
 function netTick(dt) {
   if (!NET.named) return;
@@ -2572,12 +2674,13 @@ function netTick(dt) {
     let px = NET.proxies.get(pe.peer);
     if (px && px.ch !== CHARS[pr.ch]) { removeProxy(pe.peer); px = null; }
     if (!px) {
-      px = new Fighter({ name: String(pr.nm || 'Amigo').slice(0, 16), char: pr.ch, remote: true, peer: pe.peer });
+      const sk = NET.skins[pe.peer];
+      px = new Fighter({ name: String(pr.nm || 'Amigo').slice(0, 16), char: pr.ch, remote: true, peer: pe.peer, skin: sk ? sk.c : null, slim: sk ? sk.slim : false });
       px.pos.set(+pr.x || 0, +pr.y || 0, +pr.z || 0); NET.proxies.set(pe.peer, px); G.fighters.push(px);
       NET.lastHit[pe.peer] = Math.max(0, ...(Array.isArray(pr.hits) ? pr.hits.map(h => +h.s || 0) : [0]));
       NET.lastAct[pe.peer] = pr.act ? pr.act.s : 0;
       NET.lastKo[pe.peer] = pr.ko ? pr.ko.n : 0;
-      addFeedText(`${px.name} entró a la arena`, px.ch.color);
+      if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
     if (Array.isArray(pr.hits)) {
@@ -2592,7 +2695,7 @@ function netTick(dt) {
       if (killer && killer === G.player) { G.player.kills++; G.player.ult = Math.min(100, G.player.ult + 20); showBanner('K.O.', '#d7ff2f', `${px.name} fuera`); G.slowT = .3; sfx('ko', px.pos); }
     }
   }
-  for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); removeProxy(peer); }
+  for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
   if (NET.sendT <= 0) { NET.sendT = 1 / 25; netSendPlay(); }
@@ -2616,6 +2719,7 @@ function setCustomSkin(c, msg) {
   $('skinreset').classList.toggle('hidden', !c);
   $('skinmsg').textContent = msg;
   if (G.state === 'menu') showSelect(G.charId, true);
+  netShareSkin();
 }
 function openTab(name) {
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === name));
