@@ -49,6 +49,11 @@ body.cine #hud{opacity:0}
 .mc canvas{width:40px;height:40px;border:2px solid #000}
 .mc b{font-family:var(--display);font-weight:400;font-size:22px;color:#fff;text-shadow:2px 2px 0 #000}
 .mc small{display:block;font-size:11px;font-weight:700}
+#cinetitle{position:fixed;left:6%;bottom:calc(11vh + 18px);pointer-events:none;z-index:5;opacity:0;max-width:88vw}
+#cinetitle small{display:block;font-family:var(--body);font-weight:700;letter-spacing:.35em;font-size:14px;color:var(--cc);text-shadow:0 2px 0 #000}
+#cinetitle b{display:block;font-family:var(--display);font-weight:400;font-size:clamp(44px,7vw,96px);line-height:.95;color:#fff;font-style:italic;text-shadow:5px 5px 0 var(--cc),9px 9px 0 #000;transform:skewX(-10deg)}
+#cinetitle.show{animation:ctin .5s cubic-bezier(.2,.9,.3,1.2) forwards}
+@keyframes ctin{0%{opacity:0;transform:translateX(-80px) scale(1.3)}100%{opacity:1;transform:none}}
 @keyframes mcin{0%{transform:translateX(-110%)}12%{transform:translateX(0)}85%{transform:translateX(0);opacity:1}100%{transform:translateX(-30%);opacity:0}}
 
 #plates,#nums{position:fixed;inset:0;pointer-events:none;overflow:hidden}
@@ -206,6 +211,7 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="lb"><i></i><i></i></div>
 <div id="cutin" class="hidden"><div class="band"></div><canvas id="cutface" class="px" width="8" height="8"></canvas><div class="ctxt"><small id="cutwho"></small><b id="cutult"></b></div></div>
 <div id="minicut"></div>
+<div id="cinetitle"><small id="ctwho"></small><b id="ctult"></b></div>
 <div id="flash"></div>
 
 <div id="hud" class="hidden">
@@ -722,6 +728,22 @@ Object.assign(POSE, {
 POSE.block.sx = 1.2;
 POSE.visorTouch = { ty: .15, by: -1, arx: -2.35, arz: .55, ary: .2, alx: -.3, alz: .2, hx: -.05, llx: -.3, lrx: .25 };
 POSE.lookDown = { hx: .9, tx: .4, by: -3, arx: -2.35, arz: .55, llx: -.3, lrx: .3 };
+// poses de los personajes propios: recuperaciones, giros, golpes de cetro, patadas y poses de héroe
+Object.assign(POSE, {
+  thrustRec: { ty: .15, tx: .08, by: -1.6, arx: -1.05, sx: 1.05, arz: .1, alx: -.7, alz: -.2, llx: -.6, lrx: .5, hy: -.15 },
+  sweepRec: { ty: .5, by: -1.4, arx: -.9, arz: -.6, sx: .8, alx: -.2, alz: .2, llx: -.5, lrx: .45, hy: -.3 },
+  twirlPose: { ty: .2, by: -.8, arx: -1.2, arz: .3, sx: 1.2, alx: -.5, alz: -.3, llx: -.25, lrx: .25, hy: -.3 },
+  lancerAlt: { ty: -.35, tx: .1, by: -2.2, arx: -.6, sx: .6, arz: -.2, alx: -1.2, alz: -.5, llx: -.7, lrx: .6, llz: .12, lrz: -.12, hy: .3 },
+  scepterW: { ty: -.8, by: -1, arx: -2.4, arz: .5, sx: 2.0, alx: -.6, alz: -.3, llx: -.4, lrx: .35, hy: .4 },
+  scepterSmash: { ty: .6, tx: .35, ix: .15, by: -2.5, arx: -1.0, sx: 2.2, alx: .3, alz: .4, llx: -.8, lrx: .6, hy: -.4 },
+  magicPalm: { ty: -.5, tx: .1, by: -1.5, alx: -1.6, alz: -.2, aly: .4, arx: -.25, sx: -1.25, arz: .1, llx: -.55, lrx: .45, hy: .45 },
+  kickHigh: { ty: -.7, ix: -.35, iz: .2, by: 1, lrx: -2.2, lrz: .3, llx: .3, arx: .5, arz: -.7, alx: -1.1, alz: .5, hy: .6 },
+  redStance: { ty: .3, tx: .05, by: -1.2, arx: -1.1, arz: .3, alx: -.9, alz: -.3, llx: -.4, lrx: .35, llz: .1, lrz: -.1, hy: -.25 },
+  javiHero: { ty: .5, tx: .1, by: -2.5, arx: -.75, sx: .4, arz: -.2, alx: -1.0, alz: -.6, llx: -.9, lrx: .7, llz: .15, lrz: -.15, hy: -.5 },
+  gatoHero: { ty: .3, by: -.5, arx: -2.6, arz: .2, sx: 1.0, alx: -.4, alz: .6, hx: -.25, hy: -.3, llx: -.1, lrx: .2 },
+  redHero: { ty: .2, by: -1.5, arx: -2.35, arz: .55, ary: .2, alx: -1.5, alz: -.2, hx: -.1, hy: -.2, llx: -.5, lrx: .4 },
+  bow: { ix: .25, tx: .35, hx: .3, by: -.5, arx: -.4, arz: .2, sx: -1, alx: -.2, alz: .3 },
+});
 function stancePose(ch, T, seed, out) {
   const b = POSE[out === false && POSE[ch.stance + 'Rest'] ? ch.stance + 'Rest' : ch.stance] || POSE.idle, s = Math.sin(T * 2.6 + seed);
   const o = Object.assign({}, b);
@@ -764,12 +786,27 @@ class Animator {
 }
 
 // ================= Peleadores =================
+// combos con anticipación → golpe (resorte duro, se pasa un poco) → recuperación
 const SPEAR_M1 = [
-  { anim: [[0, 'thrust_w', 800], [.05, 'thrust', 1100]], stab: true, reach: 1.9, r: 1.15 },
-  { anim: [[0, 'sweep_w', 800], [.06, 'sweep', 1100]], arc: { tilt: .12, len: 2.8, r: 2.2, w: .5, dir: 1 }, reach: 1.4, r: 1.6 },
-  { anim: [[0, 'thrust_w', 800], [.05, 'thrust', 1100]], stab: true, reach: 1.9, r: 1.15 },
-  { anim: [[0, 'overhead', 800], [.09, 'plunge', 1100]], arc: { tilt: 1.57, len: 2.2, r: 2.2, w: .6, dir: -1 }, reach: 1.7, r: 1.4 },
-  { anim: [[0, 'thrust_w', 800], [.08, 'upthrust', 1100]], arc: { tilt: 1.57, len: 1.6, r: 2.2, dir: 1 }, reach: 1.6, r: 1.3 },
+  { anim: [[0, 'thrust_w', 900], [.05, 'thrust', 1400], [.16, 'thrustRec', 500]], stab: true, reach: 1.9, r: 1.15 },
+  { anim: [[0, 'sweep_w', 900], [.06, 'sweep', 1400], [.17, 'sweepRec', 500]], arc: { tilt: .12, len: 2.8, r: 2.2, w: .5, dir: 1 }, reach: 1.4, r: 1.6 },
+  { anim: [[0, 'lancerAlt', 900], [.05, 'thrust', 1400], [.16, 'thrustRec', 500]], stab: true, reach: 1.9, r: 1.15 },
+  { anim: [[0, 'overhead', 900], [.09, 'plunge', 1400], [.26, 'javiHero', 450]], arc: { tilt: 1.57, len: 2.2, r: 2.2, w: .6, dir: -1 }, reach: 1.7, r: 1.4, twirl: true },
+  { anim: [[0, 'thrust_w', 900], [.08, 'upthrust', 1400]], arc: { tilt: 1.57, len: 1.6, r: 2.2, dir: 1 }, reach: 1.6, r: 1.3, twirl: true },
+];
+const GATO_M1 = [
+  { anim: [[0, 'scepterW', 900], [.06, 'sweep', 1400], [.17, 'sweepRec', 500]], arc: { tilt: .5, len: 2.6, r: 2.1, w: .45, dir: 1 }, reach: 1.5, r: 1.5, magic: true },
+  { anim: [[0, 'sweep_w', 900], [.06, 'thrust', 1400], [.16, 'thrustRec', 500]], stab: true, reach: 1.9, r: 1.15, magic: true },
+  { anim: [[0, 'twirlPose', 800], [.07, 'magicPalm', 1400]], palm: true, reach: 1.6, r: 1.4 },
+  { anim: [[0, 'scepterW', 900], [.09, 'scepterSmash', 1400], [.26, 'gatoHero', 450]], arc: { tilt: 1.4, len: 2.4, r: 2.2, w: .7, dir: -1 }, reach: 1.6, r: 1.6, magic: true, twirl: true },
+  { anim: [[0, 'thrust_w', 900], [.08, 'upthrust', 1400]], arc: { tilt: 1.57, len: 1.6, r: 2.2 }, reach: 1.6, r: 1.3, magic: true, twirl: true },
+];
+const RED_M1 = [
+  { anim: [[0, 'jabR_w', 900], [.05, 'jabR', 1400], [.15, 'redStance', 500]], arc: { tilt: .25, dir: 1 }, reach: 1.25, r: 1.25 },
+  { anim: [[0, 'kick_w', 900], [.06, 'kick', 1400]], arc: { tilt: -.4, r: 1.9, w: .7, len: 2.6, dir: -1 }, reach: 1.4, r: 1.35 },
+  { anim: [[0, 'kick_w', 900], [.05, 'kickHigh', 1400]], spin: TAU / .26, arc: { tilt: -.15, len: TAU * .9, r: 2, w: .5 }, reach: 1.1, r: 1.7 },
+  { anim: [[0, 'visorTouch', 900], [.09, 'kickHigh', 1400], [.26, 'redHero', 450]], eyeStab: true, arc: { tilt: -.5, r: 2, w: .75, len: 2.8, dir: -1 }, reach: 1.6, r: 1.5 },
+  { anim: [[0, 'upper_w', 900], [.08, 'upper', 1400]], eyeStab: true, arc: { tilt: 1.57, r: 1.6, len: 2.4 }, reach: 1.3, r: 1.3 },
 ];
 const CHARS = {
   javi: {
@@ -786,10 +823,12 @@ const CHARS = {
     ],
     ult: { n: 'Lluvia de Lanzas', d: 'Salta y hace llover lanzas sobre la zona; la última es gigante.', k: 'spearRain', o: {}, r: [0, 18] },
     intro: [[0, 'reach', 700], [.3, 'thrust_w', 800], [.45, 'thrust', 1100], [.75, 'sweep_w', 800], [.88, 'sweep', 1100], [1.25, 'lancer', 400]],
-    cine: [[0, 'reach', 500], [.5, 'spearThrowW', 600], [1.05, 'lance', 700]],
+    cine: [[0, 'reach', 500], [.45, 'twirlPose', 600], [.9, 'spearThrowW', 700], [1.4, 'javiHero', 1000]],
+    cineTwirl: [[.45, 2, .45], [1.4, 1, .3]],
+    flourish: { dur: 1.1, anim: [[0, 'twirlPose', 600], [.45, 'lancerAlt', 700], [.85, 'lancer', 400]], twirl: [2, .45], needWeapon: true },
   },
   redbird: {
-    name: 'Redbird', title: 'Visor Carmesí', role: 'LÁSER', color: '#ff2d55', hp: 95, spd: 1, ai: 'ranged', stance: 'loose', eyeLaser: true,
+    name: 'Redbird', title: 'Visor Carmesí', role: 'LÁSER', color: '#ff2d55', hp: 95, spd: 1, ai: 'ranged', stance: 'redStance', eyeLaser: true, m1set: RED_M1,
     desc: 'Dispara rayos láser por los ojos a través de su visor. Barre la arena con el láser y se impulsa disparando al piso.',
     stats: [3, 4, 3, 5, 3],
     skinData: 'data:image/png;base64,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',
@@ -802,10 +841,12 @@ const CHARS = {
     ],
     ult: { n: 'Visor Máximo', d: 'Abre el visor del todo: un rayo gigante que rompe guardias.', k: 'beam', o: { eyes: true, len: 45, width: 2.2, dur: 1.8, dmg: 3.4, gb: true, push: 11, charge: .8 }, r: [2, 32] },
     intro: [[0, 'visorTouch', 600], [.6, 'point', 600], [1.1, 'loose', 400]],
-    cine: [[0, 'visorTouch', 400], [.9, 'cast', 600]],
+    cine: [[0, 'loose', 400], [.45, 'visorTouch', 600], [.9, 'charge', 700], [1.4, 'redHero', 1000]],
+    cineEyes: .45,
+    flourish: { dur: 1.0, anim: [[0, 'visorTouch', 600], [.55, 'point', 600], [.85, 'redStance', 400]], eyes: true },
   },
   gato: {
-    name: 'elGatopro300', title: 'Dios del Engaño', role: 'ILUSIONISTA', color: '#3ddc84', hp: 90, spd: 1.08, ai: 'mid', stance: 'elegant', weapon: 'scepter', m1set: SPEAR_M1, introDraw: .45,
+    name: 'elGatopro300', title: 'Dios del Engaño', role: 'ILUSIONISTA', color: '#3ddc84', hp: 90, spd: 1.08, ai: 'mid', stance: 'elegant', weapon: 'scepter', m1set: GATO_M1, introDraw: .45,
     desc: 'Maestro de las ilusiones: crea copias de sí mismo que persiguen y explotan, aparece a tus espaldas dejando un señuelo y hechiza con su cetro.',
     stats: [2, 4, 4, 4, 5],
     skinData: 'data:image/png;base64,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',
@@ -818,7 +859,9 @@ const CHARS = {
     ],
     ult: { n: 'Ejército de Ilusiones', d: 'Seis copias salen en círculo, persiguen a todos y explotan.', k: 'illusion', o: { count: 6, dmg: 7, speed: 14, life: 3.2, army: true }, r: [0, 22] },
     intro: [[0, 'cross', 500], [.45, 'signs', 600], [.8, 'point', 700], [1.2, 'elegant', 400]],
-    cine: [[0, 'signs', 400], [.9, 'point', 600]],
+    cine: [[0, 'signs', 400], [.45, 'magicPalm', 600], [.9, 'scepterW', 700], [1.4, 'gatoHero', 1000]],
+    cineTwirl: [[.9, 1, .4], [1.4, 2, .4]],
+    flourish: { dur: 1.3, anim: [[0, 'cross', 500], [.4, 'magicPalm', 700], [.8, 'bow', 500], [1.1, 'elegant', 400]], twirl: [1, .4], needWeapon: true, magic: .45 },
   },
   kaiza: {
     name: 'Kaiza', title: 'Puño Carmesí', role: 'PELEADOR', color: '#ff4d4d', hp: 100, spd: 1, ai: 'melee', stance: 'idle',
@@ -959,7 +1002,7 @@ class Fighter {
     }
   }
   reset() {
-    Object.assign(this, { hp: this.maxHp, ult: 0, awak: 0, stun: 0, ragdoll: 0, iframes: 0, action: null, blocking: false, comboIdx: 0, comboTimer: 0, m1cd: 0, dashCd: 0, dashT: 0, airDash: true, alive: true, respawnT: 0, deathT: 0, cd: [0, 0, 0, 0], onGround: true, hurtT: 0, hurtPose: 'hurtA', getupT: 0, landT: 0, flashT: 0, frozen: 0, grabbed: false, ghostT: 0, spearThrown: false, atkT: 0 });
+    Object.assign(this, { hp: this.maxHp, ult: 0, awak: 0, stun: 0, ragdoll: 0, iframes: 0, action: null, blocking: false, comboIdx: 0, comboTimer: 0, m1cd: 0, dashCd: 0, dashT: 0, airDash: true, alive: true, respawnT: 0, deathT: 0, cd: [0, 0, 0, 0], onGround: true, hurtT: 0, hurtPose: 'hurtA', getupT: 0, landT: 0, flashT: 0, frozen: 0, grabbed: false, ghostT: 0, spearThrown: false, atkT: 0, flourT: rand(3, 6), twirl: null, twA: 0 });
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
@@ -1052,7 +1095,7 @@ function iceBlock(f, dur) {
   const g = new THREE.BoxGeometry(1.25, 2.3, 1.25), m = new THREE.MeshBasicMaterial({ color: '#bfe3ff', transparent: true, opacity: .45, depthWrite: false }), mesh = new THREE.Mesh(g, m);
   addFx(mesh, dur, (o, k) => { o.position.set(f.pos.x, f.pos.y + 1.1, f.pos.z); m.opacity = k > .85 ? .45 * (1 - (k - .85) / .15) : .45; if (!f.alive || f.frozen <= 0) o.visible = false; });
 }
-function screenFlash(op = .7) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = op; requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = 'opacity .45s'; f.style.opacity = 0; })); }
+function screenFlash(op = .7) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 0; try { f.animate([{ opacity: op }, { opacity: 0 }], { duration: 450, easing: 'ease-out' }); } catch (e) { } }
 function shakeFrom(p, amt) { const d = camera.position.distanceTo(p); G.shake = Math.max(G.shake, amt * clamp(1 - d / 40, 0, 1)); }
 
 // ================= Números de daño =================
@@ -1225,7 +1268,7 @@ function applyHit(att, t, o) {
     popText(chest, Math.max(1, Math.round(dmg)), t.isPlayer ? '#ff6b6b' : (heavy ? '#d7ff2f' : '#ffffff'), heavy ? 30 : 22);
   }
   if (att.isPlayer) { G.combo++; G.comboT = 1.6; const c = $('combo'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
-  if (t.isPlayer) { const v = $('dmgv'); v.style.transition = 'none'; v.style.opacity = .8; requestAnimationFrame(() => requestAnimationFrame(() => { v.style.transition = 'opacity .5s'; v.style.opacity = 0; })); G.combo = 0; }
+  if (t.isPlayer) { try { $('dmgv').animate([{ opacity: .8 }, { opacity: 0 }], { duration: 500, easing: 'ease-out' }); } catch (e) { } G.combo = 0; }
   if (t.hp <= 0) kill(t, att);
   return true;
 }
@@ -1319,8 +1362,25 @@ const M1 = [
   { anim: [[0, 'jabL_w', 800], [.05, 'jabL', 1100]], arc: { tilt: -.25, dir: -1 } },
   { anim: [[0, 'hook_w', 800], [.06, 'hook', 1100]], arc: { tilt: .08, dir: 1, len: 2.9, r: 1.75, w: .6 } },
 ];
+// giro del arma en la mano (vueltas completas con aceleración suave), puramente visual
+function twirlAngle(o, dt) {
+  const w = o.twirl; if (!w) return 0;
+  w.t += dt; const k = Math.min(1, w.t / w.dur);
+  if (k >= 1) { o.twirl = null; return 0; }
+  return w.turns * TAU * (k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
+}
+const startTwirl = (o, turns, dur) => { if (o.spear) o.twirl = { t: 0, dur, turns }; };
+function startFlourish(f) {
+  const fl = f.ch.flourish;
+  if (fl.needWeapon && !f.spearOut) return;
+  startAction(f, {
+    name: 'flourish', soft: true, speedMul: 1, dur: fl.dur, anim: fl.anim, eyes: !!fl.eyes,
+    start: () => { if (fl.twirl) startTwirl(f, fl.twirl[0], fl.twirl[1]); },
+    steps: fl.magic ? [{ at: fl.magic, fn: () => { const p = front(f, .6, 1.3); burst(p, 14, f.ch.color, 3, .12, .5, -.3); burst(p, 6, '#ffd54f', 2, .08, .4, -.3); } }] : [],
+  });
+}
 function doM1(f, upVariant) {
-  if (f.action && f.action.name === 'stow') endAction(f);
+  if (f.action && f.action.soft) endAction(f);
   if (f.m1cd > 0 || f.action) return;
   if (f.spear && !f.spearOut && !f.remote) { drawSpear(f); return; }
   if (f.comboTimer <= 0) f.comboIdx = 0;
@@ -1331,11 +1391,15 @@ function doM1(f, upVariant) {
   const set = f.ch.m1set;
   const def = set ? set[fin ? (upVariant ? 4 : 3) : i] : fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i];
   startAction(f, {
-    name: 'm1', dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim,
+    name: 'm1', dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
     steps: [{
       at: fin ? .09 : .07, fn: () => {
         const F = fwd(f.yaw); if (f.onGround) { f.vel.x += F.x * 3; f.vel.z += F.z * 3; }
-        if (def.stab) stabFx(f, f.ch.color); else arcSlash(f, f.ch.color, def.arc);
+        if (def.stab) stabFx(f, f.ch.color); else if (!def.palm) arcSlash(f, f.ch.color, def.arc);
+        if (def.palm) { const p = front(f, 1.3, 1.25); sphereFlash(p, f.ch.color, 1.1, .25); burst(p, 14, f.ch.color, 7, .14, .3, 0); impactStar(p, '#ffd54f', 1.3, .18); }
+        if (def.magic) { const p = front(f, 2.0, 1.2); burst(p, 8, f.ch.color, 4, .12, .3, -.2); burst(p, 4, '#ffd54f', 3, .08, .25, -.2); }
+        if (def.eyeStab) { const a = front(f, .35, 1.72), b = front(f, 3.4, 1.4); slashLine(a, b, f.ch.color, .2, .16); slashLine(a, b, '#ffffff', .14, .06); sfx('zap', f.pos, .5); }
+        if (def.twirl) startTwirl(f, 1, .32);
         const o = fin
           ? { dmg: 6, kb: upVariant ? 2 : 17, up: upVariant ? 15 : 6, ragdoll: upVariant ? 0 : 1.0, stun: upVariant ? .9 : 0 }
           : { dmg: 3.5, stun: .45, kb: 1.4 };
@@ -1353,10 +1417,10 @@ function stabFx(f, col) {
 }
 function drawSpear(f) {
   f.atkT = 0;
-  startAction(f, { name: 'draw', dur: .3, speedMul: .8, anim: [[0, 'reach', 1000], [.13, 'thrust_w', 800]], steps: [{ at: .11, fn: () => { setSpear(f, true); sfx('draw', f.pos); arcSlash(f, f.ch.color, { tilt: -1.3, r: 1.7, len: 2.6, dir: -1, dur: .25 }); } }] });
+  startAction(f, { name: 'draw', dur: .34, speedMul: .8, anim: [[0, 'reach', 1100], [.13, 'twirlPose', 900], [.26, 'thrust_w', 700]], steps: [{ at: .11, fn: () => { setSpear(f, true); startTwirl(f, 1, .3); sfx('draw', f.pos); arcSlash(f, f.ch.color, { tilt: -1.3, r: 1.7, len: 2.6, dir: -1, dur: .25 }); } }] });
 }
 function prepWeapon(f) {
-  if (f.action && f.action.name === 'stow') endAction(f);
+  if (f.action && f.action.soft) endAction(f);
   f.atkT = 0;
   if (f.spear && !f.spearOut && !f.remote) { setSpear(f, true); f.anim.v.arx -= 20; sfx('draw', f.pos); arcSlash(f, f.ch.color, { tilt: -1.2, r: 1.6, len: 2.2, dir: -1, dur: .2 }); }
 }
@@ -1917,29 +1981,43 @@ function runUlt(f) {
   sfx('ult', f.pos);
 }
 function startCine(f) {
-  G.cine = { f, t: 0, dur: 1.7 };
+  G.cine = { f, t: 0, dur: 2.1, shot: 0 };
+  const tt = $('cinetitle'); tt.style.setProperty('--cc', f.ch.color); tt.classList.remove('show');
+  $('ctwho').textContent = `${f.ch.name.toUpperCase()} · ${f.ch.title.toUpperCase()}`; $('ctult').textContent = f.ch.ult.n.toUpperCase();
   f.vel.x = f.vel.z = 0; if (f.action) endAction(f); f.blocking = false;
   document.body.classList.add('cine');
   const ci = $('cutin'); ci.style.setProperty('--cc', f.ch.color);
   headPortrait(f.skin, $('cutface'));
   $('cutwho').textContent = `${f.name.toUpperCase()} · ${f.ch.name.toUpperCase()}`;
   $('cutult').textContent = f.ch.ult.n.toUpperCase();
-  ci.classList.remove('hidden', 'show'); void ci.offsetWidth; ci.classList.add('show');
+  ci.classList.add('hidden'); ci.classList.remove('show');
   sfx('ult', f.pos); sfx('whoosh');
 }
 function updateCine(dt) {
   const c = G.cine, f = c.f; c.t += dt;
   let pose = null, k = 450;
   for (const kf of f.ch.cine) if (c.t >= kf[0]) { pose = POSE[kf[1]]; k = kf[2] || 450; }
-  f.anim.update(dt, pose, k, .65);
+  f.anim.update(dt, pose, k, .6);
   f.model.root.position.copy(f.pos); f.model.root.rotation.y = f.yaw;
+  if (f.ch.cineTwirl) for (const tw of f.ch.cineTwirl) if (c.t >= tw[0] && c.t - dt < tw[0]) startTwirl(f, tw[1], tw[2]);
+  if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx + twirlAngle(f, dt);
+  eyeGlow(f.model, f.ch.cineEyes != null && c.t >= f.ch.cineEyes, c.t);
+  // cortes de cámara: destello, barrido de líneas, banner y título
+  const shot = c.t < .45 ? 0 : c.t < .9 ? 1 : c.t < 1.4 ? 2 : 3;
+  if (shot !== c.shot) {
+    c.shot = shot; screenFlash(shot === 3 ? .55 : .25); sfx('whoosh'); G.linesI = 1;
+    const ci = $('cutin');
+    if (shot === 1) { ci.classList.remove('hidden', 'show'); void ci.offsetWidth; ci.classList.add('show'); }
+    if (shot === 3) { ci.classList.add('hidden'); const tt = $('cinetitle'); tt.classList.remove('show'); void tt.offsetWidth; tt.classList.add('show'); sfx('heavy'); burst(chestOf(f), 40, f.ch.color, 9, .22, .6, -.2); ringAt(new V3(f.pos.x, f.pos.y, f.pos.z), f.ch.color, 5, .5); }
+    if (shot === 2) { ringAt(chestOf(f), '#ffffff', 3, .35, 'face', f.yaw); }
+  }
   const p = chestOf(f), an = rand(0, TAU);
   for (let i = 0; i < 2; i++) emit(p.x + Math.cos(an) * rand(.6, 1.4), p.y + rand(-1.2, 1.2), p.z + Math.sin(an) * rand(.6, 1.4), 0, rand(2, 5), 0, Math.random() < .4 ? '#ffffff' : f.ch.color, rand(.1, .22), .5, -.1, 1);
   f.model.mats.forEach(m => m.emissive.set(f.ch.color).multiplyScalar(.25 + .15 * Math.sin(c.t * 20)));
   PS.update(dt); updateFx(dt);
-  if (c.t > .75 && !c.cut) { c.cut = true; $('cutin').classList.add('hidden'); sfx('whoosh'); }
   if (c.t >= c.dur) {
     G.cine = null; document.body.classList.remove('cine');
+    $('cutin').classList.add('hidden'); $('cinetitle').classList.remove('show');
     f.model.mats.forEach(m => m.emissive.setRGB(0, 0, 0));
     runUlt(f); G.slowT = .25; G.fovKick = 10;
     if (f.isPlayer) showBanner(f.ch.ult.n.toUpperCase(), f.ch.color, 'DESPERTAR');
@@ -2034,6 +2112,7 @@ function aiCtl(f, dt) {
 }
 function applyCtl(f, c, dt) {
   const can = f.alive && f.stun <= 0 && f.ragdoll <= 0 && f.frozen <= 0 && !f.grabbed;
+  if (f.action && f.action.name === 'flourish' && (c.mx || c.mz || c.jump || c.block || c.dash)) endAction(f);
   const a = f.action;
   f.blocking = can && !a && c.block;
   let sp = 9 * f.ch.spd * (f.awak > 0 ? 1.15 : 1);
@@ -2060,7 +2139,7 @@ function applyCtl(f, c, dt) {
     if (f.isPlayer) G.fovKick = Math.max(G.fovKick, 5);
   }
   if (c.m1 && !f.blocking) doM1(f, c.up);
-  const busy = f.action && f.action.name !== 'stow';
+  const busy = f.action && !f.action.soft;
   if (c.skill >= 0 && !busy && !f.blocking) useSkill(f, c.skill);
   if (c.ult && !busy && f.ult >= 100) useUlt(f);
 }
@@ -2120,11 +2199,15 @@ function tickTimers(f, dt) {
   if (f.alive && (f.dashT > 0 || (f.action && f.action.ghost))) { f.ghostT -= dt; if (f.ghostT <= 0) { f.ghostT = .035; ghost(f, f.ch.color); } }
   if (f.spear) {
     f.atkT += dt;
-    if (f.spearOut && f.atkT > 4 && !f.action && f.alive && f.ragdoll <= 0 && f.stun <= 0 && !f.blocking && !f.spearThrown && f.onGround) {
+    if (f.spearOut && f.atkT > 9 && !f.action && f.alive && f.ragdoll <= 0 && f.stun <= 0 && !f.blocking && !f.spearThrown && f.onGround) {
       f.atkT = 0;
-      startAction(f, { name: 'stow', dur: .42, speedMul: .85, anim: [[0, 'reach', 800]], steps: [{ at: .22, fn: () => { setSpear(f, false); sfx('draw', f.pos, .5); } }] });
+      startAction(f, { name: 'stow', soft: true, dur: .5, speedMul: .85, anim: [[0, 'twirlPose', 800], [.12, 'reach', 900]], start: () => startTwirl(f, 1, .25), steps: [{ at: .3, fn: () => { setSpear(f, false); sfx('draw', f.pos, .5); } }] });
     }
   }
+  // pose de lucimiento cuando está quieto un rato
+  if (f.ch.flourish && f.alive && !f.action && f.onGround && !f.blocking && f.stun <= 0 && f.ragdoll <= 0 && Math.hypot(f.vel.x, f.vel.z) < 1) {
+    f.flourT -= dt; if (f.flourT <= 0) { f.flourT = rand(5, 9); startFlourish(f); }
+  } else f.flourT = Math.max(f.flourT, 2.5);
   const dy = wrapA(f.yaw - f.prevYaw); f.yawVel = f.yawVel * .8 + (dy / Math.max(dt, 1e-3)) * .2; f.prevYaw = f.yaw;
   if (!f.alive) {
     f.deathT += dt;
@@ -2152,8 +2235,17 @@ function animate(f, dt) {
   else if (f.landT > 0) { pose = POSE.land; k = 800; z = .55; }
   else if (sp > 1.5) { pose = runPose(f, sp); if (f.spearOut) { pose.arx = -.45 + Math.sin(f.walk) * .2; pose.sx = .3; pose.arz = .1; } k = 320; z = .75; }
   else { pose = stancePose(f.ch, T, f.seed, f.spearOut); k = 180; z = .8; }
+  // la cabeza mira al rival más cercano (vida extra sin tocar el cuerpo)
+  if (pose && f.alive && f.ragdoll <= 0 && f.stun <= 0 && f.hurtT <= 0 && !(a && a.spin)) {
+    const tg = f.isPlayer ? softLock(f, 12, -.2) : (f.ai && f.ai.target && f.ai.target.alive ? f.ai.target : null);
+    if (tg && dist2d(f, tg) < 14) {
+      const rel = clamp(wrapA(yawTo(f, tg) - f.yaw) - (f.anim.x.ty || 0), -.75, .75);
+      pose = Object.assign({}, pose, { hy: (pose.hy || 0) * .4 + rel * .75 });
+    }
+  }
   if (f.frozen <= 0) f.anim.update(dt, pose, k, z, spin);
   const m = f.model;
+  if (m.gripRot) { f.twA = twirlAngle(f, dt); m.gripRot.rotation.x = f.anim.x.sx + f.twA; }
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
   eyeGlow(m, !!(a && a.eyes) || f.awak > 0, T);
   if (f.alive) m.root.visible = !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
@@ -2257,15 +2349,29 @@ function drawLines(dt) {
 function updateCamera(dt) {
   if (G.cine) {
     const c = G.cine, f = c.f, F = fwd(f.yaw), Rr = rightOf(f.yaw);
-    if (c.t < .75) {
-      const d = 2.3 - c.t * .5;
-      camera.position.set(f.pos.x + F.x * d + Rr.x * .35, f.pos.y + 1.7, f.pos.z + F.z * d + Rr.z * .35);
-      camera.lookAt(f.pos.x, f.pos.y + 1.5, f.pos.z); cam.fov = 42;
+    // cuatro tomas: barrido bajo → primer plano de la cara → zoom de choque → plano de héroe
+    const P = f.pos, t = c.t, ez = k => 1 - Math.pow(1 - clamp(k, 0, 1), 3);
+    let px, py, pz, lx, ly, lz, roll;
+    if (t < .45) {
+      const k = ez(t / .45), ang = f.yaw + Math.PI * .85 - k * 1.7, d = 4.4 - k * 1.3;
+      px = P.x + Math.sin(ang) * d; py = P.y + .3 + k * .5; pz = P.z + Math.cos(ang) * d;
+      lx = P.x; ly = P.y + 1.15; lz = P.z; cam.fov = 58; roll = .2 * (1 - k) + .05;
+    } else if (t < .9) {
+      const k = (t - .45) / .45, d = 1.4 - k * .3;
+      px = P.x + F.x * d + Rr.x * .2; py = P.y + 1.63; pz = P.z + F.z * d + Rr.z * .2;
+      lx = P.x; ly = P.y + 1.6; lz = P.z; cam.fov = 34 - k * 4; roll = -.09 + k * .05;
+    } else if (t < 1.4) {
+      const k = ez((t - .9) / .4), ang = f.yaw - .55, d = 9 - k * 5.6;
+      px = P.x + Math.sin(ang) * d; py = P.y + 1 + (1 - k) * 1.6; pz = P.z + Math.cos(ang) * d;
+      lx = P.x; ly = P.y + 1.1; lz = P.z; cam.fov = 76 - k * 22; roll = -.14 * k;
     } else {
-      const D = fwd(f.yaw + .9 + (c.t - .75) * .6);
-      camera.position.set(f.pos.x + D.x * 4.6, f.pos.y + .45, f.pos.z + D.z * 4.6);
-      camera.lookAt(f.pos.x, f.pos.y + 1.3, f.pos.z); cam.fov = 64;
+      const k = (t - 1.4) / Math.max(.1, c.dur - 1.4), ang = f.yaw + .7 + k * .35, d = 3.5 + k * .5;
+      px = P.x + Math.sin(ang) * d; py = P.y + .22; pz = P.z + Math.cos(ang) * d;
+      lx = P.x; ly = P.y + 1.35; lz = P.z; cam.fov = 50 + k * 5; roll = .1;
     }
+    camera.position.set(px, Math.max(.15, py), pz); camera.up.set(0, 1, 0);
+    camera.lookAt(lx, ly, lz); camera.rotateZ(roll);
+    if (G.shake > 0) { const s = G.shake * .2; camera.position.x += rand(-s, s); camera.position.y += rand(-s, s); G.shake = Math.max(0, G.shake - dt * 2.2); }
     camera.fov = cam.fov; camera.updateProjectionMatrix();
     return;
   }
@@ -2377,7 +2483,7 @@ function updateShow(dt) {
       if (SH.kfT < 0) pose = POSE.land;
       else {
         for (const kf of SH.kf) if (SH.kfT >= kf[0]) { pose = POSE[kf[1]]; k = kf[2] || 550; }
-        if (f.spear && !f.spearOut && SH.kfT >= (ch.introDraw || 0)) { setSpear(f, true); sfx('draw'); ringAt(new V3(0, 1.2, 0), ch.color, 1.6, .3, 'face', .35, SH.scene); }
+        if (f.spear && !f.spearOut && SH.kfT >= (ch.introDraw || 0)) { setSpear(f, true); startTwirl(f, 2, .5); sfx('draw'); ringAt(new V3(0, 1.2, 0), ch.color, 1.6, .3, 'face', .35, SH.scene); }
         if (SH.kfT > SH.kf[SH.kf.length - 1][0] + .7) SH.kf = null;
       }
     }
@@ -2388,6 +2494,8 @@ function updateShow(dt) {
     f.anim.update(dt, pose, k, .62);
   }
   f.model.root.rotation.y = .35 + Math.sin(SH.t * .45) * .12;
+  if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx + twirlAngle(f, dt);
+  if (SH.landed && !SH.kf && f.spearOut && Math.random() < dt * .25) startTwirl(f, 1, .4);
   eyeGlow(f.model, !!(SH.kf && SH.kfT > .1 && SH.kfT < .7), SH.t);
   if (Math.random() < dt * 40) { const a = rand(0, TAU), r = rand(.3, 1.6); SH.parts.emit(Math.cos(a) * r, .15, Math.sin(a) * r, 0, rand(.8, 2), 0, Math.random() < .3 ? '#ffffff' : ch.color, rand(.04, .09), rand(1, 2), -.02, .3); }
   SH.parts.update(dt);
@@ -2806,7 +2914,7 @@ function netSendPlay() {
   NET.named.presence({
     v: 1, st: 'play', nm: p.name, ch: G.charId, x: r2(p.pos.x), y: r2(p.pos.y), z: r2(p.pos.z), yw: r2(p.yaw), ry: r2(wrapA(p.model.root.rotation.y)),
     j: JOINTS.map(k => r2(p.anim.x[k])), hp: Math.max(0, Math.round(p.hp)), mh: p.maxHp, al: p.alive ? 1 : 0, aw: p.awak > 0 ? 1 : 0,
-    sp: p.spearOut ? 1 : 0, sv: p.spearThrown ? 0 : 1, k: p.kills, d: p.deaths, act: NET.act,
+    sp: p.spearOut ? 1 : 0, sv: p.spearThrown ? 0 : 1, tw: r2(p.twA || 0), k: p.kills, d: p.deaths, act: NET.act,
     hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko,
   }).catch(() => { });
 }
@@ -2842,6 +2950,7 @@ function proxyUpdate(px, dt) {
   if (Array.isArray(pr.j)) JOINTS.forEach((k, i) => { const v = +pr.j[i]; if (isFinite(v)) px.anim.x[k] += (v - px.anim.x[k]) * Math.min(1, dt * 18); });
   px.anim.apply();
   const m = px.model;
+  if (m.gripRot && isFinite(+pr.tw)) m.gripRot.rotation.x += +pr.tw;
   m.root.position.copy(px.pos);
   m.root.rotation.y = isFinite(+pr.ry) ? angLerp(m.root.rotation.y, +pr.ry, Math.min(1, dt * 14)) : px.yaw;
   m.root.visible = px.alive;
