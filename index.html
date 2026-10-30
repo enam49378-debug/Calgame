@@ -138,7 +138,8 @@ body.cine #hud{opacity:0}
 #roster{grid-column:1;grid-row:3;display:flex;gap:8px;overflow-x:auto;padding:4px 4px 8px;align-items:flex-end;min-width:0}
 .rc{flex:none;width:96px;padding:8px 6px 6px;background:var(--panel);border:0;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .15s,background .15s;border-bottom:3px solid transparent}
 .rc canvas{width:56px;height:56px;border:2px solid #000;background:#000}
-.rc span{font-family:var(--display);font-size:16px;letter-spacing:.04em}
+.rc span{font-family:var(--display);font-size:16px;letter-spacing:.04em;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cname.long{font-size:clamp(36px,4.2vw,58px)}
 .rc:hover{transform:translateY(-4px)}
 .rc.sel{background:linear-gradient(180deg,var(--rcc),rgba(10,11,18,.9));transform:translateY(-8px);border-bottom-color:var(--hot)}
 #play{grid-column:2;grid-row:3;font-family:var(--display);font-size:36px;letter-spacing:.06em;background:var(--hot);color:#000;border:0;padding:12px 30px;clip-path:polygon(16px 0,100% 0,calc(100% - 16px) 100%,0 100%);transition:transform .1s,filter .1s}
@@ -616,6 +617,22 @@ function buildSpear(scale = 1) {
   m.castShadow = true; m.frustumCulled = false;
   return m;
 }
+// Cetro dorado con gema y cuernos, mismo agarre que la lanza
+function buildScepter() {
+  const vox = [], P = (y, z, c) => vox.push([y, z, c]);
+  for (let z = -10; z <= 15; z++) P(0, z, (z >= -2 && z <= 2) ? '#1e6b3a' : (z % 2 ? '#d4a017' : '#b8860b'));
+  P(0, -11, '#3ddc84');
+  [[1, 15], [-1, 15], [1, 16], [-1, 16]].forEach(([y, z]) => P(y, z, '#d4a017'));
+  [[0, 17, '#4fc3f7'], [0, 18, '#b3e5fc'], [0, 19, '#4fc3f7'], [1, 17, '#0288d1'], [-1, 17, '#0288d1'], [1, 18, '#4fc3f7'], [-1, 18, '#4fc3f7']].forEach(([y, z, c]) => P(y, z, c));
+  [[2, 17], [3, 18], [3, 19], [3, 20], [2, 21], [-2, 17], [-3, 18], [-3, 19], [-3, 20], [-2, 21]].forEach(([y, z]) => P(y, z, Math.abs(y) === 3 ? '#ffd54f' : '#d4a017'));
+  P(0, 20, '#d4a017'); P(0, 21, '#ffd54f'); P(0, 22, '#fff3c4');
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x000000 });
+  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(PX, PX, PX), mat, vox.length), M = new THREE.Matrix4();
+  vox.forEach(([y, z, c], i) => { M.makeTranslation(0, y * PX, z * PX); m.setMatrixAt(i, M); m.setColorAt(i, _c.set(c)); });
+  m.castShadow = true; m.frustumCulled = false;
+  return m;
+}
+const WEAPONS = { spear: buildSpear, scepter: buildScepter };
 function setSpear(o, out) {
   const s = o.spear; if (!s) return;
   (out ? o.model.gripRot : o.model.backHold).add(s);
@@ -787,6 +804,22 @@ const CHARS = {
     intro: [[0, 'visorTouch', 600], [.6, 'point', 600], [1.1, 'loose', 400]],
     cine: [[0, 'visorTouch', 400], [.9, 'cast', 600]],
   },
+  gato: {
+    name: 'elGatopro300', title: 'Dios del Engaño', role: 'ILUSIONISTA', color: '#3ddc84', hp: 90, spd: 1.08, ai: 'mid', stance: 'elegant', weapon: 'scepter', m1set: SPEAR_M1, introDraw: .45,
+    desc: 'Maestro de las ilusiones: crea copias de sí mismo que persiguen y explotan, aparece a tus espaldas dejando un señuelo y hechiza con su cetro.',
+    stats: [2, 4, 4, 4, 5],
+    skinData: 'data:image/png;base64,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',
+    skin: { skin: '#f3bdab', hair: '#ebebeb', eye: '#4c3b3b', shirt: '#84292d', pants: '#48698c', shoes: '#2e2728', sleeve: 12 },
+    skills: [
+      { n: 'Ilusiones', d: 'Crea dos copias de sí mismo que persiguen al rival y explotan.', k: 'illusion', cd: 7, o: { count: 2, dmg: 7 }, r: [3, 18], tags: 'proj' },
+      { n: 'Dagas Arrojadizas', d: 'Cuatro dagas que persiguen y aturden.', k: 'shoot', cd: 5, o: { count: 4, spread: .12, speed: 44, dmg: 3.5, stun: .5, size: .25, long: 3, homing: 2.5, anim: 'throw' }, r: [3, 24], tags: 'proj' },
+      { n: 'Engaño', d: 'Deja un señuelo que explota y aparece a la espalda del rival.', k: 'blink', cd: 8, o: { dmg: 8, kb: 12, up: 9, ragdoll: 1, decoy: true }, r: [3, 20], tags: 'gap gb' },
+      { n: 'Hechizo del Cetro', d: 'Rayo de energía del cetro que deja al rival hechizado y quieto.', k: 'shoot', cd: 9, o: { count: 1, speed: 30, dmg: 5, stun: 1.6, size: .55, homing: 3 }, r: [3, 22], tags: 'proj' },
+    ],
+    ult: { n: 'Ejército de Ilusiones', d: 'Seis copias salen en círculo, persiguen a todos y explotan.', k: 'illusion', o: { count: 6, dmg: 7, speed: 14, life: 3.2, army: true }, r: [0, 22] },
+    intro: [[0, 'cross', 500], [.45, 'signs', 600], [.8, 'point', 700], [1.2, 'elegant', 400]],
+    cine: [[0, 'signs', 400], [.9, 'point', 600]],
+  },
   kaiza: {
     name: 'Kaiza', title: 'Puño Carmesí', role: 'PELEADOR', color: '#ff4d4d', hp: 100, spd: 1, ai: 'melee', stance: 'idle',
     desc: 'Cuerpo a cuerpo puro. Encadena golpes, lanza al rival por el aire y remata con un puñetazo que barre la arena.',
@@ -912,7 +945,7 @@ class Fighter {
     this.skin = skin;
     this.model = buildModel(skin, o.skin ? !!o.slim : !!this.ch.slim, scene);
     this.anim = new Animator(this.model);
-    if (this.ch.weapon === 'spear') { this.spear = buildSpear(); this.model.mats.push(this.spear.material); }
+    if (WEAPONS[this.ch.weapon]) { this.spear = WEAPONS[this.ch.weapon](); this.model.mats.push(this.spear.material); }
     if (this.ch.eyeLaser) addEyes(this.model, this.ch.color);
     this.pos = new V3(); this.vel = new V3(); this.yaw = 0; this.prevYaw = 0; this.yawVel = 0; this.walk = 0;
     this.maxHp = this.ch.hp; this.kills = 0; this.deaths = 0;
@@ -1332,6 +1365,38 @@ function spawnSpearProj(f, o) {
   const p = { owner: f, pos: front(f, .8, 1.35), vel: F.multiplyScalar(38), speed: 38, life: 24 / 38, age: 0, o, mesh, size: .5, loyal: true, phase: 'out', set: new Set() };
   mesh.position.copy(p.pos); scene.add(mesh); PROJ.push(p);
 }
+// Ilusión: copia verde translúcida del peleador que corre al rival más cercano y explota (o queda quieta como señuelo)
+function decoy(f, o, from, opts) {
+  const g = f.model.root.clone(true), mat = glowMat(o.color, .5), pos = from.clone();
+  g.traverse(m => { if (m.isMesh) { if (m.material === f.model.mats[1]) m.visible = false; else { m.material = mat; m.castShadow = false; } } });
+  g.position.copy(pos);
+  const life = opts.life || 2.6, speed = opts.speed || 11;
+  let lastK = 0, boomed = false;
+  const boom = () => {
+    if (boomed) return; boomed = true;
+    const c = new V3(pos.x, pos.y + 1, pos.z);
+    explode(f, c, opts.r || 2.6, { dmg: opts.dmg || 7, kb: 12, up: 8, ragdoll: .9, guardBreak: true, color: o.color });
+    burst(c, 24, '#ffd54f', 7, .18, .5, -.2);
+  };
+  addFx(g, life, (obj, k) => {
+    const dt = (k - lastK) * life; lastK = k;
+    if (boomed) { obj.visible = false; return; }
+    if (opts.static) { if (k * life > (opts.fuse || .7)) boom(); }
+    else {
+      let best = null, bd = 1e9;
+      for (const e of enemiesOf(f)) { const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z); if (d < bd) { bd = d; best = e; } }
+      if (best && bd < 24) {
+        const dx = best.pos.x - pos.x, dz = best.pos.z - pos.z, d = Math.hypot(dx, dz) || 1;
+        pos.x += dx / d * speed * dt; pos.z += dz / d * speed * dt; obj.rotation.y = Math.atan2(dx, dz);
+        if (d < 1.3) boom();
+      }
+      obj.position.set(pos.x, pos.y + Math.abs(Math.sin(k * life * 14)) * .15, pos.z);
+      if (Math.random() < .3) emit(pos.x, pos.y + rand(.2, 1.8), pos.z, 0, rand(.5, 2), 0, o.color, .1, .4, -.1, 1);
+    }
+    mat.opacity = .5 * (.8 + .2 * Math.sin(k * life * 30));
+    if (k > .96) boom();
+  }, () => mat.dispose());
+}
 function fallingSpear(f, p, delay, scale, o, big) {
   warnCircle(p, big ? 5 : 1.6, o.color, delay + .3);
   later(delay, () => {
@@ -1428,6 +1493,7 @@ const MOVES = {
     startAction(f, {
       name: 'blink', dur: .55, anim: [[0, 'windup', 900]], noControl: true,
       start: () => {
+        if (o.decoy) decoy(f, o, f.pos.clone(), { static: true, fuse: .7, dmg: 6, r: 2.4, life: .8 });
         const from = chestOf(f); ghost(f, o.color, .6, .4); burst(from, 18, o.color, 6, .2, .4, -.2);
         const back = fwd(tgt.yaw);
         f.pos.set(tgt.pos.x - back.x * 1.5, tgt.pos.y, tgt.pos.z - back.z * 1.5); f.vel.set(0, 0, 0);
@@ -1564,6 +1630,23 @@ const MOVES = {
   },
   counter(f, o) {
     startAction(f, { name: 'counter', dur: .9, counter: true, anim: [[0, 'counter', 700]], speedMul: 0, start: () => { ringAt(chestOf(f), '#ffffff', 1.6, .35, 'face', f.yaw); sfx('block', f.pos); } });
+  },
+  illusion(f, o) {
+    const n = o.count || 2;
+    startAction(f, {
+      name: 'illusion', dur: o.army ? 1.0 : .5, armor: !!o.army, speedMul: .3, aim: true,
+      anim: o.army ? [[0, 'signs', 600], [.3, 'castUp', 800]] : [[0, 'signs', 700], [.2, 'point', 900]],
+      steps: [{ at: o.army ? .3 : .2, fn: () => {
+        for (let i = 0; i < n; i++) {
+          const off = o.army ? fwd(f.yaw + i / n * TAU).multiplyScalar(2.6) : rightOf(f.yaw).multiplyScalar((i - (n - 1) / 2) * 1.6);
+          const p = f.pos.clone().add(off); p.y = groundAt(p.x, p.z);
+          decoy(f, o, p, { dmg: o.dmg || 7, life: o.life || 2.6, speed: o.speed || 11 });
+        }
+        burst(chestOf(f), o.army ? 50 : 20, o.color, o.army ? 10 : 6, .2, .6, -.2);
+        if (o.army) { ringAt(new V3(f.pos.x, f.pos.y, f.pos.z), o.color, 6, .6); if (involvesPlayerNear(f)) screenFlash(.3); }
+        sfx('tp', f.pos);
+      } }],
+    });
   },
   eyeBolts(f, o) {
     startAction(f, {
@@ -2249,14 +2332,14 @@ function showSelect(id, quiet) {
   const skin = G.customSkin || charSkin(id);
   const model = buildModel(skin, G.customSkin ? G.customSlim : !!ch.slim, SH.scene);
   SH.fig = { model, anim: new Animator(model), ch };
-  if (ch.weapon === 'spear') { SH.fig.spear = buildSpear(); model.mats.push(SH.fig.spear.material); setSpear(SH.fig, false); }
+  if (WEAPONS[ch.weapon]) { SH.fig.spear = WEAPONS[ch.weapon](); model.mats.push(SH.fig.spear.material); setSpear(SH.fig, false); }
   if (ch.eyeLaser) addEyes(model, ch.color);
   model.root.position.set(0, 4, 0); model.root.rotation.y = .35;
   SH.drop = 0; SH.landed = false; SH.kf = null; SH.camZ = quiet ? 5 : 8; SH.flourT = rand(6, 8);
   SH.rim.color.set(ch.color); SH.rim2.color.set(ch.color); SH.ring.material.color.set(ch.color);
   drawBackdrop(ch);
   const menu = $('menu'); menu.style.setProperty('--c', ch.color);
-  $('crole').textContent = ch.role; $('cname').textContent = ch.name.toUpperCase(); $('ctitle').textContent = ch.title.toUpperCase(); $('cdesc').textContent = ch.desc;
+  $('crole').textContent = ch.role; $('cname').textContent = ch.name.toUpperCase(); $('cname').classList.toggle('long', ch.name.length > 9); $('ctitle').textContent = ch.title.toUpperCase(); $('cdesc').textContent = ch.desc;
   const st = $('cstats'); st.innerHTML = '';
   ch.stats.forEach((v, i) => {
     const l = document.createElement('span'); l.textContent = STAT_NAMES[i];
