@@ -30,6 +30,7 @@ body.cine #halftone{opacity:.45}
 #lb i{position:fixed;left:0;right:0;height:0;background:#000;transition:height .3s cubic-bezier(.2,.9,.3,1);pointer-events:none;z-index:4}
 #lb i:first-child{top:0}#lb i:last-child{bottom:0}
 body.cine #lb i{height:11vh}
+body.duel #lb i{height:7vh}
 body.cine #hud{opacity:0}
 #hud{transition:opacity .2s}
 
@@ -453,12 +454,12 @@ const B = 1.1, ARENA = 40, COL = [], CLOUDS = [];
   const rg = gg.createRadialGradient(64, 64, 0, 64, 64, 64); rg.addColorStop(0, 'rgba(255,250,220,1)'); rg.addColorStop(.25, 'rgba(255,240,190,.55)'); rg.addColorStop(1, 'rgba(255,230,170,0)');
   gg.fillStyle = rg; gg.fillRect(0, 0, 128, 128);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(gc), blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  glow.position.set(120, 140, 70); glow.scale.set(90, 90, 1); scene.add(glow);
+  glow.position.set(120, 140, 70); glow.scale.set(60, 60, 1); scene.add(glow);
   const tufts = [], flowers = [];
   for (let i = 0; i < 1400; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * (ARENA - 1), x = Math.cos(a) * r, z = Math.sin(a) * r; if (COL.some(c => Math.abs(x - c.x) < c.hx + .3 && Math.abs(z - c.z) < c.hz + .3)) continue; (Math.random() < .1 ? flowers : tufts).push([x, z]); }
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new V3(), Pp = new V3(), E = new THREE.Euler();
-  const tm = new THREE.InstancedMesh(new THREE.BoxGeometry(.07, 1, .07), new THREE.MeshLambertMaterial({ color: 0xffffff }), tufts.length);
-  tufts.forEach(([x, z], i) => { const h = rand(.18, .45); E.set(rand(-.3, .3), rand(0, TAU), rand(-.3, .3)); Q.setFromEuler(E); M.compose(Pp.set(x, h / 2, z), Q, S.set(1, h, 1)); tm.setMatrixAt(i, M); tm.setColorAt(i, _c.setHSL(rand(.24, .32), rand(.45, .65), rand(.25, .4))); });
+  const tm = new THREE.InstancedMesh(new THREE.BoxGeometry(.045, 1, .045), new THREE.MeshLambertMaterial({ color: 0xffffff }), tufts.length);
+  tufts.forEach(([x, z], i) => { const h = rand(.1, .28); E.set(rand(-.3, .3), rand(0, TAU), rand(-.3, .3)); Q.setFromEuler(E); M.compose(Pp.set(x, h / 2, z), Q, S.set(1, h, 1)); tm.setMatrixAt(i, M); tm.setColorAt(i, _c.setHSL(rand(.24, .32), rand(.4, .6), rand(.32, .46))); });
   scene.add(tm);
   const fm = new THREE.InstancedMesh(new THREE.BoxGeometry(.14, .14, .14), new THREE.MeshLambertMaterial({ color: 0xffffff }), flowers.length * 2);
   flowers.forEach(([x, z], i) => {
@@ -699,7 +700,7 @@ function headPortrait(skin, out) {
 // ================= Modelo del jugador (1px = 1/16) =================
 const PX = 1 / 16;
 // sombreado toon de 3 tonos y contorno negro para los personajes
-const TOON_GRAD = (() => { const t = new THREE.DataTexture(new Uint8Array([110, 185, 255]), 3, 1, THREE.LuminanceFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; })();
+const TOON_GRAD = (() => { const t = new THREE.DataTexture(new Uint8Array([105, 175, 232]), 3, 1, THREE.LuminanceFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; })();
 const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x0b0b14, side: THREE.BackSide });
 function boxUV(w, h, d, u, v, th, inflate) {
   const geo = new THREE.BoxGeometry((w + inflate) * PX, (h + inflate) * PX, (d + inflate) * PX);
@@ -752,6 +753,74 @@ function disposeModel(m) {
   m.root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
   m.mats.forEach(x => x.dispose()); m.tex.dispose();
   if (m.eyes) m.eyes.material.dispose();
+}
+// ===== Expresiones procedurales: el juego encuentra ojos y boca en la cara de la skin y los redibuja =====
+function copyCanvas(src) { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c; }
+function analyzeFace(img) {
+  const d = img.data, px = (x, y) => { const i = (y * 8 + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+  const cnt = {}; let skinKey = null;
+  for (let y = 4; y < 8; y++) for (let x = 0; x < 8; x++) { const p = px(x, y), k = (p[0] >> 4) + '-' + (p[1] >> 4) + '-' + (p[2] >> 4); cnt[k] = (cnt[k] || 0) + 1; if (!skinKey || cnt[k] > cnt[skinKey]) skinKey = k; }
+  let skin = [200, 160, 130];
+  outer: for (let y = 4; y < 8; y++) for (let x = 0; x < 8; x++) { const p = px(x, y); if ((p[0] >> 4) + '-' + (p[1] >> 4) + '-' + (p[2] >> 4) === skinKey) { skin = p; break outer; } }
+  const dist = p => Math.abs(p[0] - skin[0]) + Math.abs(p[1] - skin[1]) + Math.abs(p[2] - skin[2]);
+  let best = null;
+  // los bordes de la cara suelen ser pelo o patillas: se ignoran al buscar los ojos
+  for (let y = 2; y <= 6; y++) {
+    const xs = []; for (let x = 1; x < 7; x++) if (dist(px(x, y)) > 90) xs.push(x);
+    const L = xs.filter(x => x < 4), R = xs.filter(x => x >= 4);
+    const score = (L.length && R.length ? 10 : 0) - Math.abs(L.length - R.length) * 2 - (xs.length > 6 ? 8 : 0) + (xs.some(x => { const p = px(x, y); return p[0] + p[1] + p[2] > 560; }) ? 3 : 0) + (y === 4 ? 2 : 0);
+    if (!best || score > best.score) best = { score, row: y, L, R, n: xs.length };
+  }
+  const hex = (r, g, b) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('');
+  const lid = hex(skin[0] * .82, skin[1] * .8, skin[2] * .8);
+  if (!best || best.score < 5) return { row: 4, L: [1, 2], R: [5, 6], lid, visor: false, tall: false };
+  // ojos de dos filas: la fila de abajo también es distinta a la piel en las mismas columnas
+  const tall = best.row < 7 && best.L.concat(best.R).filter(x => dist(px(x, best.row + 1)) > 90).length >= Math.ceil((best.L.length + best.R.length) / 2);
+  return { row: best.row, L: best.L, R: best.R, lid, visor: best.n > 5, tall };
+}
+function setupFace(f, canvas) {
+  const g = canvas.getContext('2d');
+  f.faceCtx = g; f.faceOrig = g.getImageData(8, 8, 8, 8); f.faceInfo = analyzeFace(f.faceOrig);
+  f.faceKey = ''; f.blinkT = rand(1, 4);
+}
+function drawFace(f, eyes, mouth) {
+  const g = f.faceCtx, I = f.faceInfo, y = I.row, dark = '#21140d';
+  g.putImageData(f.faceOrig, 8, 8);
+  const P = (x, yy, c) => { if (x < 0 || x > 7 || yy < 0 || yy > 7) return; g.fillStyle = c; g.fillRect(8 + x, 8 + yy, 1, 1); };
+  if (!I.visor) {
+    for (const grp of [I.L, I.R]) {
+      if (!grp.length) continue;
+      const inner = grp === I.L ? Math.max(...grp) : Math.min(...grp), outer = grp === I.L ? Math.min(...grp) : Math.max(...grp);
+      // con ojos de dos filas, la de abajo pasa a ser párpado/piel cuando el ojo se cierra
+      if (I.tall && eyes !== 'open' && eyes !== 'glow' && eyes !== 'angry') grp.forEach(x => P(x, y + 1, I.lid));
+      if (eyes === 'closed') grp.forEach(x => P(x, y, dark));
+      else if (eyes === 'angry') { P(outer, y - 1, dark); P(inner, y - 1, dark); P(inner, y, dark); }
+      else if (eyes === 'hurt') { grp.forEach(x => P(x, y, dark)); P(outer, y - 1, dark); P(outer, y + 1, dark); }
+      else if (eyes === 'ko') { grp.forEach(x => P(x, y, I.lid)); P(outer, y - 1, dark); P(inner, y + 1, dark); P(inner, y - 1, dark); P(outer, y + 1, dark); }
+      else if (eyes === 'happy') { grp.forEach(x => { P(x, y, I.lid); P(x, y - 1, dark); }); }
+      else if (eyes === 'glow') grp.forEach(x => P(x, y, '#ffffff'));
+    }
+  } else if (eyes === 'glow' || eyes === 'angry') { for (let x = 1; x < 7; x++) P(x, y, eyes === 'glow' ? '#ffffff' : '#ff8080'); }
+  if (mouth === 'open') { const my = Math.min(6, y + 2); P(3, my, '#3b0d0d'); P(4, my, '#3b0d0d'); P(3, my + 1, '#7a2222'); P(4, my + 1, '#7a2222'); }
+  f.model.tex.needsUpdate = true;
+}
+// elige la expresión según lo que esté pasando: parpadeo, enojo al atacar, dolor, K.O., alegría, despertar
+function updateFace(f, dt) {
+  if (!f.faceCtx) return;
+  f.blinkT -= dt; if (f.blinkT < -.13) f.blinkT = rand(1.8, 4.5);
+  const a = f.action, attacking = a && !['flourish', 'stow', 'draw', 'awaken'].includes(a.name);
+  let eyes = 'open', mouth = 'closed';
+  if (f.alive === false) { eyes = 'ko'; mouth = 'open'; }
+  else if (f.ragdoll > 0 || f.forcePose || f.grabbed || f.hurtT > 0 || f.flashT > .04) { eyes = 'hurt'; mouth = 'open'; }
+  else if (f.stun > 0 || f.frozen > 0) eyes = 'hurt';
+  else if (attacking) { eyes = f.awak > 0 ? 'glow' : 'angry'; mouth = a.t < .35 ? 'open' : 'closed'; }
+  else if (a && a.name === 'awaken') { eyes = 'glow'; mouth = 'open'; }
+  else if (a && a.name === 'flourish') eyes = 'happy';
+  else if (f.blocking) eyes = 'angry';
+  else if (f.awak > 0) eyes = 'glow';
+  if ((eyes === 'open' || eyes === 'glow') && f.blinkT < 0) eyes = 'closed';
+  const key = eyes + mouth; if (key === f.faceKey) return;
+  f.faceKey = key; drawFace(f, eyes, mouth);
 }
 // visor brillante a la altura de los ojos (fila 4 de la cara)
 function addEyes(model, col) {
@@ -1153,58 +1222,58 @@ const CHARS = {
 const AWAKE_DUR = 30;
 const AWK = {
   javi: [
-    { n: 'Embestida Celeste', d: 'Carga más rápida y fuerte que atraviesa a todos.', k: 'lunge', cd: 4, o: { dmg: 12 }, r: [2, 14], tags: 'gap gb' },
-    { n: 'Lanzas Gemelas', d: 'Tres lanzas de energía que persiguen.', k: 'shoot', cd: 4, o: { count: 3, spread: .2, speed: 46, dmg: 6, stun: .6, size: .3, long: 4, homing: 2.5, anim: 'throw' }, r: [3, 24], tags: 'proj' },
-    { n: 'Ciclón de Lanzas', d: 'Torbellino de lanza que atrae y expulsa.', k: 'whirl', cd: 6, o: {}, r: [0, 3], tags: 'close aoe' },
-    { n: 'Lluvia de Lanzas', d: 'Doce lanzas del cielo y una gigante al final.', k: 'spearRain', cd: 12, o: {}, r: [0, 18], tags: 'aoe' },
+    { n: 'Lanzas Orbitales', d: 'Cuatro lanzas giran a tu alrededor y salen disparadas solas hacia los rivales.', k: 'orbitals', cd: 9, o: { n: 4, kind: 'spear', dur: 7, rate: .5, proj: { speed: 42, dmg: 5, stun: .5, size: .3, long: 4, homing: 3 } }, r: [0, 14], tags: 'proj' },
+    { n: 'Embestida Relámpago', d: 'Atraviesa tres veces al rival en zigzag y en la última lo lanza.', k: 'dashCombo', cd: 7, o: { n: 3, zig: true, dmg: 4, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
+    { n: 'Cadena de Lanza', d: 'Lanza encadenada: atrapa al rival, lo trae hacia vos y lo lanza hacia arriba.', k: 'pullStrike', cd: 7, o: { dmg: 11 }, r: [4, 20], tags: 'proj gap' },
+    { n: 'Empalamiento', d: 'Agarre con cinemática: lo ensarta, lo levanta con la lanza y lo estrella.', k: 'cineGrab', cd: 14, o: { style: 'spear', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
   ],
   gato: [
-    { n: 'Gran Ilusión', d: 'Cuatro copias que persiguen y explotan.', k: 'illusion', cd: 6, o: { count: 4, dmg: 8 }, r: [3, 18], tags: 'proj' },
-    { n: 'Dagas Infinitas', d: 'Siete dagas en abanico.', k: 'shoot', cd: 4, o: { count: 7, spread: .1, speed: 46, dmg: 3.5, stun: .5, size: .25, long: 3, homing: 2.5, anim: 'throw' }, r: [3, 24], tags: 'proj' },
-    { n: 'Engaño Maestro', d: 'Señuelo explosivo y golpe a la espalda más fuerte.', k: 'blink', cd: 5, o: { dmg: 11, kb: 14, up: 10, ragdoll: 1, decoy: true }, r: [3, 20], tags: 'gap gb' },
-    { n: 'Ejército de Ilusiones', d: 'Seis copias en círculo que persiguen a todos.', k: 'illusion', cd: 14, o: { count: 6, dmg: 7, speed: 14, life: 3.2, army: true }, r: [0, 22], tags: 'aoe' },
+    { n: 'Espejismo', d: 'Campo de ilusiones que aturde y daña a quien esté adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.5, stun: .45, fx: 'magic' }, r: [0, 6], tags: 'aoe' },
+    { n: 'Copias Asesinas', d: 'Tres copias atraviesan al rival desde distintos lados.', k: 'dashCombo', cd: 7, o: { n: 3, clones: true, dmg: 4, dmg2: 11 }, r: [2, 16], tags: 'gap gb' },
+    { n: 'Cadena Mágica', d: 'Hechizo que atrapa al rival, lo trae y lo lanza.', k: 'pullStrike', cd: 7, o: { dmg: 11 }, r: [4, 20], tags: 'proj gap' },
+    { n: 'Truco Final', d: 'Agarre con cinemática: lo levanta con magia y sus copias lo rematan.', k: 'cineGrab', cd: 14, o: { style: 'magic', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
   ],
   redbird: [
-    { n: 'Rayo Óptico Máximo', d: 'Láser más largo y grueso.', k: 'beam', cd: 5, o: { eyes: true, len: 30, dur: 1.0, dmg: 3, width: .8, charge: .25, push: 6 }, r: [3, 28], tags: 'proj' },
-    { n: 'Tormenta Óptica', d: 'Ráfaga de disparos de los ojos.', k: 'eyeBolts', cd: 3, o: { speed: 52, dmg: 6, stun: .5, size: .26, long: 4, homing: 2.5 }, r: [3, 24], tags: 'proj' },
-    { n: 'Barrido Total', d: 'Barrido láser casi en círculo.', k: 'beam', cd: 7, o: { eyes: true, len: 22, dur: 1.1, dmg: 2.8, width: .6, charge: .25, push: 3, sweep: 3.6 }, r: [0, 20], tags: 'aoe' },
-    { n: 'Visor Máximo', d: 'Rayo gigante que rompe guardias.', k: 'beam', cd: 12, o: { eyes: true, len: 45, width: 2.2, dur: 1.8, dmg: 3.4, gb: true, push: 11, charge: .8 }, r: [2, 32], tags: 'proj' },
+    { n: 'Red Láser', d: 'Rejilla de láseres giratorios alrededor que daña sin parar.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.8, stun: .3, fx: 'laser' }, r: [0, 6], tags: 'aoe' },
+    { n: 'Drones Ópticos', d: 'Cinco orbes rojos te rodean y disparan solos a los rivales.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'orb', dur: 7, rate: .45, proj: { speed: 55, dmg: 4, stun: .4, size: .2, long: 5, homing: 3 } }, r: [0, 14], tags: 'proj' },
+    { n: 'Patada Óptica', d: 'Lo lanza al aire, lo sigue con patadas y lo estrella con un láser.', k: 'airCombo', cd: 8, o: { dmg: 11, eyes: true }, r: [0, 3], tags: 'close' },
+    { n: 'Ejecución Óptica', d: 'Agarre con cinemática: lo levanta del cuello y le dispara a quemarropa.', k: 'cineGrab', cd: 14, o: { style: 'eyes', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
   ],
   kaiza: [
-    { n: 'Ráfaga Seria', d: 'Lluvia de golpes más larga.', k: 'barrage', cd: 5, o: { hits: 16, dur: 1.1, dmg: 2 }, r: [0, 2.6], tags: 'close' },
-    { n: 'Gancho Cohete', d: 'Embestida con gancho al cielo más fuerte.', k: 'rush', cd: 5, o: { dmg: 13, fin: 'upper' }, r: [2, 13], tags: 'gap gb' },
-    { n: 'Impacto Sísmico', d: 'Golpe al suelo de radio enorme.', k: 'slam', cd: 7, o: { radius: 7, dmg: 14 }, r: [0, 6.5], tags: 'aoe gb' },
-    { n: 'Golpe Definitivo', d: 'Un solo puñetazo que arrasa en cono.', k: 'serious', cd: 14, o: {}, r: [0, 12], tags: 'aoe' },
+    { n: 'Combo Aéreo', d: 'Gancho al cielo, salta detrás y lo estrella de vuelta.', k: 'airCombo', cd: 8, o: { dmg: 12 }, r: [0, 3], tags: 'close' },
+    { n: 'Paso Sísmico', d: 'Tres embestidas que atraviesan al rival.', k: 'dashCombo', cd: 7, o: { n: 3, dmg: 4, dmg2: 11 }, r: [2, 16], tags: 'gap gb' },
+    { n: 'Aura de Combate', d: 'Campo de presión que golpea y empuja a todos cerca.', k: 'zone', cd: 10, o: { r: 5, dur: 4, dmg: 3, stun: .3, kb: 4, fx: 'wind' }, r: [0, 5], tags: 'aoe' },
+    { n: 'Paliza Seria', d: 'Agarre con cinemática: ráfaga de puños y un último golpe que lo manda lejos.', k: 'cineGrab', cd: 14, o: { style: 'punch', dmg: 18 }, r: [0, 3.5], tags: 'close gb' },
   ],
   nyx: [
-    { n: 'Paso Sombra', d: 'Teletransporte con golpe más fuerte.', k: 'blink', cd: 4, o: { dmg: 11, kb: 14, up: 11, ragdoll: 1 }, r: [3, 20], tags: 'gap gb' },
-    { n: 'Lluvia de Kunais', d: 'Seis kunais que persiguen.', k: 'shoot', cd: 4, o: { count: 6, spread: .12, speed: 44, dmg: 4, stun: .55, size: .3, long: 2.4, homing: 3, anim: 'throw' }, r: [3, 24], tags: 'proj' },
-    { n: 'Corte Fugaz', d: 'Corte que estalla con más daño.', k: 'slash', cd: 5, o: { dmg: 14 }, r: [2, 10], tags: 'gap gb' },
-    { n: 'Mil Cortes', d: 'Salta entre cinco rivales cortándolos.', k: 'cuts', cd: 14, o: {}, r: [0, 18], tags: 'aoe' },
+    { n: 'Danza de Sombras', d: 'Cinco cortes en zigzag a través del rival.', k: 'dashCombo', cd: 7, o: { n: 5, zig: true, dmg: 3, dmg2: 9 }, r: [2, 16], tags: 'gap gb' },
+    { n: 'Niebla Oscura', d: 'Niebla que corta a quien entre.', k: 'zone', cd: 10, o: { r: 5.5, dur: 5, dmg: 2.6, stun: .35, fx: 'shadow' }, r: [0, 5.5], tags: 'aoe' },
+    { n: 'Kunais Flotantes', d: 'Seis kunais flotan a tu alrededor y salen solos.', k: 'orbitals', cd: 9, o: { n: 6, kind: 'kunai', dur: 7, rate: .35, proj: { speed: 46, dmg: 3.5, stun: .45, size: .25, long: 2.6, homing: 3 } }, r: [0, 14], tags: 'proj' },
+    { n: 'Ejecución Sombría', d: 'Agarre con cinemática: cortes rápidos desde las sombras.', k: 'cineGrab', cd: 14, o: { style: 'shadow', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
   ],
   volt: [
-    { n: 'Orbe Supremo', d: 'Esfera gigante que explota fuerte.', k: 'shoot', cd: 4, o: { count: 1, speed: 26, dmg: 13, size: 1.1, explode: 4.5, homing: 1.5 }, r: [3, 24], tags: 'proj' },
-    { n: 'Rayo Doble', d: 'Rayo más largo y potente.', k: 'beam', cd: 6, o: { len: 28, dur: 1.0, dmg: 3, width: 1.1 }, r: [3, 26], tags: 'proj' },
-    { n: 'Relámpago', d: 'Aparece y electrocuta más tiempo.', k: 'blink', cd: 5, o: { dmg: 10, kb: 3, up: 0, stun: 1.6 }, r: [3, 20], tags: 'gap gb' },
-    { n: 'Cañón Trueno', d: 'Rayo gigante que atraviesa guardias.', k: 'beam', cd: 13, o: { len: 40, width: 1.7, dur: 1.6, dmg: 3.2, gb: true, push: 9, charge: .75 }, r: [2, 30], tags: 'proj' },
+    { n: 'Orbes Satélite', d: 'Cuatro orbes eléctricos te rodean y estallan sobre los rivales.', k: 'orbitals', cd: 9, o: { n: 4, kind: 'orb', dur: 7, rate: .6, proj: { speed: 30, dmg: 7, size: .5, explode: 2.2, homing: 2 } }, r: [0, 14], tags: 'proj' },
+    { n: 'Campo Eléctrico', d: 'Campo que electrocuta y deja quietos a los de adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 4.5, dmg: 2.4, stun: .55, fx: 'elec' }, r: [0, 6], tags: 'aoe' },
+    { n: 'Rayo Zigzag', d: 'Cuatro saltos relámpago a través del rival.', k: 'dashCombo', cd: 7, o: { n: 4, zig: true, dmg: 3.5, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
+    { n: 'Sobrecarga', d: 'Agarre con cinemática: lo electrocuta en el aire y lo descarga.', k: 'cineGrab', cd: 14, o: { style: 'elec', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
   ],
   brasa: [
-    { n: 'Bolas Infernales', d: 'Tres bolas de fuego que estallan.', k: 'shoot', cd: 4, o: { count: 3, spread: .25, speed: 34, dmg: 8, size: .6, explode: 2.6, homing: 1, anim: 'throw' }, r: [3, 24], tags: 'proj' },
-    { n: 'Patada Ígnea', d: 'Patada voladora más fuerte.', k: 'rush', cd: 5, o: { dmg: 12, kb: 24, up: 8, ragdoll: 1.2, pose: 'kickRush', hitPose: 'kick' }, r: [2, 13], tags: 'gap gb' },
-    { n: 'Gran Erupción', d: 'Erupción enorme bajo el rival.', k: 'pillar', cd: 6, o: { radius: 4.2, delay: .45, dmg: 15, up: 20, ragdoll: 1.4 }, r: [2, 16], tags: 'aoe' },
-    { n: 'Supernova', d: 'Se eleva y estalla tres veces.', k: 'nova', cd: 14, o: {}, r: [0, 11], tags: 'aoe' },
+    { n: 'Suelo de Lava', d: 'El piso se vuelve lava y quema a quien lo pise.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 3, stun: .25, fx: 'fire' }, r: [0, 6], tags: 'aoe' },
+    { n: 'Patadas del Fénix', d: 'Patada al cielo, combo aéreo de fuego y caída.', k: 'airCombo', cd: 8, o: { dmg: 12 }, r: [0, 3], tags: 'close' },
+    { n: 'Látigo de Fuego', d: 'Látigo que atrapa al rival y lo trae para rematarlo.', k: 'pullStrike', cd: 7, o: { dmg: 12 }, r: [4, 20], tags: 'proj gap' },
+    { n: 'Ejecución Volcánica', d: 'Agarre con cinemática: patadas de fuego y una erupción.', k: 'cineGrab', cd: 14, o: { style: 'fire', dmg: 17 }, r: [0, 3.5], tags: 'close gb' },
   ],
   yuki: [
-    { n: 'Lanzas de Hielo', d: 'Tres lanzas que aturden.', k: 'shoot', cd: 4, o: { count: 3, spread: .16, speed: 42, dmg: 6, stun: 1.0, size: .35, long: 3, homing: 2, kb: 2, anim: 'throw' }, r: [3, 26], tags: 'proj' },
-    { n: 'Gran Prisión', d: 'Prisión helada más grande y larga.', k: 'pillar', cd: 6, o: { radius: 4, delay: .45, dmg: 10, freeze: 2.1 }, r: [2, 16], tags: 'aoe' },
-    { n: 'Ventisca Polar', d: 'Ráfaga helada de radio enorme.', k: 'wave', cd: 6, o: { radius: 7.5, dmg: 8, kb: 8, up: 3, stun: 1.2, ragdoll: 0 }, r: [0, 7], tags: 'aoe gb' },
-    { n: 'Cero Absoluto', d: 'Congela a todos y los hace estallar.', k: 'iceage', cd: 14, o: {}, r: [0, 15], tags: 'aoe' },
+    { n: 'Tormenta de Nieve', d: 'Ventisca que daña y frena a los de adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.2, stun: .5, fx: 'ice' }, r: [0, 6], tags: 'aoe' },
+    { n: 'Fragmentos Orbitales', d: 'Cristales de hielo te rodean y salen a congelar.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'shard', dur: 7, rate: .5, proj: { speed: 44, dmg: 4, stun: .9, size: .3, long: 3, homing: 3 } }, r: [0, 14], tags: 'proj' },
+    { n: 'Patinaje Fugaz', d: 'Cuatro deslizamientos a través del rival.', k: 'dashCombo', cd: 7, o: { n: 4, zig: true, dmg: 3.5, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
+    { n: 'Tumba de Hielo', d: 'Agarre con cinemática: lo encierra en hielo y lo hace estallar.', k: 'cineGrab', cd: 14, o: { style: 'ice', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
   ],
   titan: [
-    { n: 'Suplex Titánico', d: 'Agarre que estrella más fuerte.', k: 'grab', cd: 5, o: { dmg: 20 }, r: [0, 3.5], tags: 'close gb' },
-    { n: 'Embestida Imparable', d: 'Carga con el hombro que arrastra lejos.', k: 'rush', cd: 5, o: { dmg: 14, kb: 30, up: 7, ragdoll: 1.3, pose: 'shoulder', hitPose: 'shoulder' }, r: [2, 13], tags: 'gap gb' },
-    { n: 'Gran Terremoto', d: 'Golpe al suelo gigante.', k: 'slam', cd: 7, o: { radius: 9, dmg: 13, jump: 10 }, r: [0, 8], tags: 'aoe gb' },
-    { n: 'Meteoro', d: 'Salta al cielo y cae sobre el rival.', k: 'meteor', cd: 14, o: {}, r: [0, 20], tags: 'aoe' },
+    { n: 'Martillo Aéreo', d: 'Lo lanza, salta y lo aplasta contra el piso.', k: 'airCombo', cd: 8, o: { dmg: 14 }, r: [0, 3], tags: 'close' },
+    { n: 'Brazo de Piedra', d: 'Brazo que atrapa al rival de lejos y lo trae.', k: 'pullStrike', cd: 7, o: { dmg: 13 }, r: [4, 20], tags: 'proj gap' },
+    { n: 'Tierra Temblorosa', d: 'El piso tiembla y lanza a todos cerca.', k: 'zone', cd: 10, o: { r: 6.5, dur: 4, dmg: 3, stun: .3, kb: 5, up: 4, fx: 'earth' }, r: [0, 6.5], tags: 'aoe' },
+    { n: 'Destructor de Montañas', d: 'Agarre con cinemática: lo levanta y lo estrella una y otra vez.', k: 'cineGrab', cd: 14, o: { style: 'titan', dmg: 20 }, r: [0, 3.5], tags: 'close gb' },
   ],
 };
 for (const id in AWK) if (CHARS[id]) CHARS[id].awk = AWK[id];
@@ -1247,7 +1316,9 @@ class Fighter {
     this.remote = !!o.remote; this.peer = o.peer || null;
     const skin = o.skin || this.ch.skinCanvas || makeSkinCanvas(Object.assign({}, this.ch.skin, o.skinOv || {}));
     this.skin = skin;
-    this.model = buildModel(skin, o.skin ? !!o.slim : !!this.ch.slim, scene);
+    const faceC = copyCanvas(skin);
+    this.model = buildModel(faceC, o.skin ? !!o.slim : !!this.ch.slim, scene);
+    setupFace(this, faceC);
     this.anim = new Animator(this.model);
     if (WEAPONS[this.ch.weapon]) { this.spear = WEAPONS[this.ch.weapon](); this.model.mats.push(this.spear.material); }
     if (this.ch.eyeLaser) addEyes(this.model, this.ch.color);
@@ -1552,6 +1623,8 @@ function applyHit(att, t, o) {
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
   // en ragdoll (o recién levantándose) no se recibe daño, como en los battlegrounds
   if (!t.alive || t.iframes > 0 || t.ragdoll > 0) return false;
+  // durante un agarre con cinemática solo le pega el que lo agarró
+  if (t.cineLock && t.cineLock !== att) return false;
   if (t.action && t.action.counter && !o.noCounter && att.alive) { counterHit(t, att); return 'countered'; }
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
@@ -1783,6 +1856,81 @@ function spawnSpearProj(f, o) {
   const F = fwd(f.yaw), mesh = buildSpear(1.25);
   const p = { owner: f, pos: front(f, .8, 1.35), vel: F.multiplyScalar(38), speed: 38, life: 24 / 38, age: 0, o, mesh, size: .5, loyal: true, phase: 'out', set: new Set() };
   mesh.position.copy(p.pos); scene.add(mesh); PROJ.push(p);
+}
+// ===== Ataques del despertar =====
+// estilos del agarre con cinemática: pose al levantar, golpes, preparación, remate y efectos
+const STY = {
+  punch: { lift: 'lift', hit: [['jabR_w', 'jabR'], ['jabL_w', 'jabL']], wind: 'windup', fin: 'mega' },
+  spear: { lift: 'upthrust', hit: [['thrust_w', 'thrust'], ['sweep_w', 'sweep']], wind: 'overhead', fin: 'plunge' },
+  magic: { lift: 'castUp', hit: [['signs', 'magicPalm'], ['twirlPose', 'magicPalm']], wind: 'scepterW', fin: 'scepterSmash' },
+  eyes: { lift: 'grab', hit: [['visorTouch', 'visorTouch'], ['redStance', 'jabR']], wind: 'charge', fin: 'redHero' },
+  shadow: { lift: 'lift', hit: [['slashW', 'slash'], ['hook_w', 'hook']], wind: 'slashW', fin: 'slash' },
+  elec: { lift: 'grab', hit: [['charge', 'palm'], ['cast', 'palm']], wind: 'castUp', fin: 'palm' },
+  fire: { lift: 'lift', hit: [['kick_w', 'kick'], ['jabR_w', 'jabR']], wind: 'charge', fin: 'kick' },
+  ice: { lift: 'castUp', hit: [['palm', 'cast'], ['signs', 'palm']], wind: 'signs', fin: 'palm' },
+  titan: { lift: 'lift', hit: [['lift', 'suplex'], ['stomp', 'lift']], wind: 'lift', fin: 'suplex' },
+};
+function styleFx(style, f, tg, col, big) {
+  const c = chestOf(tg);
+  impactStar(c, big ? col : '#ffffff', big ? 3 : 1.4, big ? .3 : .16); sparkLines(c, col, big ? 12 : 5, big ? 2.6 : 1.4);
+  burst(c, big ? 40 : 12, col, big ? 13 : 7, big ? .22 : .14, .5, .5);
+  if (style === 'spear') stabFx(f, col);
+  if (style === 'eyes') { const e = front(f, .35, 1.72); slashLine(e, c, col, .25, big ? .5 : .2); slashLine(e, c, '#ffffff', .18, big ? .2 : .08); }
+  if (style === 'magic' && big) copiesAround(tg, 4, 1.6, .7);
+  if (style === 'elec') for (let i = 0; i < 3; i++) { const a = c.clone().add(new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1))); slashLine(c, a, '#fff59d', .15, .06); }
+  if (style === 'fire') fireColumn(new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z), big ? 2 : .8, col, big ? 6 : 2.5);
+  if (style === 'ice') iceSpikes(new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z), big ? 2.4 : 1, col, big ? 10 : 3);
+  if (style === 'shadow') slashLine(c.clone().add(new V3(-1.2, 1.2, 0)), c.clone().add(new V3(1.2, -1.2, 0)), col, .3, .12);
+  if (big) { sphereFlash(c, col, 2.4, .4); ringAt(c, '#ffffff', 4, .45, 'face', f.yaw); if (style === 'titan' || style === 'punch') crackDecal(new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z), 4); }
+}
+// campos de daño en el piso
+const ZONES = [];
+function makeZone(f, o) {
+  const p = new V3(f.pos.x, groundAt(f.pos.x, f.pos.z), f.pos.z), r = o.r || 6, dur = o.dur || 5, col = o.color;
+  const grp = new THREE.Group(); grp.position.set(p.x, p.y + .05, p.z);
+  const dg = new THREE.CircleGeometry(r, 48), rg = new THREE.RingGeometry(r - .18, r, 64), dm = glowMat(col, .16), rm = glowMat(col, .9);
+  const disc = new THREE.Mesh(dg, dm), ring = new THREE.Mesh(rg, rm); disc.rotation.x = ring.rotation.x = -Math.PI / 2; grp.add(disc, ring);
+  const extra = [];
+  if (o.fx === 'laser') for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.BoxGeometry(r * 2, .05, .05), glowMat(col, .85)); m.position.y = .5 + i * .45; m.rotation.y = i * Math.PI / 4; grp.add(m); extra.push(m); }
+  addFx(grp, dur, (g, k) => {
+    dm.opacity = .1 + .08 * Math.sin(k * 40); ring.rotation.z = k * 6;
+    extra.forEach((m, i) => { m.rotation.y += .04 * (i % 2 ? 1 : -1); });
+    const s = k < .08 ? k / .08 : 1; g.scale.set(s, 1, s);
+  }, () => { dg.dispose(); rg.dispose(); dm.dispose(); rm.dispose(); extra.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); });
+  ZONES.push({ f, p, r, t: 0, dur, acc: 0, o });
+  ringAt(p, col, r * 1.2, .5); ringAt(p, '#ffffff', r * .8, .35); shakeFrom(p, .4); sfx('boom', p, .7);
+}
+const ZONE_PART = { magic: ['#3ddc84', '#ffd54f'], laser: ['#ff2d55', '#ffffff'], shadow: ['#4a148c', '#d65cff'], elec: ['#fff59d', '#33e1ff'], fire: ['#ff6d00', '#ffd54f'], ice: ['#ffffff', '#bfe3ff'], wind: ['#ffffff', '#ff8a80'], earth: ['#6b5a3e', '#a1887f'] };
+function updateZones(dt) {
+  for (let i = ZONES.length - 1; i >= 0; i--) {
+    const z = ZONES[i]; z.t += dt; z.acc += dt;
+    const pc = ZONE_PART[z.o.fx] || [z.o.color, '#ffffff'];
+    if (Math.random() < dt * 30) { const a = rand(0, TAU), rr = Math.sqrt(Math.random()) * z.r; emit(z.p.x + Math.cos(a) * rr, z.p.y + .1, z.p.z + Math.sin(a) * rr, 0, rand(2, 6), 0, pc[Math.random() < .5 ? 0 : 1], rand(.08, .18), rand(.4, .9), -.1, 1); }
+    if (z.acc >= .4) {
+      z.acc -= .4;
+      for (const g of enemiesOf(z.f)) if (Math.hypot(g.pos.x - z.p.x, g.pos.z - z.p.z) < z.r && g.pos.y - z.p.y < 3)
+        applyHit(z.f, g, { dmg: z.o.dmg || 2.5, stun: z.o.stun || .35, kb: z.o.kb || 0, up: z.o.up || 0, color: z.o.color, hitstop: 0, shake: .05, freeze: z.o.freeze, dir: new V3(g.pos.x - z.p.x, 0, g.pos.z - z.p.z) });
+    }
+    if (z.t >= z.dur || !G.fighters.includes(z.f)) ZONES.splice(i, 1);
+  }
+}
+// copia translúcida en un punto (para los cortes de las copias)
+function copyAt(f, pos, yaw, life = .35) {
+  const g = f.model.root.clone(true), mat = glowMat(f.ch.color, .5);
+  g.traverse(o => { if (o.isMesh) { if (o.material === f.model.mats[1] || o.material === OUTLINE_MAT || o.userData.fx) o.visible = false; else { o.material = mat; o.castShadow = false; } } });
+  g.position.copy(pos); g.rotation.y = yaw;
+  addFx(g, life, (o, k) => { mat.opacity = .5 * (1 - k); }, () => mat.dispose());
+}
+function pullHit(f, g, o) {
+  slashLine(chestOf(f), chestOf(g), o.color, .4, .1); slashLine(chestOf(f), chestOf(g), '#ffffff', .25, .04);
+  applyHit(f, g, { dmg: 4, stun: 1, kb: -Math.min(26, dist2d(f, g) * 3.2), up: 3, color: o.color, guardBreak: true, hitstop: .05 });
+  sfx('grab', f.pos);
+  later(.32, () => {
+    if (!f.alive || !g.alive || dist2d(f, g) > 4.5) return;
+    if (f.action) endAction(f);
+    f.yaw = yawTo(f, g);
+    startAction(f, { name: 'pullfin', dur: .4, armor: true, anim: [[0, 'upper_w', 900], [.06, 'upper', 1300]], steps: [{ at: .07, fn: () => { arcSlash(f, o.color, { tilt: 1.57, r: 1.8, len: 2.4 }); hitArea(f, front(f, 1.3, 1.1), 1.7, { dmg: o.dmg || 11, kb: 4, up: 16, ragdoll: 1.2, color: o.color, guardBreak: true, hitstop: .1, shake: .5 }); } }] });
+  });
 }
 // Ilusión: copia verde translúcida del peleador que corre al rival más cercano y explota (o queda quieta como señuelo)
 function decoy(f, o, from, opts) {
@@ -2050,6 +2198,124 @@ const MOVES = {
   counter(f, o) {
     startAction(f, { name: 'counter', dur: .9, counter: true, anim: [[0, 'counter', 700]], speedMul: 0, start: () => { ringAt(chestOf(f), '#ffffff', 1.6, .35, 'face', f.yaw); sfx('block', f.pos); } });
   },
+  // armas/orbes que giran alrededor y salen disparadas solas hacia el rival más cercano
+  orbitals(f, o) {
+    startAction(f, { name: 'orbit', dur: .45, speedMul: .4, anim: [[0, 'castUp', 800], [.2, 'cast', 900]] });
+    const n = o.n || 4, items = [], grp = new THREE.Group(), dur = o.dur || 7;
+    for (let i = 0; i < n; i++) { const m = o.kind === 'spear' ? buildSpear(.9) : new THREE.Mesh(new THREE.OctahedronGeometry(o.kind === 'kunai' ? .16 : .24, 0), glowMat(o.kind === 'shard' ? '#e8f4ff' : o.color, .95)); items.push(m); grp.add(m); }
+    let lastK = 0, age = 0, acc = 0, fired = 0;
+    sfx('tp', f.pos);
+    addFx(grp, dur, (g, k) => {
+      const dt = (k - lastK) * dur; lastK = k; age += dt;
+      if (!f.alive || fired >= n || !G.fighters.includes(f)) { g.visible = false; return; }
+      g.position.set(f.pos.x, f.pos.y + 1.4, f.pos.z);
+      items.forEach((m, i) => { if (!m.visible) return; const a = age * 2.6 + i / n * TAU; m.position.set(Math.cos(a) * 1.5, Math.sin(age * 3 + i) * .25, Math.sin(a) * 1.5); if (o.kind === 'spear') m.lookAt(g.position.x + m.position.x * 3, g.position.y, g.position.z + m.position.z * 3); else { m.rotation.y += dt * 6; m.rotation.x += dt * 4; } });
+      acc += dt;
+      if (acc >= (o.rate || .55)) {
+        acc = 0; let tg = null, bd = o.range || 14;
+        for (const e of enemiesOf(f)) { const d = dist2d(f, e); if (d < bd && e.ragdoll <= 0) { bd = d; tg = e; } }
+        if (tg) { const m = items.find(x => x.visible); m.visible = false; fired++; const from = m.getWorldPosition(new V3()); spawnProj(f, Math.atan2(tg.pos.x - from.x, tg.pos.z - from.z), Object.assign({ color: o.color }, o.proj, { from })); sfx('zap', from, .5); }
+      }
+    }, () => { items.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); });
+  },
+  // atraviesa varias veces al rival (o lo hacen sus copias) y en el último lo lanza
+  dashCombo(f, o) {
+    const tg = findTarget(f, o.range || 16); if (!tg) return false;
+    const n = o.n || 3; let i = 0;
+    startAction(f, {
+      name: 'dashcombo', dur: n * .2 + .35, armor: true, noControl: true, anim: [[0, 'slashW', 900]],
+      start: () => { f.iframes = Math.max(f.iframes, n * .2 + .4); sfx('dash', f.pos); },
+      tick: (a, t) => {
+        const want = Math.min(n, Math.floor(t / .2) + 1);
+        while (i < want) {
+          i++; const last = i === n;
+          if (!tg.alive) { a.t = a.dur; return; }
+          const ang = yawTo(f, tg) + (o.zig ? (i % 2 ? 1 : -1) * .9 : rand(-.4, .4)), from = o.clones ? chestOf(tg).add(fwd(ang + Math.PI).multiplyScalar(2.6)) : chestOf(f);
+          const dest = new V3(tg.pos.x + Math.sin(ang) * 2.6, tg.pos.y, tg.pos.z + Math.cos(ang) * 2.6);
+          if (o.clones) { copyAt(f, new V3(from.x, tg.pos.y, from.z), ang, .3); copyAt(f, dest, ang + Math.PI, .4); }
+          else { ghost(f, o.color, .55, .3); f.pos.copy(dest); f.yaw = yawTo(f, tg); }
+          slashLine(from, new V3(dest.x, dest.y + 1.1, dest.z), o.color, .45, .16); slashLine(from, new V3(dest.x, dest.y + 1.1, dest.z), '#ffffff', .3, .06);
+          a.anim = [[t, i % 2 ? 'slash' : mirror(POSE.slash), 1300]];
+          applyHit(f, tg, last ? { dmg: o.dmg2 || 10, kb: 14, up: 12, ragdoll: 1.3, guardBreak: true, color: o.color, hitstop: .1, shake: .5 } : { dmg: o.dmg || 4, stun: .7, kb: 0, guardBreak: true, color: o.color, hitstop: .04 });
+          sfx('slash', f.pos);
+        }
+      },
+    });
+  },
+  // cadena que atrapa al rival, lo trae y lo remata hacia arriba
+  pullStrike(f, o) {
+    startAction(f, {
+      name: 'pull', dur: .5, aim: true, speedMul: .2, anim: [[0, 'throwW', 800], [.14, 'throw', 1200]],
+      steps: [{ at: .15, fn: () => { spawnProj(f, f.yaw, { color: o.color, speed: 46, size: .32, long: 2.2, homing: 3, range: 22, onHit: g => pullHit(f, g, o) }); sfx('zap', f.pos); } }],
+    });
+  },
+  // campo en el piso que daña y aturde a quien esté adentro
+  zone(f, o) {
+    startAction(f, { name: 'zone', dur: .55, speedMul: 0, anim: [[0, 'charge', 600], [.25, 'stomp', 1000]], steps: [{ at: .25, fn: () => makeZone(f, o) }] });
+  },
+  // lo lanza al aire, salta, lo sigue con golpes y lo estrella contra el piso
+  airCombo(f, o) {
+    const tg = findTarget(f, 3.3); if (!tg) return false;
+    let ok = false, landed = false;
+    const hold = () => { if (!ok || !tg.alive) return false; if (!tg.remote) tg.vel.y = 2; const F = fwd(f.yaw); f.pos.lerp(new V3(tg.pos.x - F.x * 1.2, Math.max(0, tg.pos.y - .2), tg.pos.z - F.z * 1.2), .6); f.vel.y = 1; return true; };
+    startAction(f, {
+      name: 'aircombo', dur: 1.55, armor: true, noControl: true, aim: true, anim: [[0, 'upper_w', 900], [.08, 'upper', 1300]],
+      steps: [
+        { at: .09, fn: () => { arcSlash(f, o.color, { tilt: 1.57, r: 1.7, len: 2.4 }); ok = applyHit(f, tg, { dmg: 5, kb: 1, up: 15, stun: 1.8, color: o.color, guardBreak: true, hitstop: .06 }) === true; } },
+        { at: .28, fn: (a) => { if (!ok) { a.t = a.dur; return; } f.vel.set(0, 15.5, 0); f.onGround = false; a.anim = [[a.t, 'jump', 800]]; ghost(f, o.color); } },
+        ...[.55, .7, .85].map((at, k) => ({ at, fn: (a) => { if (!hold()) return; a.anim = [[a.t, k % 2 ? 'kick' : (k ? 'jabL' : 'jabR'), 1300]]; arcSlash(f, o.color, { tilt: rand(-.8, .8), r: 1.6, len: 2.2 }); applyHit(f, tg, { dmg: 4, stun: 1.2, kb: 0, color: o.color, guardBreak: true, hitstop: .05 }); if (o.eyes) { const e = front(f, .35, 1.72); slashLine(e, chestOf(tg), o.color, .15, .1); } } })),
+        { at: 1.0, fn: (a) => { if (!hold()) return; a.anim = [[a.t, 'slamDown', 1300]]; arcSlash(f, o.color, { tilt: -1.57, r: 2, len: 2.6, w: .7 }); if (o.eyes) { const e = front(f, .35, 1.72); slashLine(e, chestOf(tg), o.color, .3, .4); } applyHit(f, tg, { dmg: o.dmg || 11, kb: 3, up: -24, ragdoll: 1.4, color: o.color, guardBreak: true, hitstop: .12, shake: .7 }); f.vel.y = -30; } },
+      ],
+      tick: (a, t) => { if (ok && t > 1.02 && !landed && f.onGround) { landed = true; const gp = new V3(f.pos.x, f.pos.y, f.pos.z); ringAt(gp, o.color, 5, .5); burst(new V3(gp.x, gp.y + .3, gp.z), 30, '#6b5a3e', 10, .25, .8, 1.2, 6); crackDecal(gp, 3.5); sfx('boom', gp); shakeFrom(gp, .6); } },
+    });
+  },
+  // agarre con cinemática estilo battlegrounds: los dos quedan en una animación juntos y la cámara los sigue
+  cineGrab(f, o) {
+    let tg = null, phase = 0, nh = 0, t0 = 0;
+    const S = STY[o.style] || STY.punch;
+    const release = () => { if (tg && !tg.remote) { tg.cineLock = null; tg.grabbed = false; tg.forcePose = null; } };
+    startAction(f, {
+      name: 'cinegrab', dur: 2.6, noControl: true, aim: true, armor: true, anim: [[0, 'grab', 900]],
+      start: () => { const F = fwd(f.yaw); f.vel.x = F.x * 16; f.vel.z = F.z * 16; sfx('dash', f.pos); },
+      tick: (a, t) => {
+        const F = fwd(f.yaw);
+        if (phase === 0) {
+          if (t > .3) { f.vel.x *= .1; f.vel.z *= .1; a.t = a.dur; return; }
+          const c = front(f, 1, 1.1);
+          for (const g of enemiesOf(f)) { if (g.iframes > 0 || g.ragdoll > 0 || chestOf(g).distanceTo(c) > 1.5) continue; tg = g; break; }
+          if (!tg) return;
+          phase = 1; t0 = t; f.vel.set(0, 0, 0); a.invuln = true; f.iframes = Math.max(f.iframes, 2.4);
+          if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.stun = 3; tg.grabbed = true; }
+          if (f.isPlayer || tg.isPlayer) { G.duel = { f, tg, t0: G.time }; IMPACT.cd = 0; impactFrame(o.color, .08); }
+          popText(chestOf(tg), '¡AGARRE!', '#ffffff', 24); sfx('grab', f.pos); sfx('counter', f.pos, .6);
+          a.anim = [[t, 'grab', 1100]];
+        }
+        if (phase < 1) return;
+        const k = t - t0;
+        if (phase < 4 && tg.alive && !tg.remote) {
+          const off = k < .35 ? [1.0, 0] : k < 1.5 ? [1.0, 1.3] : [1.2, 1.15];
+          tg.pos.set(f.pos.x + F.x * off[0], f.pos.y + off[1], f.pos.z + F.z * off[0]); tg.vel.set(0, 0, 0); tg.yaw = f.yaw + Math.PI;
+          tg.forcePose = k < .35 ? 'hurtA' : (nh % 2 ? 'hurtB' : 'hurtA'); tg.stun = Math.max(tg.stun, .5);
+        }
+        if (phase === 1 && k >= .35) { phase = 2; a.anim = [[t, S.lift, 900]]; }
+        if (phase === 2 && nh < 4 && k >= .55 + nh * .22) {
+          const h = S.hit[nh % S.hit.length]; nh++;
+          a.anim = [[t, h[0], 900], [t + .05, h[1], 1400]];
+          styleFx(o.style, f, tg, o.color, false);
+          applyHit(f, tg, { dmg: 3.5, stun: 3, kb: 0, color: o.color, guardBreak: true, hitstop: .05, shake: .3 });
+          if (tg.anim) tg.anim.v.tx -= 10;
+        }
+        if (phase === 2 && k >= 1.45) { phase = 3; a.anim = [[t, S.wind, 900]]; sfx('ult', f.pos, .5); }
+        if (phase === 3 && k >= 1.75) {
+          phase = 4; release(); a.anim = [[t, S.fin, 1400]];
+          styleFx(o.style, f, tg, o.color, true);
+          applyHit(f, tg, { dmg: o.dmg || 15, kb: 26, up: 12, ragdoll: 2, guardBreak: true, color: o.color, hitstop: .16, shake: 1, impact: true, dir: F });
+          sfx('boom', f.pos); a.t = Math.max(a.t, a.dur - .5);
+        }
+      },
+      onEnd: () => { release(); if (tg && phase < 4 && !tg.remote) tg.stun = Math.min(tg.stun, .3); if (G.duel && G.duel.f === f) G.duel.end = G.time + (phase >= 4 ? .7 : 0); },
+    });
+  },
   illusion(f, o) {
     const n = o.count || 2;
     startAction(f, {
@@ -2251,7 +2517,7 @@ const PROJ = [];
 function spawnProj(f, yaw, o) {
   const F = fwd(yaw), size = o.size || .4, speed = o.speed || 32;
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size * (o.long || 1)), new THREE.MeshBasicMaterial({ color: o.color }));
-  const p = { owner: f, pos: o.eyes ? front(f, .5, 1.72) : front(f, .8, 1.15), vel: F.multiplyScalar(speed), speed, life: (o.range || 30) / speed, o, mesh, size };
+  const p = { owner: f, pos: o.from ? o.from.clone() : o.eyes ? front(f, .5, 1.72) : front(f, .8, 1.15), vel: F.multiplyScalar(speed), speed, life: (o.range || 30) / speed, o, mesh, size };
   mesh.position.copy(p.pos); scene.add(mesh); PROJ.push(p);
 }
 function updateProj(dt) {
@@ -2270,7 +2536,8 @@ function updateProj(dt) {
     let boom = p.life <= 0 || p.pos.y < .1 || groundAt(p.pos.x, p.pos.z) > p.pos.y || Math.hypot(p.pos.x, p.pos.z) > ARENA + 1;
     if (!boom) for (const g of enemiesOf(p.owner)) {
       if (chestOf(g).distanceTo(p.pos) < .9 + p.size / 2) {
-        if (!o.explode) applyHit(p.owner, g, { dmg: o.dmg || 5, stun: o.stun != null ? o.stun : .5, kb: o.kb || 4, up: o.up || 0, dir: p.vel.clone(), color: o.color });
+        if (o.onHit) o.onHit(g);
+        else if (!o.explode) applyHit(p.owner, g, { dmg: o.dmg || 5, stun: o.stun != null ? o.stun : .5, kb: o.kb || 4, up: o.up || 0, dir: p.vel.clone(), color: o.color });
         boom = true; break;
       }
     }
@@ -2602,6 +2869,7 @@ function animate(f, dt) {
     if (!f.onGround) spin = -clamp(3 + hs * .45, 3, 13) * (f.rdDir || 1);
   }
   else if (f.frozen > 0) { pose = null; }
+  else if (f.forcePose) { pose = POSE[f.forcePose]; k = 1000; z = .4; }
   else if (f.hurtT > 0) { pose = POSE[f.hurtPose]; k = 900; z = .45; }
   else if (f.grabbed) { pose = POSE.hurtA; k = 400; }
   else if (f.stun > 0) { pose = dizzyPose(T); k = 220; z = .6; }
@@ -2633,6 +2901,7 @@ function animate(f, dt) {
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
   eyeGlow(m, !!(a && a.eyes) || f.awak > 0, T);
   updateAura(f, dt, T);
+  updateFace(f, dt);
   if (f.alive) m.root.visible = !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
   const fl = Math.max(0, f.flashT) / .12, aw = f.awak > 0 ? .12 + .08 * Math.sin(T * 8) : 0;
   if (fl > 0) m.mats.forEach(x => x.emissive.setRGB(fl * .9, fl * .9, fl * .9));
@@ -2721,7 +2990,7 @@ try {
   if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass) {
     composer = new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .42, .4, .9);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .24, .35, .95);
     composer.addPass(renderPass); composer.addPass(bloomPass);
   }
 } catch (e) { composer = null; }
@@ -2828,6 +3097,23 @@ function updateCamera(dt) {
     return;
   }
   const p = G.player;
+  // cámara del agarre con cinemática: plano de los dos → sobre el hombro → plano bajo → sigue al que sale volando
+  const D = G.duel;
+  if (D && ((D.end && G.time > D.end) || !G.fighters.includes(D.f) || !G.fighters.includes(D.tg) || !D.f.alive)) { G.duel = null; document.body.classList.remove('duel'); }
+  else if (D) {
+    document.body.classList.add('duel');
+    const f = D.f, tg = D.tg, k = G.time - D.t0, F = fwd(f.yaw), Rr = rightOf(f.yaw);
+    const mid = f.pos.clone().lerp(tg.pos, .5); let pos, look, fov, roll = 0;
+    if (k < .35) { pos = mid.clone().addScaledVector(Rr, 4.4).add(new V3(0, 1.4, 0)); look = mid.clone().add(new V3(0, 1.2, 0)); fov = 50; roll = .05; }
+    else if (k < 1.45) { const s = (k - .35) / 1.1; pos = f.pos.clone().addScaledVector(F, -3.6).addScaledVector(Rr, 1.9 + s * .5).add(new V3(0, 2.5, 0)); look = mid.clone().add(new V3(0, 1.5, 0)); fov = 52 - s * 6; roll = -.06; }
+    else if (k < 1.75) { const s = (k - 1.45) / .3, A = fwd(f.yaw + .7); pos = mid.clone().addScaledVector(A, 4.4 - s * .8).add(new V3(0, .3, 0)); look = mid.clone().add(new V3(0, 1.5, 0)); fov = 58; roll = .1; }
+    else { pos = f.pos.clone().addScaledVector(F, -3.2).addScaledVector(Rr, 1.4).add(new V3(0, 2.2, 0)); look = chestOf(tg); fov = 62; roll = 0; }
+    camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll);
+    if (G.shake > 0) { const s = G.shake * .25; camera.position.x += rand(-s, s); camera.position.y += rand(-s, s); G.shake = Math.max(0, G.shake - dt * 2.2); }
+    cam.fov += (fov - cam.fov) * Math.min(1, dt * 12); camera.fov = cam.fov; camera.updateProjectionMatrix();
+    cam.focus.copy(p.pos).add(new V3(0, 1.7, 0));
+    return;
+  }
   cam.focus.lerp(new V3(p.pos.x, p.pos.y + 1.7, p.pos.z), Math.min(1, dt * 12));
   const cp = Math.cos(cam.pitch), R = rightOf(cam.yaw);
   const dir = new V3(Math.sin(cam.yaw) * cp, -Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
@@ -2854,8 +3140,8 @@ const SH = { scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(36, inne
   s.add(new THREE.HemisphereLight(0xbfc8ff, 0x101018, .55));
   const key = new THREE.DirectionalLight(0xffffff, .95); key.position.set(2.5, 5, 5); key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -3, right: 3, top: 4, bottom: -2, far: 20 }); s.add(key);
-  SH.rim = new THREE.DirectionalLight(0xff4d4d, 1.3); SH.rim.position.set(-3, 3, -4); s.add(SH.rim);
-  SH.rim2 = new THREE.PointLight(0xff4d4d, 1.2, 6); SH.rim2.position.set(0, .3, 1.2); s.add(SH.rim2);
+  SH.rim = new THREE.DirectionalLight(0xff4d4d, .8); SH.rim.position.set(-3, 3, -4); s.add(SH.rim);
+  SH.rim2 = new THREE.PointLight(0xff4d4d, .55, 6); SH.rim2.position.set(0, .3, 1.2); s.add(SH.rim2);
   const plat = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.65, .2, 6), new THREE.MeshLambertMaterial({ color: 0x17181f }));
   plat.position.y = 0; plat.receiveShadow = true; s.add(plat);
   SH.ring = new THREE.Mesh(new THREE.RingGeometry(1.55, 1.68, 6), glowMat('#ff4d4d', .9)); SH.ring.rotation.x = -Math.PI / 2; SH.ring.position.y = .11; s.add(SH.ring);
@@ -2888,9 +3174,10 @@ function drawBackdrop(ch) {
 function showSelect(id, quiet) {
   const ch = CHARS[id];
   if (SH.fig) disposeModel(SH.fig.model);
-  const skin = G.customSkin || charSkin(id);
-  const model = buildModel(skin, G.customSkin ? G.customSlim : !!ch.slim, SH.scene);
-  SH.fig = { model, anim: new Animator(model), ch };
+  const skin = G.customSkin || charSkin(id), faceC = copyCanvas(skin);
+  const model = buildModel(faceC, G.customSkin ? G.customSlim : !!ch.slim, SH.scene);
+  SH.fig = { model, anim: new Animator(model), ch, alive: true };
+  setupFace(SH.fig, faceC);
   if (WEAPONS[ch.weapon]) { SH.fig.spear = WEAPONS[ch.weapon](); model.mats.push(SH.fig.spear.material); setSpear(SH.fig, false); }
   if (ch.eyeLaser) addEyes(model, ch.color);
   model.root.position.set(0, 4, 0); model.root.rotation.y = .35;
@@ -2951,6 +3238,7 @@ function updateShow(dt) {
   if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx + twirlAngle(f, dt);
   if (SH.landed && !SH.kf && f.spearOut && Math.random() < dt * .25) startTwirl(f, 1, .4);
   eyeGlow(f.model, !!(SH.kf && SH.kfT > .1 && SH.kfT < .7), SH.t);
+  f.action = SH.kf ? { name: 'flourish', t: SH.kfT } : null; updateFace(f, dt);
   if (Math.random() < dt * 40) { const a = rand(0, TAU), r = rand(.3, 1.6); SH.parts.emit(Math.cos(a) * r, .15, Math.sin(a) * r, 0, rand(.8, 2), 0, Math.random() < .3 ? '#ffffff' : ch.color, rand(.04, .09), rand(1, 2), -.02, .3); }
   SH.parts.update(dt);
   SH.bgTex.offset.x += dt * .012;
@@ -2966,7 +3254,7 @@ function clearFighters() {
   G.fighters.forEach(f => f.dispose()); G.fighters = []; G.player = null;
   PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
   TIMERS.length = 0; DN.forEach(d => d.el.remove()); DN.length = 0; $('feed').innerHTML = ''; $('minicut').innerHTML = '';
-  PS.clear(); NET.proxies.clear();
+  PS.clear(); NET.proxies.clear(); ZONES.length = 0; G.duel = null; document.body.classList.remove('duel');
 }
 function applyAiLevels() { for (const f of G.fighters) if (f.ai) f.ai.P = aiParams(G.botLvl + f.ai.var); }
 function spawnBots(n) {
@@ -3424,6 +3712,7 @@ function proxyUpdate(px, dt) {
   if (px.action) updateAction(px, dt);
   eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000);
   updateAura(px, dt, performance.now() / 1000);
+  updateFace(px, dt);
 }
 function netTick(dt) {
   if (!NET.named) return;
@@ -3642,7 +3931,7 @@ function step(dt) {
     const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, d = Math.hypot(dx, dz);
     if (d < .8 && d > 1e-4) { const push = (.8 - d) / 2; a.pos.x -= dx / d * push; a.pos.z -= dz / d * push; b.pos.x += dx / d * push; b.pos.z += dz / d * push; }
   }
-  updateProj(dt); updateFx(dt); PS.update(dt);
+  updateProj(dt); updateZones(dt); updateFx(dt); PS.update(dt);
   autoBalance(dt);
   pressed.clear();
 }
