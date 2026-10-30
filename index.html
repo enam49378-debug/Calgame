@@ -756,52 +756,59 @@ function disposeModel(m) {
 }
 // ===== Expresiones procedurales: el juego encuentra ojos y boca en la cara de la skin y los redibuja =====
 function copyCanvas(src) { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c; }
-function analyzeFace(img) {
-  const d = img.data, px = (x, y) => { const i = (y * 8 + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
-  const cnt = {}; let skinKey = null;
-  for (let y = 4; y < 8; y++) for (let x = 0; x < 8; x++) { const p = px(x, y), k = (p[0] >> 4) + '-' + (p[1] >> 4) + '-' + (p[2] >> 4); cnt[k] = (cnt[k] || 0) + 1; if (!skinKey || cnt[k] > cnt[skinKey]) skinKey = k; }
-  let skin = [200, 160, 130];
-  outer: for (let y = 4; y < 8; y++) for (let x = 0; x < 8; x++) { const p = px(x, y); if ((p[0] >> 4) + '-' + (p[1] >> 4) + '-' + (p[2] >> 4) === skinKey) { skin = p; break outer; } }
+// Lee la cara combinando la capa base con la del sombrero (muchas skins dibujan ojos o anteojos ahí).
+// Busca dos ojos simétricos; si no está segura, no toca los ojos (solo la boca, si la zona es piel).
+function analyzeFace(base, hat) {
+  const B = base.data, H = hat.data;
+  const comp = (x, y) => { const i = (y * 8 + x) * 4; return H[i + 3] > 128 ? [H[i], H[i + 1], H[i + 2]] : [B[i], B[i + 1], B[i + 2]]; };
+  const onHat = (x, y) => H[(y * 8 + x) * 4 + 3] > 128;
+  const cnt = {}; let skinKey = null, skin = [200, 160, 130];
+  for (let y = 3; y < 8; y++) for (let x = 1; x < 7; x++) { const p = comp(x, y), k = (p[0] >> 4) + '-' + (p[1] >> 4) + '-' + (p[2] >> 4); cnt[k] = (cnt[k] || 0) + 1; if (!skinKey || cnt[k] > cnt[skinKey]) { skinKey = k; skin = p; } }
   const dist = p => Math.abs(p[0] - skin[0]) + Math.abs(p[1] - skin[1]) + Math.abs(p[2] - skin[2]);
-  let best = null;
-  // los bordes de la cara suelen ser pelo o patillas: se ignoran al buscar los ojos
-  for (let y = 2; y <= 6; y++) {
-    const xs = []; for (let x = 1; x < 7; x++) if (dist(px(x, y)) > 90) xs.push(x);
-    const L = xs.filter(x => x < 4), R = xs.filter(x => x >= 4);
-    const score = (L.length && R.length ? 10 : 0) - Math.abs(L.length - R.length) * 2 - (xs.length > 6 ? 8 : 0) + (xs.some(x => { const p = px(x, y); return p[0] + p[1] + p[2] > 560; }) ? 3 : 0) + (y === 4 ? 2 : 0);
-    if (!best || score > best.score) best = { score, row: y, L, R, n: xs.length };
-  }
+  const isSkin = (x, y) => x >= 0 && x < 8 && y >= 0 && y < 8 && dist(comp(x, y)) < 70;
   const hex = (r, g, b) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('');
-  const lid = hex(skin[0] * .82, skin[1] * .8, skin[2] * .8);
-  if (!best || best.score < 5) return { row: 4, L: [1, 2], R: [5, 6], lid, visor: false, tall: false };
-  // ojos de dos filas: la fila de abajo también es distinta a la piel en las mismas columnas
-  const tall = best.row < 7 && best.L.concat(best.R).filter(x => dist(px(x, best.row + 1)) > 90).length >= Math.ceil((best.L.length + best.R.length) / 2);
-  return { row: best.row, L: best.L, R: best.R, lid, visor: best.n > 5, tall };
+  const lid = hex(skin[0] * .86, skin[1] * .84, skin[2] * .84), line = hex(skin[0] * .45, skin[1] * .38, skin[2] * .36);
+  let best = null;
+  for (let y = 1; y <= 6; y++) {
+    const xs = []; for (let x = 1; x < 7; x++) if (dist(comp(x, y)) > 80) xs.push(x);
+    if (xs.length >= 6) { const vs = y >= 3 && y <= 5 ? 5 : 3.5; if (!best || best.score < vs) best = { score: vs, row: y, L: [], R: [], visor: true }; continue; }  // un visor a la altura de los ojos gana a una franja de pelo
+    const L = xs.filter(x => x < 4 && xs.includes(7 - x)), R = L.map(x => 7 - x);   // solo pares simétricos
+    if (!L.length) continue;
+    const bright = xs.some(x => { const p = comp(x, y); return p[0] + p[1] + p[2] > 540; }), darkp = xs.some(x => { const p = comp(x, y); return p[0] + p[1] + p[2] < 200; });
+    const score = 6 + L.length * 3 + (bright ? 3 : 0) + (darkp ? 2 : 0) + (y >= 3 && y <= 5 ? 2 : 0) - (xs.length - L.length * 2) * 2;
+    if (!best || score > best.score) best = { score, row: y, L, R, visor: false };
+  }
+  const mouthRow = best && !best.visor ? Math.min(6, best.row + 2) : 6;
+  const mouthOk = isSkin(3, mouthRow) && isSkin(4, mouthRow) && !onHat(3, mouthRow) && !onHat(4, mouthRow);
+  if (!best || best.score < 9) return { ok: false, visor: !!(best && best.visor), row: best ? best.row : 4, L: [], R: [], lid, line, mouthRow, mouthOk };
+  const tall = best.row < 7 && best.L.concat(best.R).every(x => dist(comp(x, best.row + 1)) > 80);
+  return { ok: !best.visor, visor: best.visor, row: best.row, L: best.L, R: best.R, lid, line, tall, mouthRow, mouthOk, isSkin, onHat };
 }
 function setupFace(f, canvas) {
   const g = canvas.getContext('2d');
-  f.faceCtx = g; f.faceOrig = g.getImageData(8, 8, 8, 8); f.faceInfo = analyzeFace(f.faceOrig);
+  f.faceCtx = g; f.faceOrig = g.getImageData(8, 8, 8, 8); f.hatOrig = g.getImageData(40, 8, 8, 8);
+  f.faceInfo = analyzeFace(f.faceOrig, f.hatOrig);
   f.faceKey = ''; f.blinkT = rand(1, 4);
 }
 function drawFace(f, eyes, mouth) {
-  const g = f.faceCtx, I = f.faceInfo, y = I.row, dark = '#21140d';
-  g.putImageData(f.faceOrig, 8, 8);
-  const P = (x, yy, c) => { if (x < 0 || x > 7 || yy < 0 || yy > 7) return; g.fillStyle = c; g.fillRect(8 + x, 8 + yy, 1, 1); };
-  if (!I.visor) {
+  const g = f.faceCtx, I = f.faceInfo, y = I.row, dark = '#1d120c';
+  g.putImageData(f.faceOrig, 8, 8); g.putImageData(f.hatOrig, 40, 8);
+  // pinta en la capa base y, si la capa del sombrero tapa ese píxel, también ahí
+  const P = (x, yy, c) => { if (x < 0 || x > 7 || yy < 0 || yy > 7) return; g.fillStyle = c; g.fillRect(8 + x, 8 + yy, 1, 1); if (I.onHat && I.onHat(x, yy)) g.fillRect(40 + x, 8 + yy, 1, 1); };
+  const skinAt = (x, yy) => I.isSkin && I.isSkin(x, yy);
+  if (I.ok) {
     for (const grp of [I.L, I.R]) {
-      if (!grp.length) continue;
       const inner = grp === I.L ? Math.max(...grp) : Math.min(...grp), outer = grp === I.L ? Math.min(...grp) : Math.max(...grp);
-      // con ojos de dos filas, la de abajo pasa a ser párpado/piel cuando el ojo se cierra
-      if (I.tall && eyes !== 'open' && eyes !== 'glow' && eyes !== 'angry') grp.forEach(x => P(x, y + 1, I.lid));
-      if (eyes === 'closed') grp.forEach(x => P(x, y, dark));
-      else if (eyes === 'angry') { P(outer, y - 1, dark); P(inner, y - 1, dark); P(inner, y, dark); }
-      else if (eyes === 'hurt') { grp.forEach(x => P(x, y, dark)); P(outer, y - 1, dark); P(outer, y + 1, dark); }
-      else if (eyes === 'ko') { grp.forEach(x => P(x, y, I.lid)); P(outer, y - 1, dark); P(inner, y + 1, dark); P(inner, y - 1, dark); P(outer, y + 1, dark); }
-      else if (eyes === 'happy') { grp.forEach(x => { P(x, y, I.lid); P(x, y - 1, dark); }); }
-      else if (eyes === 'glow') grp.forEach(x => P(x, y, '#ffffff'));
+      const closeTo = c => { if (I.tall) { grp.forEach(x => { P(x, y, I.lid); P(x, y + 1, c); }); } else grp.forEach(x => P(x, y, c)); };
+      if (eyes === 'closed') closeTo(I.line);
+      else if (eyes === 'angry') { if (skinAt(outer, y - 1)) P(outer, y - 1, dark); if (skinAt(inner, y - 1)) P(inner, y - 1, dark); P(inner, y, dark); }
+      else if (eyes === 'hurt') { closeTo(dark); if (skinAt(outer, y - 1)) P(outer, y - 1, dark); }
+      else if (eyes === 'ko') { closeTo(dark); if (skinAt(outer, y - 1)) P(outer, y - 1, dark); if (skinAt(inner, y - 1)) P(inner, y - 1, dark); }
+      else if (eyes === 'happy') { if (skinAt(outer, y - 1) && skinAt(inner, y - 1)) { grp.forEach(x => { P(x, y, I.lid); if (I.tall) P(x, y + 1, I.lid); P(x, y - 1, dark); }); } else closeTo(I.line); }
+      else if (eyes === 'glow') grp.forEach(x => { P(x, y, '#ffffff'); if (I.tall) P(x, y + 1, f.ch ? f.ch.color : '#ffffff'); });
     }
-  } else if (eyes === 'glow' || eyes === 'angry') { for (let x = 1; x < 7; x++) P(x, y, eyes === 'glow' ? '#ffffff' : '#ff8080'); }
-  if (mouth === 'open') { const my = Math.min(6, y + 2); P(3, my, '#3b0d0d'); P(4, my, '#3b0d0d'); P(3, my + 1, '#7a2222'); P(4, my + 1, '#7a2222'); }
+  } else if (I.visor && (eyes === 'glow' || eyes === 'angry')) { for (let x = 1; x < 7; x++) P(x, y, eyes === 'glow' ? '#ffffff' : '#ff8a8a'); }
+  if (mouth === 'open' && I.mouthOk) { const my = I.mouthRow; P(3, my, '#3b0d0d'); P(4, my, '#3b0d0d'); if (my < 7 && skinAt(3, my + 1)) { P(3, my + 1, '#7a2222'); P(4, my + 1, '#7a2222'); } }
   f.model.tex.needsUpdate = true;
 }
 // elige la expresión según lo que esté pasando: parpadeo, enojo al atacar, dolor, K.O., alegría, despertar
@@ -929,6 +936,36 @@ const POSE = {
   cross: { ty: .1, alx: -1.2, alz: -1.0, arx: -1.25, arz: 1.0, llz: .1, lrz: -.1, hx: .1 },
 };
 POSE.jabL_w = mirror(POSE.jabR_w); POSE.jabL = mirror(POSE.jabR);
+// reacciones a golpes según la dirección
+Object.assign(POSE, {
+  hurtFwd: { ix: .35, tx: .45, hx: .45, alx: .3, alz: .6, arx: .35, arz: -.6, llx: -.35, lrx: .4, by: -1 },
+  hurtSideL: { iz: .25, ty: -.5, tz: .2, hy: -.5, hz: .3, alx: -.4, alz: 1.0, arx: .3, arz: -.2, llz: .2, lrz: .1 },
+  hurtSideR: { iz: -.25, ty: .5, tz: -.2, hy: .5, hz: -.3, arx: -.4, arz: -1.0, alx: .3, alz: .2, lrz: -.2, llz: -.1 },
+});
+// poses de coreografía: reacciones del que recibe (v...) y del que ataca (a...)
+Object.assign(POSE, {
+  vGut: { ix: .5, tx: .65, by: -2.5, hx: .35, alx: -.7, alz: -.45, arx: -.7, arz: .45, llx: -.35, lrx: .25 },
+  vBack: { ix: -.6, tx: -.55, hx: -.75, alx: -.9, alz: 1.25, arx: -.9, arz: -1.25, llx: .45, lrx: -.25 },
+  vLifted: { ix: -.12, tx: -.2, hx: -.55, alx: -1.3, alz: -.35, arx: -1.35, arz: .35, llx: .3, lrx: -.15, llz: .08, lrz: -.05 },
+  vKick1: { ix: -.15, tx: -.2, hx: -.5, alx: -1.3, alz: -.35, arx: -1.3, arz: .35, llx: -1.1, lrx: .5 },
+  vKick2: { ix: -.1, tx: -.2, hx: -.45, alx: -1.35, alz: -.3, arx: -1.4, arz: .3, llx: .5, lrx: -1.1 },
+  vDangle: { ix: -1.45, hx: -.85, alx: -.25, alz: .75, arx: -.15, arz: -.7, llx: .35, lrx: .55, llz: .1, lrz: -.1 },
+  vLaunch: { ix: -.35, tx: -.3, hx: -.6, alx: -2.5, alz: .9, arx: -2.6, arz: -.9, llx: .45, lrx: -.4 },
+  vStagger: { ty: .6, tx: .2, hx: .4, hy: .6, alx: .4, alz: .8, arx: -.6, arz: -.6, llx: -.45, lrx: .35, by: -1 },
+  vFloat: { ix: -.2, hx: -.35, alx: -.4, alz: 1.1, arx: -.4, arz: -1.1, llx: .25, lrx: -.25, llz: .15, lrz: -.15 },
+  vFlip: { ix: 2.9, tx: -.3, hx: -.5, alx: -2.4, alz: .7, arx: -2.4, arz: -.7, llx: .3, lrx: -.3 },
+  vFlip2: { ix: 4.4, hx: -.4, alx: -2.6, alz: .5, arx: -2.6, arz: -.5 },
+  vConfused: { ty: .3, hx: .1, hy: .5, hz: .35, alx: -.3, alz: .5, arx: -1.6, arz: .2, ary: -.6, llz: .1, lrz: -.1 },
+  vShock1: { ix: -.15, tx: -.25, hx: -.6, hz: .25, alx: -.4, alz: 1.4, arx: -.2, arz: -1.1, llx: .4, lrx: -.3, llz: .25, lrz: -.2 },
+  vShock2: { ix: .1, tx: .2, hx: .2, hz: -.3, alx: -.2, alz: 1.0, arx: -.5, arz: -1.5, llx: -.3, lrx: .45, llz: .15, lrz: -.3 },
+  vFrozenStand: { tx: -.05, hx: -.15, alx: -.6, alz: .5, arx: -.7, arz: -.4, llx: -.2, lrx: .15 },
+  vUpside: { ix: 3.14, hx: .2, alx: -.3, alz: .6, arx: -.3, arz: -.6, llx: .15, lrx: -.15, llz: .2, lrz: -.2 },
+  vSpinA: { ix: -.4, iz: .6, hx: -.5, alx: -2, alz: 1.2, arx: -.6, arz: -1.4, llx: .5, lrx: -.6 },
+  aCollar: { ty: .3, tx: .1, by: -1, arx: -2.1, arz: .25, ary: -.2, sx: -1, alx: -.6, alz: -.4, llx: -.4, lrx: .35, hx: -.15 },
+  aUpside: { ix: 3.0, tx: .2, alx: .3, alz: .6, arx: .3, arz: -.6, llx: -.6, lrx: .3, hx: .3 },
+  aTaunt: { ty: -.2, hy: .3, hz: -.15, alx: -.2, alz: .35, arx: -1.9, arz: .5, ary: .6, llx: -.1, lrx: .1 },
+  aCatch: { ix: .2, tx: .25, by: -1.5, alx: -1.7, alz: -.15, arx: -1.7, arz: .15, llx: -.6, lrx: .5 },
+});
 POSE.downB = { ix: 1.45, ty: .3, alx: -2.6, alz: .7, arx: -2.9, arz: -.4, llx: -.3, lrx: .15, llz: .15, lrz: -.1, hx: .3, hy: .4 };
 POSE.idleM = mirror(POSE.idle);
 // poses de lanza: sx gira la lanza en la mano (arx + sx = 0 apunta al frente)
@@ -984,6 +1021,7 @@ function dizzyPose(T) { return { ix: Math.sin(T * 5) * .12, iz: Math.cos(T * 4) 
 // Interpolación Hermite cúbica (tangentes Catmull-Rom): la animación es una curva continua que pasa por pocas
 // poses clave; arranca desde la pose actual, sale y llega con velocidad cero (ease in/out) y fluye por el medio.
 const TENS = .55;
+const DRAG = { hx: 20, hy: 20, hz: 18, aly: 24, ary: 24, alz: 26, arz: 26, llz: 30, lrz: 30 };
 const jv = (p, j) => p[j] != null ? p[j] : (JDEF[j] || 0);
 function buildTrack(list, from, t0) {
   const keys = [{ t: t0, p: from }]; let last = t0;
@@ -1014,7 +1052,11 @@ class Animator {
   // reproduce una pista Hermite; deja la velocidad para que el resorte siga sin saltos al terminar
   play(keys, t, dt) {
     const x = this.x, v = this.v; sampleTrack(keys, t, this.o);
-    for (const j of JOINTS) { const nv = this.o[j]; v[j] = dt > 0 ? (nv - x[j]) / dt * .5 : 0; x[j] = nv; }
+    for (const j of JOINTS) {
+      // arrastre secundario: cabeza y giros laterales de brazos/piernas siguen la curva con un pequeño retraso (overlapping action)
+      const lag = DRAG[j], nv = lag && dt > 0 ? x[j] + (this.o[j] - x[j]) * Math.min(1, dt * lag) : this.o[j];
+      v[j] = dt > 0 ? (nv - x[j]) / dt * .5 : 0; x[j] = nv;
+    }
     this.apply();
   }
   reset() { for (const j of JOINTS) { this.x[j] = JDEF[j] || 0; this.v[j] = 0; } }
@@ -1223,57 +1265,57 @@ const AWAKE_DUR = 30;
 const AWK = {
   javi: [
     { n: 'Lanzas Orbitales', d: 'Cuatro lanzas giran a tu alrededor y salen disparadas solas hacia los rivales.', k: 'orbitals', cd: 9, o: { n: 4, kind: 'spear', dur: 7, rate: .5, proj: { speed: 42, dmg: 5, stun: .5, size: .3, long: 4, homing: 3 } }, r: [0, 14], tags: 'proj' },
-    { n: 'Embestida Relámpago', d: 'Atraviesa tres veces al rival en zigzag y en la última lo lanza.', k: 'dashCombo', cd: 7, o: { n: 3, zig: true, dmg: 4, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
-    { n: 'Cadena de Lanza', d: 'Lanza encadenada: atrapa al rival, lo trae hacia vos y lo lanza hacia arriba.', k: 'pullStrike', cd: 7, o: { dmg: 11 }, r: [4, 20], tags: 'proj gap' },
-    { n: 'Empalamiento', d: 'Agarre con cinemática: lo ensarta, lo levanta con la lanza y lo estrella.', k: 'cineGrab', cd: 14, o: { style: 'spear', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Embestida Relámpago', d: 'Choque de lanza: lo atraviesa tres veces como un rayo y cae del cielo sobre él.', k: 'chore', cd: 12, o: { id: 'javiDash' }, r: [0, 6], tags: 'gap gb', cine: 1 },
+    { n: 'Cadena de Lanza', d: 'Engancha al rival de lejos, salta por encima y lo ensarta por la espalda.', k: 'chore', cd: 12, o: { id: 'javiChain' }, r: [4, 20], tags: 'proj gap', cine: 1 },
+    { n: 'Empalamiento', d: 'Lo ensarta, lo alza sobre la cabeza con la lanza, gira y lo clava en el piso.', k: 'chore', cd: 14, o: { id: 'javiImpale' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   gato: [
     { n: 'Espejismo', d: 'Campo de ilusiones que aturde y daña a quien esté adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.5, stun: .45, fx: 'magic' }, r: [0, 6], tags: 'aoe' },
-    { n: 'Copias Asesinas', d: 'Tres copias atraviesan al rival desde distintos lados.', k: 'dashCombo', cd: 7, o: { n: 3, clones: true, dmg: 4, dmg2: 11 }, r: [2, 16], tags: 'gap gb' },
-    { n: 'Cadena Mágica', d: 'Hechizo que atrapa al rival, lo trae y lo lanza.', k: 'pullStrike', cd: 7, o: { dmg: 11 }, r: [4, 20], tags: 'proj gap' },
-    { n: 'Truco Final', d: 'Agarre con cinemática: lo levanta con magia y sus copias lo rematan.', k: 'cineGrab', cd: 14, o: { style: 'magic', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Copias Asesinas', d: 'Cuatro copias se lo pasan como pelota y el verdadero lo remata.', k: 'chore', cd: 12, o: { id: 'gatoCopies' }, r: [0, 6], tags: 'gap gb', cine: 1 },
+    { n: 'Cadena Mágica', d: 'Lo atrae con magia, lo frena, golpecito en la frente... y estalla.', k: 'chore', cd: 12, o: { id: 'gatoChain' }, r: [4, 20], tags: 'proj gap', cine: 1 },
+    { n: 'Truco Final', d: 'Reverencia burlona, lo da vuelta en el aire y una copia lo remata.', k: 'chore', cd: 14, o: { id: 'gatoTrick' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   redbird: [
     { n: 'Red Láser', d: 'Rejilla de láseres giratorios alrededor que daña sin parar.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.8, stun: .3, fx: 'laser' }, r: [0, 6], tags: 'aoe' },
     { n: 'Drones Ópticos', d: 'Cinco orbes rojos te rodean y disparan solos a los rivales.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'orb', dur: 7, rate: .45, proj: { speed: 55, dmg: 4, stun: .4, size: .2, long: 5, homing: 3 } }, r: [0, 14], tags: 'proj' },
-    { n: 'Patada Óptica', d: 'Lo lanza al aire, lo sigue con patadas y lo estrella con un láser.', k: 'airCombo', cd: 8, o: { dmg: 11, eyes: true }, r: [0, 3], tags: 'close' },
-    { n: 'Ejecución Óptica', d: 'Agarre con cinemática: lo levanta del cuello y le dispara a quemarropa.', k: 'cineGrab', cd: 14, o: { style: 'eyes', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Patada Óptica', d: 'Patada al cielo, combo en el aire y lo baja con un rayo de los ojos.', k: 'chore', cd: 12, o: { id: 'redKick' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
+    { n: 'Ejecución Óptica', d: 'Lo alza del cuello, carga los ojos y lo atraviesa con el láser.', k: 'chore', cd: 14, o: { id: 'redExec' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   kaiza: [
     { n: 'Combo Aéreo', d: 'Gancho al cielo, salta detrás y lo estrella de vuelta.', k: 'airCombo', cd: 8, o: { dmg: 12 }, r: [0, 3], tags: 'close' },
     { n: 'Paso Sísmico', d: 'Tres embestidas que atraviesan al rival.', k: 'dashCombo', cd: 7, o: { n: 3, dmg: 4, dmg2: 11 }, r: [2, 16], tags: 'gap gb' },
     { n: 'Aura de Combate', d: 'Campo de presión que golpea y empuja a todos cerca.', k: 'zone', cd: 10, o: { r: 5, dur: 4, dmg: 3, stun: .3, kb: 4, fx: 'wind' }, r: [0, 5], tags: 'aoe' },
-    { n: 'Paliza Seria', d: 'Agarre con cinemática: ráfaga de puños y un último golpe que lo manda lejos.', k: 'cineGrab', cd: 14, o: { style: 'punch', dmg: 18 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Paliza Seria', d: 'Ráfaga de puños y un único puñetazo serio que lo manda a volar.', k: 'chore', cd: 14, o: { id: 'kaizaSerious' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   nyx: [
     { n: 'Danza de Sombras', d: 'Cinco cortes en zigzag a través del rival.', k: 'dashCombo', cd: 7, o: { n: 5, zig: true, dmg: 3, dmg2: 9 }, r: [2, 16], tags: 'gap gb' },
     { n: 'Niebla Oscura', d: 'Niebla que corta a quien entre.', k: 'zone', cd: 10, o: { r: 5.5, dur: 5, dmg: 2.6, stun: .35, fx: 'shadow' }, r: [0, 5.5], tags: 'aoe' },
     { n: 'Kunais Flotantes', d: 'Seis kunais flotan a tu alrededor y salen solos.', k: 'orbitals', cd: 9, o: { n: 6, kind: 'kunai', dur: 7, rate: .35, proj: { speed: 46, dmg: 3.5, stun: .45, size: .25, long: 2.6, homing: 3 } }, r: [0, 14], tags: 'proj' },
-    { n: 'Ejecución Sombría', d: 'Agarre con cinemática: cortes rápidos desde las sombras.', k: 'cineGrab', cd: 14, o: { style: 'shadow', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Ejecución Sombría', d: 'Cinco cortes desde las sombras; guarda el arma y recién ahí cae.', k: 'chore', cd: 14, o: { id: 'nyxShadow' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   volt: [
     { n: 'Orbes Satélite', d: 'Cuatro orbes eléctricos te rodean y estallan sobre los rivales.', k: 'orbitals', cd: 9, o: { n: 4, kind: 'orb', dur: 7, rate: .6, proj: { speed: 30, dmg: 7, size: .5, explode: 2.2, homing: 2 } }, r: [0, 14], tags: 'proj' },
     { n: 'Campo Eléctrico', d: 'Campo que electrocuta y deja quietos a los de adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 4.5, dmg: 2.4, stun: .55, fx: 'elec' }, r: [0, 6], tags: 'aoe' },
     { n: 'Rayo Zigzag', d: 'Cuatro saltos relámpago a través del rival.', k: 'dashCombo', cd: 7, o: { n: 4, zig: true, dmg: 3.5, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
-    { n: 'Sobrecarga', d: 'Agarre con cinemática: lo electrocuta en el aire y lo descarga.', k: 'cineGrab', cd: 14, o: { style: 'elec', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Sobrecarga', d: 'Lo usa de pararrayos en el aire y lo descarga con un trueno.', k: 'chore', cd: 14, o: { id: 'voltOverload' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   brasa: [
     { n: 'Suelo de Lava', d: 'El piso se vuelve lava y quema a quien lo pise.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 3, stun: .25, fx: 'fire' }, r: [0, 6], tags: 'aoe' },
     { n: 'Patadas del Fénix', d: 'Patada al cielo, combo aéreo de fuego y caída.', k: 'airCombo', cd: 8, o: { dmg: 12 }, r: [0, 3], tags: 'close' },
     { n: 'Látigo de Fuego', d: 'Látigo que atrapa al rival y lo trae para rematarlo.', k: 'pullStrike', cd: 7, o: { dmg: 12 }, r: [4, 20], tags: 'proj gap' },
-    { n: 'Ejecución Volcánica', d: 'Agarre con cinemática: patadas de fuego y una erupción.', k: 'cineGrab', cd: 14, o: { style: 'fire', dmg: 17 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Ejecución Volcánica', d: 'Patadas de fuego en espiral y un volcán que se abre bajo sus pies.', k: 'chore', cd: 14, o: { id: 'brasaVolcano' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   yuki: [
     { n: 'Tormenta de Nieve', d: 'Ventisca que daña y frena a los de adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.2, stun: .5, fx: 'ice' }, r: [0, 6], tags: 'aoe' },
     { n: 'Fragmentos Orbitales', d: 'Cristales de hielo te rodean y salen a congelar.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'shard', dur: 7, rate: .5, proj: { speed: 44, dmg: 4, stun: .9, size: .3, long: 3, homing: 3 } }, r: [0, 14], tags: 'proj' },
     { n: 'Patinaje Fugaz', d: 'Cuatro deslizamientos a través del rival.', k: 'dashCombo', cd: 7, o: { n: 4, zig: true, dmg: 3.5, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
-    { n: 'Tumba de Hielo', d: 'Agarre con cinemática: lo encierra en hielo y lo hace estallar.', k: 'cineGrab', cd: 14, o: { style: 'ice', dmg: 16 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Tumba de Hielo', d: 'Lo congela en una estatua, la toca con un dedo y estalla.', k: 'chore', cd: 14, o: { id: 'yukiTomb' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   titan: [
     { n: 'Martillo Aéreo', d: 'Lo lanza, salta y lo aplasta contra el piso.', k: 'airCombo', cd: 8, o: { dmg: 14 }, r: [0, 3], tags: 'close' },
-    { n: 'Brazo de Piedra', d: 'Brazo que atrapa al rival de lejos y lo trae.', k: 'pullStrike', cd: 7, o: { dmg: 13 }, r: [4, 20], tags: 'proj gap' },
+    { n: 'Brazo de Piedra', d: 'Lo trae de lejos y lo estrella contra el piso de un lado y del otro.', k: 'chore', cd: 12, o: { id: 'titanArm' }, r: [4, 20], tags: 'proj gap', cine: 1 },
     { n: 'Tierra Temblorosa', d: 'El piso tiembla y lanza a todos cerca.', k: 'zone', cd: 10, o: { r: 6.5, dur: 4, dmg: 3, stun: .3, kb: 5, up: 4, fx: 'earth' }, r: [0, 6.5], tags: 'aoe' },
-    { n: 'Destructor de Montañas', d: 'Agarre con cinemática: lo levanta y lo estrella una y otra vez.', k: 'cineGrab', cd: 14, o: { style: 'titan', dmg: 20 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Destructor de Montañas', d: 'Salta altísimo con el rival en brazos y cae con un piledriver.', k: 'chore', cd: 14, o: { id: 'titanCrush' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
 };
 for (const id in AWK) if (CHARS[id]) CHARS[id].awk = AWK[id];
@@ -1667,7 +1709,14 @@ function applyHit(att, t, o) {
     t.vel.x = dir.x * kb; t.vel.z = dir.z * kb;
     if (up) { t.vel.y = up; t.onGround = false; } else if (!t.onGround) t.vel.y = Math.max(t.vel.y, 1.8);
     if (ragdoll) { startRagdoll(t, ragdoll); t.stun = 0; }
-    else { t.hurtT = .22; t.hurtPose = t.hurtPose === 'hurtA' ? 'hurtB' : 'hurtA'; t.anim.v.tx -= 6; }
+    else {
+      // reacción según de dónde viene el golpe: de frente se va para atrás, por la espalda se dobla hacia adelante, de costado se tuerce
+      const tf = fwd(t.yaw), fr = tf.x * dir.x + tf.z * dir.z, sd = rightOf(t.yaw).x * dir.x + rightOf(t.yaw).z * dir.z;
+      t.hurtT = .24;
+      if (fr > .45) { t.hurtPose = 'hurtFwd'; t.anim.v.tx += 7; }
+      else if (Math.abs(sd) > .7) { t.hurtPose = sd > 0 ? 'hurtSideL' : 'hurtSideR'; t.anim.v.ty += sd * 8; }
+      else { t.hurtPose = t.hurtPose === 'hurtA' ? 'hurtB' : 'hurtA'; t.anim.v.tx -= 7; }
+    }
     if (o.freeze) freeze(t, o.freeze);
   }
   const heavy = ragdoll > 0 || o.dmg >= 8;
@@ -1857,6 +1906,452 @@ function spawnSpearProj(f, o) {
   const p = { owner: f, pos: front(f, .8, 1.35), vel: F.multiplyScalar(38), speed: 38, life: 24 / 38, age: 0, o, mesh, size: .5, loyal: true, phase: 'out', set: new Set() };
   mesh.position.copy(p.pos); scene.add(mesh); PROJ.push(p);
 }
+// ===== Coreografías cinemáticas (agarres estilo TSB) =====
+// Cada coreografía describe, con pocas claves unidas por curvas Hermite:
+//  att/vic: poses del atacante y del que recibe · apos/vpos: [t, x, y, z, giro] en el marco del atacante
+//  (x derecha, y arriba, z adelante; 'c' al final = corte instantáneo) · ev: golpes, efectos, cámara lenta
+//  shots: [t, tipo de plano, opciones] para el director de cámara.
+const L2W = (o, yaw, x, y, z) => { const F = fwd(yaw), R = rightOf(yaw); return new V3(o.x + R.x * x + F.x * z, o.y + y, o.z + R.z * x + F.z * z); };
+function hermArr(keys, t) {
+  const n = keys.length, get = k => [k[1], k[2], k[3], k[4] || 0];
+  if (t <= keys[0][0]) return get(keys[0]); if (t >= keys[n - 1][0]) return get(keys[n - 1]);
+  let i = 0; while (i < n - 2 && t >= keys[i + 1][0]) i++;
+  const k1 = keys[i], k2 = keys[i + 1];
+  if (k2[5] === 'c') return get(k1);
+  const k0 = i > 0 && k1[5] !== 'c' ? keys[i - 1] : k1, k3 = i + 2 < n && keys[i + 2][5] !== 'c' ? keys[i + 2] : k2;
+  const h = k2[0] - k1[0], s = (t - k1[0]) / h, s2 = s * s, s3 = s2 * s;
+  const h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
+  const a0 = get(k0), a1 = get(k1), a2 = get(k2), a3 = get(k3);
+  return a1.map((v, j) => {
+    const m1 = k0 === k1 ? 0 : (a2[j] - a0[j]) / (k2[0] - k0[0]) * h * .5, m2 = k3 === k2 ? 0 : (a3[j] - a1[j]) / (k3[0] - k1[0]) * h * .5;
+    return h00 * v + h10 * m1 + h01 * a2[j] + h11 * m2;
+  });
+}
+function choreBegin(f, tg, D) {
+  const st = { f, tg, D, t: 0, origin: new V3(f.pos.x, groundAt(f.pos.x, f.pos.z), f.pos.z), yaw: f.yaw, fired: new Set(), released: false, done: false, shot: -1 };
+  st.vpos = D.vpos;
+  if (D.pull) {
+    const dx = tg.pos.x - f.pos.x, dz = tg.pos.z - f.pos.z, F = fwd(f.yaw), R = rightOf(f.yaw);
+    st.vpos = [[0, dx * R.x + dz * R.z, tg.pos.y - st.origin.y, dx * F.x + dz * F.z, 0]].concat(D.vpos.filter(k => k[0] > 0));
+  }
+  st.apos = D.apos || [[0, 0, 0, 0, 0]];
+  if (f.spear && !f.spearOut) setSpear(f, true);
+  f.choreTrack = buildTrack(D.att, Object.assign({}, f.anim.x), 0); f.choreTime = 0; f.choreEyes = false;
+  f.iframes = Math.max(f.iframes, D.dur + .3);
+  if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.grabbed = true; tg.stun = 9; tg.choreTrack = buildTrack(D.vic, Object.assign({}, tg.anim.x), 0); tg.choreTime = 0; }
+  if (f.isPlayer || tg.isPlayer) G.chore = st;
+  IMPACT.cd = 0; impactFrame(f.ch.color, .07); sfx('grab', f.pos); sfx('counter', f.pos, .5);
+  return st;
+}
+function choreRelease(st) {
+  if (st.released) return; st.released = true;
+  const tg = st.tg; if (!tg.remote) { tg.cineLock = null; tg.grabbed = false; tg.choreTrack = null; tg.stun = 0; }
+}
+function choreEnd(st) {
+  choreRelease(st); st.f.choreTrack = null; st.f.choreEyes = false;
+  if (!st.tg.remote && st.tg.alive) st.tg.stun = Math.min(st.tg.stun, .3);
+  if (G.chore === st) { G.chore = null; document.body.classList.remove('duel'); }
+}
+function choreTick(st, dt) {
+  const { f, tg, D } = st; st.t += dt; const t = st.t;
+  if (!f.alive) { st.done = true; return; }
+  const ap = hermArr(st.apos, t);
+  f.pos.copy(L2W(st.origin, st.yaw, ap[0], ap[1], ap[2])); f.yaw = st.yaw + ap[3]; f.vel.set(0, 0, 0); f.choreTime = t;
+  if (!st.released && tg.alive && !tg.remote) {
+    const vp = hermArr(st.vpos, t);
+    tg.pos.copy(L2W(st.origin, st.yaw, vp[0], vp[1], vp[2])); tg.yaw = st.yaw + Math.PI + vp[3]; tg.vel.set(0, 0, 0); tg.choreTime = t; tg.stun = Math.max(tg.stun, .5);
+  }
+  D.ev.forEach((e, i) => { if (!st.fired.has(i) && t >= e.t) { st.fired.add(i); choreEvent(st, e); } });
+  if (t >= D.dur) st.done = true;
+}
+function choreEvent(st, e) {
+  const { f, tg } = st, col = f.ch.color, at = e.at || 'vic';
+  const P = at === 'att' ? chestOf(f) : at === 'ground' ? new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z) : at === 'eyes' ? front(f, .35, 1.72) : chestOf(tg);
+  if (e.fx) choreFx(e.fx, st, P, col, e);
+  if (e.hit) applyHit(f, tg, { dmg: e.hit, stun: 9, kb: 0, color: col, guardBreak: true, hitstop: .05, shake: e.shake || .25, noCounter: true });
+  if (e.rel) {
+    choreRelease(st); IMPACT.cd = 0; impactFrame(col, .11);
+    applyHit(f, tg, { dmg: e.rel.dmg, kb: e.rel.kb || 0, up: e.rel.up || 0, ragdoll: e.rel.rag || 1.8, guardBreak: true, color: col, hitstop: .15, shake: 1, dir: fwd(f.yaw), noCounter: true });
+  }
+  if (e.slow) G.slowT = Math.max(G.slowT, e.slow);
+  if (e.imp) { IMPACT.cd = 0; impactFrame(col, .09); }
+  if (e.shake && !e.hit) G.shake = Math.max(G.shake, e.shake);
+  if (e.sfx) sfx(e.sfx, f.pos);
+  if (e.text) popText(chestOf(e.who === 'att' ? f : tg).add(new V3(0, .6, 0)), e.text, e.who === 'att' ? col : '#ffffff', 22);
+  if (e.twirl) startTwirl(f, e.twirl[0], e.twirl[1]);
+  if (e.eyes != null) f.choreEyes = !!e.eyes;
+  if (e.freeze && !tg.remote) freeze(tg, e.freeze);
+}
+function choreFx(name, st, P, col, e) {
+  const { f, tg } = st, big = !!e.big, G0 = new V3(P.x, groundAt(P.x, P.z), P.z);
+  switch (name) {
+    case 'impact': impactStar(P, big ? col : '#ffffff', big ? 2.6 : 1.4, big ? .3 : .16); sparkLines(P, col, big ? 10 : 5, big ? 2.4 : 1.3); burst(P, big ? 30 : 12, col, big ? 12 : 7, .16, .45, .5); sfx(big ? 'heavy' : 'hit', P); break;
+    case 'stab': stabFx(f, col); impactStar(P, '#ffffff', 1.4, .16); sfx('slash', P); break;
+    case 'slash': arcSlash(f, col, { tilt: e.tilt != null ? e.tilt : rand(-.8, .8), r: e.r || 1.8, len: e.len || 2.6, w: .55, dur: .22 }); sfx('swing', f.pos); break;
+    case 'line': { const a = rand(0, TAU), d = new V3(Math.cos(a), rand(-.5, .5), Math.sin(a)).normalize().multiplyScalar(1.9); slashLine(P.clone().sub(d), P.clone().add(d), col, .35, .13); slashLine(P.clone().sub(d), P.clone().add(d), '#ffffff', .25, .05); sfx('slash', P); break; }
+    case 'xcut': for (let i = 0; i < 6; i++) { const a = rand(0, TAU), d = new V3(Math.cos(a), rand(-.8, .8), Math.sin(a)).normalize().multiplyScalar(2.1); slashLine(P.clone().sub(d), P.clone().add(d), i % 2 ? col : '#ffffff', .5, .14); } sparkLines(P, col, 10, 2.2); sfx('slash', P); sfx('heavy', P); break;
+    case 'ghost': ghost(f, col, .6, .35); break;
+    case 'copies': copiesAround(tg, 4, 1.7, .9); break;
+    case 'clone': { const a = (e.a || 0) + st.yaw, s = new V3(Math.sin(a) * 2.6, 0, Math.cos(a) * 2.6), from = P.clone().add(s), to = P.clone().sub(s); copyAt(f, new V3(from.x, tg.pos.y, from.z), a + Math.PI, .3); copyAt(f, new V3(to.x, tg.pos.y, to.z), a + Math.PI, .4); slashLine(from, to, col, .4, .15); slashLine(from, to, '#ffffff', .28, .05); sfx('slash', P); break; }
+    case 'ring': ringAt(P, col, e.r || 3, .4, e.face ? 'face' : 'flat', f.yaw); break;
+    case 'boom': { const r = e.r || 2.5; sphereFlash(P, col, r, .4); ringAt(G0, col, r * 1.6, .5); ringAt(P, '#ffffff', r, .35, 'face', f.yaw); burst(P, 40, col, 13, .22, .6, .6); burst(new V3(G0.x, G0.y + .3, G0.z), 24, '#6b5a3e', 10, .25, .8, 1.2, 6); sfx('boom', P); G.shake = Math.max(G.shake, .8); break; }
+    case 'crack': crackDecal(G0, e.r || 4.5); break;
+    case 'fire': fireColumn(G0, e.r || 1.4, col, e.h || 5); sfx('fire', P); break;
+    case 'ice': iceSpikes(G0, e.r || 2, col, 10); sfx('ice', P); break;
+    case 'elec': for (let i = 0; i < 4; i++) { const a = P.clone().add(new V3(rand(-1.2, 1.2), rand(-1.2, 1.2), rand(-1.2, 1.2))); slashLine(P, a, i % 2 ? '#fff59d' : col, .14, .06); } burst(P, 8, '#fff59d', 6, .1, .2, 0); sfx('zap', P, .6); break;
+    case 'lightning': { const top = P.clone().add(new V3(rand(-.5, .5), 18, rand(-.5, .5))); slashLine(top, P, col, .55, 1.1); slashLine(top, P, '#ffffff', .4, .45); screenFlash(.45); sparkLines(P, col, 12, 2.6); sfx('boom', P); break; }
+    case 'beam': { const E = front(f, .35, 1.72), end = P.clone().add(fwd(f.yaw).multiplyScalar(e.len || 6)); slashLine(E, end, col, .5, big ? 1.1 : .4); slashLine(E, end, '#ffffff', .4, big ? .45 : .16); ringAt(E, col, 1.6, .3, 'face', f.yaw); sfx('beam', P); break; }
+    case 'charge': for (let i = 0; i < 14; i++) { const a = rand(0, TAU), r = rand(.8, 1.6); emit(P.x + Math.cos(a) * r, P.y + rand(-1, 1), P.z + Math.sin(a) * r, -Math.cos(a) * 5, rand(-1, 1), -Math.sin(a) * 5, i % 3 ? col : '#ffffff', .1, .25, 0, 0); } break;
+    case 'magic': burst(P, 24, col, 7, .14, .5, -.3); burst(P, 10, '#ffd54f', 5, .1, .4, -.3); ringAt(P, col, 2, .35, 'face', f.yaw); sfx('tp', P); break;
+    case 'shatter': burst(P, 50, '#dff6ff', 12, .25, .8, .8); burst(P, 20, col, 9, .2, .6, .6); sparkLines(P, '#ffffff', 10, 2.4); sfx('break', P); break;
+    case 'flash': screenFlash(e.op || .5); break;
+    case 'lines': G.linesI = 1; break;
+  }
+}
+// director de cámara: arma cada plano a partir de dónde están los dos en ese momento
+const headPos = f => f.model && f.model.head ? (f.model.head.updateWorldMatrix(true, false), f.model.head.localToWorld(new V3(0, 4 * PX, 0))) : chestOf(f).add(new V3(0, .55, 0));
+function choreCam(st, dt) {
+  const D = st.D, t = st.t; let si = 0; for (let i = 0; i < D.shots.length; i++) if (t >= D.shots[i][0]) si = i;
+  const sh = D.shots[si], op = sh[2] || {}, t1 = D.shots[si + 1] ? D.shots[si + 1][0] : D.dur + .4, k = clamp((t - sh[0]) / Math.max(.05, t1 - sh[0]), 0, 1);
+  if (si !== st.shot) { st.shot = si; if (si > 0) G.linesI = Math.max(G.linesI, .6); }
+  const f = st.f, tg = st.tg, A = chestOf(f), V = chestOf(tg), mid = A.clone().lerp(V, .5), s = op.s || 1, gy = st.origin.y;
+  const dir = V.clone().sub(A); dir.y = 0; if (dir.lengthSq() < 1e-4) dir.copy(fwd(st.yaw)); dir.normalize();
+  const perp = new V3(-dir.z, 0, dir.x);
+  let pos, look, fov = op.fov, roll = op.roll || 0;
+  switch (sh[1]) {
+    case 'two': pos = mid.clone().addScaledVector(perp, (4.2 - k * .7) * s).add(new V3(0, .4, 0)); look = mid; fov = fov || 46; roll = roll || .04 * s; break;
+    case 'ots': pos = A.clone().addScaledVector(dir, -2.6 - k * .3).addScaledVector(perp, 1.2 * s).add(new V3(0, .9, 0)); look = V; fov = fov || 46 - k * 6; break;
+    case 'otsV': pos = V.clone().addScaledVector(dir, 2.5 + k * .3).addScaledVector(perp, -1.1 * s).add(new V3(0, .7, 0)); look = A; fov = fov || 44; break;
+    case 'lowV': pos = V.clone().addScaledVector(dir, 1.6).addScaledVector(perp, 1.5 * s); pos.y = gy + .3; look = V.clone().add(new V3(0, .3, 0)); fov = fov || 58; roll = roll || -.1 * s; break;
+    case 'lowA': pos = A.clone().addScaledVector(dir, 1.9).addScaledVector(perp, -1.3 * s); pos.y = gy + .25; look = A.clone().add(new V3(0, .4, 0)); fov = fov || 56; roll = roll || .1 * s; break;
+    // primer plano de la cara (apunta a la cabeza real del modelo), de tres cuartos para que el otro no tape
+    case 'faceV': { const hv = headPos(tg), d = fwd(tg.yaw).multiplyScalar(.55).addScaledVector(rightOf(tg.yaw), .84 * s).normalize(); pos = hv.clone().addScaledVector(d, 2.7 - k * .35).add(new V3(0, .2, 0)); look = hv.clone().add(new V3(0, -.25, 0)); fov = fov || 40; break; }
+    case 'faceA': { const ha = headPos(f), d = fwd(f.yaw).multiplyScalar(.55).addScaledVector(rightOf(f.yaw), .84 * s).normalize(); pos = ha.clone().addScaledVector(d, 2.7 - k * .4).add(new V3(0, .2, 0)); look = ha.clone().add(new V3(0, -.25, 0)); fov = fov || 40; break; }
+    case 'orbit': { const a0 = Math.atan2(perp.x * s, perp.z * s) + (op.a || 0), ang = a0 + k * (op.spd || 1.6), r = op.r || 5; pos = mid.clone().add(new V3(Math.sin(ang) * r, 1 + (op.h || 0), Math.cos(ang) * r)); look = mid; fov = fov || 54; break; }
+    case 'top': pos = mid.clone().add(new V3(0, 6.5 - k, 0)).addScaledVector(perp, .7); look = mid; fov = fov || 52; break;
+    case 'ground': pos = V.clone().addScaledVector(perp, 3.8 * s).addScaledVector(dir, .8); pos.y = gy + .22; look = V; fov = fov || 62; roll = roll || .08 * s; break;
+    case 'follow': pos = A.clone().addScaledVector(dir, -3.2).add(new V3(0, 1.8, 0)).addScaledVector(perp, .8 * s); look = V; fov = fov || 60; break;
+    case 'hero': { pos = A.clone().addScaledVector(fwd(f.yaw), 3.4 - k * .5).addScaledVector(rightOf(f.yaw), 1.1 * s); pos.y = gy + .45; look = A.clone().add(new V3(0, .35, 0)); fov = fov || 44; roll = roll || .06 * s; break; }
+    case 'wide': pos = mid.clone().addScaledVector(perp, 8 * s).add(new V3(0, 3, 0)); look = mid; fov = fov || 50; break;
+    case 'up': pos = V.clone().addScaledVector(perp, 2.3 * s).addScaledVector(dir, 1.2); pos.y = gy + .15; look = V.clone().add(new V3(0, 1.6, 0)); fov = fov || 64; break;
+    default: pos = mid.clone().addScaledVector(perp, 4).add(new V3(0, 1, 0)); look = mid; fov = 50;
+  }
+  pos.y = Math.max(gy + .12, pos.y);
+  camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll);
+  if (G.shake > 0) { const q = G.shake * .25; camera.position.x += rand(-q, q); camera.position.y += rand(-q, q); G.shake = Math.max(0, G.shake - dt * 2.2); }
+  cam.fov += (fov - cam.fov) * Math.min(1, dt * 14); camera.fov = cam.fov; camera.updateProjectionMatrix();
+}
+function runChore(f, tg, D) {
+  if (f.action) endAction(f);
+  let st = null;
+  startAction(f, {
+    name: 'chore', dur: D.dur + .05, noControl: true, armor: true,
+    start: () => { st = choreBegin(f, tg, D); },
+    tick: (a, t, dt) => { choreTick(st, dt); a.eyes = !!f.choreEyes; if (st.done) a.t = a.dur; },
+    onEnd: () => { if (st) choreEnd(st); },
+  });
+}
+
+// ===== Las coreografías (cada una es una escena distinta, nada se reutiliza) =====
+const CHORE = {
+  // ---------- JAVICUBITO ----------
+  // lo ensarta, lo alza sobre la cabeza con la lanza, gira y lo clava contra el piso
+  javiImpale: {
+    dur: 3.3,
+    att: [[.08, 'thrust_w'], [.2, 'thrust'], [.55, 'thrust'], [.85, 'upthrust'], [1.3, 'upthrust'], [1.6, 'spinPose'], [1.95, 'overhead'], [2.25, 'plunge'], [2.6, 'plunge'], [3.0, 'lancerRest']],
+    vic: [[.2, 'vGut'], [.55, 'vGut'], [.9, 'vLifted'], [1.3, 'vDangle'], [1.95, 'vFlip'], [2.25, 'downB'], [3.0, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .4, 0], [1.4, 0, 0, .4, 0], [1.9, 0, 0, .4, 3.14], [2.3, 0, .9, 1.2, 3.14], [2.6, 0, 0, 1.6, 3.14]],
+    vpos: [[0, 0, 0, 1.2, 0], [.2, 0, .1, 1.5, 0], [.85, 0, .4, 1.6, 0], [1.3, 0, 2.4, .9, 0], [1.9, 0, 2.8, -.5, 3.14], [2.25, 0, 0, 2.5, 3.14], [3.3, 0, 0, 2.6, 3.14]],
+    ev: [
+      { t: .2, hit: 4, fx: 'stab', imp: 1, slow: .18, sfx: 'heavy' },
+      { t: .55, hit: 2, fx: 'impact', text: '¡ATRAVESADO!' },
+      { t: .9, fx: 'ring', at: 'vic', r: 2 },
+      { t: 1.3, hit: 2, fx: 'impact', at: 'vic' },
+      { t: 1.55, twirl: [1, .4], fx: 'ghost' },
+      { t: 2.25, fx: 'boom', at: 'ground', big: 1, r: 3 },
+      { t: 2.27, fx: 'crack', at: 'ground', r: 5 },
+      { t: 2.3, rel: { dmg: 9, kb: 3, up: 3, rag: 2.2 }, slow: .3 },
+    ],
+    shots: [[0, 'ots'], [.22, 'faceV'], [.75, 'lowA', { s: -1 }], [1.45, 'orbit', { spd: 2.4, r: 4.5, h: 1 }], [2.05, 'top'], [2.3, 'ground'], [2.8, 'hero']],
+  },
+  // tres pasadas de relámpago entre medio del rival, cada una lo gira; la última lo deja en el aire y cae del cielo
+  javiDash: {
+    dur: 3.1, catch: 2.2,
+    att: [[.05, 'dash'], [.25, 'thrust'], [.45, 'dash'], [.65, 'sweep'], [.85, 'dash'], [1.05, 'thrust'], [1.45, 'jump'], [1.75, 'spearThrowW'], [1.95, 'plunge'], [2.5, 'plunge'], [2.85, 'javiHero']],
+    vic: [[.25, 'hurtSideL'], [.65, 'hurtSideR'], [1.05, 'vSpinA'], [1.45, 'vLaunch'], [1.9, 'vFloat'], [2.05, 'vBack'], [2.6, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.25, 0, 0, 3.2, 0, 'c'], [.3, 0, 0, 3.2, 3.14], [.45, -1.2, 0, 3.4, 3.14, 'c'], [.65, 1.6, 0, -1.4, 3.14], [.7, 1.6, 0, -1.4, -1.2], [.85, 1.8, 0, -1.2, -1.2, 'c'], [1.05, -2, 0, 3.6, -1.2], [1.4, -2.2, 0, 3.6, -2.4], [1.75, -.6, 4.6, 2.2, -3.6], [1.95, -.2, 2.6, 1.9, -3.14], [2.1, 0, 0, 1.4, -3.14], [3.1, 0, 0, 1.4, -3.14]],
+    vpos: [[0, 0, 0, 1.4, 0], [.25, 0, 0, 1.5, .8], [.65, .2, 0, 1.5, 2.1], [1.05, 0, .3, 1.4, 3.6], [1.45, 0, 3.4, 1.3, 4.4], [1.9, 0, 3.6, 1.3, 4.6], [2.05, 0, 0, 1.4, 4.8], [3.1, 0, 0, 1.4, 4.8]],
+    ev: [
+      { t: .25, hit: 3, fx: 'line', imp: 1, sfx: 'dash' },
+      { t: .65, hit: 3, fx: 'line', sfx: 'dash' },
+      { t: 1.05, hit: 3, fx: 'xcut', slow: .2, text: '¡TRIPLE!', who: 'att' },
+      { t: 1.4, fx: 'ring', at: 'vic', r: 2.5 },
+      { t: 1.7, fx: 'charge', at: 'att' },
+      { t: 2.05, rel: { dmg: 8, kb: 2, up: -10, rag: 2 }, fx: 'stab' },
+      { t: 2.1, fx: 'boom', at: 'ground', big: 1, r: 2.6 },
+      { t: 2.12, fx: 'crack', at: 'ground' },
+    ],
+    shots: [[0, 'follow'], [.25, 'wide'], [.65, 'two', { s: -1 }], [1.0, 'faceV'], [1.3, 'up'], [1.9, 'lowV'], [2.1, 'ground', { s: -1 }], [2.6, 'hero']],
+  },
+  // cadena de lanza: lo engancha de lejos, lo arrastra, salto mortal por encima y clavada desde atrás
+  javiChain: {
+    dur: 2.9, pull: 1,
+    att: [[.1, 'throw'], [.3, 'lance'], [.65, 'aCatch'], [.95, 'jump'], [1.3, 'aUpside'], [1.55, 'thrust_w'], [1.8, 'thrust'], [2.2, 'thrust'], [2.6, 'lancerRest']],
+    vic: [[.1, 'hurtFwd'], [.6, 'vLaunch'], [.95, 'vStagger'], [1.55, 'vConfused'], [1.8, 'vBack'], [2.3, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [.95, 0, 0, 0, 0], [1.25, 0, 3.2, 1.6, 1.57], [1.55, 0, 0, 3.2, 3.14], [1.8, 0, 0, 2.8, 3.14], [2.9, 0, 0, 2.6, 3.14]],
+    vpos: [[.6, 0, 1.4, 1.4, 0], [.95, 0, 0, 1.4, 0], [1.55, 0, 0, 1.5, .7], [1.8, 0, 0, 1.6, 0], [2.3, 0, .2, 1.7, 0]],
+    ev: [
+      { t: .05, fx: 'magic', text: '¡ENGANCHADO!' },
+      { t: .6, hit: 3, fx: 'impact', imp: 1 },
+      { t: 1.1, fx: 'ghost', twirl: [1, .5] },
+      { t: 1.5, fx: 'ring', at: 'att', r: 2.2, face: 1 },
+      { t: 1.8, rel: { dmg: 9, kb: 22, up: 6, rag: 2 }, fx: 'stab', slow: .35, big: 1 },
+      { t: 1.82, fx: 'impact', big: 1 },
+    ],
+    shots: [[0, 'follow'], [.55, 'otsV'], [1.0, 'up', { s: -1 }], [1.45, 'faceV'], [1.75, 'two', { s: -1 }], [2.2, 'faceA']],
+  },
+
+  // ---------- ELGATOPRO300 ----------
+  // reverencia burlona, lo levanta con el cetro, lo da vuelta en el aire y una copia lo remata desde abajo
+  gatoTrick: {
+    dur: 3.4,
+    att: [[.15, 'bow'], [.6, 'bow'], [.9, 'magicPalm'], [1.3, 'castUp'], [1.75, 'scepterW'], [2.05, 'point'], [2.4, 'scepterSmash'], [2.8, 'aTaunt'], [3.3, 'gatoHero']],
+    vic: [[.2, 'vConfused'], [.9, 'vFloat'], [1.3, 'vUpside'], [1.75, 'vUpside'], [2.4, 'vLaunch'], [2.8, 'vBack']],
+    apos: [[0, 0, 0, 0, 0], [.6, 0, 0, -.3, 0], [.9, 0, 0, 0, 0]],
+    vpos: [[0, 0, 0, 1.3, 0], [.6, 0, 0, 1.5, 0], [1.3, 0, 2.2, 1.8, 3.14], [1.75, 0, 2.6, 1.9, 6.28], [2.05, 0, 2.4, 1.9, 6.6], [2.45, 0, 4.2, 2.5, 6.6], [2.8, 0, 5.5, 3.2, 7]],
+    ev: [
+      { t: .2, text: '¿Una reverencia?', who: 'att' },
+      { t: .9, fx: 'magic', hit: 2 },
+      { t: 1.35, fx: 'ring', r: 2.5, hit: 2 },
+      { t: 1.75, fx: 'magic' },
+      { t: 2.05, fx: 'clone', a: 1.57 },
+      { t: 2.3, fx: 'copies' },
+      { t: 2.45, rel: { dmg: 10, kb: 6, up: 14, rag: 2.4 }, fx: 'xcut', slow: .35 },
+      { t: 2.5, fx: 'flash', op: .4 },
+      { t: 2.8, text: 'Todo era un truco.', who: 'att' },
+    ],
+    shots: [[0, 'hero'], [.6, 'faceA'], [.95, 'lowV'], [1.45, 'orbit', { r: 4, h: 1.5, spd: -2 }], [2.0, 'faceV'], [2.3, 'up'], [2.75, 'faceA', { s: -1 }]],
+  },
+  // cuatro copias aparecen alrededor y lo pasan de una a otra como pelota; el verdadero espera y lo remata
+  gatoCopies: {
+    dur: 3.2, catch: 2,
+    att: [[.1, 'cast'], [.35, 'signs'], [1.6, 'signs'], [1.9, 'scepterW'], [2.15, 'scepterSmash'], [2.6, 'aTaunt'], [3.1, 'elegant']],
+    vic: [[.35, 'hurtSideL'], [.6, 'hurtSideR'], [.85, 'vGut'], [1.1, 'vSpinA'], [1.4, 'vFlip'], [1.75, 'vFloat'], [2.15, 'vLaunch'], [2.6, 'vBack']],
+    apos: [[0, 0, 0, 0, 0], [.35, 0, 0, -2.2, 0, 'c'], [1.8, 0, 0, -2.2, 0], [2.0, 0, 0, .6, 0]],
+    vpos: [[0, 0, 0, 1.2, 0], [.35, .8, .2, 1.4, .9], [.6, -.8, .4, 1.5, -.9], [.85, 0, .6, 2.3, 0], [1.1, 0, 1.6, 1.5, 3], [1.4, 0, 2.4, .9, 6], [1.75, 0, 1.6, 1.2, 6.28], [2.15, 0, 1.4, 1.4, 6.28], [2.6, 0, 3.4, 5, 6.28]],
+    ev: [
+      { t: .2, fx: 'copies', text: '¿Cuál soy yo?', who: 'att' },
+      { t: .35, hit: 2, fx: 'clone', a: 0 },
+      { t: .6, hit: 2, fx: 'clone', a: 1.57 },
+      { t: .85, hit: 2, fx: 'clone', a: 3.14 },
+      { t: 1.1, hit: 2, fx: 'clone', a: -1.57, imp: 1 },
+      { t: 1.4, fx: 'magic' },
+      { t: 2.15, rel: { dmg: 8, kb: 16, up: 10, rag: 2.2 }, fx: 'impact', big: 1, slow: .3 },
+      { t: 2.17, fx: 'magic' },
+    ],
+    shots: [[0, 'two'], [.3, 'top'], [.8, 'orbit', { r: 5, spd: 3.4 }], [1.35, 'lowV', { s: -1 }], [1.8, 'ots'], [2.15, 'faceA']],
+  },
+  // hechizo que lo atrae, lo frena a un palmo, le da un golpecito en la frente y lo hace estallar
+  gatoChain: {
+    dur: 2.8, pull: 1,
+    att: [[.1, 'magicPalm'], [.55, 'magicPalm'], [.8, 'bow'], [1.2, 'bow'], [1.4, 'point'], [1.6, 'point'], [1.75, 'elegant'], [2.6, 'gatoHero']],
+    vic: [[.1, 'vFloat'], [.6, 'vFrozenStand'], [1.4, 'vFrozenStand'], [1.6, 'vStagger'], [1.95, 'vShock1'], [2.1, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [1.75, 0, 0, 0, 0], [2.0, 0, 0, -.4, 3.14]],
+    vpos: [[.55, 0, .6, 1.0, 0], [1.4, 0, .5, 1.0, 0], [1.6, 0, .1, 1.2, 0], [1.95, 0, 0, 1.4, 0]],
+    ev: [
+      { t: .05, fx: 'magic', hit: 2 },
+      { t: .6, text: 'Shh...', who: 'att' },
+      { t: 1.4, fx: 'ring', at: 'vic', r: 1.2, face: 1 },
+      { t: 1.6, hit: 1, sfx: 'block' },
+      { t: 1.75, eyes: 1 },
+      { t: 1.95, fx: 'charge' },
+      { t: 2.1, rel: { dmg: 9, kb: 20, up: 6, rag: 2.2 }, fx: 'boom', r: 2.2, slow: .3 },
+    ],
+    shots: [[0, 'follow'], [.6, 'two'], [1.25, 'faceV'], [1.55, 'faceA', { s: -1 }], [1.95, 'otsV'], [2.15, 'hero', { s: -1 }]],
+  },
+
+  // ---------- REDBIRD ----------
+  // lo levanta del cuello, se baja las gafas, carga los ojos a quemarropa y lo atraviesa con el láser
+  redExec: {
+    dur: 3.2,
+    att: [[.1, 'aCollar'], [.7, 'aCollar'], [1.0, 'visorTouch'], [1.8, 'visorTouch'], [2.0, 'aCollar'], [2.5, 'lookDown'], [3.0, 'redHero']],
+    vic: [[.1, 'vLifted'], [.7, 'vDangle'], [1.5, 'vDangle'], [1.85, 'vShock1'], [2.0, 'vShock2'], [2.35, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [.7, 0, 0, .2, 0], [2.0, 0, 0, .2, 0], [2.3, 0, 0, -.4, 0]],
+    vpos: [[0, 0, 0, 1.1, 0], [.4, 0, 1.0, 1.1, 0], [1.5, 0, 1.2, 1.15, 0], [2.0, 0, 1.25, 1.2, 0]],
+    ev: [
+      { t: .1, text: '¡TE TENGO!', who: 'att' },
+      { t: .5, hit: 2, fx: 'impact' },
+      { t: 1.0, eyes: 1, fx: 'charge', at: 'eyes' },
+      { t: 1.3, fx: 'charge', at: 'eyes' },
+      { t: 1.6, fx: 'charge', at: 'eyes', sfx: 'ult' },
+      { t: 1.85, hit: 3, fx: 'beam', len: 3, imp: 1 },
+      { t: 2.0, rel: { dmg: 11, kb: 30, up: 4, rag: 2.3 }, fx: 'beam', big: 1, len: 14, slow: .3 },
+      { t: 2.05, fx: 'flash', op: .55 },
+      { t: 2.6, eyes: 0 },
+    ],
+    shots: [[0, 'two'], [.45, 'lowA'], [.95, 'faceA'], [1.55, 'faceV'], [1.85, 'ots', { fov: 40 }], [2.05, 'wide'], [2.5, 'hero']],
+  },
+  // patada al cielo, lo sigue en el aire a patadas, se da vuelta encima de él y lo baja con un rayo de los ojos
+  redKick: {
+    dur: 3.0,
+    att: [[.05, 'kick_w'], [.18, 'kickHigh'], [.45, 'jump'], [.7, 'kick'], [.9, 'kickHigh'], [1.1, 'kick'], [1.4, 'aUpside'], [1.7, 'aUpside'], [2.0, 'fall'], [2.35, 'land'], [2.8, 'redStance']],
+    vic: [[.18, 'vKick1'], [.45, 'vLaunch'], [.7, 'vKick2'], [.9, 'vKick1'], [1.1, 'vSpinA'], [1.55, 'vFloat'], [1.8, 'vBack'], [2.2, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .3, 0], [.7, 0, 3.0, .8, 0], [1.1, 0, 4.4, .9, 0], [1.4, 0, 6.6, 1.3, 0], [1.75, 0, 6.4, 1.3, 0], [2.3, 0, 0, .3, 0]],
+    vpos: [[0, 0, 0, 1.1, 0], [.18, 0, .5, 1.3, 0], [.7, 0, 3.6, 1.9, 0], [1.1, 0, 4.8, 2.0, 1], [1.4, 0, 5.2, 2.1, 3], [1.75, 0, 5.0, 2.0, 3.14], [2.1, 0, 0, 2.1, 3.14]],
+    ev: [
+      { t: .18, hit: 3, fx: 'impact', imp: 1 },
+      { t: .7, hit: 2, fx: 'slash', tilt: 1.2 },
+      { t: .9, hit: 2, fx: 'slash', tilt: -1 },
+      { t: 1.1, hit: 2, fx: 'impact' },
+      { t: 1.45, eyes: 1, fx: 'charge', at: 'eyes', slow: .25 },
+      { t: 1.75, rel: { dmg: 8, kb: 0, up: -26, rag: 2 }, fx: 'beam', big: 1, len: 4 },
+      { t: 2.1, fx: 'boom', at: 'ground', r: 2.8, big: 1 },
+      { t: 2.12, fx: 'crack', at: 'ground', eyes: 0 },
+    ],
+    shots: [[0, 'lowA', { s: -1 }], [.4, 'up'], [.8, 'orbit', { r: 4.5, spd: 2.8, h: 1 }], [1.35, 'faceA', { s: -1 }], [1.75, 'top'], [2.1, 'ground'], [2.5, 'hero']],
+  },
+
+  // ---------- KAIZA ----------
+  // "en serio": se cruje los nudillos, ráfaga de puños que lo deja temblando y un único puñetazo serio
+  kaizaSerious: {
+    dur: 3.4,
+    att: [[.1, 'jabR'], [.25, 'jabL'], [.4, 'jabR'], [.55, 'jabL'], [.7, 'hook'], [.85, 'upper_w'], [1.0, 'upper'], [1.5, 'windup'], [2.1, 'windup'], [2.3, 'mega'], [2.9, 'mega'], [3.3, 'loose']],
+    vic: [[.1, 'hurtA'], [.25, 'hurtB'], [.4, 'hurtA'], [.55, 'hurtB'], [.7, 'hurtSideR'], [1.0, 'vLaunch'], [1.5, 'vFloat'], [2.1, 'vFloat'], [2.3, 'vGut'], [2.6, 'vBack']],
+    apos: [[0, 0, 0, 0, 0], [.7, 0, 0, .4, 0], [1.5, 0, 0, .5, 0], [2.1, 0, 0, .3, 0], [2.3, 0, 0, 1.1, 0]],
+    vpos: [[0, 0, 0, 1.2, 0], [.7, 0, 0, 1.7, -.3], [1.0, 0, 1.2, 1.8, 0], [1.5, 0, 1.5, 1.9, 0], [2.1, 0, 1.3, 1.9, 0], [2.3, 0, 1.1, 2.0, 0]],
+    ev: [
+      { t: .1, hit: 1.5, fx: 'impact' }, { t: .25, hit: 1.5, fx: 'impact' }, { t: .4, hit: 1.5, fx: 'impact' }, { t: .55, hit: 1.5, fx: 'impact' },
+      { t: .7, hit: 2, fx: 'impact', imp: 1 },
+      { t: 1.0, hit: 2, fx: 'ring', r: 2 },
+      { t: 1.55, text: 'Puño serio.', who: 'att', fx: 'charge', at: 'att', sfx: 'ult', slow: .3 },
+      { t: 2.3, rel: { dmg: 13, kb: 40, up: 5, rag: 2.6 }, fx: 'boom', r: 3.5 },
+      { t: 2.32, fx: 'flash', op: .7 },
+      { t: 2.34, fx: 'lines' },
+    ],
+    shots: [[0, 'two'], [.45, 'otsV'], [.95, 'up'], [1.5, 'faceA'], [2.25, 'faceV', { fov: 34 }], [2.4, 'follow'], [2.8, 'wide']],
+  },
+
+  // ---------- NYX ----------
+  // aparece detrás, cinco cortes desde la sombra, vuelve a su lugar, guarda el arma... y recién ahí cae
+  nyxShadow: {
+    dur: 3.3,
+    att: [[.08, 'slashW'], [.2, 'slash'], [.45, 'slash'], [.7, 'slash'], [.95, 'slash'], [1.2, 'slash'], [1.5, 'ninja'], [2.2, 'ninja'], [2.4, 'signs'], [3.2, 'ninja']],
+    vic: [[.2, 'hurtSideL'], [.45, 'hurtSideR'], [.7, 'hurtFwd'], [.95, 'hurtSideL'], [1.2, 'vStagger'], [2.3, 'vStagger'], [2.5, 'vShock1'], [2.9, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, 2.4, 3.14, 'c'], [.45, 1.6, 0, 1.2, -1.57, 'c'], [.7, 0, 1.2, 1.2, 0, 'c'], [.95, -1.6, 0, 1.2, 1.57, 'c'], [1.2, 0, 0, -.2, 0, 'c'], [1.5, 0, 0, -1.6, 3.14], [3.3, 0, 0, -1.6, 3.14]],
+    vpos: [[0, 0, 0, 1.2, 0], [2.3, 0, 0, 1.2, 0], [2.6, 0, 0, 1.4, 0]],
+    ev: [
+      { t: .2, fx: 'line', hit: 2 }, { t: .45, fx: 'line', hit: 2 }, { t: .7, fx: 'line', hit: 2 }, { t: .95, fx: 'line', hit: 2 },
+      { t: 1.2, fx: 'xcut', hit: 1, imp: 1 },
+      { t: 1.5, text: 'Nada personal.', who: 'att' },
+      { t: 2.4, sfx: 'draw' },
+      { t: 2.5, rel: { dmg: 10, kb: 2, up: 2, rag: 2.4 }, fx: 'xcut', slow: .35 },
+      { t: 2.52, fx: 'flash', op: .5 },
+    ],
+    shots: [[0, 'two'], [.18, 'top'], [.6, 'orbit', { r: 3.6, spd: -3 }], [1.25, 'faceV'], [1.55, 'hero', { s: -1 }], [2.35, 'two', { s: -1 }], [2.6, 'faceV']],
+  },
+
+  // ---------- VOLT ----------
+  // lo sube con la mano cargada, lo usa de pararrayos y lo descarga contra el piso con un trueno
+  voltOverload: {
+    dur: 3.2,
+    att: [[.1, 'palm'], [.5, 'castUp'], [1.2, 'castUp'], [1.5, 'charge'], [1.9, 'point'], [2.2, 'slamDown'], [2.7, 'land'], [3.1, 'idle']],
+    vic: [[.1, 'vShock1'], [.3, 'vShock2'], [.5, 'vShock1'], [.7, 'vShock2'], [.9, 'vShock1'], [1.1, 'vShock2'], [1.3, 'vFloat'], [1.6, 'vShock1'], [1.9, 'vShock2'], [2.2, 'vBack'], [2.4, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [1.5, 0, 0, 0, 0], [1.9, 0, 1.2, .6, 0], [2.2, 0, 0, .9, 0]],
+    vpos: [[0, 0, 0, 1.1, 0], [.5, 0, 1.4, 1.2, 0], [1.2, 0, 4.2, 1.4, 0], [1.9, 0, 4.4, 1.5, 0], [2.2, 0, 0, 1.6, 0]],
+    ev: [
+      { t: .1, fx: 'elec', hit: 2 }, { t: .4, fx: 'elec', hit: 1 }, { t: .7, fx: 'elec', hit: 1 }, { t: 1.0, fx: 'elec', hit: 1 }, { t: 1.3, fx: 'elec', hit: 1 },
+      { t: 1.5, fx: 'charge', at: 'att', sfx: 'ult', text: '¡SOBRECARGA!', who: 'att' },
+      { t: 1.9, fx: 'lightning', hit: 2, imp: 1 },
+      { t: 2.2, rel: { dmg: 9, kb: 2, up: -8, rag: 2.2 }, fx: 'lightning', slow: .3 },
+      { t: 2.25, fx: 'boom', at: 'ground', r: 3.2 },
+      { t: 2.27, fx: 'crack', at: 'ground' },
+    ],
+    shots: [[0, 'otsV'], [.45, 'up'], [1.25, 'wide'], [1.5, 'faceA'], [1.9, 'top'], [2.25, 'ground'], [2.7, 'hero']],
+  },
+
+  // ---------- BRASA ----------
+  // patada que lo dobla, lo hace girar con patadas de fuego en espiral y abre un volcán bajo sus pies
+  brasaVolcano: {
+    dur: 3.3,
+    att: [[.08, 'kick_w'], [.2, 'kick'], [.5, 'kickHigh'], [.8, 'kick'], [1.1, 'kickHigh'], [1.4, 'spinPose'], [1.7, 'stomp'], [2.3, 'charge'], [2.55, 'castUp'], [3.2, 'idle']],
+    vic: [[.2, 'vGut'], [.5, 'vKick1'], [.8, 'vSpinA'], [1.1, 'vKick2'], [1.4, 'vFlip'], [1.7, 'vStagger'], [2.3, 'vStagger'], [2.55, 'vLaunch'], [3, 'vFloat']],
+    apos: [[0, 0, 0, 0, 0], [.5, 0, .4, .3, 1], [.8, 0, .8, .2, 3.4], [1.1, 0, .6, .3, 5.6], [1.4, 0, 0, .2, 6.28], [3.3, 0, 0, -.6, 6.28]],
+    vpos: [[0, 0, 0, 1.1, 0], [.2, 0, 0, 1.6, 0], [.5, .4, .7, 1.7, .6], [.8, 0, 1.1, 1.8, 2], [1.1, -.4, 1.3, 1.7, 3.5], [1.4, 0, 1.4, 1.9, 6.28], [1.7, 0, 0, 2.2, 6.28], [2.3, 0, 0, 2.2, 6.28], [2.55, 0, 3, 2.3, 6.28], [3.3, 0, 7, 2.5, 6.28]],
+    ev: [
+      { t: .2, hit: 2, fx: 'impact', imp: 1 },
+      { t: .5, hit: 2, fx: 'fire', at: 'vic', r: .8, h: 2 },
+      { t: .8, hit: 2, fx: 'slash', tilt: .4 },
+      { t: 1.1, hit: 2, fx: 'fire', at: 'vic', r: .8, h: 2 },
+      { t: 1.4, fx: 'ring', at: 'att', r: 2.5 },
+      { t: 1.7, fx: 'crack', at: 'ground', r: 3, sfx: 'heavy' },
+      { t: 2.0, fx: 'fire', at: 'ground', r: .6, h: 1 },
+      { t: 2.3, text: '¡ERUPCIÓN!', who: 'att', slow: .25 },
+      { t: 2.55, rel: { dmg: 10, kb: 2, up: 20, rag: 2.4 }, fx: 'fire', at: 'ground', r: 2, h: 10 },
+      { t: 2.6, fx: 'boom', at: 'ground', r: 2.6 },
+    ],
+    shots: [[0, 'two'], [.45, 'orbit', { r: 4.2, spd: 3 }], [1.45, 'lowA'], [1.75, 'ground'], [2.3, 'faceV'], [2.55, 'up'], [3.0, 'wide']],
+  },
+
+  // ---------- YUKI ----------
+  // lo congela en una estatua, camina a su alrededor, le apoya un dedo y la estatua estalla en mil pedazos
+  yukiTomb: {
+    dur: 3.4,
+    att: [[.1, 'palm'], [.5, 'signs'], [.9, 'idle'], [1.6, 'idle'], [2.0, 'point'], [2.3, 'point'], [2.5, 'elegant'], [3.3, 'idle']],
+    vic: [[.1, 'hurtFwd'], [.4, 'vFrozenStand'], [2.4, 'vFrozenStand'], [2.6, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [.5, 0, 0, -.3, 0], [.9, 1.6, 0, .4, -1.2], [1.4, 1.3, 0, 2.2, -2.4], [1.9, 0, 0, 2.7, -3.14], [2.4, 0, 0, 2.4, -3.14], [2.7, 0, 0, 3.2, 0]],
+    vpos: [[0, 0, 0, 1.1, 0]],
+    ev: [
+      { t: .1, hit: 2, fx: 'ice', at: 'ground', r: 1.4 },
+      { t: .4, freeze: 2.05, hit: 2, fx: 'ring', r: 2.2 },
+      { t: .9, text: 'Quedate quieto.', who: 'att' },
+      { t: 2.3, fx: 'ring', at: 'vic', r: 1, face: 1, sfx: 'ice' },
+      { t: 2.5, rel: { dmg: 12, kb: 10, up: 8, rag: 2.2 }, fx: 'shatter', slow: .4 },
+      { t: 2.52, fx: 'ice', at: 'ground', r: 2.6 },
+      { t: 2.55, fx: 'flash', op: .5 },
+    ],
+    shots: [[0, 'two'], [.4, 'lowV'], [.9, 'orbit', { r: 4, spd: -2.2, h: .3 }], [2.0, 'faceA'], [2.4, 'faceV', { fov: 34 }], [2.6, 'wide']],
+  },
+
+  // ---------- TITÁN ----------
+  // lo levanta por encima de la cabeza, salta altísimo y cae con un piledriver que hace temblar el mapa
+  titanCrush: {
+    dur: 3.4,
+    att: [[.1, 'grab'], [.4, 'lift'], [.8, 'suplex'], [1.2, 'jump'], [1.7, 'suplex'], [2.0, 'slamDown'], [2.4, 'stomp'], [3.0, 'heavy']],
+    vic: [[.1, 'hurtA'], [.4, 'vLifted'], [.8, 'vUpside'], [1.7, 'vUpside'], [2.0, 'vUpside'], [2.2, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.8, 0, 0, 0, 0], [1.2, 0, 1.2, 0, 0], [1.6, 0, 7, .3, 1.57], [1.75, 0, 7.2, .3, 3.14], [2.0, 0, 0, .3, 6.28], [3.4, 0, 0, .3, 6.28]],
+    vpos: [[0, 0, 0, 1.1, 0], [.4, 0, 1.3, .9, 0], [.8, 0, 3.1, .3, 0], [1.2, 0, 4.3, .3, 0], [1.6, 0, 10.1, .5, 1.57], [1.75, 0, 10.3, .5, 3.14], [2.0, 0, 1.7, .6, 6.28], [2.2, 0, 0, .8, 6.28]],
+    ev: [
+      { t: .1, hit: 2, fx: 'impact', sfx: 'grab' },
+      { t: .8, text: '¡ARRIBA!', who: 'att', fx: 'ring', at: 'att', r: 2 },
+      { t: 1.2, fx: 'boom', at: 'ground', r: 2 },
+      { t: 1.65, slow: .3, fx: 'lines' },
+      { t: 2.0, rel: { dmg: 16, kb: 4, up: 6, rag: 2.6 }, fx: 'boom', at: 'ground', r: 4.5, big: 1 },
+      { t: 2.02, fx: 'crack', at: 'ground', r: 7 },
+      { t: 2.05, fx: 'flash', op: .6 },
+      { t: 2.4, fx: 'boom', at: 'ground', r: 2.5 },
+    ],
+    shots: [[0, 'two'], [.4, 'lowA'], [1.1, 'up', { s: -1 }], [1.55, 'top'], [1.95, 'wide'], [2.05, 'ground'], [2.6, 'hero']],
+  },
+  // brazo de piedra: lo trae de lejos, lo estrella a un lado, al otro, y lo revolea por encima del hombro
+  titanArm: {
+    dur: 3.1, pull: 1,
+    att: [[.1, 'throw'], [.5, 'grab'], [.75, 'sweep_w'], [1.0, 'sweep'], [1.3, 'sweep_w'], [1.55, 'sweep'], [1.9, 'lift'], [2.2, 'throw'], [2.9, 'heavy']],
+    vic: [[.1, 'hurtFwd'], [.5, 'vLifted'], [.75, 'vFloat'], [1.0, 'downB'], [1.3, 'vFloat'], [1.55, 'downB'], [1.9, 'vUpside'], [2.2, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [.75, 0, 0, 0, 0], [1.0, 0, 0, 0, -.8], [1.3, 0, 0, 0, 0], [1.55, 0, 0, 0, .8], [1.9, 0, 0, 0, 0], [2.2, 0, 0, 0, -3.14]],
+    vpos: [[.5, 0, .9, 1.2, 0], [.75, -1.4, 2.0, .9, 0], [1.0, -1.9, .1, .6, 0], [1.3, 0, 2.6, 1.0, 0], [1.55, 1.9, .1, .6, 0], [1.9, 0, 3.0, .2, 3.14], [2.2, 0, 1.0, -1.6, 3.14]],
+    ev: [
+      { t: .05, text: '¡VENÍ ACÁ!', who: 'att', fx: 'impact' },
+      { t: .5, hit: 2, fx: 'impact', sfx: 'grab' },
+      { t: 1.0, hit: 3, fx: 'boom', at: 'ground', r: 2, imp: 1 },
+      { t: 1.02, fx: 'crack', at: 'ground', r: 3 },
+      { t: 1.55, hit: 3, fx: 'boom', at: 'ground', r: 2 },
+      { t: 1.57, fx: 'crack', at: 'ground', r: 3 },
+      { t: 2.2, rel: { dmg: 7, kb: 24, up: 12, rag: 2.2 }, fx: 'impact', big: 1, slow: .3 },
+    ],
+    shots: [[0, 'follow'], [.5, 'two'], [.95, 'ground', { s: -1 }], [1.3, 'top'], [1.55, 'ground'], [1.9, 'lowA'], [2.25, 'wide']],
+  },
+};
+
 // ===== Ataques del despertar =====
 // estilos del agarre con cinemática: pose al levantar, golpes, preparación, remate y efectos
 const STY = {
@@ -2197,6 +2692,23 @@ const MOVES = {
   },
   counter(f, o) {
     startAction(f, { name: 'counter', dur: .9, counter: true, anim: [[0, 'counter', 700]], speedMul: 0, start: () => { ringAt(chestOf(f), '#ffffff', 1.6, .35, 'face', f.yaw); sfx('block', f.pos); } });
+  },
+  // coreografía cinemática: agarra (o atrae con una cadena) y reproduce la escena de los dos
+  chore(f, o) {
+    const D = CHORE[o.id]; if (!D) return false;
+    if (D.pull) {
+      startAction(f, {
+        name: 'chorethrow', dur: .5, aim: true, speedMul: .2, anim: [[0, 'throwW', 800], [.14, 'throw', 1200]],
+        steps: [{ at: .15, fn: () => { spawnProj(f, f.yaw, { color: f.ch.color, speed: 46, size: .32, long: 2.2, homing: 3, range: 22, onHit: g => { if (!f.alive || !g.alive || g.ragdoll > 0 || g.cineLock) return; slashLine(chestOf(f), chestOf(g), f.ch.color, .4, .1); runChore(f, g, D); } }); sfx('zap', f.pos); } }],
+      });
+      return;
+    }
+    startAction(f, {
+      name: 'chorereach', dur: .36, noControl: true, aim: true, armor: true, anim: [[0, D.reach || 'aCatch', 1000]],
+      start: () => { const F = fwd(f.yaw); f.vel.x = F.x * 17; f.vel.z = F.z * 17; sfx('dash', f.pos); ghost(f, f.ch.color, .4, .25); },
+      tick: () => { const c = front(f, 1, 1.1); for (const g of enemiesOf(f)) { if (g.iframes > 0 || g.ragdoll > 0 || g.cineLock || chestOf(g).distanceTo(c) > (D.catch || 1.7)) continue; runChore(f, g, D); return; } },
+      onEnd: () => { f.vel.x *= .2; f.vel.z *= .2; },
+    });
   },
   // armas/orbes que giran alrededor y salen disparadas solas hacia el rival más cercano
   orbitals(f, o) {
@@ -2868,6 +3380,7 @@ function animate(f, dt) {
     pose = f.rdPose === 1 ? POSE.downB : POSE.down; k = f.onGround ? 70 : 16; z = f.onGround ? .42 : .22;
     if (!f.onGround) spin = -clamp(3 + hs * .45, 3, 13) * (f.rdDir || 1);
   }
+  else if (f.choreTrack) { keyed = f.choreTrack; pose = keyed[keyed.length - 1].p; }
   else if (f.frozen > 0) { pose = null; }
   else if (f.forcePose) { pose = POSE[f.forcePose]; k = 1000; z = .4; }
   else if (f.hurtT > 0) { pose = POSE[f.hurtPose]; k = 900; z = .45; }
@@ -2887,6 +3400,14 @@ function animate(f, dt) {
   else if (f.landT > 0) { pose = POSE.land; k = 800; z = .55; }
   else if (sp > 1.5) { pose = runPose(f, sp); if (f.spearOut) { pose.arx = -.45 + Math.sin(f.walk) * .2; pose.sx = .3; pose.arz = .1; } k = 320; z = .75; }
   else { pose = stancePose(f.ch, T, f.seed, f.spearOut); k = 180; z = .8; }
+  // inclinación por aceleración: se inclina al arrancar/frenar y se ladea al doblar (peso)
+  if (dt > 0) {
+    const F = fwd(f.yaw), R = rightOf(f.yaw), ax = (f.vel.x - (f.pvx || 0)) / dt, az = (f.vel.z - (f.pvz || 0)) / dt;
+    f.pvx = f.vel.x; f.pvz = f.vel.z;
+    f.leanF = (f.leanF || 0) + (clamp((ax * F.x + az * F.z) * .012, -.3, .3) - (f.leanF || 0)) * Math.min(1, dt * 6);
+    f.leanR = (f.leanR || 0) + (clamp((ax * R.x + az * R.z) * .01, -.25, .25) - (f.leanR || 0)) * Math.min(1, dt * 6);
+    if (pose && !keyed && f.onGround && f.ragdoll <= 0 && !a) pose = Object.assign({}, pose, { ix: (pose.ix || 0) + f.leanF, iz: (pose.iz || 0) - f.leanR * .8, tx: (pose.tx || 0) + f.leanF * .4 });
+  }
   // la cabeza mira al rival más cercano (vida extra sin tocar el cuerpo)
   if (!keyed && pose && f.alive && f.ragdoll <= 0 && f.stun <= 0 && f.hurtT <= 0 && !(a && a.spin)) {
     const tg = f.isPlayer ? softLock(f, 12, -.2) : (f.ai && f.ai.target && f.ai.target.alive ? f.ai.target : null);
@@ -2895,7 +3416,7 @@ function animate(f, dt) {
       pose = Object.assign({}, pose, { hy: (pose.hy || 0) * .4 + rel * .75 });
     }
   }
-  if (f.frozen <= 0) { if (keyed) f.anim.play(keyed, a.t, dt); else f.anim.update(dt, pose, k, z, spin); }
+  if (f.frozen <= 0 || f.choreTrack) { if (keyed) f.anim.play(keyed, f.choreTrack ? f.choreTime : a.t, dt); else f.anim.update(dt, pose, k, z, spin); }
   const m = f.model;
   if (m.gripRot) { f.twA = twirlAngle(f, dt); m.gripRot.rotation.x = f.anim.x.sx + f.twA; }
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
@@ -3097,6 +3618,10 @@ function updateCamera(dt) {
     return;
   }
   const p = G.player;
+  if (G.chore) {
+    document.body.classList.add('duel'); choreCam(G.chore, dt);
+    cam.focus.copy(p.pos).add(new V3(0, 1.7, 0)); return;
+  }
   // cámara del agarre con cinemática: plano de los dos → sobre el hombro → plano bajo → sigue al que sale volando
   const D = G.duel;
   if (D && ((D.end && G.time > D.end) || !G.fighters.includes(D.f) || !G.fighters.includes(D.tg) || !D.f.alive)) { G.duel = null; document.body.classList.remove('duel'); }
@@ -3254,7 +3779,7 @@ function clearFighters() {
   G.fighters.forEach(f => f.dispose()); G.fighters = []; G.player = null;
   PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
   TIMERS.length = 0; DN.forEach(d => d.el.remove()); DN.length = 0; $('feed').innerHTML = ''; $('minicut').innerHTML = '';
-  PS.clear(); NET.proxies.clear(); ZONES.length = 0; G.duel = null; document.body.classList.remove('duel');
+  PS.clear(); NET.proxies.clear(); ZONES.length = 0; G.duel = null; G.chore = null; document.body.classList.remove('duel');
 }
 function applyAiLevels() { for (const f of G.fighters) if (f.ai) f.ai.P = aiParams(G.botLvl + f.ai.var); }
 function spawnBots(n) {
