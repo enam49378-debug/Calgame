@@ -203,6 +203,20 @@ tr.me td{color:var(--hot);font-weight:700}
 .big{font-family:var(--display);font-size:22px;letter-spacing:.04em;padding:10px 26px;border:0;background:var(--hot);color:#000;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
 .big.alt{background:var(--panel-2);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+#viewbtn{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:var(--hot);border:1px solid var(--hot);padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+#viewbtn:hover{background:var(--hot);color:#000}
+#viewer{position:fixed;left:50%;bottom:calc(7vh + 12px);transform:translateX(-50%);width:min(900px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--hot);padding:10px 14px;display:flex;flex-direction:column;gap:8px;z-index:30;font-size:14px}
+#viewer.hidden{display:none}
+#viewer .vrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#viewer select{flex:1 1 240px;min-width:0;background:#111;color:var(--ink);border:1px solid var(--line);padding:7px 8px;font:inherit}
+#viewer button{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);padding:7px 12px;font:inherit;font-weight:600;cursor:pointer}
+#viewer button:hover{background:rgba(255,255,255,.16)}
+#viewer button.on{background:var(--hot);color:#000}
+#vtime{width:100%;accent-color:var(--hot)}
+#viewer .vinfo{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;font-variant-numeric:tabular-nums}
+#viewer .vinfo span{background:rgba(0,0,0,.35);padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#viewer .vinfo b{color:var(--hot);font-weight:600}
+#viewer small{color:var(--muted)}
 </style>
 
 </head>
@@ -250,6 +264,7 @@ tr.me td{color:var(--hot);font-weight:700}
   <header class="mtop">
     <h1 class="logo">BLOCKSTRIKE<span>BATTLEGROUNDS</span></h1>
     <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg">PARTIDA</button></nav>
+    <button type="button" id="viewbtn">SALA DE CINEMÁTICAS ▸</button>
   </header>
   <section class="mpanel" id="tab-sel">
     <div id="cinfo" style="display:flex;flex-direction:column;gap:10px">
@@ -297,6 +312,19 @@ tr.me td{color:var(--hot);font-weight:700}
   </section>
   <div id="roster"></div>
   <button id="play" type="button">PELEAR ▸</button>
+</div>
+
+<div id="viewer" class="hidden" role="region" aria-label="Sala de cinemáticas">
+  <div class="vrow">
+    <select id="vsel" aria-label="Cinemática"></select>
+    <button type="button" id="vplay">Pausa</button>
+    <button type="button" id="vslow">Velocidad 1×</button>
+    <button type="button" id="vcam">Cámara: cine</button>
+    <button type="button" id="vexit">Salir</button>
+  </div>
+  <input id="vtime" type="range" min="0" max="1000" value="0" aria-label="Línea de tiempo">
+  <div class="vinfo"><span>Tiempo <b id="vt">0.00</b></span><span>Atacante <b id="vatt">-</b></span><span>Víctima <b id="vvic">-</b></span><span>Plano <b id="vshot">-</b></span></div>
+  <small>Cámara libre: arrastrá con el mouse para girar y usá la rueda para acercar. Espacio pausa. La escena se repite sola.</small>
 </div>
 
 <div id="pause" class="overlay hidden">
@@ -1028,7 +1056,7 @@ function buildTrack(list, from, t0) {
   for (const kf of list) {
     let t = kf[0]; const p = typeof kf[1] === 'string' ? POSE[kf[1]] : kf[1];
     if (t <= last + .015) t = last + (keys.length === 1 ? .04 : .025);
-    keys.push({ t, p: p || {} }); last = t;
+    keys.push({ t, p: p || {}, n: typeof kf[1] === 'string' ? kf[1] : '', tr: typeof kf[2] === 'number' && kf[2] < 2 ? kf[2] : null }); last = t;
   }
   return keys;
 }
@@ -1047,11 +1075,33 @@ function sampleTrack(keys, t, out) {
   }
   return out;
 }
+// Pose a pose estilo anime: cada pose clave se SOSTIENE (con una leve deriva hacia la próxima, "moving hold"),
+// el cambio a la siguiente es un latigazo corto (ease-out fuerte) que llega justo en el tiempo de la clave,
+// y al llegar sobrepasa un poco y rebota (follow-through). Así se lee cada pose en vez de un movimiento constante.
+const SNAP_TR = .12, SNAP_DRIFT = .08, SNAP_OVER = .16;
+function sampleSnap(keys, t, out) {
+  const n = keys.length;
+  let i = 0; while (i < n - 1 && t >= keys[i + 1].t) i++;
+  const k1 = keys[i], k2 = keys[Math.min(n - 1, i + 1)], k0 = i > 0 ? keys[i - 1] : null;
+  const e = t - k1.t, h = Math.max(.001, k2.t - k1.t), tr = Math.min(k2.tr || SNAP_TR, h * .8), hold = h - tr;
+  const last = i >= n - 1;
+  let w;
+  if (last) w = 0;
+  else if (e < hold) { const u = e / hold; w = SNAP_DRIFT * u * u * (3 - 2 * u); }
+  else { const u = clamp((e - hold) / tr, 0, 1); w = SNAP_DRIFT + (1 - SNAP_DRIFT) * (1 - Math.pow(1 - u, 4)); }
+  // rebote al llegar a k1: arranca en 0, sobrepasa en la dirección en que venía y se asienta
+  const ob = k0 ? SNAP_OVER * Math.sin(Math.min(e * 22, Math.PI)) * Math.exp(-e * 7) : 0;
+  for (const j of JOINTS) {
+    const p1 = jv(k1.p, j), p2 = jv(k2.p, j);
+    out[j] = p1 + (p2 - p1) * w + (ob ? (p1 - jv(k0.p, j)) * ob : 0);
+  }
+  return out;
+}
 class Animator {
   constructor(model) { this.m = model; this.x = {}; this.v = {}; this.o = {}; this.reset(); }
   // reproduce una pista Hermite; deja la velocidad para que el resorte siga sin saltos al terminar
-  play(keys, t, dt) {
-    const x = this.x, v = this.v; sampleTrack(keys, t, this.o);
+  play(keys, t, dt, snap) {
+    const x = this.x, v = this.v; if (snap) sampleSnap(keys, t, this.o); else sampleTrack(keys, t, this.o);
     for (const j of JOINTS) {
       // arrastre secundario: cabeza y giros laterales de brazos/piernas siguen la curva con un pequeño retraso (overlapping action)
       const lag = DRAG[j], nv = lag && dt > 0 ? x[j] + (this.o[j] - x[j]) * Math.min(1, dt * lag) : this.o[j];
@@ -1729,6 +1779,7 @@ function applyHit(att, t, o) {
   sfx(o.sound || (heavy ? 'heavy' : 'hit'), t.pos);
   if (involved) {
     G.hitstop = Math.max(G.hitstop, o.hitstop != null ? o.hitstop : (heavy ? .08 : .035));
+    if (heavy && !t.cineLock) camPunch(ragdoll >= 1 ? .6 : .3, Math.random() < .5 ? 1 : -1);
     G.shake = Math.max(G.shake, o.shake || (heavy ? .35 : .12));
     if (heavy) G.fovKick = Math.max(G.fovKick, 4);
     popText(chest, Math.max(1, Math.round(dmg)), t.isPlayer ? '#ff6b6b' : (heavy ? '#d7ff2f' : '#ffffff'), heavy ? 30 : 22);
@@ -1918,6 +1969,11 @@ function hermArr(keys, t) {
   let i = 0; while (i < n - 2 && t >= keys[i + 1][0]) i++;
   const k1 = keys[i], k2 = keys[i + 1];
   if (k2[5] === 'c') return get(k1);
+  if (k2[5] !== 's') {
+    // anime: sale disparado y frena al llegar (ease-out), en vez de moverse a velocidad constante
+    const u = (t - k1[0]) / (k2[0] - k1[0]), w = k2[5] === 'i' ? u * u * u : 1 - Math.pow(1 - u, 3), a1 = get(k1), a2 = get(k2);  // 'i' = cae acelerando (remates contra el piso)
+    return a1.map((v, j) => v + (a2[j] - v) * w);
+  }
   const k0 = i > 0 && k1[5] !== 'c' ? keys[i - 1] : k1, k3 = i + 2 < n && keys[i + 2][5] !== 'c' ? keys[i + 2] : k2;
   const h = k2[0] - k1[0], s = (t - k1[0]) / h, s2 = s * s, s3 = s2 * s;
   const h00 = 2 * s3 - 3 * s2 + 1, h10 = s3 - 2 * s2 + s, h01 = -2 * s3 + 3 * s2, h11 = s3 - s2;
@@ -1968,13 +2024,14 @@ function choreEvent(st, e) {
   const { f, tg } = st, col = f.ch.color, at = e.at || 'vic';
   const P = at === 'att' ? chestOf(f) : at === 'ground' ? new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z) : at === 'eyes' ? front(f, .35, 1.72) : chestOf(tg);
   if (e.fx) choreFx(e.fx, st, P, col, e);
-  if (e.hit) applyHit(f, tg, { dmg: e.hit, stun: 9, kb: 0, color: col, guardBreak: true, hitstop: .05, shake: e.shake || .25, noCounter: true });
+  if (e.hit) { applyHit(f, tg, { dmg: e.hit, stun: 9, kb: 0, color: col, guardBreak: true, hitstop: e.hs || (e.hit >= 3 ? .09 : .06), shake: e.shake || .3, noCounter: true }); if (G.chore === st) { camPunch(e.hit >= 3 ? .7 : .45, Math.random() < .5 ? 1 : -1); G.hitstop = Math.max(G.hitstop, e.hs || (e.hit >= 3 ? .09 : .06)); } }
   if (e.rel) {
     choreRelease(st); IMPACT.cd = 0; impactFrame(col, .11);
-    applyHit(f, tg, { dmg: e.rel.dmg, kb: e.rel.kb || 0, up: e.rel.up || 0, ragdoll: e.rel.rag || 1.8, guardBreak: true, color: col, hitstop: .15, shake: 1, dir: fwd(f.yaw), noCounter: true });
+    applyHit(f, tg, { dmg: e.rel.dmg, kb: e.rel.kb || 0, up: e.rel.up || 0, ragdoll: e.rel.rag || 1.8, guardBreak: true, color: col, hitstop: .2, shake: 1, dir: fwd(f.yaw), noCounter: true });
+    if (G.chore === st) { camPunch(1.2, 1); G.hitstop = Math.max(G.hitstop, .2); G.linesI = 1; }
   }
   if (e.slow) G.slowT = Math.max(G.slowT, e.slow);
-  if (e.imp) { IMPACT.cd = 0; impactFrame(col, .09); }
+  if (e.imp) { IMPACT.cd = 0; impactFrame(col, .09); if (G.chore === st) camPunch(.6, -1); }
   if (e.shake && !e.hit) G.shake = Math.max(G.shake, e.shake);
   if (e.sfx) sfx(e.sfx, f.pos);
   if (e.text) popText(chestOf(e.who === 'att' ? f : tg).add(new V3(0, .6, 0)), e.text, e.who === 'att' ? col : '#ffffff', 22);
@@ -2008,38 +2065,74 @@ function choreFx(name, st, P, col, e) {
     case 'lines': G.linesI = 1; break;
   }
 }
-// director de cámara: arma cada plano a partir de dónde están los dos en ese momento
+// director de cámara: cada plano se arma con ejes fijos (los de la escena, no los que cambian cuando se cruzan),
+// se mueve suave dentro del plano, corta seco entre planos y se aleja solo si alguno de los dos queda fuera de cuadro.
 const headPos = f => f.model && f.model.head ? (f.model.head.updateWorldMatrix(true, false), f.model.head.localToWorld(new V3(0, 4 * PX, 0))) : chestOf(f).add(new V3(0, .55, 0));
-function choreCam(st, dt) {
-  const D = st.D, t = st.t; let si = 0; for (let i = 0; i < D.shots.length; i++) if (t >= D.shots[i][0]) si = i;
-  const sh = D.shots[si], op = sh[2] || {}, t1 = D.shots[si + 1] ? D.shots[si + 1][0] : D.dur + .4, k = clamp((t - sh[0]) / Math.max(.05, t1 - sh[0]), 0, 1);
-  if (si !== st.shot) { st.shot = si; if (si > 0) G.linesI = Math.max(G.linesI, .6); }
-  const f = st.f, tg = st.tg, A = chestOf(f), V = chestOf(tg), mid = A.clone().lerp(V, .5), s = op.s || 1, gy = st.origin.y;
-  const dir = V.clone().sub(A); dir.y = 0; if (dir.lengthSq() < 1e-4) dir.copy(fwd(st.yaw)); dir.normalize();
-  const perp = new V3(-dir.z, 0, dir.x);
-  let pos, look, fov = op.fov, roll = op.roll || 0;
-  switch (sh[1]) {
-    case 'two': pos = mid.clone().addScaledVector(perp, (4.2 - k * .7) * s).add(new V3(0, .4, 0)); look = mid; fov = fov || 46; roll = roll || .04 * s; break;
-    case 'ots': pos = A.clone().addScaledVector(dir, -2.6 - k * .3).addScaledVector(perp, 1.2 * s).add(new V3(0, .9, 0)); look = V; fov = fov || 46 - k * 6; break;
-    case 'otsV': pos = V.clone().addScaledVector(dir, 2.5 + k * .3).addScaledVector(perp, -1.1 * s).add(new V3(0, .7, 0)); look = A; fov = fov || 44; break;
-    case 'lowV': pos = V.clone().addScaledVector(dir, 1.6).addScaledVector(perp, 1.5 * s); pos.y = gy + .3; look = V.clone().add(new V3(0, .3, 0)); fov = fov || 58; roll = roll || -.1 * s; break;
-    case 'lowA': pos = A.clone().addScaledVector(dir, 1.9).addScaledVector(perp, -1.3 * s); pos.y = gy + .25; look = A.clone().add(new V3(0, .4, 0)); fov = fov || 56; roll = roll || .1 * s; break;
-    // primer plano de la cara (apunta a la cabeza real del modelo), de tres cuartos para que el otro no tape
-    case 'faceV': { const hv = headPos(tg), d = fwd(tg.yaw).multiplyScalar(.55).addScaledVector(rightOf(tg.yaw), .84 * s).normalize(); pos = hv.clone().addScaledVector(d, 2.7 - k * .35).add(new V3(0, .2, 0)); look = hv.clone().add(new V3(0, -.25, 0)); fov = fov || 40; break; }
-    case 'faceA': { const ha = headPos(f), d = fwd(f.yaw).multiplyScalar(.55).addScaledVector(rightOf(f.yaw), .84 * s).normalize(); pos = ha.clone().addScaledVector(d, 2.7 - k * .4).add(new V3(0, .2, 0)); look = ha.clone().add(new V3(0, -.25, 0)); fov = fov || 40; break; }
-    case 'orbit': { const a0 = Math.atan2(perp.x * s, perp.z * s) + (op.a || 0), ang = a0 + k * (op.spd || 1.6), r = op.r || 5; pos = mid.clone().add(new V3(Math.sin(ang) * r, 1 + (op.h || 0), Math.cos(ang) * r)); look = mid; fov = fov || 54; break; }
-    case 'top': pos = mid.clone().add(new V3(0, 6.5 - k, 0)).addScaledVector(perp, .7); look = mid; fov = fov || 52; break;
-    case 'ground': pos = V.clone().addScaledVector(perp, 3.8 * s).addScaledVector(dir, .8); pos.y = gy + .22; look = V; fov = fov || 62; roll = roll || .08 * s; break;
-    case 'follow': pos = A.clone().addScaledVector(dir, -3.2).add(new V3(0, 1.8, 0)).addScaledVector(perp, .8 * s); look = V; fov = fov || 60; break;
-    case 'hero': { pos = A.clone().addScaledVector(fwd(f.yaw), 3.4 - k * .5).addScaledVector(rightOf(f.yaw), 1.1 * s); pos.y = gy + .45; look = A.clone().add(new V3(0, .35, 0)); fov = fov || 44; roll = roll || .06 * s; break; }
-    case 'wide': pos = mid.clone().addScaledVector(perp, 8 * s).add(new V3(0, 3, 0)); look = mid; fov = fov || 50; break;
-    case 'up': pos = V.clone().addScaledVector(perp, 2.3 * s).addScaledVector(dir, 1.2); pos.y = gy + .15; look = V.clone().add(new V3(0, 1.6, 0)); fov = fov || 64; break;
-    default: pos = mid.clone().addScaledVector(perp, 4).add(new V3(0, 1, 0)); look = mid; fov = 50;
+const CHK_CAM = new THREE.PerspectiveCamera(50, 1, .05, 300);
+// efectos de cámara anime: zoom de golpe, giro de impacto y aberración cromática con desenfoque radial
+const CAMFX = { zoom: 0, roll: 0, rollV: 0, ca: 0 };
+function camPunch(str, dirSign = 1) { CAMFX.zoom = Math.max(CAMFX.zoom, str); CAMFX.ca = Math.max(CAMFX.ca, str); CAMFX.rollV += .9 * str * dirSign; }
+function updateCamFx(dt) {
+  CAMFX.zoom *= Math.exp(-dt * 7); CAMFX.ca *= Math.exp(-dt * 5);
+  CAMFX.rollV += (-CAMFX.roll * 260 - CAMFX.rollV * 16) * dt; CAMFX.roll += CAMFX.rollV * dt;
+  if (caPass) { caPass.enabled = CAMFX.ca > .01; caPass.uniforms.amt.value = Math.min(1, CAMFX.ca); }
+}
+function choreShots(D) {
+  // planos de menos de .4 s no se llegan a leer: se juntan con el anterior
+  if (D._shots) return D._shots;
+  const out = [];
+  D.shots.forEach((sh, i) => { const t1 = D.shots[i + 1] ? D.shots[i + 1][0] : D.dur + .5; if (out.length && t1 - sh[0] < .4) return; out.push(sh); });
+  return (D._shots = out);
+}
+function fitBoth(pos, look, fov, pts) {
+  // aleja la cámara (sobre su propio eje) hasta que todos los puntos entren en el 78% del cuadro
+  const back = pos.clone().sub(look); let d = back.length(); if (d < 1e-3) return pos; back.normalize();
+  if (back.y < .05) { back.y = .05; back.normalize(); }  // alejarse nunca la mete bajo el piso
+  CHK_CAM.fov = fov; CHK_CAM.aspect = camera.aspect; CHK_CAM.updateProjectionMatrix();
+  for (let it = 0; it < 10; it++) {
+    CHK_CAM.position.copy(look).addScaledVector(back, d); CHK_CAM.lookAt(look); CHK_CAM.updateMatrixWorld();
+    let ok = true;
+    for (const q of pts) { const v = q.clone().project(CHK_CAM); if (v.z > 1 || Math.abs(v.x) > .78 || Math.abs(v.y) > .74) { ok = false; break; } }
+    if (ok) break; d *= 1.18;
   }
-  pos.y = Math.max(gy + .12, pos.y);
-  camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll);
-  if (G.shake > 0) { const q = G.shake * .25; camera.position.x += rand(-q, q); camera.position.y += rand(-q, q); G.shake = Math.max(0, G.shake - dt * 2.2); }
-  cam.fov += (fov - cam.fov) * Math.min(1, dt * 14); camera.fov = cam.fov; camera.updateProjectionMatrix();
+  return look.clone().addScaledVector(back, d);
+}
+function choreCam(st, dt) {
+  const D = st.D, t = st.t, S = choreShots(D); let si = 0; for (let i = 0; i < S.length; i++) if (t >= S[i][0]) si = i;
+  const sh = S[si], op = sh[2] || {}, t1 = S[si + 1] ? S[si + 1][0] : D.dur + .5, k = clamp((t - sh[0]) / Math.max(.05, t1 - sh[0]), 0, 1);
+  const cut = si !== st.shot;
+  if (cut) { st.shot = si; if (si > 0) { G.linesI = Math.max(G.linesI, .5); CAMFX.ca = Math.max(CAMFX.ca, .5); } }
+  const f = st.f, tg = st.tg, A = chestOf(f), V = chestOf(tg), mid = A.clone().lerp(V, .5), s = op.s || 1, gy = st.origin.y;
+  // ejes de la escena: adelante del atacante al empezar (estables aunque se crucen o teletransporten)
+  const dir = fwd(st.yaw), perp = rightOf(st.yaw);
+  let pos, look, fov = op.fov, roll = op.roll || 0, fit = true;
+  switch (sh[1]) {
+    case 'two': pos = mid.clone().addScaledVector(perp, (4.6 - k * .8) * s).add(new V3(0, .5, 0)); look = mid; fov = fov || 46; roll = roll || .05 * s; break;
+    case 'ots': pos = A.clone().addScaledVector(dir, -2.8 - k * .3).addScaledVector(perp, 1.3 * s).add(new V3(0, 1, 0)); look = V; fov = fov || 46 - k * 5; break;
+    case 'otsV': pos = V.clone().addScaledVector(dir, 2.7 + k * .3).addScaledVector(perp, -1.2 * s).add(new V3(0, .8, 0)); look = A; fov = fov || 46; break;
+    case 'lowV': pos = V.clone().addScaledVector(dir, 2.2).addScaledVector(perp, 2.2 * s); pos.y = gy + .35; look = mid.clone().lerp(V, .5).add(new V3(0, .3, 0)); fov = fov || 54; roll = roll || -.1 * s; break;
+    case 'lowA': pos = A.clone().addScaledVector(dir, 2.4).addScaledVector(perp, -2 * s); pos.y = gy + .3; look = mid.clone().lerp(A, .5).add(new V3(0, .4, 0)); fov = fov || 54; roll = roll || .1 * s; break;
+    // primer plano de la cara (apunta a la cabeza real), de tres cuartos y con el otro asomando en cuadro
+    case 'faceV': { const hv = headPos(tg), d = fwd(tg.yaw).multiplyScalar(.55).addScaledVector(rightOf(tg.yaw), .84 * s).normalize(); pos = hv.clone().addScaledVector(d, 2.8 - k * .35).add(new V3(0, .2, 0)); look = hv.clone().add(new V3(0, -.25, 0)); fov = fov || 40; fit = false; break; }
+    case 'faceA': { const ha = headPos(f), d = fwd(f.yaw).multiplyScalar(.55).addScaledVector(rightOf(f.yaw), .84 * s).normalize(); pos = ha.clone().addScaledVector(d, 2.8 - k * .4).add(new V3(0, .2, 0)); look = ha.clone().add(new V3(0, -.25, 0)); fov = fov || 40; fit = false; break; }
+    case 'orbit': { const a0 = Math.atan2(perp.x * s, perp.z * s) + (op.a || 0), ang = a0 + k * clamp(op.spd || 1.2, -1.6, 1.6), r = op.r || 5.5; pos = mid.clone().add(new V3(Math.sin(ang) * r, 1.1 + (op.h || 0), Math.cos(ang) * r)); look = mid; fov = fov || 52; break; }
+    case 'top': pos = mid.clone().add(new V3(0, 7 - k, 0)).addScaledVector(perp, 2.2).addScaledVector(dir, -1); look = mid; fov = fov || 52; break;
+    case 'ground': pos = V.clone().addScaledVector(perp, 4.2 * s).addScaledVector(dir, 1); pos.y = gy + .25; look = mid.clone().lerp(V, .6); fov = fov || 58; roll = roll || .07 * s; break;
+    case 'follow': pos = A.clone().addScaledVector(dir, -3.6).add(new V3(0, 2, 0)).addScaledVector(perp, 1 * s); look = mid.clone().lerp(V, .5); fov = fov || 56; break;
+    case 'hero': { pos = A.clone().addScaledVector(fwd(f.yaw), 3.6 - k * .5).addScaledVector(rightOf(f.yaw), 1.4 * s); pos.y = gy + .5; look = A.clone().add(new V3(0, .35, 0)); fov = fov || 44; roll = roll || .06 * s; fit = false; break; }
+    case 'wide': pos = mid.clone().addScaledVector(perp, 9 * s).add(new V3(0, 3.2, 0)); look = mid; fov = fov || 48; break;
+    case 'up': pos = V.clone().addScaledVector(perp, 3.4 * s).addScaledVector(dir, 1.6); pos.y = gy + .2; look = mid.clone().lerp(V, .45).add(new V3(0, .5, 0)); fov = fov || 64; break;
+    default: pos = mid.clone().addScaledVector(perp, 5).add(new V3(0, 1.2, 0)); look = mid; fov = 50;
+  }
+  if (fit) pos = fitBoth(pos, look, fov, [A, V, headPos(f), headPos(tg), new V3(f.pos.x, f.pos.y, f.pos.z), new V3(tg.pos.x, tg.pos.y, tg.pos.z)]);
+  pos.y = Math.max(gy + .15, pos.y);
+  // suave dentro del plano, corte seco al cambiar
+  if (cut || !st.cp) { st.cp = pos.clone(); st.cl = look.clone(); st.roll = roll; }
+  else { const a = 1 - Math.exp(-dt * 9); st.cp.lerp(pos, a); st.cl.lerp(look, 1 - Math.exp(-dt * 14)); st.roll += (roll - st.roll) * a; }
+  camera.position.copy(st.cp); camera.up.set(0, 1, 0); camera.lookAt(st.cl); camera.rotateZ(st.roll + CAMFX.roll);
+  if (G.shake > 0) { const q = G.shake * .22; camera.position.x += rand(-q, q); camera.position.y += rand(-q, q); G.shake = Math.max(0, G.shake - dt * 2.4); }
+  const want = fov * (1 - CAMFX.zoom * .16);
+  cam.fov = cut ? want : cam.fov + (want - cam.fov) * Math.min(1, dt * 16); camera.fov = cam.fov; camera.updateProjectionMatrix();
 }
 function runChore(f, tg, D) {
   if (f.action) endAction(f);
@@ -2060,8 +2153,8 @@ const CHORE = {
     dur: 3.3,
     att: [[.08, 'thrust_w'], [.2, 'thrust'], [.55, 'thrust'], [.85, 'upthrust'], [1.3, 'upthrust'], [1.6, 'spinPose'], [1.95, 'overhead'], [2.25, 'plunge'], [2.6, 'plunge'], [3.0, 'lancerRest']],
     vic: [[.2, 'vGut'], [.55, 'vGut'], [.9, 'vLifted'], [1.3, 'vDangle'], [1.95, 'vFlip'], [2.25, 'downB'], [3.0, 'downB']],
-    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .4, 0], [1.4, 0, 0, .4, 0], [1.9, 0, 0, .4, 3.14], [2.3, 0, .9, 1.2, 3.14], [2.6, 0, 0, 1.6, 3.14]],
-    vpos: [[0, 0, 0, 1.2, 0], [.2, 0, .1, 1.5, 0], [.85, 0, .4, 1.6, 0], [1.3, 0, 2.4, .9, 0], [1.9, 0, 2.8, -.5, 3.14], [2.25, 0, 0, 2.5, 3.14], [3.3, 0, 0, 2.6, 3.14]],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .4, 0], [1.4, 0, 0, .4, 0], [1.9, 0, 0, .4, 3.14], [2.3, 0, .9, 1.2, 3.14], [2.6, 0, 0, 1.6, 3.14, 'i']],
+    vpos: [[0, 0, 0, 1.2, 0], [.2, 0, .1, 1.5, 0], [.85, 0, .4, 1.6, 0], [1.3, 0, 2.4, .9, 0], [1.9, 0, 2.8, -.5, 3.14], [2.25, 0, 0, 2.5, 3.14, 'i'], [3.3, 0, 0, 2.6, 3.14]],
     ev: [
       { t: .2, hit: 4, fx: 'stab', imp: 1, slow: .18, sfx: 'heavy' },
       { t: .55, hit: 2, fx: 'impact', text: '¡ATRAVESADO!' },
@@ -2079,8 +2172,8 @@ const CHORE = {
     dur: 3.1, catch: 2.2,
     att: [[.05, 'dash'], [.25, 'thrust'], [.45, 'dash'], [.65, 'sweep'], [.85, 'dash'], [1.05, 'thrust'], [1.45, 'jump'], [1.75, 'spearThrowW'], [1.95, 'plunge'], [2.5, 'plunge'], [2.85, 'javiHero']],
     vic: [[.25, 'hurtSideL'], [.65, 'hurtSideR'], [1.05, 'vSpinA'], [1.45, 'vLaunch'], [1.9, 'vFloat'], [2.05, 'vBack'], [2.6, 'downB']],
-    apos: [[0, 0, 0, 0, 0], [.25, 0, 0, 3.2, 0, 'c'], [.3, 0, 0, 3.2, 3.14], [.45, -1.2, 0, 3.4, 3.14, 'c'], [.65, 1.6, 0, -1.4, 3.14], [.7, 1.6, 0, -1.4, -1.2], [.85, 1.8, 0, -1.2, -1.2, 'c'], [1.05, -2, 0, 3.6, -1.2], [1.4, -2.2, 0, 3.6, -2.4], [1.75, -.6, 4.6, 2.2, -3.6], [1.95, -.2, 2.6, 1.9, -3.14], [2.1, 0, 0, 1.4, -3.14], [3.1, 0, 0, 1.4, -3.14]],
-    vpos: [[0, 0, 0, 1.4, 0], [.25, 0, 0, 1.5, .8], [.65, .2, 0, 1.5, 2.1], [1.05, 0, .3, 1.4, 3.6], [1.45, 0, 3.4, 1.3, 4.4], [1.9, 0, 3.6, 1.3, 4.6], [2.05, 0, 0, 1.4, 4.8], [3.1, 0, 0, 1.4, 4.8]],
+    apos: [[0, 0, 0, 0, 0], [.25, 0, 0, 3.2, 0, 'c'], [.3, 0, 0, 3.2, 3.14], [.45, -1.2, 0, 3.4, 3.14, 'c'], [.65, 1.6, 0, -1.4, 3.14], [.7, 1.6, 0, -1.4, -1.2], [.85, 1.8, 0, -1.2, -1.2, 'c'], [1.05, -2, 0, 3.6, -1.2], [1.4, -2.2, 0, 3.6, -2.4], [1.75, -.6, 4.6, 2.2, -3.6], [1.95, -.2, 2.6, 1.9, -3.14], [2.1, 0, 0, 1.4, -3.14, 'i'], [3.1, 0, 0, 1.4, -3.14]],
+    vpos: [[0, 0, 0, 1.4, 0], [.25, 0, 0, 1.5, .8], [.65, .2, 0, 1.5, 2.1], [1.05, 0, .3, 1.4, 3.6], [1.45, 0, 3.4, 1.3, 4.4], [1.9, 0, 3.6, 1.3, 4.6], [2.05, 0, 0, 1.4, 4.8, 'i'], [3.1, 0, 0, 1.4, 4.8]],
     ev: [
       { t: .25, hit: 3, fx: 'line', imp: 1, sfx: 'dash' },
       { t: .65, hit: 3, fx: 'line', sfx: 'dash' },
@@ -2189,15 +2282,15 @@ const CHORE = {
       { t: 2.05, fx: 'flash', op: .55 },
       { t: 2.6, eyes: 0 },
     ],
-    shots: [[0, 'two'], [.45, 'lowA'], [.95, 'faceA'], [1.55, 'faceV'], [1.85, 'ots', { fov: 40 }], [2.05, 'wide'], [2.5, 'hero']],
+    shots: [[0, 'two'], [.45, 'lowA'], [.95, 'otsV'], [1.55, 'faceV'], [1.85, 'ots', { fov: 40 }], [2.05, 'wide'], [2.5, 'hero']],
   },
   // patada al cielo, lo sigue en el aire a patadas, se da vuelta encima de él y lo baja con un rayo de los ojos
   redKick: {
     dur: 3.0,
     att: [[.05, 'kick_w'], [.18, 'kickHigh'], [.45, 'jump'], [.7, 'kick'], [.9, 'kickHigh'], [1.1, 'kick'], [1.4, 'aUpside'], [1.7, 'aUpside'], [2.0, 'fall'], [2.35, 'land'], [2.8, 'redStance']],
     vic: [[.18, 'vKick1'], [.45, 'vLaunch'], [.7, 'vKick2'], [.9, 'vKick1'], [1.1, 'vSpinA'], [1.55, 'vFloat'], [1.8, 'vBack'], [2.2, 'downB']],
-    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .3, 0], [.7, 0, 3.0, .8, 0], [1.1, 0, 4.4, .9, 0], [1.4, 0, 6.6, 1.3, 0], [1.75, 0, 6.4, 1.3, 0], [2.3, 0, 0, .3, 0]],
-    vpos: [[0, 0, 0, 1.1, 0], [.18, 0, .5, 1.3, 0], [.7, 0, 3.6, 1.9, 0], [1.1, 0, 4.8, 2.0, 1], [1.4, 0, 5.2, 2.1, 3], [1.75, 0, 5.0, 2.0, 3.14], [2.1, 0, 0, 2.1, 3.14]],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .3, 0], [.7, 0, 3.0, .8, 0], [1.1, 0, 4.4, .9, 0], [1.4, 0, 6.6, 1.3, 0], [1.75, 0, 6.4, 1.3, 0], [2.3, 0, 0, .3, 0, 'i']],
+    vpos: [[0, 0, 0, 1.1, 0], [.18, 0, .5, 1.3, 0], [.7, 0, 3.6, 1.9, 0], [1.1, 0, 4.8, 2.0, 1], [1.4, 0, 5.2, 2.1, 3], [1.75, 0, 5.0, 2.0, 3.14], [2.1, 0, 0, 2.1, 3.14, 'i']],
     ev: [
       { t: .18, hit: 3, fx: 'impact', imp: 1 },
       { t: .7, hit: 2, fx: 'slash', tilt: 1.2 },
@@ -2257,7 +2350,7 @@ const CHORE = {
     att: [[.1, 'palm'], [.5, 'castUp'], [1.2, 'castUp'], [1.5, 'charge'], [1.9, 'point'], [2.2, 'slamDown'], [2.7, 'land'], [3.1, 'idle']],
     vic: [[.1, 'vShock1'], [.3, 'vShock2'], [.5, 'vShock1'], [.7, 'vShock2'], [.9, 'vShock1'], [1.1, 'vShock2'], [1.3, 'vFloat'], [1.6, 'vShock1'], [1.9, 'vShock2'], [2.2, 'vBack'], [2.4, 'downB']],
     apos: [[0, 0, 0, 0, 0], [1.5, 0, 0, 0, 0], [1.9, 0, 1.2, .6, 0], [2.2, 0, 0, .9, 0]],
-    vpos: [[0, 0, 0, 1.1, 0], [.5, 0, 1.4, 1.2, 0], [1.2, 0, 4.2, 1.4, 0], [1.9, 0, 4.4, 1.5, 0], [2.2, 0, 0, 1.6, 0]],
+    vpos: [[0, 0, 0, 1.1, 0], [.5, 0, 1.4, 1.2, 0], [1.2, 0, 4.2, 1.4, 0], [1.9, 0, 4.4, 1.5, 0], [2.2, 0, 0, 1.6, 0, 'i']],
     ev: [
       { t: .1, fx: 'elec', hit: 2 }, { t: .4, fx: 'elec', hit: 1 }, { t: .7, fx: 'elec', hit: 1 }, { t: 1.0, fx: 'elec', hit: 1 }, { t: 1.3, fx: 'elec', hit: 1 },
       { t: 1.5, fx: 'charge', at: 'att', sfx: 'ult', text: '¡SOBRECARGA!', who: 'att' },
@@ -2318,8 +2411,8 @@ const CHORE = {
     dur: 3.4,
     att: [[.1, 'grab'], [.4, 'lift'], [.8, 'suplex'], [1.2, 'jump'], [1.7, 'suplex'], [2.0, 'slamDown'], [2.4, 'stomp'], [3.0, 'heavy']],
     vic: [[.1, 'hurtA'], [.4, 'vLifted'], [.8, 'vUpside'], [1.7, 'vUpside'], [2.0, 'vUpside'], [2.2, 'downB']],
-    apos: [[0, 0, 0, 0, 0], [.8, 0, 0, 0, 0], [1.2, 0, 1.2, 0, 0], [1.6, 0, 7, .3, 1.57], [1.75, 0, 7.2, .3, 3.14], [2.0, 0, 0, .3, 6.28], [3.4, 0, 0, .3, 6.28]],
-    vpos: [[0, 0, 0, 1.1, 0], [.4, 0, 1.3, .9, 0], [.8, 0, 3.1, .3, 0], [1.2, 0, 4.3, .3, 0], [1.6, 0, 10.1, .5, 1.57], [1.75, 0, 10.3, .5, 3.14], [2.0, 0, 1.7, .6, 6.28], [2.2, 0, 0, .8, 6.28]],
+    apos: [[0, 0, 0, 0, 0], [.8, 0, 0, 0, 0], [1.2, 0, 1.2, 0, 0], [1.6, 0, 7, .3, 1.57, 's'], [1.75, 0, 7.2, .3, 3.14], [2.0, 0, 0, .3, 6.28, 'i'], [3.4, 0, 0, .3, 6.28]],
+    vpos: [[0, 0, 0, 1.1, 0], [.4, 0, 1.3, .9, 0], [.8, 0, 3.1, .3, 0], [1.2, 0, 4.3, .3, 0], [1.6, 0, 10.1, .5, 1.57, 's'], [1.75, 0, 10.3, .5, 3.14], [2.0, 0, 1.7, .6, 6.28, 'i'], [2.2, 0, 0, .8, 6.28]],
     ev: [
       { t: .1, hit: 2, fx: 'impact', sfx: 'grab' },
       { t: .8, text: '¡ARRIBA!', who: 'att', fx: 'ring', at: 'att', r: 2 },
@@ -3180,6 +3273,7 @@ function miniCut(f) {
 // ================= Control =================
 const keys = {}, pressed = new Set(), mouse = { left: false, right: false };
 function playerCtl() {
+  if (G.viewer) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   if (G.paused) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   const c = { mx: 0, mz: 0, jump: !!keys.Space, dash: pressed.has('KeyQ'), m1: mouse.left, block: !!keys.KeyF || mouse.right, skill: -1, ult: pressed.has('KeyG'), up: !!keys.Space };
   const ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
@@ -3416,7 +3510,7 @@ function animate(f, dt) {
       pose = Object.assign({}, pose, { hy: (pose.hy || 0) * .4 + rel * .75 });
     }
   }
-  if (f.frozen <= 0 || f.choreTrack) { if (keyed) f.anim.play(keyed, f.choreTrack ? f.choreTime : a.t, dt); else f.anim.update(dt, pose, k, z, spin); }
+  if (f.frozen <= 0 || f.choreTrack) { if (keyed) f.anim.play(keyed, f.choreTrack ? f.choreTime : a.t, dt, !!f.choreTrack); else f.anim.update(dt, pose, k, z, spin); }
   const m = f.model;
   if (m.gripRot) { f.twA = twirlAngle(f, dt); m.gripRot.rotation.x = f.anim.x.sx + f.twA; }
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
@@ -3506,13 +3600,30 @@ function sizeLines() { LC.width = innerWidth; LC.height = innerHeight; }
 sizeLines();
 let linesDrawn = false;
 // render con brillo (bloom) y los impact frames
-let composer = null, renderPass = null, bloomPass = null;
+let composer = null, renderPass = null, bloomPass = null, caPass = null;
 try {
   if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass) {
     composer = new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
     bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .24, .35, .95);
     composer.addPass(renderPass); composer.addPass(bloomPass);
+    if (THREE.ShaderPass) {
+      caPass = new THREE.ShaderPass({
+        uniforms: { tDiffuse: { value: null }, amt: { value: 0 } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform sampler2D tDiffuse; uniform float amt; varying vec2 vUv;
+          void main(){
+            vec2 d = vUv - .5; float r = length(d);
+            vec3 c = vec3(0.);
+            for (int i = 0; i < 6; i++) { float k = 1. - float(i) * amt * .007; vec2 uv = .5 + d * k;
+              c.r += texture2D(tDiffuse, uv + d * amt * .016).r; c.g += texture2D(tDiffuse, uv).g; c.b += texture2D(tDiffuse, uv - d * amt * .016).b; }
+            c /= 6.;
+            c *= 1. - amt * .55 * smoothstep(.25, .75, r);
+            gl_FragColor = vec4(c, 1.);
+          }`,
+      });
+      caPass.enabled = false; composer.addPass(caPass);
+    }
   }
 } catch (e) { composer = null; }
 const IMP_BLACK = new THREE.MeshBasicMaterial({ color: 0x050505 }), IMP_WHITE = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -3618,6 +3729,14 @@ function updateCamera(dt) {
     return;
   }
   const p = G.player;
+  // sala de cinemáticas: cámara libre, o un plano lateral de los dos mientras no corre la escena
+  if (G.viewer && VW.att && VW.vic && (VW.free || !G.chore)) {
+    const mid = chestOf(VW.att).lerp(chestOf(VW.vic), .5), yaw = VW.free ? VW.yaw : 1.75, pitch = VW.free ? VW.pitch : .22, dist = VW.free ? VW.dist : 7.5, cp = Math.cos(pitch);
+    VW.focus = VW.focus ? VW.focus.lerp(mid, Math.min(1, dt * 6)) : mid;
+    camera.position.set(VW.focus.x + Math.sin(yaw) * cp * dist, VW.focus.y + Math.sin(pitch) * dist, VW.focus.z + Math.cos(yaw) * cp * dist);
+    camera.position.y = Math.max(.3, camera.position.y); camera.up.set(0, 1, 0); camera.lookAt(VW.focus);
+    cam.fov += (50 - cam.fov) * Math.min(1, dt * 8); camera.fov = cam.fov; camera.updateProjectionMatrix(); return;
+  }
   if (G.chore) {
     document.body.classList.add('duel'); choreCam(G.chore, dt);
     cam.focus.copy(p.pos).add(new V3(0, 1.7, 0)); return;
@@ -3649,7 +3768,7 @@ function updateCamera(dt) {
   camera.lookAt(pos.x + dir.x, pos.y + dir.y, pos.z + dir.z);
   const want = 70 + (p.awak > 0 ? 4 : 0) + G.fovKick;
   G.fovKick = Math.max(0, G.fovKick - dt * 18);
-  cam.fov += (want - cam.fov) * Math.min(1, dt * 10);
+  cam.fov += (want * (1 - CAMFX.zoom * .1) - cam.fov) * Math.min(1, dt * 10);
   if (G.shake > 0) {
     const s = G.shake * .35;
     camera.position.x += rand(-s, s); camera.position.y += rand(-s, s); camera.position.z += rand(-s, s);
@@ -3816,6 +3935,7 @@ async function startMatch() {
   if (G.mp) netSendPlay();
 }
 function toMenu() {
+  G.viewer = null; VW.on = false; $('viewer').classList.add('hidden'); document.body.classList.remove('duel');
   unlock(); stageExit(); clearDummies(); togglePanel(false); clearFighters(); G.state = 'menu'; G.mp = false; G.over = false; G.paused = false; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
   $('hud').classList.add('hidden'); $('menu').classList.remove('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden');
   showSelect(G.charId);
@@ -3868,6 +3988,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyG', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if (G.viewer) { if (e.code === 'Escape') closeViewer(); else if (e.code === 'Space') { vTogglePlay(); e.preventDefault(); } return; }
   if (!G.over && e.code === 'Escape' && !locked) { if (G.panelOpen) togglePanel(false); else if (!G.paused) setPause(true); return; }
   if (!G.over && e.code === 'KeyP') { setPause(!G.paused); if (!G.paused) requestLock(); return; }
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { } }
@@ -3879,6 +4000,7 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.left = mouse.right = false; });
 addEventListener('pointerdown', () => initAudio(), { once: true });
 canvas.addEventListener('mousedown', e => {
+  if (G.viewer) { VW.drag = true; return; }
   if (G.state !== 'play' || G.paused || G.over) return;
   initAudio();
   if (!locked && !lockFailed) requestLock();
@@ -3893,11 +4015,104 @@ addEventListener('mousemove', e => {
     cam.pitch = clamp(cam.pitch + e.movementY * .0022, -.35, 1.2);
   }
 });
-canvas.addEventListener('wheel', e => { cam.dist = clamp(cam.dist + Math.sign(e.deltaY) * .6, 3.5, 12); }, { passive: true });
+addEventListener('mouseup', () => { VW.drag = false; });
+addEventListener('mousemove', e => { if (!G.viewer || !VW.drag) return; VW.yaw -= e.movementX * .006; VW.pitch = clamp(VW.pitch + e.movementY * .005, -.2, 1.35); if (!VW.free) vSetFree(true); });
+canvas.addEventListener('wheel', e => { if (G.viewer) { VW.dist = clamp(VW.dist + Math.sign(e.deltaY) * .6, 2.5, 16); return; } cam.dist = clamp(cam.dist + Math.sign(e.deltaY) * .6, 3.5, 12); }, { passive: true });
 addEventListener('resize', () => {
   camera.aspect = SH.cam.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); SH.cam.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight); if (composer) composer.setSize(innerWidth, innerHeight); sizeLines();
 });
+
+// ================= Sala de cinemáticas: ver cada coreografía con el atacante y la víctima =================
+const VW = { on: false, id: null, att: null, vic: null, play: true, speed: 1, free: false, yaw: .8, pitch: .25, dist: 7, drag: false, age: 0, seen: false, wait: 0, focus: null, started: false };
+const CHORE_OWNER = {}, CHORE_NAME = {};
+for (const c in AWK) for (const s of AWK[c]) if (s.k === 'chore') { CHORE_OWNER[s.o.id] = c; CHORE_NAME[s.o.id] = s.n; }
+const SHOT_ES = { two: 'Plano de los dos', ots: 'Sobre el hombro', otsV: 'Contraplano', lowV: 'Contrapicado (víctima)', lowA: 'Contrapicado (atacante)', faceV: 'Primer plano víctima', faceA: 'Primer plano atacante', orbit: 'Órbita', top: 'Cenital', ground: 'A ras del piso', follow: 'Persecución', hero: 'Plano héroe', wide: 'General', up: 'Desde abajo' };
+function openViewer() {
+  initAudio(); stageExit(); clearDummies(); clearFighters();
+  G.state = 'play'; G.mp = false; G.over = false; G.paused = false; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
+  G.viewer = VW; VW.on = true;
+  $('menu').classList.add('hidden'); $('hud').classList.add('hidden'); $('viewer').classList.remove('hidden');
+  const sel = $('vsel'); sel.innerHTML = '';
+  for (const c of CHAR_IDS) {
+    const ids = Object.keys(CHORE).filter(id => CHORE_OWNER[id] === c); if (!ids.length) continue;
+    const g = document.createElement('optgroup'); g.label = CHARS[c].name;
+    for (const id of ids) { const o = document.createElement('option'); o.value = id; o.textContent = CHORE_NAME[id] || id; g.appendChild(o); }
+    sel.appendChild(g);
+  }
+  const first = Object.keys(CHORE).find(id => CHORE_OWNER[id] === G.charId) || Object.keys(CHORE)[0];
+  sel.value = first; vLoad(first); vSetPlay(true);
+}
+function closeViewer() { toMenu(); }
+function vLoad(id) {
+  clearFighters(); VW.id = id;
+  const owner = CHORE_OWNER[id] || 'javi';
+  const a = new Fighter({ name: CHARS[owner].name, char: owner, isPlayer: true });
+  // la víctima: tu peleador elegido (con tu skin si subiste una)
+  const vc = G.charId !== owner ? G.charId : (owner === 'kaiza' ? 'volt' : 'kaiza');
+  const v = new Fighter({ name: 'Víctima', char: vc, skin: G.customSkin || null, slim: G.customSkin ? G.customSlim : false });
+  v.dummy = 'idle'; a.flourT = v.flourT = 1e9;
+  G.fighters.push(a, v); G.player = a; VW.att = a; VW.vic = v;
+  vRestart();
+}
+function vReset(f, x, z, yaw) {
+  endAction(f); f.pos.set(x, groundAt(x, z), z); f.vel.set(0, 0, 0); f.yaw = f.prevYaw = yaw;
+  f.alive = true; f.hp = f.maxHp || 100; f.ragdoll = f.stun = f.frozen = f.iframes = f.hurtT = f.getupT = f.landT = f.dashT = 0;
+  f.cineLock = null; f.grabbed = false; f.choreTrack = null; f.forcePose = null; f.blocking = false; f.awak = 30;
+  if (f.model) f.model.root.visible = true;
+}
+function vRestart() {
+  const D = CHORE[VW.id], a = VW.att, v = VW.vic;
+  G.chore = null; G.hitstop = 0; G.slowT = 0; G.shake = 0; IMPACT.t = 0; PS.clear(); ZONES.length = 0;
+  PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
+  vReset(a, 0, 0, 0); vReset(v, 0, D.pull ? 9 : 2.6, Math.PI);
+  VW.age = 0; VW.seen = false; VW.wait = 0; VW.started = false; VW.focus = null;
+  if (document.activeElement !== $('vtime')) $('vtime').value = 0;
+  document.body.classList.remove('duel');
+}
+function vTick(dt) {
+  const D = CHORE[VW.id]; if (!D) return;
+  VW.age += dt;
+  if (!VW.started && VW.age > .5) { VW.started = true; MOVES.chore(VW.att, { id: VW.id }); }
+  if (G.chore) VW.seen = true;
+  if ((VW.seen && !G.chore) || VW.age > D.dur + 4) { VW.wait += dt; if (VW.wait > 1.6) vRestart(); }
+  vInfo();
+}
+function vInfo() {
+  const st = G.chore, D = CHORE[VW.id];
+  const name = f => {
+    if (!f.choreTrack) return f.ragdoll > 0 ? 'ragdoll' : f.action ? f.action.name : 'quieto';
+    let n = ''; for (const k of f.choreTrack) if (k.t <= f.choreTime && k.n) n = k.n; return n || '-';
+  };
+  $('vt').textContent = st ? `${st.t.toFixed(2)} / ${D.dur.toFixed(2)} s` : '-';
+  $('vatt').textContent = name(VW.att); $('vvic').textContent = name(VW.vic);
+  $('vshot').textContent = VW.free ? 'Cámara libre' : st ? (SHOT_ES[(choreShots(D)[Math.max(0, st.shot)] || [])[1]] || '-') : '-';
+  if (st && document.activeElement !== $('vtime')) $('vtime').value = Math.round(st.t / D.dur * 1000);
+}
+// saltar a un momento: se vuelve a simular desde el principio hasta ahí y queda en pausa
+function vSeek(frac) {
+  const D = CHORE[VW.id]; vRestart(); VW.started = true; MOVES.chore(VW.att, { id: VW.id });
+  const target = frac * D.dur;
+  for (let i = 0; i < 900; i++) {
+    if (G.chore && G.chore.t >= target) break;
+    step(1 / 60); G.hitstop = 0;
+    if (G.chore) VW.seen = true; else if (VW.seen) break;
+  }
+  G.hitstop = 0; vSetPlay(false); vInfo();
+}
+function vSetPlay(on) { VW.play = on; $('vplay').textContent = on ? 'Pausa' : 'Reproducir'; $('vplay').classList.toggle('on', !on); }
+function vTogglePlay() { vSetPlay(!VW.play); }
+function vSetFree(on) { VW.free = on; VW.focus = null; $('vcam').textContent = on ? 'Cámara: libre' : 'Cámara: cine'; $('vcam').classList.toggle('on', on); if (on) document.body.classList.remove('duel'); }
+$('viewbtn').addEventListener('click', () => { sfx('select'); openViewer(); });
+$('vsel').addEventListener('change', e => { vLoad(e.target.value); vSetPlay(true); });
+$('vplay').addEventListener('click', vTogglePlay);
+$('vslow').addEventListener('click', () => {
+  VW.speed = VW.speed === 1 ? .5 : VW.speed === .5 ? .25 : 1;
+  $('vslow').textContent = `Velocidad ${VW.speed === 1 ? '1' : VW.speed === .5 ? '½' : '¼'}×`; $('vslow').classList.toggle('on', VW.speed < 1);
+});
+$('vcam').addEventListener('click', () => vSetFree(!VW.free));
+$('vexit').addEventListener('click', closeViewer);
+$('vtime').addEventListener('input', e => vSeek(+e.target.value / 1000));
 
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
@@ -4472,11 +4687,16 @@ function loop(now) {
     let dt = rdt * (G.slowT > 0 ? .3 : 1);
     if (G.slowT > 0) G.slowT -= rdt;
     if ((G.paused && !G.mp) || G.over) dt = 0;
-    if (G.hitstop > 0) { G.hitstop -= rdt; dt = 0; }
-    if (dt > 0) step(dt); else if (G.paused) pressed.clear();
+    if (G.viewer) { dt *= VW.play ? VW.speed : 0; }
+    if (G.hitstop > 0) { G.hitstop -= rdt * (G.viewer ? (VW.play ? VW.speed : 0) : 1); dt = 0; }
+    if (dt > 0) step(dt);
+    if (G.viewer) vTick(dt); else if (G.paused) pressed.clear();
   }
   if (G.mp) netTick(rdt);
+  updateCamFx(rdt);
   updateCamera(rdt);
+  // durante el hitstop de una coreografía, el que recibe vibra (congelado pero temblando, como en el anime)
+  if (G.hitstop > 0 && G.chore && G.chore.tg.model) { const m = G.chore.tg.model.root; m.position.x += rand(-.07, .07); m.position.y += rand(-.03, .03); m.position.z += rand(-.07, .07); }
   updateHUD(rdt);
   drawLines(rdt);
   if (G.cine && G.cine.shot === 1) drawPanelBorders();
