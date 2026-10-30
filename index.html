@@ -2454,7 +2454,7 @@ async function netInit() {
   if (G.mode === 'mp' && NET.room && !NET.named && /^#sala-/.test(location.hash)) joinRoom();
 }
 // Sala P2P con la misma forma que la sala de claude.ai: el primero que entra es el anfitrión y reenvía el estado de todos
-function p2pRoom(code, tries = 0) {
+function p2pRoom(code, tries = 0, onStatus = () => { }) {
   return new Promise((resolve, reject) => {
     const hostId = 'blockstrike-v1-' + code;
     const R = { name: 'bs-' + code, my: {}, myId: null, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), conns: new Map(), host: null, cbs: [], peer: null, closed: false, settled: false, ping: 0, mySkin: null, lastSend: 0, timer: 0 };
@@ -2507,11 +2507,19 @@ function p2pRoom(code, tries = 0) {
       else if (m.t === 'pi' && R.isHost) { const c = R.conns.get(fromId); if (c && c.open) c.send({ t: 'po', ts: m.ts }); }
       else if (m.t === 'po' && !R.isHost) { R.ping = Math.max(0, Date.now() - (+m.ts || 0)); }
     };
-    const retry = () => { clearInterval(R.timer); try { R.peer.destroy(); } catch (e) { } if (tries >= 5) done(false, { code: 'no_host' }); else setTimeout(() => p2pRoom(code, tries + 1).then(r => done(true, r), e => done(false, e)), 1500); };
+    const retry = () => {
+      clearInterval(R.timer); clearTimeout(openTo); try { R.peer.destroy(); } catch (e) { }
+      if (tries >= 4) { done(false, { code: 'no_host' }); return; }
+      onStatus(`El anfitrión no responde, reintentando (${tries + 2}/5)…`);
+      setTimeout(() => p2pRoom(code, tries + 1, onStatus).then(r => done(true, r), e => done(false, e)), 1500);
+    };
+    // si el servidor de conexión no contesta, no quedarse cargando para siempre
+    const openTo = setTimeout(() => { if (!R.settled && !R.myId) { try { R.peer.destroy(); } catch (e) { } done(false, { code: 'server' }); } }, 10000);
     const startClient = () => {
       R.peer = new Peer({ debug: 0 });
       R.peer.on('open', id => {
-        R.myId = id;
+        R.myId = id; clearTimeout(openTo);
+        onStatus('Conectando con el anfitrión de la sala…');
         const c = R.peer.connect(hostId, { serialization: 'json' });
         R.host = c;
         const to = setTimeout(retry, 9000);
@@ -2522,7 +2530,7 @@ function p2pRoom(code, tries = 0) {
       R.peer.on('error', e => { if (e.type === 'peer-unavailable' && !R.settled) retry(); else if (!R.settled) done(false, { code: e.type }); });
     };
     R.peer = new Peer(hostId, { debug: 0 });
-    R.peer.on('open', id => { R.myId = id; R.isHost = true; if (R.mySkin) R.skins.set(id, R.mySkin); done(true, R); });
+    R.peer.on('open', id => { clearTimeout(openTo); R.myId = id; R.isHost = true; if (R.mySkin) R.skins.set(id, R.mySkin); done(true, R); });
     R.peer.on('connection', c => {
       c.on('open', () => {
         R.conns.set(c.peer, c);
@@ -2535,7 +2543,7 @@ function p2pRoom(code, tries = 0) {
       c.on('close', () => { if (R.conns.get(c.peer) === c) forget(c.peer); });
     });
     R.peer.on('error', e => {
-      if (e.type === 'unavailable-id' && !R.settled) { try { R.peer.destroy(); } catch (x) { } startClient(); }
+      if (e.type === 'unavailable-id' && !R.settled) { try { R.peer.destroy(); } catch (x) { } onStatus('La sala ya existe, entrando…'); startClient(); }
       else if (!R.settled) done(false, { code: e.type });
     });
   });
@@ -2555,14 +2563,30 @@ function netShareSkin() {
 }
 function inviteLink() { return location.origin + location.pathname + '#sala-' + cleanCode($('roomcode').value); }
 function cleanCode(s) { s = String(s || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 40); return s || 'amigos'; }
-async function joinRoom() {
-  if (!NET.room) { renderNetStatus(); return false; }
+// una sola conexión a la vez: tocar Entrar o PELEAR mientras conecta espera a la misma
+let joinP = null, joinCode = '';
+function joinRoom() {
+  if (!NET.room) { renderNetStatus(); return Promise.resolve(false); }
   const code = 'bs-' + cleanCode($('roomcode').value);
-  if (NET.named && NET.named.name === code) return true;
+  if (NET.named && NET.named.name === code) return Promise.resolve(true);
+  if (joinP && joinCode === code) return joinP;
+  joinCode = code;
+  const p = doJoin(code).finally(() => { if (joinP === p) joinP = null; });
+  joinP = p;
+  return p;
+}
+const NET_ERR = {
+  server: 'No se pudo llegar al servidor de conexión. Revisá tu internet y tocá Entrar de nuevo.',
+  no_host: 'No se pudo conectar con el anfitrión de la sala. Puede que su red bloquee la conexión (wifi de colegio o trabajo). Tocá Entrar de nuevo o que otro abra la sala.',
+};
+async function doJoin(code) {
+  const st = t => { if (joinCode === code) { const s = $('netstat'); s.classList.remove('ok'); s.textContent = t; } };
   try {
     if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
-    $('netstat').textContent = 'Conectando…';
-    NET.named = NET.room === 'p2p' ? await p2pRoom(code.slice(3)) : await NET.room.join(code); NET.code = code;
+    st('Conectando al servidor…');
+    const room = NET.room === 'p2p' ? await p2pRoom(code.slice(3), 0, st) : await NET.room.join(code);
+    if (joinCode !== code) { try { room.leave(); } catch (e) { } return false; }
+    NET.named = room; NET.code = code;
     NET.named.onPeers(() => renderLobby(), () => { NET.named = null; renderNetStatus(); });
     if (NET.room === 'p2p') {
       NET.named.onLost = () => { const old = NET.named; NET.named = null; try { old.leave(); } catch (e) { } addFeedText('Se cortó la conexión con el anfitrión: reconectando…', '#ffd166'); setTimeout(joinRoom, 800); };
@@ -2573,8 +2597,10 @@ async function joinRoom() {
     netMenuPresence(); renderLobby();
     return true;
   } catch (e) {
+    if (joinCode !== code) return false;
     NET.named = null;
-    $('netstat').textContent = `No se pudo entrar a la sala (${(e && e.code) || 'error'}). Probá de nuevo en unos segundos.`;
+    const c = (e && (e.code || e.type)) || 'error';
+    st(NET_ERR[c] || `No se pudo entrar a la sala (${c}). Tocá Entrar de nuevo en unos segundos.`);
     return false;
   }
 }
