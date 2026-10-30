@@ -302,7 +302,7 @@ tr.me td{color:var(--hot);font-weight:700}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script>
 'use strict';
 const V3 = THREE.Vector3;
@@ -2449,11 +2449,93 @@ function netAct(a) { a.s = ++NET.actSeq; NET.act = a; }
 async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
-  if (!NET.room && !window.claude && window.Peer) NET.room = 'p2p';
+  if (!NET.room && !window.claude && window.mqtt) NET.room = 'relay';
   NET.ready = true; renderNetStatus();
   if (G.mode === 'mp' && NET.room && !NET.named && /^#sala-/.test(location.hash)) joinRoom();
 }
-// Sala P2P con la misma forma que la sala de claude.ai: el primero que entra es el anfitrión y reenvía el estado de todos
+// Sala por servidor intermedio público (MQTT sobre WebSocket): funciona detrás de cualquier router, sin anfitrión.
+// Tiene la misma forma que la sala de claude.ai: peers(), presence(), onPeers(), leave().
+const RELAYS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+function relayRoom(code, onStatus = () => { }, bi = 0) {
+  return new Promise((resolve, reject) => {
+    const base = 'blockstrike/v2/' + code + '/', STALE = 8000;
+    const myId = 'u' + Math.random().toString(36).slice(2, 10);
+    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, client: null, relay: bi };
+    let settled = false;
+    const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
+    const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
+    const pub = (t, payload, opts) => { try { if (R.client && R.client.connected) R.client.publish(base + t, payload, opts || { qos: 0 }); } catch (e) { } };
+    R.peers = () => {
+      const now = Date.now(), a = [{ peer: myId, sameTab: true, isMe: true, presence: R.my }];
+      for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
+      return a;
+    };
+    R.onPeers = fn => { R.cbs.push(fn); return () => { R.cbs = R.cbs.filter(x => x !== fn); }; };
+    let lastKey = '';
+    R.presence = patch => {
+      for (const k in patch) { if (patch[k] === null) delete R.my[k]; else R.my[k] = patch[k]; }
+      pub('p/' + myId, JSON.stringify(R.my)); R.lastSend = Date.now();
+      const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
+      return Promise.resolve();
+    };
+    R.setSkin = d => { R.mySkin = d; pub('sk/' + myId, d || '', { qos: 0, retain: true }); };
+    const forget = id => { if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
+    R.leave = () => {
+      R.closed = true; clearInterval(R.timer);
+      pub('x/' + myId, '1'); if (R.mySkin) pub('sk/' + myId, '', { qos: 0, retain: true });
+      try { R.client.end(false); } catch (e) { }
+      return Promise.resolve();
+    };
+    const url = RELAYS[bi];
+    onStatus(bi ? `Probando otro servidor (${bi + 1}/${RELAYS.length})…` : 'Conectando al servidor…');
+    const client = R.client = mqtt.connect(url, { clientId: 'bs_' + myId, clean: true, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, will: { topic: base + 'x/' + myId, payload: '1', qos: 0, retain: false } });
+    const failTo = setTimeout(() => { if (!settled) next(); }, 9000);
+    function next() {
+      try { client.end(true); } catch (e) { }
+      if (bi + 1 < RELAYS.length) relayRoom(code, onStatus, bi + 1).then(r => done(true, r), e => done(false, e));
+      else done(false, { code: 'server' });
+    }
+    client.on('connect', () => {
+      client.subscribe(base + '#', { qos: 0 }, err => {
+        if (settled) return;
+        clearTimeout(failTo);
+        if (err) { next(); return; }
+        if (R.mySkin) R.setSkin(R.mySkin);
+        done(true, R);
+      });
+    });
+    client.on('error', () => { if (!settled) { clearTimeout(failTo); next(); } });
+    client.on('message', (topic, buf) => {
+      if (R.closed || topic.indexOf(base) !== 0) return;
+      const [kind, id] = topic.slice(base.length).split('/');
+      if (!id) return;
+      const s = buf.toString();
+      if (kind === 'pg') { if (id === myId) R.ping = Math.max(0, Date.now() - (+s || 0)); return; }
+      if (id === myId) return;
+      if (kind === 'p') {
+        let d; try { d = JSON.parse(s); } catch (e) { return; }
+        if (!d || typeof d !== 'object') return;
+        const prev = R.states.get(id); R.states.set(id, d); R.seen.set(id, Date.now());
+        if (!prev || prev.st !== d.st || prev.nm !== d.nm || prev.ch !== d.ch) notify();
+      } else if (kind === 'x') {
+        forget(id);
+        if (R.skins.get(id)) pub('sk/' + id, '', { qos: 0, retain: true });
+      } else if (kind === 'sk') {
+        const d = s && s.length < 24000 ? s : null;
+        R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d);
+      }
+    });
+    // latido: reenvía el estado si estuvo quieto, mide el ping y borra a quien dejó de responder
+    R.timer = setInterval(() => {
+      if (R.closed || !settled) return;
+      const now = Date.now();
+      if (now - R.lastSend > 1500 && Object.keys(R.my).length) R.presence({});
+      pub('pg/' + myId, String(now));
+      for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) forget(id);
+    }, 2000);
+  });
+}
+// (sin uso) sala P2P directa entre navegadores
 function p2pRoom(code, tries = 0, onStatus = () => { }) {
   return new Promise((resolve, reject) => {
     const hostId = 'blockstrike-v1-' + code;
@@ -2584,12 +2666,11 @@ async function doJoin(code) {
   try {
     if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
     st('Conectando al servidor…');
-    const room = NET.room === 'p2p' ? await p2pRoom(code.slice(3), 0, st) : await NET.room.join(code);
+    const room = NET.room === 'relay' ? await relayRoom(code.slice(3), st) : await NET.room.join(code);
     if (joinCode !== code) { try { room.leave(); } catch (e) { } return false; }
     NET.named = room; NET.code = code;
     NET.named.onPeers(() => renderLobby(), () => { NET.named = null; renderNetStatus(); });
-    if (NET.room === 'p2p') {
-      NET.named.onLost = () => { const old = NET.named; NET.named = null; try { old.leave(); } catch (e) { } addFeedText('Se cortó la conexión con el anfitrión: reconectando…', '#ffd166'); setTimeout(joinRoom, 800); };
+    if (NET.room === 'relay') {
       NET.named.onSkin = netSkin;
       for (const [id, d] of NET.named.skins) netSkin(id, d);
       netShareSkin();
@@ -2606,7 +2687,7 @@ async function doJoin(code) {
 }
 function renderNetStatus() {
   const s = $('netstat'); s.classList.remove('ok');
-  const p2p = NET.room === 'p2p';
+  const p2p = NET.room === 'relay';
   $('inviterow').classList.toggle('hidden', !p2p);
   if (p2p) $('invitelink').value = inviteLink();
   if (!NET.ready) s.textContent = 'Buscando conexión…';
@@ -2724,7 +2805,7 @@ function netTick(dt) {
   for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
-  if (NET.sendT <= 0) { NET.sendT = 1 / 25; netSendPlay(); }
+  if (NET.sendT <= 0) { NET.sendT = NET.room === 'relay' ? 1 / 15 : 1 / 25; netSendPlay(); }
 }
 
 // ================= Menú =================
@@ -2760,7 +2841,7 @@ document.querySelectorAll('#modesel button').forEach(b => b.addEventListener('cl
   sfx('select');
 }));
 $('joinbtn').addEventListener('click', () => { initAudio(); joinRoom(); });
-$('roomcode').addEventListener('input', () => { if (NET.room === 'p2p') $('invitelink').value = inviteLink(); });
+$('roomcode').addEventListener('input', () => { if (NET.room === 'relay') $('invitelink').value = inviteLink(); });
 $('copylink').addEventListener('click', () => {
   const inp = $('invitelink'), b = $('copylink');
   const ok = () => { b.textContent = '¡Copiado!'; setTimeout(() => { b.textContent = 'Copiar link'; }, 1500); };
@@ -2773,6 +2854,17 @@ function setMode(mode) { const b = document.querySelector(`#modesel button[data-
   $('roomcode').value = m ? m[1] : 'amigos-' + Math.random().toString(36).slice(2, 6);
   if (m) { openTab('cfg'); setTimeout(() => setMode('mp'), 0); }
 }
+// al cerrar la pestaña, avisar a la sala para que nadie quede como fantasma
+addEventListener('pagehide', () => { if (NET.named && NET.room === 'relay') NET.named.leave(); });
+// si el juego ya estaba abierto y se pega otro link de invitación, cambiar a esa sala
+addEventListener('hashchange', () => {
+  const m = /^#sala-([a-z0-9][a-z0-9_.-]{0,39})$/.exec(location.hash);
+  if (!m || cleanCode($('roomcode').value) === m[1]) return;
+  $('roomcode').value = m[1];
+  if (G.state === 'play') toMenu();
+  openTab('cfg'); setMode('mp');
+  if (NET.room) joinRoom();
+});
 $('skinbtn').addEventListener('click', () => $('skinfile').click());
 $('skinreset').addEventListener('click', () => { setCustomSkin(null, 'Skin quitada. Se usa la del peleador.'); try { localStorage.removeItem('bsb_skin'); } catch (e) { } });
 $('skinfile').addEventListener('change', e => {
