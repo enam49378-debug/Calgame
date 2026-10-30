@@ -25,6 +25,8 @@ canvas.px{image-rendering:pixelated}
 #lines{position:fixed;inset:0;pointer-events:none;width:100%;height:100%}
 #cinedim{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;background:radial-gradient(circle at 50% 45%,transparent 25%,rgba(0,0,0,.75))}
 body.cine #cinedim{opacity:1}
+#halftone{position:fixed;inset:0;pointer-events:none;opacity:0;background-image:radial-gradient(rgba(0,0,0,.55) 1.1px,transparent 1.7px);background-size:7px 7px;mix-blend-mode:multiply;transition:opacity .2s;z-index:2}
+body.cine #halftone{opacity:.45}
 #lb i{position:fixed;left:0;right:0;height:0;background:#000;transition:height .3s cubic-bezier(.2,.9,.3,1);pointer-events:none;z-index:4}
 #lb i:first-child{top:0}#lb i:last-child{bottom:0}
 body.cine #lb i{height:11vh}
@@ -205,6 +207,7 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="wrap"></div>
 <canvas id="lines"></canvas>
 <div id="cinedim"></div>
+<div id="halftone"></div>
 <div id="plates"></div>
 <div id="nums"></div>
 <div id="dmgv"></div>
@@ -450,6 +453,23 @@ const B = 1.1, ARENA = 40, COL = [], CLOUDS = [];
 }
 // objetos del mundo (se ocultan durante los impact frames para dejar solo las siluetas)
 const WORLD = scene.children.filter(o => o.isMesh || o.isSprite);
+// gradación de la cinemática: el mundo se oscurece al color del personaje y una luz de contorno lo recorta
+const SKY_OBJS = WORLD.filter(o => o.material && o.material.fog === false);
+const HEMI = scene.children.find(o => o.isHemisphereLight);
+const CINE_RIM = new THREE.PointLight(0xffffff, 0, 9), CINE_KEY = new THREE.PointLight(0xffffff, 0, 7);
+scene.add(CINE_RIM, CINE_KEY);
+function cineGrade(on, f) {
+  if (on && !G.grade) {
+    G.grade = { bg: scene.background, fog: scene.fog, hemi: HEMI.intensity, sun: sun.intensity };
+    const dark = new THREE.Color(f.ch.color).multiplyScalar(.1);
+    scene.background = dark; scene.fog = new THREE.Fog(dark, 6, 30);
+    HEMI.intensity = .3; sun.intensity = .3; SKY_OBJS.forEach(o => { o.visible = false; });
+    CINE_RIM.color.set(f.ch.color); CINE_RIM.intensity = 2.6; CINE_KEY.intensity = .6;
+  } else if (!on && G.grade) {
+    scene.background = G.grade.bg; scene.fog = G.grade.fog; HEMI.intensity = G.grade.hemi; sun.intensity = G.grade.sun;
+    SKY_OBJS.forEach(o => { o.visible = true; }); CINE_RIM.intensity = 0; CINE_KEY.intensity = 0; G.grade = null;
+  }
+}
 function groundAt(x, z) { let g = 0; for (const c of COL) if (Math.abs(x - c.x) < c.hx + 0.25 && Math.abs(z - c.z) < c.hz + 0.25) g = Math.max(g, c.h); return g; }
 
 // ================= Partículas (bloquecitos) =================
@@ -856,6 +876,13 @@ class Animator {
     m.armL.rotation.set(x.alx, x.aly, x.alz); m.armR.rotation.set(x.arx, x.ary, x.arz);
     m.legL.rotation.set(x.llx, 0, x.llz); m.legR.rotation.set(x.lrx, 0, x.lrz);
     if (m.gripRot) m.gripRot.rotation.x = x.sx;
+    // smear: los miembros que se mueven rápido se estiran (como los cuadros de smear del anime)
+    const v = this.v, sm = j => 1 + Math.min(.32, Math.abs(v[j]) / 48);
+    m.armR.scale.y = sm('arx'); m.armL.scale.y = sm('alx'); m.legR.scale.y = sm('lrx'); m.legL.scale.y = sm('llx');
+    if (m.gripRot) m.gripRot.scale.z = 1 + Math.min(.45, Math.abs(v.sx) / 45);
+    // aplastar y estirar el cuerpo según qué tan agachado está y qué tan rápido sube o baja
+    const sq = clamp(-x.by / 40 - v.by / 900, -.07, .11);
+    m.inner.scale.set(1 + sq * .6, 1 - sq, 1 + sq * .6);
   }
 }
 
@@ -1080,7 +1107,7 @@ class Fighter {
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
-  dispose() { endAction(this); disposeModel(this.model); if (this.plate) this.plate.remove(); }
+  dispose() { endAction(this); if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
 const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
@@ -1138,7 +1165,7 @@ function arcSlash(f, col, o = {}) {
 }
 function ghost(f, col, op = .42, life = .3) {
   const g = f.model.root.clone(true), mat = glowMat(col, op);
-  g.traverse(o => { if (o.isMesh) { if (o.material === f.model.mats[1] || o.material === OUTLINE_MAT) o.visible = false; else { o.material = mat; o.castShadow = false; } } });
+  g.traverse(o => { if (o.isMesh) { if (o.material === f.model.mats[1] || o.material === OUTLINE_MAT || o.userData.fx) o.visible = false; else { o.material = mat; o.castShadow = false; } } });
   addFx(g, life, (m, k) => { mat.opacity = op * (1 - k); }, () => mat.dispose());
 }
 function warnCircle(p, r, col, dur) {
@@ -1198,6 +1225,47 @@ function crackDecal(p, r) {
   const mat = new THREE.MeshBasicMaterial({ map: CRACK_TEX, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), mat);
   m.rotation.x = -Math.PI / 2; m.rotation.z = rand(0, TAU); m.position.set(p.x, p.y + .03, p.z);
   addFx(m, 3, (o, k) => { mat.opacity = k < .75 ? 1 : 1 - (k - .75) / .25; });
+}
+// aura de despertar estilo battlegrounds: llamas verticales del color del personaje
+const AURA_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d');
+  for (let x = 0; x < 64; x++) {
+    const h = 40 + Math.sin(x * .45) * 18 + Math.sin(x * 1.3) * 10 + Math.random() * 18;
+    const gr = g.createLinearGradient(0, 128, 0, 128 - h * 1.4); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(.5, 'rgba(255,255,255,.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(x, 0, 1, 128);
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t;
+})();
+function updateAura(f, dt, T) {
+  const on = f.alive && f.awak > 0;
+  if (!f.aura) {
+    if (!on) return;
+    const mat = new THREE.MeshBasicMaterial({ map: AURA_TEX, color: f.ch.color, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const g = new THREE.Group(), geo = new THREE.PlaneGeometry(1.5, 2.9);
+    for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(geo, mat); p.rotation.y = i * Math.PI / 3; p.position.y = 1.3; p.userData.fx = true; g.add(p); }
+    g.userData.fx = true; f.model.root.add(g); f.aura = g; f.auraMat = mat;
+  }
+  f.aura.visible = on; if (!on) return;
+  f.aura.rotation.y += dt * 2.5;
+  const s = 1 + Math.sin(T * 13 + f.seed) * .12; f.aura.scale.set(1 + Math.sin(T * 9) * .06, s, 1 + Math.sin(T * 9) * .06);
+  f.auraMat.opacity = .38 + Math.sin(T * 17 + f.seed) * .12;
+  AURA_TEX.offset.x = T * .35;
+}
+function lightColumn(p, col, h = 14) {
+  const geo = new THREE.CylinderGeometry(.9, 1.6, h, 20, 1, true), mat = glowMat(col, .7), m = new THREE.Mesh(geo, mat);
+  m.position.set(p.x, p.y + h / 2, p.z);
+  addFx(m, .7, (o, k) => { o.scale.set(1 + k * 1.5, .4 + easeOut(k) * .6, 1 + k * 1.5); mat.opacity = .7 * (1 - k); });
+  ringAt(new V3(p.x, p.y, p.z), col, 7, .6); ringAt(new V3(p.x, p.y, p.z), '#ffffff', 4.5, .4);
+  burst(new V3(p.x, p.y + .3, p.z), 30, '#d8d0c0', 9, .25, .7, 1, 4);
+}
+// copias translúcidas alrededor del personaje (para las cinemáticas de elGatopro300)
+function copiesAround(f, n = 4, r = 1.8, life = 1) {
+  for (let i = 0; i < n; i++) {
+    const g = f.model.root.clone(true), mat = glowMat(f.ch.color, .35), a = f.yaw + i / n * TAU + .4;
+    g.traverse(o => { if (o.isMesh) { if (o.material === f.model.mats[1] || o.material === OUTLINE_MAT || o.userData.fx) o.visible = false; else { o.material = mat; o.castShadow = false; } } });
+    g.position.set(f.pos.x + Math.sin(a) * r, f.pos.y, f.pos.z + Math.cos(a) * r); g.rotation.y = a + Math.PI;
+    addFx(g, life, (o, k) => { mat.opacity = .35 * Math.sin(k * Math.PI); o.position.y = f.pos.y + Math.sin(k * 6 + i) * .1; }, () => mat.dispose());
+  }
 }
 function screenFlash(op = .7) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 0; try { f.animate([{ opacity: op }, { opacity: 0 }], { duration: 450, easing: 'ease-out' }); } catch (e) { } }
 function shakeFrom(p, amt) { const d = camera.position.distanceTo(p); G.shake = Math.max(G.shake, amt * clamp(1 - d / 40, 0, 1)); }
@@ -1542,7 +1610,7 @@ function spawnSpearProj(f, o) {
 // Ilusión: copia verde translúcida del peleador que corre al rival más cercano y explota (o queda quieta como señuelo)
 function decoy(f, o, from, opts) {
   const g = f.model.root.clone(true), mat = glowMat(o.color, .5), pos = from.clone();
-  g.traverse(m => { if (m.isMesh) { if (m.material === f.model.mats[1] || m.material === OUTLINE_MAT) m.visible = false; else { m.material = mat; m.castShadow = false; } } });
+  g.traverse(m => { if (m.isMesh) { if (m.material === f.model.mats[1] || m.material === OUTLINE_MAT || m.userData.fx) m.visible = false; else { m.material = mat; m.castShadow = false; } } });
   g.position.copy(pos);
   const life = opts.life || 2.6, speed = opts.speed || 11;
   let lastK = 0, boomed = false;
@@ -2086,12 +2154,14 @@ function runUlt(f) {
   if (f.isPlayer && G.mp) netAct({ k: 'u' });
   if (f.action) f.action.armor = true;
   f.awak = 12;
+  lightColumn(f.pos, f.ch.color);
   burst(chestOf(f), 40, f.ch.color, 10, .25, .7, -.3);
   ringAt(new V3(f.pos.x, f.pos.y, f.pos.z), f.ch.color, 6, .6);
   sfx('ult', f.pos);
 }
 function startCine(f) {
   G.cine = { f, t: 0, dur: 2.1, shot: 0 };
+  cineGrade(true, f);
   const tt = $('cinetitle'); tt.style.setProperty('--cc', f.ch.color); tt.classList.remove('show');
   $('ctwho').textContent = `${f.ch.name.toUpperCase()} · ${f.ch.title.toUpperCase()}`; $('ctult').textContent = f.ch.ult.n.toUpperCase();
   f.vel.x = f.vel.z = 0; if (f.action) endAction(f); f.blocking = false;
@@ -2111,22 +2181,36 @@ function updateCine(dt) {
   if (f.ch.cineTwirl) for (const tw of f.ch.cineTwirl) if (c.t >= tw[0] && c.t - dt < tw[0]) startTwirl(f, tw[1], tw[2]);
   if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx + twirlAngle(f, dt);
   eyeGlow(f.model, f.ch.cineEyes != null && c.t >= f.ch.cineEyes, c.t);
-  // cortes de cámara: destello, barrido de líneas, banner y título
+  updateAura(f, dt, c.t);
+  // luces de la cinemática: contorno de color detrás y relleno suave delante
+  const Fy = fwd(f.yaw);
+  CINE_RIM.position.set(f.pos.x - Fy.x * 1.6, f.pos.y + 2.2, f.pos.z - Fy.z * 1.6);
+  CINE_KEY.position.set(f.pos.x + Fy.x * 2.2, f.pos.y + 1.6, f.pos.z + Fy.z * 2.2);
+  // cortes: barrido → paneles de cómic → zoom de choque con banner → plano de héroe con título
   const shot = c.t < .45 ? 0 : c.t < .9 ? 1 : c.t < 1.4 ? 2 : 3;
   if (shot !== c.shot) {
     c.shot = shot; screenFlash(shot === 3 ? .55 : .25); sfx('whoosh'); G.linesI = 1;
     const ci = $('cutin');
-    if (shot === 1) { ci.classList.remove('hidden', 'show'); void ci.offsetWidth; ci.classList.add('show'); }
-    if (shot === 3) { ci.classList.add('hidden'); const tt = $('cinetitle'); tt.classList.remove('show'); void tt.offsetWidth; tt.classList.add('show'); sfx('heavy'); burst(chestOf(f), 40, f.ch.color, 9, .22, .6, -.2); ringAt(new V3(f.pos.x, f.pos.y, f.pos.z), f.ch.color, 5, .5); }
-    if (shot === 2) { ringAt(chestOf(f), '#ffffff', 3, .35, 'face', f.yaw); }
+    if (shot === 1) { G.shake = .25; if (f.ch === CHARS.gato) copiesAround(f, 4, 1.9, 1.3); }
+    if (shot === 2) { ci.classList.remove('hidden', 'show'); void ci.offsetWidth; ci.classList.add('show'); ringAt(chestOf(f), '#ffffff', 3, .35, 'face', f.yaw); }
+    if (shot === 3) {
+      ci.classList.add('hidden'); const tt = $('cinetitle'); tt.classList.remove('show'); void tt.offsetWidth; tt.classList.add('show');
+      sfx('heavy'); burst(chestOf(f), 24, f.ch.color, 9, .1, .5, -.2); ringAt(new V3(f.pos.x, f.pos.y, f.pos.z), f.ch.color, 5, .5); G.shake = .5;
+      if (f.spear) { const tip = f.spear.localToWorld(new V3(0, 0, 24 * PX)); impactStar(tip, '#ffffff', 1.6, .35); }
+      if (f.model.eyes) { const e = f.model.eyes.getWorldPosition(new V3()); impactStar(e, f.ch.color, 2.4, .4); sparkLines(e, f.ch.color, 8, 1.4); }
+    }
   }
+  if (shot >= 1 && Math.random() < dt * 25) { const p = chestOf(f), a = rand(0, TAU); emit(p.x + Math.cos(a) * 2.5, p.y + rand(-1, 1.5), p.z + Math.sin(a) * 2.5, -Math.cos(a) * 6, rand(-1, 1), -Math.sin(a) * 6, f.ch.color, .06, .35, 0, 0); }
   const p = chestOf(f), an = rand(0, TAU);
-  for (let i = 0; i < 2; i++) emit(p.x + Math.cos(an) * rand(.6, 1.4), p.y + rand(-1.2, 1.2), p.z + Math.sin(an) * rand(.6, 1.4), 0, rand(2, 5), 0, Math.random() < .4 ? '#ffffff' : f.ch.color, rand(.1, .22), .5, -.1, 1);
+  emit(p.x + Math.cos(an) * rand(1.4, 2.3), p.y + rand(-1.2, 1.2), p.z + Math.sin(an) * rand(1.4, 2.3), 0, rand(2, 5), 0, Math.random() < .4 ? '#ffffff' : f.ch.color, rand(.05, .1), .5, -.1, 1);
   f.model.mats.forEach(m => m.emissive.set(f.ch.color).multiplyScalar(.25 + .15 * Math.sin(c.t * 20)));
   PS.update(dt); updateFx(dt);
   if (c.t >= c.dur) {
     G.cine = null; document.body.classList.remove('cine');
     $('cutin').classList.add('hidden'); $('cinetitle').classList.remove('show');
+    cineGrade(false, f);
+    // vuelta al combate de golpe: impact frame + onda
+    IMPACT.cd = 0; impactFrame(f.ch.color, .1); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), f.ch.color, 9, .5); G.shake = Math.max(G.shake, .6);
     f.model.mats.forEach(m => m.emissive.setRGB(0, 0, 0));
     runUlt(f); G.slowT = .25; G.fovKick = 10;
     if (f.isPlayer) showBanner(f.ch.ult.n.toUpperCase(), f.ch.color, 'DESPERTAR');
@@ -2360,6 +2444,7 @@ function animate(f, dt) {
   if (m.gripRot) { f.twA = twirlAngle(f, dt); m.gripRot.rotation.x = f.anim.x.sx + f.twA; }
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
   eyeGlow(m, !!(a && a.eyes) || f.awak > 0, T);
+  updateAura(f, dt, T);
   if (f.alive) m.root.visible = !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
   const fl = Math.max(0, f.flashT) / .12, aw = f.awak > 0 ? .12 + .08 * Math.sin(T * 8) : 0;
   if (fl > 0) m.mats.forEach(x => x.emissive.setRGB(fl * .9, fl * .9, fl * .9));
@@ -2453,7 +2538,37 @@ try {
 const IMP_BLACK = new THREE.MeshBasicMaterial({ color: 0x050505 }), IMP_WHITE = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const C_WHITE = new THREE.Color(0xffffff), C_BLACK = new THREE.Color(0x050505);
 function renderView(sc, cm) { if (composer) { renderPass.scene = sc; renderPass.camera = cm; composer.render(); } else renderer.render(sc, cm); }
+// paneles de cómic: tres cámaras a la vez (cara, cuerpo entero, detalle del arma/visor/mano)
+const PCAMS = [0, 1, 2].map(() => new THREE.PerspectiveCamera(35, 1, .05, 200));
+const PANEL_CUTS = [0, .36, .68, 1];
+function renderPanels(c) {
+  const f = c.f, P = f.pos, F = fwd(f.yaw), R = rightOf(f.yaw), k = clamp((c.t - .45) / .45, 0, 1), W = innerWidth, H = innerHeight;
+  const detail = f.spear ? f.spear.localToWorld(new V3(0, 0, 8 * PX)) : f.model.eyes ? f.model.eyes.getWorldPosition(new V3()) : f.model.armR.localToWorld(new V3(0, -10 * PX, 0));
+  const hc = f.model.head.localToWorld(new V3(0, 4 * PX, 0)), cc = f.model.torso.localToWorld(new V3(0, 6 * PX, 0));
+  const set = [
+    cm => { cm.fov = 34; cm.position.set(hc.x + F.x * (1.75 - k * .3) + R.x * .35, hc.y + .08, hc.z + F.z * (1.75 - k * .3) + R.z * .35); cm.lookAt(hc); cm.rotateZ(.06); },
+    cm => { const D = fwd(f.yaw - .75 - k * .25); cm.fov = 50; cm.position.set(P.x + D.x * 4.2, P.y + .2, P.z + D.z * 4.2); cm.lookAt(cc); cm.rotateZ(-.1); },
+    cm => { const D = fwd(f.yaw + .9); cm.fov = 30; cm.position.set(detail.x + D.x * (1.0 - k * .25), detail.y + .15, detail.z + D.z * (1.0 - k * .25)); cm.lookAt(detail); cm.rotateZ(.12); },
+  ];
+  renderer.setScissorTest(true);
+  for (let i = 0; i < 3; i++) {
+    const x0 = PANEL_CUTS[i] * W, w = (PANEL_CUTS[i + 1] - PANEL_CUTS[i]) * W, cm = PCAMS[i];
+    cm.up.set(0, 1, 0); set[i](cm); cm.aspect = w / H; cm.updateProjectionMatrix();
+    renderer.setViewport(x0, 0, w, H); renderer.setScissor(x0, 0, w, H); renderer.render(scene, cm);
+  }
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
+}
+function drawPanelBorders() {
+  const w = LC.width, h = LC.height, sl = h * .06;
+  for (let i = 1; i < 3; i++) {
+    const x = PANEL_CUTS[i] * w;
+    LG.fillStyle = '#000'; LG.beginPath(); LG.moveTo(x - 10 + sl, 0); LG.lineTo(x + 10 + sl, 0); LG.lineTo(x + 10 - sl, h); LG.lineTo(x - 10 - sl, h); LG.closePath(); LG.fill();
+    LG.strokeStyle = '#fff'; LG.lineWidth = 3; LG.beginPath(); LG.moveTo(x - 13 + sl, 0); LG.lineTo(x - 13 - sl, h); LG.moveTo(x + 13 + sl, 0); LG.lineTo(x + 13 - sl, h); LG.stroke();
+  }
+  linesDrawn = true;
+}
 function renderMain() {
+  if (G.cine && G.cine.shot === 1) { renderPanels(G.cine); return; }
   if (IMPACT.t <= 0) { renderView(scene, camera); return; }
   const inv = Math.floor(IMPACT.t / .035) % 2 === 1, bg = scene.background, fog = scene.fog;
   WORLD.forEach(o => { o.visible = false; });
@@ -2678,7 +2793,7 @@ async function startMatch() {
   if (G.mode === 'mp' && !(await joinRoom())) { unlock(); openTab('cfg'); return; }
   G.mp = G.mode === 'mp';
   NET.ko = null; NET.act = null; NET.hitsOut = [];
-  clearFighters(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; document.body.classList.remove('cine');
+  clearFighters(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
   G.bots = +$('nbots').value; G.goal = +$('goalsel').value;
   G.baseLvl = +$('lvl').value; G.botLvl = G.baseLvl; G.auto = $('auto').checked; G.balT = 12; G.winPK = 0; G.winPD = 0;
   G.pname = ($('pname-in').value || 'Jugador').trim().slice(0, 16) || 'Jugador';
@@ -2695,7 +2810,7 @@ async function startMatch() {
   if (G.mp) netSendPlay();
 }
 function toMenu() {
-  unlock(); clearFighters(); G.state = 'menu'; G.mp = false; G.over = false; G.paused = false; G.cine = null; document.body.classList.remove('cine');
+  unlock(); clearFighters(); G.state = 'menu'; G.mp = false; G.over = false; G.paused = false; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
   $('hud').classList.add('hidden'); $('menu').classList.remove('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden');
   showSelect(G.charId);
 }
@@ -3106,6 +3221,7 @@ function proxyUpdate(px, dt) {
   m.mats.forEach(x => { if (fl > 0) x.emissive.setRGB(fl * .9, fl * .9, fl * .9); else if (px.awak) x.emissive.set(px.ch.color).multiplyScalar(.15); else x.emissive.setRGB(0, 0, 0); });
   if (px.action) updateAction(px, dt);
   eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000);
+  updateAura(px, dt, performance.now() / 1000);
 }
 function netTick(dt) {
   if (!NET.named) return;
@@ -3284,6 +3400,7 @@ function loop(now) {
   updateCamera(rdt);
   updateHUD(rdt);
   drawLines(rdt);
+  if (G.cine && G.cine.shot === 1) drawPanelBorders();
   renderMain();
 }
 requestAnimationFrame(loop);
