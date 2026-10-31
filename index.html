@@ -6927,7 +6927,7 @@ function netSendPlay() {
 }
 function presenceOf(f, ch) {
   return {
-    v: 1, st: 'play', nm: f.name, ch, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
+    v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
     sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0,
   };
@@ -6959,10 +6959,24 @@ function proxyUpdate(px, dt) {
   px.alive = !!pr.al; px.hp = +pr.hp || 0; px.maxHp = +pr.mh || 100; px.kills = +pr.k || 0; px.deaths = +pr.d || 0; px.awak = pr.aw ? 1 : 0;
   px.ragdoll = pr.rg ? 1 : 0; px.blocking = !!pr.bl;
   if (was && !px.alive) burst(chestOf(px), 30, '#dddddd', 5, .3, .8, -.2);
+  // predicción de movimiento: con cada paquete nuevo se calcula la velocidad del jugador remoto y se lo dibuja donde estará ahora
+  // (paquetes a 15-20 Hz y ~100 ms de red hacían que se viera siempre atrasado y a saltos)
+  const nowMs = performance.now();
   _tp.set(+pr.x || 0, +pr.y || 0, +pr.z || 0);
-  if (px.pos.distanceTo(_tp) > 6) px.pos.copy(_tp); else px.pos.lerp(_tp, Math.min(1, dt * 14));
-  px.yaw = angLerp(px.yaw, +pr.yw || 0, Math.min(1, dt * 14));
-  if (Array.isArray(pr.j)) JOINTS.forEach((k, i) => { const v = +pr.j[i]; if (isFinite(v)) px.anim.x[k] += (v - px.anim.x[k]) * Math.min(1, dt * 18); });
+  if (!px.netVel) { px.netVel = new V3(); px.netPos = _tp.clone(); px.netT = nowMs; px.netSeen = pr; }
+  if (px.netSeen !== pr) {
+    const ds = isFinite(+pr.ts) && isFinite(px.netTs) ? (+pr.ts - px.netTs) / 1000 : (nowMs - px.netT) / 1000;   // intervalo medido con la hora del emisor: no depende del jitter de la red
+    if (ds > .02 && ds < .6 && px.netPos.distanceTo(_tp) < 8) {
+      px.netVel.x = px.netVel.x * .4 + (_tp.x - px.netPos.x) / ds * .6; px.netVel.z = px.netVel.z * .4 + (_tp.z - px.netPos.z) / ds * .6;
+      if (Math.hypot(px.netVel.x, px.netVel.z) > 45) px.netVel.set(0, 0, 0);
+    } else px.netVel.set(0, 0, 0);
+    px.netPos.copy(_tp); px.netT = nowMs; px.netTs = +pr.ts; px.netSeen = pr;
+  }
+  const lat = clamp(((NET.named && NET.named.ping) || 140) / 2000, .03, .15), ahead = Math.min(.25, (nowMs - px.netT) / 1000 + .05 + lat);
+  _tp.x += px.netVel.x * ahead; _tp.z += px.netVel.z * ahead;
+  if (px.pos.distanceTo(_tp) > 6) px.pos.copy(_tp); else px.pos.lerp(_tp, Math.min(1, dt * 20));
+  px.yaw = angLerp(px.yaw, +pr.yw || 0, Math.min(1, dt * 18));
+  if (Array.isArray(pr.j)) JOINTS.forEach((k, i) => { const v = +pr.j[i]; if (isFinite(v)) px.anim.x[k] += (v - px.anim.x[k]) * Math.min(1, dt * 24); });
   px.anim.apply();
   const m = px.model;
   if (m.gripRot && isFinite(+pr.tw)) m.gripRot.rotation.x += +pr.tw;
@@ -7017,7 +7031,7 @@ function netTick(dt) {
   for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
-  if (NET.sendT <= 0) { NET.sendT = NET.room === 'relay' ? 1 / 15 : 1 / 25; netSendPlay(); }
+  if (NET.sendT <= 0) { NET.sendT = NET.room === 'relay' ? 1 / 20 : 1 / 25; netSendPlay(); }
 }
 
 // ================= Dummies de entrenamiento y panel del anfitrión =================
