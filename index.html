@@ -238,6 +238,8 @@ tr.me td{color:var(--hot);font-weight:700}
 #fe-use{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px}
 #fe-use label{display:flex;justify-content:space-between;gap:6px;align-items:center}
 #faceed summary{cursor:pointer;font-weight:700;margin-bottom:6px}
+#faceed .fe-sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin:6px 0}
+#faceed .fe-sliders label{display:flex;flex-direction:column;gap:2px;font-size:12px}
 #faceed small{color:var(--muted)}
 </style>
 
@@ -349,6 +351,15 @@ tr.me td{color:var(--hot);font-weight:700}
       <small>Clic pinta · clic derecho borra (vuelve al píxel de la skin). La cara 3D de la izquierda se actualiza sola.</small>
     </div>
   </div>
+  <details open><summary>Imagen sobre la cara (más resolución que la skin)</summary>
+    <div class="fe-row"><select id="fe-img" aria-label="Imagen"></select><button type="button" id="fe-imgup">Subir imagen…</button><input type="file" id="fe-imgfile" accept="image/*" class="hidden"></div>
+    <div class="fe-sliders">
+      <label>Tamaño <input type="range" id="fe-is" min=".4" max="1.8" step=".02" value="1"></label>
+      <label>Mover ← → <input type="range" id="fe-ix" min="-4" max="4" step=".1" value="0"></label>
+      <label>Mover ↑ ↓ <input type="range" id="fe-iy" min="-4" max="4" step=".1" value="0"></label>
+    </div>
+    <small>La imagen se centra en la fila de ojos de cada skin y crece con la cabeza. Para subir tu propia imagen usá un PNG cuadrado con fondo transparente y la línea de los ojos en el centro.</small>
+  </details>
   <div id="fe-list"></div>
   <div class="fe-row"><button type="button" id="fe-new">Nueva</button><button type="button" id="fe-dup">Duplicar</button><button type="button" id="fe-ren">Renombrar</button><button type="button" id="fe-del">Borrar</button></div>
   <details open><summary>Cuándo se usa cada expresión</summary><div id="fe-use"></div></details>
@@ -829,6 +840,7 @@ function disposeModel(m) {
   m.root.traverse(o => { if (o.geometry) o.geometry.dispose(); });
   m.mats.forEach(x => x.dispose()); m.tex.dispose();
   if (m.eyes) m.eyes.material.dispose();
+  if (m.decal) m.decal.material.dispose();
 }
 // ===== Expresiones procedurales: el juego encuentra ojos y boca en la cara de la skin y los redibuja =====
 function copyCanvas(src) { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c; }
@@ -910,13 +922,17 @@ const faceCharId = ch => Object.keys(CHARS).find(k => CHARS[k] === ch);
 // pinta una expresión hecha a mano encima de la cara original (en la capa base y, si hay sombrero opaco ahí, también en esa)
 function paintFacePreset(f, id) {
   const g = f.faceCtx, lib = FACE_LIB[f.facePreset]; g.putImageData(f.faceOrig, 8, 8); g.putImageData(f.hatOrig, 40, 8);
-  const ex = lib && lib.exprs.find(e => e.id === id);
-  if (ex) for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
-    const c = ex.grid[y][x]; if (c === '.') continue;
-    const col = c === 'G' ? (f.ch ? f.ch.color : '#ffffff') : lib.pal[c]; if (!col) continue;
-    g.fillStyle = col; g.fillRect(8 + x, 8 + y, 1, 1);
-    if (f.hatOrig.data[(y * 8 + x) * 4 + 3] > 128) g.fillRect(40 + x, 8 + y, 1, 1);
+  const nm = lib && lib.exprs.find(e => e.id === 'normal'), ex = lib && lib.exprs.find(e => e.id === id);
+  for (const L of [nm, ex !== nm ? ex : null]) {
+    if (!L) continue;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      const c = L.grid[y][x]; if (c === '.') continue;
+      const col = c === 'G' ? (f.ch ? f.ch.color : '#ffffff') : lib.pal[c]; if (!col) continue;
+      g.fillStyle = col; g.fillRect(8 + x, 8 + y, 1, 1);
+      if (f.hatOrig.data[(y * 8 + x) * 4 + 3] > 128) g.fillRect(40 + x, 8 + y, 1, 1);
+    }
   }
+  setFaceDecal(f, (ex && ex.img) || (!ex && nm && nm.img) || null);
   f.model.tex.needsUpdate = true;
 }
 // situación del juego → nombre de estado (después el editor decide qué expresión usa cada estado)
@@ -948,8 +964,8 @@ function faceState(f, dt) {
   return 'idle';
 }
 /* FACE_DATA_BEGIN */
-const FACE_VER = 2;
-const FACE_DEFAULTS = {"javi":{"pal":{"S":"#f3cbba","T":"#e0a590","K":"#3c302d","W":"#dedaf3","A":"#a3c6f8","B":"#576a95","X":"#ffffff","m":"#6b1f1f","p":"#e49a8c","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#ff4d4d"},"exprs":[{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD"}},"gato":{"pal":{"S":"#f3bdab","T":"#d99f8e","K":"#2e2728","W":"#ece6e6","A":"#958387","B":"#403334","X":"#ffffff","m":"#6b1f1f","p":"#e5a69b","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff"},"exprs":[{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD"}}};
+const FACE_VER = 3;
+const FACE_DEFAULTS = {"javi":{"pal":{"S":"#f3cbba","T":"#e0a590","K":"#3c302d","W":"#dedaf3","A":"#a3c6f8","B":"#576a95","X":"#ffffff","m":"#6b1f1f","p":"#e49a8c","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#ff4d4d","d":"#576a95","e":"#a3c6f8","f":"#a3c6f8","g":"#3c302d","h":"#3c302d","j":"#dedaf3"},"exprs":[{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".Kj..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".jK..Kj.",".ed..de.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".jW..jj.",".eK..Ke.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0}}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD"}},"gato":{"pal":{"S":"#f3bdab","T":"#d99f8e","K":"#2e2728","W":"#ece6e6","A":"#958387","B":"#403334","X":"#ffffff","m":"#6b1f1f","p":"#e5a69b","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff"},"exprs":[{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0}}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD"}}};
 /* FACE_DATA_END */
 // elige la expresión según lo que esté pasando: parpadeo, enojo al atacar, dolor, K.O., alegría, despertar
 function updateFace(f, dt) {
@@ -975,6 +991,113 @@ function updateFace(f, dt) {
   f.faceKey = key; drawFace(f, eyes, mouth);
 }
 
+// ===== Cara normal editable + imágenes de alta resolución sobre la cara =====
+// La expresión "Normal" guarda la cara original de la skin como una grilla editable; todas las demás se dibujan encima de ella.
+// Una expresión también puede llevar una imagen (más resolución que la textura de la skin) que se pega al frente de la cabeza,
+// se centra en la fila de ojos detectada de cada skin y crece con la cabeza.
+const FACE_POOL = 'cdefghijklnoqstuvwxzCDEFHIJLMNOPQRUVYZ0123456789';
+const FACE_ART = [['spiral', 'Remolino'], ['hearts', 'Corazones'], ['stars', 'Estrellas'], ['sparkle', 'Ojos brillantes de anime'], ['tears', 'Lágrimas'], ['anger', 'Vena de enojo'], ['blush', 'Rubor'], ['sweat', 'Gota de sudor']];
+const FACE_IMG_CACHE = new Map(), FACE_INFO_CACHE = {};
+const hex2 = (r, g, b) => '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+function feFaceInfo(cid) {
+  if (FACE_INFO_CACHE[cid]) return FACE_INFO_CACHE[cid];
+  const sk = charSkin(cid), t = document.createElement('canvas'); t.width = 64; t.height = 64; const g = t.getContext('2d'); g.drawImage(sk, 0, 0);
+  return (FACE_INFO_CACHE[cid] = analyzeFace(g.getImageData(8, 8, 8, 8), g.getImageData(40, 8, 8, 8)));
+}
+// arma la expresión "Normal" con los píxeles reales de la skin predeterminada (hay que llamarla cuando ya cargaron las skins)
+function makeNormal(cid) {
+  const lib = FACE_LIB[cid], d = feFaceBase(cid).getContext('2d').getImageData(0, 0, 8, 8).data, rev = {};
+  for (const k in lib.pal) rev[lib.pal[k].toLowerCase()] = k;
+  const grid = [];
+  for (let y = 0; y < 8; y++) {
+    let row = '';
+    for (let x = 0; x < 8; x++) {
+      const i = (y * 8 + x) * 4, c = hex2(d[i], d[i + 1], d[i + 2]);
+      let k = rev[c];
+      if (!k) { k = FACE_POOL.split('').find(ch => !(ch in lib.pal)); if (!k) k = '.'; else { lib.pal[k] = c; rev[c] = k; } }
+      row += k;
+    }
+    grid.push(row);
+  }
+  return { id: 'normal', label: 'Normal (cara original)', grid };
+}
+function ensureNormal(cid) {
+  const lib = FACE_LIB[cid]; if (!lib || lib.exprs.some(e => e.id === 'normal')) return false;
+  lib.exprs.unshift(makeNormal(cid)); if (!lib.use.idle) lib.use.idle = 'normal'; return true;
+}
+function ensureNormalAll() { let ch = false; for (const cid in FACE_LIB) ch = ensureNormal(cid) || ch; if (ch) refreshFaces(); }
+// ---- imágenes generadas (pixel art en una grilla de 32×32; los ojos quedan en (7,16) y (25,16)) ----
+function drawFaceArt(g, id, col) {
+  const P = (x, y, c, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x * 2, y * 2, w * 2, h * 2); };
+  const disc = (cx, cy, r, c) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * .6) P(cx + x, cy + y, c); };
+  const EY = [[7, 16], [25, 16]], D = '#1b1b24';
+  if (id === 'spiral') {
+    EY.forEach(([cx, cy], n) => {
+      disc(cx, cy, 6, D); disc(cx, cy, 5, '#ffffff');
+      const dir = n ? -1 : 1;
+      for (let t = 0; t < 12.4; t += .05) { const th = t * dir * 1.15, rr = .3 + t * .4; P(Math.round(cx + Math.cos(th) * rr), Math.round(cy + Math.sin(th) * rr), D); }
+    });
+  } else if (id === 'hearts') {
+    EY.forEach(([cx, cy]) => {
+      for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) { const x = dx / 4.6, y = -dy / 4.6 + .15, v = Math.pow(x * x + y * y - 1, 3) - x * x * y * y * y; if (v <= 0) P(cx + dx, cy + dy, '#ff3b6b'); }
+      P(cx - 3, cy - 3, '#ffffff', 2, 1); P(cx - 3, cy - 2, '#ffffff', 1, 1);
+    });
+  } else if (id === 'stars') {
+    EY.forEach(([cx, cy]) => {
+      const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.6 : 6.2; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+      for (let dy = -7; dy <= 7; dy++) for (let dx = -7; dx <= 7; dx++) {
+        let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > dy) !== (yj > dy) && dx < (xj - xi) * (dy - yi) / (yj - yi) + xi) inside = !inside; }
+        if (inside) P(cx + dx, cy + dy, '#ffd54f');
+      }
+      P(cx - 1, cy - 1, '#fff6c9', 2, 2);
+    });
+  } else if (id === 'sparkle') {
+    EY.forEach(([cx, cy]) => {
+      for (let dy = -7; dy <= 7; dy++) for (let dx = -5; dx <= 5; dx++) if ((dx * dx) / 22 + (dy * dy) / 52 <= 1) P(cx + dx, cy + dy, D);
+      for (let dy = -4; dy <= 5; dy++) for (let dx = -3; dx <= 3; dx++) if ((dx * dx) / 11 + (dy * dy) / 32 <= 1) P(cx + dx, cy + dy, col);
+      P(cx - 3, cy - 5, '#ffffff', 3, 3); P(cx + 1, cy + 1, '#ffffff', 2, 2); P(cx - 1, cy + 4, '#ffffffaa', 1, 1);
+    });
+  } else if (id === 'tears') {
+    EY.forEach(([cx, cy]) => {
+      for (let y = cy + 3; y < cy + 13; y++) P(cx - 1, y, '#7cc4ff', 2, 1);
+      P(cx - 2, cy + 11, '#7cc4ff', 4, 2); P(cx - 1, cy + 4, '#dff3ff', 1, 4);
+    });
+  } else if (id === 'anger') {
+    const R = '#e63946', cx = 26, cy = 6;
+    for (const [dx, dy] of [[-3, -1], [-3, -2], [-2, -2], [-1, -3], [-1, -4], [2, -1], [3, -1], [3, -2], [2, 1], [3, 1], [3, 2], [-2, 1], [-3, 1], [-3, 2], [-1, 2], [-1, 3]]) P(cx + dx, cy + dy, R);
+  } else if (id === 'blush') {
+    EY.forEach(([cx, cy]) => { for (let i = 0; i < 3; i++) { P(cx - 4 + i * 3, cy + 5, '#ff8aa0', 2, 1); P(cx - 3 + i * 3, cy + 6, '#ff8aa0', 2, 1); } });
+  } else if (id === 'sweat') {
+    const cx = 28, cy = 7; for (let dy = -4; dy <= 4; dy++) { const w = dy < 0 ? Math.max(0, 4 + dy) : Math.max(1, 3 - (dy > 2 ? dy - 2 : 0)); P(cx - Math.floor(w / 2), cy + dy, '#7cc4ff', Math.max(1, w), 1); }
+    P(cx - 1, cy, '#ffffff', 1, 2);
+  }
+}
+function faceImageTex(img, color) {
+  const key = img.kind === 'data' ? 'd:' + img.src.length + ':' + img.src.slice(-48) : 'p:' + img.id + ':' + color;
+  let t = FACE_IMG_CACHE.get(key); if (t) return t;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+  FACE_IMG_CACHE.set(key, t);
+  if (img.kind === 'data') {
+    const im = new Image();
+    im.onload = () => { g.clearRect(0, 0, 64, 64); g.drawImage(im, 0, 0, 64, 64); t.needsUpdate = true; refreshFaces(); if (!$('faceed').classList.contains('hidden')) feRender(); };
+    im.src = img.src;
+  } else drawFaceArt(g, img.id, color);
+  return t;
+}
+// pega (o esconde) la imagen en el frente de la cabeza; se centra en la fila de ojos de esa skin
+function setFaceDecal(f, img) {
+  const m = f.model;
+  if (!img) { if (m.decal) m.decal.visible = false; return; }
+  if (!m.decal) {
+    const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(9 * PX, 9 * PX), mat); d.renderOrder = 6; m.head.add(d); m.decal = d;
+  }
+  const fit = img.fit || {}, s = fit.s || 1, row = f.faceInfo ? f.faceInfo.row : 4;
+  m.decal.material.map = faceImageTex(img, f.ch.color); m.decal.material.needsUpdate = true;
+  m.decal.scale.set(s, s, 1); m.decal.position.set((fit.ox || 0) * PX, (8 - (row + .5) + (fit.oy || 0)) * PX, 5.2 * PX); m.decal.visible = true;
+}
+
 // ===== Editor de expresiones =====
 const FE = { cid: 'javi', id: 'blink', color: 'K', mirror: true, painting: false, erase: false };
 const feLib = () => FACE_LIB[FE.cid], feExpr = () => feLib().exprs.find(e => e.id === FE.id);
@@ -986,12 +1109,19 @@ function feFaceBase(cid) {
   return o;
 }
 function feColor(c) { const lib = feLib(); return c === 'G' ? CHARS[FE.cid].color : lib.pal[c]; }
-function feDrawFace(cv, cid, ex, px) {
+function feDrawFace(cv, cid, ex, px, noImg) {
   const g = cv.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, cv.width, cv.height);
   g.drawImage(feFaceBase(cid), 0, 0, 8, 8, 0, 0, 8 * px, 8 * px);
-  if (!ex) return;
-  const lib = FACE_LIB[cid];
-  for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const c = ex.grid[y][x]; if (c === '.') continue; const col = c === 'G' ? CHARS[cid].color : lib.pal[c]; if (col) { g.fillStyle = col; g.fillRect(x * px, y * px, px, px); } }
+  const lib = FACE_LIB[cid], nm = lib.exprs.find(e => e.id === 'normal');
+  for (const L of [nm, ex && ex !== nm ? ex : null]) {
+    if (!L) continue;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const c = L.grid[y][x]; if (c === '.') continue; const col = c === 'G' ? CHARS[cid].color : lib.pal[c]; if (col) { g.fillStyle = col; g.fillRect(x * px, y * px, px, px); } }
+  }
+  const img = ex && (ex.img || (ex === nm ? null : null));
+  if (img && !noImg) {
+    const t = faceImageTex(img, CHARS[cid].color), fit = img.fit || {}, s = fit.s || 1, row = feFaceInfo(cid).row, size = 9 * px * s;
+    g.drawImage(t.image, (4 + (fit.ox || 0)) * px - size / 2, (row + .5 - (fit.oy || 0)) * px - size / 2, size, size);
+  }
 }
 function feRender() {
   const lib = feLib(), ex = feExpr(), cv = $('fe-canvas'), g = cv.getContext('2d');
@@ -1007,6 +1137,7 @@ function feRender() {
   for (const c of ['S', 'T', 'K', 'W', 'A', 'B', 'X', 'G', 'm', 'p', 'r', 'b', 'y']) add(c, feColor(c), names[c]);
   for (const c in lib.pal) if (!names[c]) add(c, lib.pal[c], 'Color propio ' + c);
   $('fe-char').value = FE.cid;
+  feRenderImg();
   // lista de expresiones con miniatura
   const list = $('fe-list'); list.innerHTML = '';
   for (const e of lib.exprs) {
@@ -1023,6 +1154,21 @@ function feRender() {
     sel.value = lib.use[st] || ''; sel.addEventListener('change', () => { lib.use[st] = sel.value; saveFaceLib(); feMsg('Guardado'); });
     row.append(sp, sel); use.appendChild(row);
   }
+}
+function feRenderImg() {
+  const e = feExpr(), sel = $('fe-img'); if (!sel) return;
+  if (!sel.options.length) {
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = '(sin imagen)'; sel.appendChild(o0);
+    for (const [id, label] of FACE_ART) { const o = document.createElement('option'); o.value = 'p:' + id; o.textContent = label; sel.appendChild(o); }
+    const ou = document.createElement('option'); ou.value = 'data'; ou.textContent = 'Imagen subida'; sel.appendChild(ou);
+  }
+  const img = e.img; sel.value = !img ? '' : img.kind === 'data' ? 'data' : 'p:' + img.id;
+  const fit = (img && img.fit) || {}; $('fe-is').value = fit.s || 1; $('fe-ix').value = fit.ox || 0; $('fe-iy').value = fit.oy || 0;
+  for (const id of ['fe-is', 'fe-ix', 'fe-iy']) $(id).disabled = !img;
+}
+function feImgChanged(live) {
+  const e = feExpr(); if (!e.img) return; e.img.fit = { s: +$('fe-is').value, ox: +$('fe-ix').value, oy: +$('fe-iy').value };
+  feRender(); if (SH.fig) SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; if (SH.fig) SH.fig.faceKey = ''; if (!live) saveFaceLib(); else refreshFaces();
 }
 function feMsg(t) { $('fe-msg').textContent = t; clearTimeout(feMsg.t); feMsg.t = setTimeout(() => { $('fe-msg').textContent = ''; }, 1800); }
 // muestra la expresión elegida en la cabeza 3D del menú
@@ -1051,15 +1197,38 @@ function feInit() {
   cv.addEventListener('pointermove', e => { if (FE.painting) fePaintAt(e); });
   cv.addEventListener('pointerup', () => { FE.painting = false; saveFaceLib(); });
   $('fe-mirror').addEventListener('change', e => { FE.mirror = e.target.checked; });
+  $('fe-img').addEventListener('change', e => {
+    const v = e.target.value, ex = feExpr();
+    if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };
+    else if (v === 'data' && !(ex.img && ex.img.kind === 'data')) { $('fe-imgfile').click(); feRenderImg(); return; }
+    saveFaceLib(); feSelect();
+  });
+  $('fe-imgup').addEventListener('click', () => $('fe-imgfile').click());
+  $('fe-imgfile').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return; const rd = new FileReader();
+    rd.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        // se reduce a 128 px como máximo para que el guardado sea liviano; la imagen se pega con filtro de píxeles
+        const k = Math.min(1, 128 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+        const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
+        feExpr().img = { kind: 'data', src: c.toDataURL('image/png'), fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('Imagen puesta');
+      };
+      im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
+    };
+    rd.readAsDataURL(file); e.target.value = '';
+  });
+  for (const id of ['fe-is', 'fe-ix', 'fe-iy']) { $(id).addEventListener('input', () => feImgChanged(true)); $(id).addEventListener('change', () => feImgChanged(false)); }
   $('fe-close').addEventListener('click', feClose);
   $('feb').addEventListener('click', () => { sfx('select'); feOpen(); });
   $('fe-clear').addEventListener('click', () => { feExpr().grid = Array(8).fill('........'); saveFaceLib(); feSelect(); });
   $('fe-reset').addEventListener('click', () => {
+    if (FE.id === 'normal') { const n = makeNormal(FE.cid), e = feExpr(); e.grid = n.grid; delete e.img; saveFaceLib(); feSelect(); feMsg('Cara original restaurada'); return; }
     const d = FACE_DEFAULTS[FE.cid].exprs.find(e => e.id === FE.id);
     if (d) { feExpr().grid = d.grid.slice(); saveFaceLib(); feSelect(); feMsg('Restaurada'); } else feMsg('Esta expresión es tuya: no hay original');
   });
   $('fe-addcolor').addEventListener('click', () => {
-    const lib = feLib(), free = 'cdefghjknqsuvwz'.split('').find(c => !(c in lib.pal) && !'SKTWABXGmprby'.includes(c));
+    const lib = feLib(), free = FACE_POOL.split('').find(c => !(c in lib.pal));
     if (!free) { feMsg('Ya no caben más colores propios'); return; }
     lib.pal[free] = $('fe-color').value; FE.color = free; saveFaceLib(); feRender();
   });
@@ -1072,7 +1241,7 @@ function feInit() {
   });
   $('fe-ren').addEventListener('click', () => { const e = feExpr(), n = prompt('Nuevo nombre', e.label); if (n) { e.label = n; saveFaceLib(); feRender(); } });
   $('fe-del').addEventListener('click', () => {
-    const lib = feLib(); if (lib.exprs.length <= 1) return; const e = feExpr(); if (!confirm('¿Borrar "' + e.label + '"?')) return;
+    const lib = feLib(); if (lib.exprs.length <= 1 || FE.id === 'normal') { feMsg('La cara Normal no se puede borrar'); return; } const e = feExpr(); if (!confirm('¿Borrar "' + e.label + '"?')) return;
     lib.exprs = lib.exprs.filter(x => x.id !== e.id); for (const k in lib.use) if (lib.use[k] === e.id) lib.use[k] = ''; FE.id = lib.exprs[0].id; saveFaceLib(); feSelect();
   });
   $('fe-export').addEventListener('click', () => {
@@ -1085,7 +1254,7 @@ function feInit() {
     rd.onload = () => { try { const d = JSON.parse(rd.result); for (const id in d) if (FACE_LIB[id] && Array.isArray(d[id].exprs)) FACE_LIB[id] = d[id]; saveFaceLib(); FE.id = feLib().exprs[0].id; feSelect(); feMsg('Importado'); } catch (err) { feMsg('Ese archivo no sirve'); } };
     rd.readAsText(file); e.target.value = '';
   });
-  $('fe-resetall').addEventListener('click', () => { if (!confirm('¿Volver a las expresiones originales de todos los personajes?')) return; try { localStorage.removeItem('bsb_faces'); } catch (e) { } loadFaceLib(); refreshFaces(); FE.id = feLib().exprs[0].id; feSelect(); feMsg('Originales restauradas'); });
+  $('fe-resetall').addEventListener('click', () => { if (!confirm('¿Volver a las expresiones originales de todos los personajes?')) return; try { localStorage.removeItem('bsb_faces'); } catch (e) { } loadFaceLib(); ensureNormalAll(); refreshFaces(); FE.id = feLib().exprs[0].id; feSelect(); feMsg('Originales restauradas'); });
 }
 
 // visor brillante a la altura de los ojos (fila 4 de la cara)
@@ -5554,7 +5723,7 @@ function saveCfg() { try { localStorage.setItem('bsb_cfg', JSON.stringify({ n: $
 $('play').addEventListener('click', saveCfg);
 $('pname-in').addEventListener('change', e => { try { localStorage.setItem('bsb_name', e.target.value); } catch (err) { } netMenuPresence(); });
 if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) $('touchnote').classList.remove('hidden');
-loadCharSkins().then(() => { renderRoster(); showSelect(G.charId, true); });
+loadCharSkins().then(() => { ensureNormalAll(); renderRoster(); showSelect(G.charId, true); });
 netInit();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (SH.fig) drawBackdrop(SH.fig.ch); });
 try {
