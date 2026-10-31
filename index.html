@@ -989,7 +989,7 @@ function updateFace(f, dt) {
   if (!f.faceCtx) return;
   f.blinkT -= dt; if (f.blinkT < -.13) f.blinkT = rand(1.8, 4.5);
   if (f.facePreset && FACE_LIB[f.facePreset]) {
-    const lib = FACE_LIB[f.facePreset], st = faceState(f, dt), id = f.faceForce != null ? f.faceForce : (lib.use[st] || '');
+    const lib = FACE_LIB[f.facePreset], st = faceState(f, dt), id = f.faceForce != null ? f.faceForce : (lib.use[st] || lib.use.idle || '');   // una situación sin expresión usa la de reposo (ojos abiertos), no la cara sin ojos
     const key = f.facePreset + ':' + id + ':' + (f.faceVer || 0) + ':' + (f.faceForce != null ? 'f' : ''); if (key === f.faceKey) return;
     f.faceKey = key; paintFacePreset(f, id); return;
   }
@@ -1282,7 +1282,7 @@ function feRender() {
   const use = $('fe-use'); use.innerHTML = '';
   for (const [st, label] of FACE_STATES) {
     const row = document.createElement('label'); const sp = document.createElement('span'); sp.textContent = label; const sel = document.createElement('select');
-    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = '(cara original)'; sel.appendChild(o0);
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = st === 'idle' ? '(cara Normal)' : '(la misma que en reposo)'; sel.appendChild(o0);
     for (const e of lib.exprs) { const o = document.createElement('option'); o.value = e.id; o.textContent = e.label; sel.appendChild(o); }
     sel.value = lib.use[st] || ''; sel.addEventListener('change', () => { lib.use[st] = sel.value; saveFaceLib(); feMsg('Guardado'); });
     row.append(sp, sel); use.appendChild(row);
