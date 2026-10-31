@@ -9,7 +9,7 @@ if errorlevel 1 (
   exit /b 1
 )
 rem Inicia el servidor del juego en su propia ventana
-start "Blockstrike - Servidor" cmd /k "cd /d %~dp0 && node server\server.js"
+start "Blockstrike - Servidor" cmd /k "cd /d %~dp0 && set PORT=52018 && node server\server.js"
 rem Si descargaste playit.exe (de https://playit.gg) y lo dejaste en esta carpeta o en la subcarpeta playit, tambien lo inicia
 set "PLAYIT="
 if exist "%~dp0playit.exe" set "PLAYIT=%~dp0playit.exe"
@@ -22,6 +22,6 @@ if defined PLAYIT (
   echo Para jugar con amigos de otros paises mira LEEME_SERVIDOR.txt ^(seccion playit.gg^).
 )
 echo.
-echo Abre el juego en: http://localhost:8080/
+echo Abre el juego en: http://localhost:52018/
 timeout /t 6 >nul
-start "" "http://localhost:8080/"
+start "" "http://localhost:52018/"
