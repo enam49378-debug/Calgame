@@ -186,3 +186,63 @@ def native_tiles():
     G.IMAGE_TILES.update(('paint_a', 'paint_b', 'paint_c', 'poster_a', 'poster_b', 'poster_c', 'menu_board', 'screen_a', 'screen_b', 'screen_c',
                           'marquee_a', 'marquee_b', 'cake', 'elev_door', 'mirror'))
     G.TALL_TILES.update(('books', 'books2', 'goods', 'fridge'))
+
+
+def beach_tiles():
+    """Arena, hojas de palmera, paja, rocas y cascos de barco (playa)."""
+    def n(name, fn):
+        add_tile(name, fn, True)
+
+    def px(im, x, y, c, k=1.0):
+        im.putpixel((x, y), shade(c, k))
+
+    def sand(d, im, rng):
+        bl = G.blotch(rng, 8)
+        base = hexrgb('#e8d29a')
+        for y in range(TS):
+            for x in range(TS):
+                px(im, x, y, base, 1 + bl(x / TS, y / TS) * .05 + rng.uniform(-.045, .045))
+        for _ in range(70):
+            px(im, rng.randint(0, TS - 1), rng.randint(0, TS - 1), base, rng.choice((.88, 1.1)))
+    n('sand', sand)
+
+    def wet(d, im, rng):
+        bl = G.blotch(rng, 8)
+        base = hexrgb('#bfa271')
+        for y in range(TS):
+            for x in range(TS):
+                px(im, x, y, base, 1 + bl(x / TS, y / TS) * .07 + rng.uniform(-.04, .04))
+    n('wet_sand', wet)
+
+    def leaf(d, im, rng):
+        for y in range(TS):
+            for x in range(TS):
+                px(im, x, y, hexrgb('#3f8f3a'), .85 + rng.uniform(-.05, .05))
+        for y in range(TS):
+            px(im, 7, y, hexrgb('#2a6a2a')); px(im, 8, y, hexrgb('#a7cf6a'))
+            for sgn in (-1, 1):
+                for k in range(1, 7):
+                    xx = 7 + sgn * k
+                    if 0 <= xx < TS and (y + k) % 3 == 0:
+                        px(im, xx, y, hexrgb('#66b04a'), 1.1)
+                    if 0 <= xx < TS and (y + k) % 3 == 1:
+                        px(im, xx, y, hexrgb('#2e7a30'))
+    n('palm_leaf', leaf)
+
+    def thatch(d, im, rng):
+        for y in range(TS):
+            for x in range(TS):
+                k = 1 + rng.uniform(-.07, .07)
+                if y % 4 == 0:
+                    k *= .72
+                elif y % 4 == 1:
+                    k *= 1.08
+                px(im, x, y, hexrgb('#c9a24a'), k * (.9 if (x // 3 + y // 4) % 2 else 1))
+    n('thatch', thatch)
+    G.solid('rock', '#7d8185', .09)
+    G.solid('rock_dark', '#5b6065', .08)
+    G.solid('hull_white', '#f2f0ea')
+    G.solid('hull_blue', '#2f6fb0')
+    G.solid('hull_red', '#c63b3b')
+    G.solid('buoy_orange', '#f08a2a')
+    G.solid('sail', '#f4efe2', .03)

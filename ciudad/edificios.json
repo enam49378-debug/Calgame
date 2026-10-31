@@ -152,5 +152,113 @@
   "base": 6.2,
   "door": 3.2,
   "cubos": 3294
+ },
+ "palmera": {
+  "w": 4,
+  "d": 4,
+  "h": 7.6,
+  "cubos": 32
+ },
+ "sombrilla_roja": {
+  "w": 4,
+  "d": 5,
+  "h": 2.8,
+  "cubos": 29
+ },
+ "sombrilla_azul": {
+  "w": 4,
+  "d": 5,
+  "h": 2.8,
+  "cubos": 29
+ },
+ "sombrilla_amarilla": {
+  "w": 4,
+  "d": 5,
+  "h": 2.8,
+  "cubos": 29
+ },
+ "sombrilla_verde": {
+  "w": 4,
+  "d": 5,
+  "h": 2.8,
+  "cubos": 29
+ },
+ "torre_salvavidas": {
+  "w": 4.2,
+  "d": 7,
+  "h": 7.8,
+  "cubos": 44
+ },
+ "chiringuito": {
+  "w": 10.4,
+  "d": 7.6,
+  "h": 4.7,
+  "cubos": 96
+ },
+ "barca_roja": {
+  "w": 1.6,
+  "d": 5,
+  "h": 1.2,
+  "cubos": 17
+ },
+ "barca_azul": {
+  "w": 1.6,
+  "d": 5,
+  "h": 1.2,
+  "cubos": 17
+ },
+ "velero": {
+  "w": 2,
+  "d": 6.5,
+  "h": 7.2,
+  "cubos": 28
+ },
+ "muelle": {
+  "w": 9,
+  "d": 40,
+  "h": 2.4,
+  "cubos": 156
+ },
+ "faro": {
+  "w": 9,
+  "d": 9,
+  "h": 24,
+  "cubos": 52
+ },
+ "rocas_a": {
+  "w": 6,
+  "d": 5,
+  "h": 3,
+  "cubos": 18
+ },
+ "rocas_b": {
+  "w": 6,
+  "d": 5,
+  "h": 3,
+  "cubos": 18
+ },
+ "castillo": {
+  "w": 2,
+  "d": 2,
+  "h": 2.4,
+  "cubos": 15
+ },
+ "voley": {
+  "w": 9.2,
+  "d": 17.2,
+  "h": 2.6,
+  "cubos": 14
+ },
+ "caseta_roja": {
+  "w": 3.2,
+  "d": 3.2,
+  "h": 3.2,
+  "cubos": 9
+ },
+ "caseta_azul": {
+  "w": 3.2,
+  "d": 3.2,
+  "h": 3.2,
+  "cubos": 9
  }
 }

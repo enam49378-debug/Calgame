@@ -33,5 +33,8 @@ Recorder: Arlo Barnes | CC0 | [Commons](https://commons.wikimedia.org/wiki/File%
 | `elev_ride.mp3` | Elevator ride.ogg | stephan | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AElevator_ride.ogg) |
 | `door_close.mp3` | Elevator door closing.ogg | stephan | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AElevator_door_closing.ogg) |
 | `door_open.mp3` | Elevator Door.ogg | Gangsterdave | CC BY-SA 3.0 | [Commons](https://commons.wikimedia.org/wiki/File%3AElevator_Door.ogg) |
+| `waves.mp3` | Waves.ogg | Dsw4 | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AWaves.ogg) |
+| `gull1.mp3` | Gull 1.ogg | avphillips | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AGull_1.ogg) |
+| `gull2.mp3` | Gull 2.ogg | avphillips | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AGull_2.ogg) |
 
 Las licencias CC BY / CC BY-SA piden atribución (esta lista) y que las versiones modificadas de *esos sonidos* mantengan la misma licencia.

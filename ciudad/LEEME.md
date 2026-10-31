@@ -13,3 +13,7 @@ Cada `.bbmodel` es un edificio. Ábrelo en Blockbench (**Archivo → Abrir model
 Edificios con interior: `cafe`, `arcade`, `mercado`, `biblioteca`, `ramen`, `taller`, `centro_comercial`, `torre_aurora`.
 
 **Ascensor de la torre:** la cabina (planta baja) y la caseta (azotea) están en el modelo; las puertas que se abren y cierran las crea el juego en `z = -3.8` (planta baja) y `z = 2.7` (azotea), en coordenadas locales de la torre.
+
+**Costa:** `palmera`, `sombrilla_*`, `torre_salvavidas`, `chiringuito`, `barca_*`, `velero`, `muelle`, `faro`, `rocas_*`, `castillo`, `voley` y `caseta_*` son adornos de la playa (su colocación está en el juego, en el bloque «Costa»). El mar queda al sur: la orilla es `SHORE(x)` en `index.html`.
+
+**Carga:** en tu equipo (servidor local) el juego lee los `.bbmodel` directamente; en internet usa las copias `.js` (sin textura) más el `atlas.js` compartido, que pesan mucho menos. Después de editar un `.bbmodel` regenera las `.js` con `export_js()` para verlo en internet.

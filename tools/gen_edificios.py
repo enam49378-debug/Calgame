@@ -205,9 +205,11 @@ def atlas():
         if native: fn(ImageDraw.Draw(t), t, rng)
         else: fn(SD(ImageDraw.Draw(t), k), SI(t, k), rng)
         im.paste(t, ((i % COLS) * TS, (i // COLS) * TS))
+    # 256 colores con tramado: el atlas pesa 5 veces menos y se ve igual (los modelos lo llevan incrustado)
+    q = im.convert('RGB').quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG)
     b = io.BytesIO()
-    im.save(b, 'PNG')
-    im.save(OUT / 'atlas.png')
+    q.save(b, 'PNG', optimize=True)
+    q.save(OUT / 'atlas.png', optimize=True)
     return 'data:image/png;base64,' + base64.b64encode(b.getvalue()).decode()
 
 # ---------------------------------------------------------------- modelo ----------------------------

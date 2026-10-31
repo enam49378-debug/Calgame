@@ -83,6 +83,18 @@
   "tipo": "loop",
   "fuente_seg": 61.5
  },
+ "gull1": {
+  "dur": 4.0,
+  "kb": 28,
+  "tipo": "shot",
+  "fuente_seg": 18.1
+ },
+ "gull2": {
+  "dur": 3.0,
+  "kb": 21,
+  "tipo": "shot",
+  "fuente_seg": 5.7
+ },
  "hammer": {
   "dur": 2.8,
   "kb": 20,
@@ -148,6 +160,12 @@
   "kb": 62,
   "tipo": "shot",
   "fuente_seg": 9.0
+ },
+ "waves": {
+  "dur": 38.0,
+  "kb": 260,
+  "tipo": "loop",
+  "fuente_seg": 287.0
  },
  "wind_strong": {
   "dur": 28.0,

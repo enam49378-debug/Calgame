@@ -5,7 +5,7 @@ Las colisiones de los muebles van en el grupo `colision` del propio modelo (se p
 import math, random
 from PIL import ImageDraw
 import gen_edificios as G
-from texturas_nativas import native_tiles, NAT
+from texturas_nativas import native_tiles, beach_tiles, NAT
 from gen_edificios import Model, add_tile, solid, hexrgb, shade, TS, B, split, place, facade, core, roof, band, corners, base_plinth
 
 T = .4          # grosor de los muros
@@ -45,6 +45,7 @@ def planks_t(name, col, rows=4, dark=.78):
 
 def register():
     native_tiles()
+    beach_tiles()
     # ---- suelos
     G.planks('oak_planks', '#b98a57')
     G.planks('dark_planks', '#6b4527')

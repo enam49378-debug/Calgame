@@ -503,7 +503,7 @@ sun.position.set(30, 55, 18); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -78, right: 78, top: 78, bottom: -78, far: 260 });
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = .025;
-scene.add(sun);
+scene.add(sun, sun.target);
 
 // ================= Texturas =================
 function noiseRect(g, x, y, w, h, col, amt = 16) {
@@ -577,8 +577,12 @@ function cityAnimeMaterial(material,opts={}){
 
 // ================= Mundo: Ciudad Aurora =================
 // Calles de 8 m, plaza abierta y manzanas bajas; la distribución es fija en todas las partidas.
-const B = 1.1, ARENA = 64, COL = [], CLOUDS = [], ELEVATORS = [];
-const CITY = { name: 'Ciudad Aurora', buildings: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], bounds: 62 };
+const B = 1.1, ARENA = 118, COL = [], CLOUDS = [], ELEVATORS = [];
+const CITY = { name: 'Ciudad Aurora', buildings: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], core: 62, bounds: 116 };
+// Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
+const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
+const inSea = (x, z) => z > SHORE(x) - 1.2;
+const BEACH = { t: 0, boats: [], gulls: [], sea: { uTime: { value: 0 } } };
 // Plan de la ciudad: [x, z, ancho, fondo, alto, color, etiqueta, acento, interior]. Lo usan el dibujo de los edificios y el clima (refugio de los rayos).
 const CITY_PLAN = [
   [-12.5,-12.5,10,10,7.6,'#f0bf7b','CAFÉ LUNA','#487e88',{kind:'cafe',base:4.3}],
@@ -613,10 +617,11 @@ const CITY_MODEL_DIMS = {"apartamentos_ladrillo": [9.0, 9.0, 12.1], "apartamento
 const SPAWN_POINTS = [
   [0,-33], [33,0], [0,33], [-33,0], [-22,-29], [22,29], [-29,22], [29,-22],
   [-22,10], [22,-10], [-22,-3], [22,3], [0,-9], [9,0], [0,9], [-9,0],
-  [0,-44], [0,44], [44,0], [-44,0], [20,-44], [-20,-44], [20,44], [-20,44], [44,20], [44,-20], [-44,20], [-44,-20], [34,-44], [-34,44], [44,34], [-44,-34]
+  [0,-44], [0,44], [44,0], [-44,0], [20,-44], [-20,-44], [20,44], [-20,44], [44,20], [44,-20], [-44,20], [-44,-20], [34,-44], [-34,44], [44,34], [-44,-34], [-45,76], [45,76], [0,70], [-72,76], [72,76], [0,-88], [88,0], [-88,0], [62,-62], [-62,-62], [62,62], [-62,56]
 ].map(([x,z],i) => ({ id: i + 1, x, z, yaw: Math.atan2(-x,-z) }));
 function cityGrassAt(x,z) {
-  return Math.hypot(x,z) > CITY.bounds || CITY.parks.some(p => Math.abs(x-p.x)<p.w/2-.4 && Math.abs(z-p.z)<p.d/2-.4);
+  if(z>66)return false;   // paseo marítimo, playa y mar
+  return Math.hypot(x,z) > CITY.core || CITY.parks.some(p => Math.abs(x-p.x)<p.w/2-.4 && Math.abs(z-p.z)<p.d/2-.4);
 }
 {
   const plaster=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#eeeeea',7);g.fillStyle='rgba(80,85,90,.035)';for(let y=7;y<32;y+=8)g.fillRect(0,y,32,1);});
@@ -633,18 +638,18 @@ function cityGrassAt(x,z) {
   const grass = BLOCK_TEX.grass.clone(); grass.needsUpdate = true;
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,420/B);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(420,420),new THREE.MeshLambertMaterial({map:grass}));
-  ground.rotation.x=-Math.PI/2; ground.position.y=-.05; ground.receiveShadow=true; scene.add(ground);
+  ground.rotation.x=-Math.PI/2; ground.position.y=-.15; ground.receiveShadow=true; scene.add(ground);
   const paving = pixTex(32,32,g=>{
     noiseRect(g,0,0,32,32,'#8c999f',8); g.fillStyle='#919da5';
     for(let i=0;i<32;i+=8){g.fillRect(i,0,1,32);g.fillRect(0,i,32,1);}
   });
   paving.wrapS=paving.wrapT=THREE.RepeatWrapping; paving.repeat.set(24,24);
-  const town = new THREE.Mesh(new THREE.CircleGeometry(CITY.bounds+.5,160),new THREE.MeshPhongMaterial({map:paving,shininess:8,specular:0x17232b}));
+  const town = new THREE.Mesh(new THREE.CircleGeometry(CITY.core+.5,160),new THREE.MeshPhongMaterial({map:paving,shininess:8,specular:0x17232b}));
   cityAnimeMaterial(town.material);CITY.wetMaterials.push(town.material);
   town.rotation.x=-Math.PI/2; town.position.y=-.005; town.receiveShadow=true; scene.add(town);
   // Avenidas principales y cuatro calles laterales, con las esquinas despejadas.
-  flat(0,0,8,2*CITY.bounds,'#46515d'); flat(0,0,2*CITY.bounds,8,'#46515d');
-  for(const a of [-22,22,-44,44]){const L=2*Math.floor(Math.sqrt(CITY.bounds*CITY.bounds-a*a)-1.5);flat(a,0,5,L,'#56616a');flat(0,a,L,5,'#56616a');}
+  flat(0,0,8,2*CITY.core,'#46515d'); flat(0,0,2*CITY.core,8,'#46515d');
+  for(const a of [-22,22,-44,44]){const L=2*Math.floor(Math.sqrt(CITY.core*CITY.core-a*a)-1.5);flat(a,0,5,L,'#56616a');flat(0,a,L,5,'#56616a');}
   flat(0,0,21,21,'#958e7c',.028);
   for(const a of [-10.6,10.6]){flat(a,0,.18,21.4,'#80929c',.041);flat(0,a,21.4,.18,'#80929c',.041);}
   for(let a=-59;a<=59;a+=4){
@@ -933,24 +938,32 @@ function cityGrassAt(x,z) {
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
     g.setIndex(idx);g.computeVertexNormals();g.userData.cols=cols;return g;
   }
-  const bbCache=new Map();
+  const bbCache=new Map(),bbMats=new Map();
   function loadBBModel(name){
     // Con servidor se lee el .bbmodel directo (los cambios hechos en Blockbench se ven al recargar); sin servidor (file://) se usa la copia ciudad/<nombre>.js
     const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
     const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];d.textures[0].source=window.BB_ATLAS;return d;});
-    if(!bbCache.has(name))bbCache.set(name,fetch('ciudad/'+name+'.bbmodel').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).catch(viaScript).then(data=>new Promise((ok,fail)=>{
-      const img=new Image();
-      img.onload=()=>{
-        const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;
-        // Los tiles del atlas desde la fila 20 (índice 160) son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
-        const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
-        const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);
-        const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
-        const mat=cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:0xffffff,emissiveMap:em}),{cut:true});
-        ok({geo:bbGeometry(data),mat});
-      };
-      img.onerror=fail;img.src=data.textures[0].source;
-    })));
+    // Una sola textura y un solo material para todos los modelos (comparten el atlas): arranca más rápido y usa menos memoria.
+    const mat=src=>{
+      const key=src.length+':'+src.slice(-48);
+      if(!bbMats.has(key))bbMats.set(key,new Promise((ok,fail)=>{
+        const img=new Image();
+        img.onload=()=>{
+          const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;
+          // Los tiles del atlas desde la fila 20 (índice 160) son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
+          const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
+          const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);
+          const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
+          ok(cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:0xffffff,emissiveMap:em}),{cut:true}));
+        };
+        img.onerror=fail;img.src=src;
+      }));
+      return bbMats.get(key);
+    };
+    // En tu equipo (servidor local) se lee el .bbmodel directo para ver al recargar lo que cambies en Blockbench; en internet se usan las copias .js (mucho más ligeras)
+    const dev=/^(localhost|127\.|192\.168\.|10\.|\[::1\])/.test(location.hostname);
+    if(!bbCache.has(name))bbCache.set(name,(dev?fetch('ciudad/'+name+'.bbmodel').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}):Promise.reject()).catch(viaScript)
+      .then(data=>mat(data.textures[0].source).then(m=>({geo:bbGeometry(data),mat:m}))));
     return bbCache.get(name);
   }
   // Los modelos entran al cargarse; si faltan (por ejemplo al abrir el archivo sin servidor) queda una caja de color.
@@ -1019,17 +1032,107 @@ function cityGrassAt(x,z) {
     flat(p.x,p.z,2.5,2.5,'#527e85',.054);flat(p.x,p.z,2.12,2.12,'#91d4cd',.067);
     flat(p.x,p.z,1.78,1.78,'#527e85',.08);flat(p.x,p.z,.18,1.1,'#defff0',.094);flat(p.x,p.z,1.1,.18,'#defff0',.094);
   }
-  // Borde bajo legible y barrio de fondo, fuera del área jugable.
-  for(let i=0;i<170;i++){
-    const a=i/170*TAU,x=Math.cos(a)*(CITY.bounds+2.4),z=Math.sin(a)*(CITY.bounds+2.4);
+  // Borde bajo legible (no en el mar) y barrio de fondo lejano, fuera del área jugable.
+  for(let i=0;i<230;i++){
+    const a=i/230*TAU,x=Math.cos(a)*(ARENA+2.4),z=Math.sin(a)*(ARENA+2.4);if(z>64)continue;
     box(x,.42,z,1.6,.84,1.6,'#96a8a6');if(i%8===0)box(x,.97,z,1.8,.26,1.8,'#d5d9c8');
   }
   for(let i=0;i<64;i++){
-    const a=i/64*TAU,r=84+(i%4)*8,h=10+(i*7%30),x=Math.cos(a)*r,z=Math.sin(a)*r;
+    const a=i/64*TAU,r=136+(i%4)*10,h=10+(i*7%30),x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.sin(a)>.3)continue;
     box(x,h/2,z,8,h,7,['#8ea6b6','#a5b5bf','#9aaeb5'][i%3]);box(x,h+.12,z,8.4,.25,7.4,'#b5c4ca');
     for(let yy=2;yy<h-1;yy+=2.5)for(const xx of [-2.5,0,2.5])for(const side of [-1,1]){
       box(x+xx,yy,z+side*3.52,1.15,1.25,.06,'#aac5d1');
       box(x+side*4.02,yy,z+xx,.06,1.25,1.15,'#aac5d1');
+    }
+  }
+  // ===== Costa: paseo marítimo, playa, mar, bosque y adornos (todo determinista: igual para todos los jugadores) =====
+  const rnd=(()=>{let q=20261031;return()=>(q=(q*1664525+1013904223)>>>0)/4294967296;})();
+  flat(0,66,240,6,'#56616a');for(let x=-114;x<=114;x+=6)flat(x,66,2.4,.12,'#f6daa0',.04);
+  flat(0,70.8,240,2.6,'#9aa6ab',.022);flat(0,62.9,240,1.8,'#9aa6ab',.022);
+  flat(0,66.5,8,9,'#46515d',.02);
+  flat(0,76,6,12,'#a98255',.03);for(let zz=70.6;zz<82;zz+=.8)flat(0,zz,6,.06,'#7e5c38',.032);
+  for(let x=-96;x<=96;x+=16){
+    if(Math.abs(x)<6)continue;
+    CITY.lamps.push({x,z:71.4});
+    box(x,1.9,71.4,.16,3.8,.16,'#435766');box(x,3.85,71.4,.55,.16,.55,'#435766');box(x,3.62,71.4,.38,.34,.38,'#fff0b1');solid(x,71.4,.22,.22,4);
+  }
+  // arena, arena mojada, fondo marino y el mar con olas
+  const sandTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#e8d29a',9);g.fillStyle='rgba(180,150,90,.18)';for(let i=0;i<22;i++)g.fillRect((i*7)%32,(i*13)%32,2,1);});
+  sandTex.wrapS=sandTex.wrapT=THREE.RepeatWrapping;
+  const wetTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#bfa271',8);});wetTex.wrapS=wetTex.wrapT=THREE.RepeatWrapping;
+  const strip=(x0,x1,step,zN,zS,y,mat,uv)=>{
+    const pos=[],uvs=[],idx=[];let k=0;
+    for(let x=x0;x<=x1;x+=step){pos.push(x,y,zN(x),x,y,zS(x));uvs.push(x/uv,zN(x)/uv,x/uv,zS(x)/uv);if(k>0){const q=(k-1)*2;idx.push(q,q+1,q+2,q+1,q+3,q+2);}k++;}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geo.setIndex(idx);geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo,mat);m.receiveShadow=true;scene.add(m);return m;
+  };
+  strip(-150,150,3,()=>67.4,x=>SHORE(x),-.004,cityAnimeMaterial(new THREE.MeshLambertMaterial({map:sandTex})),4);
+  strip(-150,150,3,x=>SHORE(x)-3,x=>SHORE(x),-.003,cityAnimeMaterial(new THREE.MeshLambertMaterial({map:wetTex})),4);
+  strip(-150,150,3,x=>SHORE(x),x=>SHORE(x)+24,-.09,new THREE.MeshLambertMaterial({color:0xdcc58e}),4);
+  {
+    const sea=new THREE.MeshPhongMaterial({color:0xffffff,shininess:120,specular:0xffffff,transparent:true});
+    sea.onBeforeCompile=sh=>{
+      sh.uniforms.uTime=BEACH.sea.uTime;
+      sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <project_vertex>','#include <project_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
+      sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;uniform float uTime;')
+        .replace('#include <color_fragment>',`#include <color_fragment>
+          float shoreZ=96.+3.5*sin(vWP.x*.045)+2.*sin(vWP.x*.11+1.);float dd=vWP.z-shoreZ;
+          float w1=sin(dd*.55-uTime*1.3+sin(vWP.x*.07)*1.5)*.5+.5,w2=sin(dd*1.3-uTime*2.1+vWP.x*.12)*.5+.5;
+          vec3 wc=mix(vec3(.34,.86,.82),vec3(.13,.6,.8),smoothstep(0.,10.,dd));wc=mix(wc,vec3(.04,.3,.62),smoothstep(8.,60.,dd));
+          wc+=vec3(.09)*w1*(1.-smoothstep(0.,45.,dd))+vec3(.045)*w2;
+          float spk=fract(sin(dot(floor(vWP.xz*3.),vec2(12.9898,78.233)))*43758.5453);
+          float f1=(1.-smoothstep(0.,1.2,abs(dd-(1.4+1.2*sin(uTime*.8+vWP.x*.08)))))*step(0.,dd);
+          float f2=(1.-smoothstep(0.,.8,abs(dd-(4.2+1.4*sin(uTime*.6+vWP.x*.05+2.)))))*step(0.,dd)*.55;
+          float foam=clamp(f1+f2,0.,1.)*(.55+.45*spk);
+          diffuseColor.rgb=mix(wc,vec3(1.),foam*.85);diffuseColor.a=mix(.55,.97,smoothstep(0.,16.,dd));`)
+        .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nnormal=normalize(normal+vec3(sin(vWP.x*.9+uTime*1.7),0.,cos(vWP.z*.8+uTime*1.3))*.07);');
+    };
+    sea.customProgramCacheKey=()=>'aurora-sea-v1';
+    const water=new THREE.Mesh(new THREE.PlaneGeometry(1200,700),sea);water.rotation.x=-Math.PI/2;water.position.set(0,-.04,67+350);scene.add(water);BEACH.water=water;
+  }
+  // el mar es un muro invisible desde la orilla (con hueco para el muelle)
+  for(let xi=-120;xi<=120;xi+=4){if(Math.abs(xi)<3.4)continue;COL.push({x:xi,z:SHORE(xi)+2.5,hx:2.3,hz:2.5,h:30,y0:0,ceiling:false,nocam:true});}
+  // bosque alrededor de la ciudad
+  for(let gx=-112;gx<=112;gx+=8)for(let gz=-112;gz<=60;gz+=8){
+    const x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,r=Math.hypot(x,z);
+    if(r<70||r>ARENA-6||z>60||rnd()<.2)continue;
+    if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<4.5))continue;
+    tree(x,z);
+    if(rnd()<.4)box(x+1.6,.35,z+.8,1.1,.7,1.1,'#5f9a55','leaves');
+    if(rnd()<.15)box(x-1.5,.3,z-1,1.2,.6,1,'#8c9195');
+  }
+  // adornos de la costa (modelos de Blockbench en ciudad/)
+  const PR=[];
+  const addP=(m,x,z,ry=0,o={})=>{if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<3.4))return;PR.push(Object.assign({m,x,z,ry},o));};
+  addP('muelle',0,78,0);
+  for(let x=-96;x<=96;x+=10){if(Math.abs(x)<7)continue;addP('palmera',x,73.4,rnd()*TAU);}
+  for(let i=0;i<16;i++){const x=-80+rnd()*160,z=77+rnd()*10;if(Math.abs(x)<9||z>SHORE(x)-8)continue;addP('palmera',x,z,rnd()*TAU);}
+  [[-70,80],[-58,84],[-34,86],[-10,83],[12,87],[40,85],[58,81],[70,85]].forEach(([x,z],i)=>addP(['sombrilla_roja','sombrilla_azul','sombrilla_amarilla','sombrilla_verde'][i%4],x,z,(rnd()-.5)*.6));
+  addP('torre_salvavidas',-46,88,0);addP('torre_salvavidas',50,89,0);
+  addP('chiringuito',-22,78.5,0);addP('chiringuito',25,79.5,0);
+  addP('voley',64,86,0);
+  [-52,-12,34,70].forEach(x=>addP('castillo',x,SHORE(x)-6,rnd()*TAU));
+  [-72,-68.4,-64.8,-61.2].forEach((x,i)=>addP(i%2?'caseta_azul':'caseta_roja',x,74.8,0));
+  addP('barca_roja',-34,SHORE(-34)+9,.4,{y:-.12,bob:1});addP('barca_azul',22,SHORE(22)+13,-.5,{y:-.12,bob:1});addP('velero',-6,SHORE(-6)+19,.2,{y:-.1,bob:1});addP('barca_roja',46,SHORE(46)+8,1.2,{y:-.12,bob:1});
+  addP('rocas_a',-78,SHORE(-78)-2,.5);addP('rocas_b',78,SHORE(78)-2,2.1);addP('faro',86,SHORE(86)-5,0);
+  for(const pr of PR)bbLoads.push(loadBBModel(pr.m).then(({geo,mat})=>{
+    const mesh=new THREE.Mesh(geo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+    if(pr.bob)BEACH.boats.push({mesh,y0:pr.y,ph:rnd()*6});
+    const c=Math.cos(pr.ry),sn=Math.sin(pr.ry);
+    for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2,hx=(x1-x0)/2,hz=(z1-z0)/2;
+      COL.push({x:pr.x+lx*c+lz*sn,z:pr.z-lx*sn+lz*c,hx:Math.abs(c)*hx+Math.abs(sn)*hz,hz:Math.abs(sn)*hx+Math.abs(c)*hz,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true});}
+  }).catch(()=>{}));
+  Promise.all(bbLoads).then(()=>{if(typeof rebuildCityNav==='function')rebuildCityNav();});
+  // gaviotas
+  {
+    const wm=new THREE.MeshLambertMaterial({color:0xf5f5f0}),tm=new THREE.MeshLambertMaterial({color:0x4a4f55}),bm=new THREE.MeshLambertMaterial({color:0xf0a830});
+    for(let i=0;i<8;i++){
+      const g=new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(.22,.2,.7),wm));const head=new THREE.Mesh(new THREE.BoxGeometry(.16,.16,.2),wm);head.position.set(0,.05,.42);g.add(head);
+      const beak=new THREE.Mesh(new THREE.BoxGeometry(.05,.05,.14),bm);beak.position.set(0,.03,.58);g.add(beak);
+      const mk=sg=>{const w=new THREE.Group();const a=new THREE.Mesh(new THREE.BoxGeometry(.8,.04,.3),wm);a.position.x=sg*.4;const tip=new THREE.Mesh(new THREE.BoxGeometry(.25,.045,.28),tm);tip.position.x=sg*.9;w.add(a,tip);w.position.set(sg*.1,.05,0);g.add(w);return w;};
+      const wl=mk(-1),wr=mk(1);scene.add(g);
+      BEACH.gulls.push({g,wl,wr,cx:-70+i*20,cz:98+(i%3)*8,r:9+rnd()*16,sp:.22+rnd()*.2,ph:rnd()*6,h:10+rnd()*9});
     }
   }
   // Contornos de arquitectura: líneas sobrias que acentúan la silueta del barrio.
@@ -1084,7 +1187,7 @@ function cityGrassAt(x,z) {
 // Vegetación de las zonas verdes
 {
   const tufts = [], flowers = [];
-  for (let i = 0; i < 3600; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * (ARENA - 1), x = Math.cos(a) * r, z = Math.sin(a) * r; if (!cityGrassAt(x,z) || COL.some(c => Math.abs(x - c.x) < c.hx + .3 && Math.abs(z - c.z) < c.hz + .3)) continue; (Math.random() < .1 ? flowers : tufts).push([x, z]); }
+  for (let i = 0; i < 9000; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * (ARENA - 1), x = Math.cos(a) * r, z = Math.sin(a) * r; if (!cityGrassAt(x,z) || COL.some(c => Math.abs(x - c.x) < c.hx + .3 && Math.abs(z - c.z) < c.hz + .3)) continue; (Math.random() < .1 ? flowers : tufts).push([x, z]); }
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new V3(), Pp = new V3(), E = new THREE.Euler();
   const tm = new THREE.InstancedMesh(new THREE.BoxGeometry(.045, 1, .045), new THREE.MeshLambertMaterial({ color: 0xffffff }), tufts.length);
   tufts.forEach(([x, z], i) => { const h = rand(.1, .28); E.set(rand(-.3, .3), rand(0, TAU), rand(-.3, .3)); Q.setFromEuler(E); M.compose(Pp.set(x, h / 2, z), Q, S.set(1, h, 1)); tm.setMatrixAt(i, M); tm.setColorAt(i, _c.setHSL(rand(.24, .32), rand(.4, .6), rand(.32, .46))); });
@@ -1332,13 +1435,13 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
     fragmentShader:'uniform float uOpacity,uTime;varying float vSeed;void main(){float d=length(gl_PointCoord-.5);float a=smoothstep(.5,.05,d)*uOpacity*(.7+.3*sin(uTime*.7+vSeed*50.));gl_FragColor=vec4(.8,.89,1.,a);}'
   })));
   // Alturas de techos y toldos: la lluvia no atraviesa los edificios.
-  const n=256,roof=new Uint8Array(n*n);
+  const n=512,roof=new Uint8Array(n*n);
   for(let z=0;z<n;z++)for(let x=0;x<n;x++){
-    const wx=(x+.5)/n*84-42,wz=(z+.5)/n*84-42;let h=.1;
+    const wx=(x+.5)/n*256-128,wz=(z+.5)/n*256-128;let h=.1;
     for(const c of COL)if(Math.abs(wx-c.x)<c.hx+.15&&Math.abs(wz-c.z)<c.hz+.15)h=Math.max(h,c.h+.1);
     for(const b of CITY.buildings){const f=b.z<0?1:-1,front=b.z+f*b.d/2;if(b.label&&!b.model&&Math.abs(wx-b.x)<b.w/2&&Math.abs(wz-(front+f*.55))<.7)h=Math.max(h,2.42);}
     for(const p of CITY.parks)if(Math.abs(wx-p.x)<1.5&&Math.abs(wz-p.z)<1.5)h=Math.max(h,4.65);
-    roof[z*n+x]=Math.round(h/32*255);
+    roof[z*n+x]=Math.round(Math.min(64,h)/64*255);
   }
   WX.roof=new THREE.DataTexture(roof,n,n,THREE.LuminanceFormat);WX.roof.magFilter=WX.roof.minFilter=THREE.NearestFilter;WX.roof.needsUpdate=true;
   const shared={uTime:{value:0},uRain:{value:0},uCenter:{value:new V3()},uRoof:{value:WX.roof},uWind:{value:new THREE.Vector2(1,0)},uNight:{value:0},uFog:{value:new THREE.Color(SKY)}};
@@ -1349,7 +1452,7 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
   WX.rainMesh=add(new THREE.Mesh(rainGeo,new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:shared,
     vertexShader:`attribute vec3 aOffset;attribute vec2 aSeed;uniform float uTime,uRain;uniform vec3 uCenter;uniform vec2 uWind;uniform sampler2D uRoof;varying vec2 vUv;varying float vAlpha;
       void main(){vec2 p=uCenter.xz+mod(aOffset.xz+uWind*uTime*.65+29.,58.)-29.;
-        float floorY=texture2D(uRoof,clamp((p+42.)/84.,0.,1.)).r*32.;float y=mod(aOffset.y-uTime*(23.+aSeed.x*10.)+26000.,26.);
+        float floorY=texture2D(uRoof,clamp((p+128.)/256.,0.,1.)).r*64.;float y=mod(aOffset.y-uTime*(23.+aSeed.x*10.)+26000.,26.);
         vec3 center=vec3(p.x,floorY+y,p.y);vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]);
         vec3 down=vec3(-uWind.x*.06,1.,-uWind.y*.06);float len=.35+aSeed.y*.65;
         vec3 world=center+right*position.x*(.013+aSeed.x*.013)+down*position.y*len;
@@ -1366,7 +1469,7 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
   splashGeo.setAttribute('aOffset',new THREE.InstancedBufferAttribute(splashOffsets,3));splashGeo.instanceCount=splashCount;
   WX.splashes=add(new THREE.Mesh(splashGeo,new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:shared,
     vertexShader:`attribute vec3 aOffset;uniform vec3 uCenter;uniform float uTime,uRain;uniform sampler2D uRoof;varying vec2 vUv;varying float vPhase,vAlpha;
-      void main(){vec2 p=floor(uCenter.xz/4.)*4.+aOffset.xz;float h=texture2D(uRoof,clamp((p+42.)/84.,0.,1.)).r*32.;
+      void main(){vec2 p=floor(uCenter.xz/4.)*4.+aOffset.xz;float h=texture2D(uRoof,clamp((p+128.)/256.,0.,1.)).r*64.;
         vPhase=fract(uTime*1.85+aOffset.y);float size=.08+vPhase*.52;
         vec3 world=vec3(p.x+position.x*size,h+.025,p.y+position.y*size);gl_Position=projectionMatrix*viewMatrix*vec4(world,1.);
         vUv=uv;vAlpha=uRain*(1.-vPhase)*smoothstep(0.,.06,vPhase);}`,
@@ -1381,7 +1484,7 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
     vertexShader:`attribute float aSeed;uniform vec3 uCenter;uniform float uTime,uRain;uniform sampler2D uRoof;varying float vAlpha;
       void main(){float phase=fract(uTime*1.85+position.y);vec2 p=floor(uCenter.xz/4.)*4.+position.xz;
         p+=vec2(cos(aSeed*40.),sin(aSeed*40.))*phase*.38;
-        float h=texture2D(uRoof,clamp((p+42.)/84.,0.,1.)).r*32.;
+        float h=texture2D(uRoof,clamp((p+128.)/256.,0.,1.)).r*64.;
         vec4 mv=viewMatrix*vec4(p.x,h+.03+sin(min(1.,phase*1.8)*3.14159)*.24,p.y,1.);
         gl_Position=projectionMatrix*mv;gl_PointSize=clamp(22./max(1.,-mv.z),1.,3.);
         vAlpha=(1.-smoothstep(.1,.56,phase))*uRain*.6;}`,
@@ -1438,8 +1541,8 @@ function cityWeatherAudio(dt,visible){
     const filter=AC.createBiquadFilter();filter.type='lowpass';filter.frequency.value=WX.rainReal?9000:1800;
     const gain=AC.createGain();gain.gain.value=0;source.connect(filter);filter.connect(gain);gain.connect(master);source.start();WX.audio={source,filter,gain};
   }
-  const roof=WX.rainUniforms.uCenter.value,n=WX.roof.image.width,ix=clamp(Math.floor((roof.x+42)/84*n),0,n-1),iz=clamp(Math.floor((roof.z+42)/84*n),0,n-1);
-  const underCover=WX.roof.image.data[iz*n+ix]/255*32>roof.y+1.8;
+  const roof=WX.rainUniforms.uCenter.value,n=WX.roof.image.width,ix=clamp(Math.floor((roof.x+128)/256*n),0,n-1),iz=clamp(Math.floor((roof.z+128)/256*n),0,n-1);
+  const underCover=WX.roof.image.data[iz*n+ix]/255*64>roof.y+1.8;
   const volume=visible&&WX.sound?WX.rain*(underCover?.018:.075)*(WX.rainReal?2.6:1):0;
   if(WX.audio.volume==null||Math.abs(WX.audio.volume-volume)>.0005){WX.audio.gain.gain.setTargetAtTime(volume,AC.currentTime,.3);WX.audio.volume=volume;}
 }
@@ -1498,6 +1601,7 @@ function updateCityWeather(dt,instant=false){
     WX.moonLight.position.set(-Math.cos(a)*45,Math.max(12,-height*65),-22);
     CITY.sunDisc.position.copy(sun.position).normalize().multiplyScalar(245);CITY.sunDisc.lookAt(0,0,0);
     CITY.sunDisc.material.color.set(0xfff4c4).lerp(_c.set(0xffa26f),sunset);CITY.sunDisc.visible=height>-.09&&WX.cloud<.8;
+    sun.position.x+=Math.round(focus.x/2)*2;sun.position.z+=Math.round(focus.z/2)*2;sun.target.position.set(Math.round(focus.x/2)*2,0,Math.round(focus.z/2)*2);sun.target.updateMatrixWorld();
     WX.sunGlow.position.copy(CITY.sunDisc.position);WX.sunGlow.material.opacity=day*(1-WX.cloud)*.6;
     WX.moon.position.copy(WX.moonLight.position).normalize().multiplyScalar(240);WX.moon.material.opacity=night*(1-WX.cloud*.8);
     for(const cloud of CLOUDS){cloud.material.color.set(0x3f526c).lerp(_c.set(0xf4f4ed),day);cloud.material.opacity=.75-WX.cloud*.22;}
@@ -1533,7 +1637,7 @@ function initWeatherControls(){
   WX.snowMesh=new THREE.Points(geo,new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:WX.snowUniforms,
     vertexShader:`attribute float aSeed;uniform float uTime,uSnow,uWind;uniform vec3 uCenter;uniform sampler2D uRoof;varying float vAlpha;
       void main(){vec2 p=uCenter.xz+mod(position.xz+vec2(uTime*uWind*2.,sin(uTime*.6+aSeed*60.)*.8)+25.,50.)-25.;
-        float floorY=texture2D(uRoof,clamp((p+42.)/84.,0.,1.)).r*32.;float h=mod(position.y-uTime*(1.4+aSeed*1.7)+20000.,20.);
+        float floorY=texture2D(uRoof,clamp((p+128.)/256.,0.,1.)).r*64.;float h=mod(position.y-uTime*(1.4+aSeed*1.7)+20000.,20.);
         vec4 mv=viewMatrix*vec4(p.x,floorY+h,p.y,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp((3.+aSeed*4.)*10./max(2.,-mv.z),1.,7.);
         vAlpha=step(aSeed,uSnow)*(1.-smoothstep(20.,32.,-mv.z))*.75;}`,
     fragmentShader:'varying float vAlpha;void main(){vec2 p=gl_PointCoord-.5;float a=1.-smoothstep(.08,.5,length(p));gl_FragColor=vec4(.86,.94,1.,a*vAlpha);}'
@@ -1544,7 +1648,7 @@ function initWeatherControls(){
   WX.mistUniforms={uTime:{value:0},uFog:{value:0},uColor:{value:new THREE.Color()},uCenter:{value:new V3()},uRoof:{value:WX.roof}};
   WX.mist=new THREE.Mesh(mistGeo,new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:WX.mistUniforms,
     vertexShader:`attribute vec3 aOffset;uniform float uTime;uniform vec3 uCenter;uniform sampler2D uRoof;varying vec2 vUv;varying float vSeed;
-      void main(){vec2 p=floor(uCenter.xz/6.)*6.+mod(aOffset.xz+vec2(uTime*.16,0.)+25.,50.)-25.;float h=texture2D(uRoof,clamp((p+42.)/84.,0.,1.)).r*32.;
+      void main(){vec2 p=floor(uCenter.xz/6.)*6.+mod(aOffset.xz+vec2(uTime*.16,0.)+25.,50.)-25.;float h=texture2D(uRoof,clamp((p+128.)/256.,0.,1.)).r*64.;
         vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]);vec3 world=vec3(p.x,h+.65,p.y)+right*position.x*12.+vec3(0.,position.y*1.7,0.);
         vUv=uv;vSeed=aOffset.y;gl_Position=projectionMatrix*viewMatrix*vec4(world,1.);}`,
     fragmentShader:`varying vec2 vUv;varying float vSeed;uniform float uTime,uFog;uniform vec3 uColor;
@@ -3793,7 +3897,7 @@ function sfx(k, pos, mul = 1) {
 // Con servidor se decodifican con WebAudio (bucles sin cortes y apagado de la calle al entrar); abriendo el archivo sin servidor (file://)
 // se reproducen con elementos <audio> (solo volumen).
 const SND_LIST = ['city', 'birds', 'breeze', 'wind_strong', 'night', 'rain', 'thunder1', 'thunder2', 'cafe', 'clink1', 'clink2', 'sizzle', 'market', 'cash', 'arcade', 'library', 'page',
-  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open'];
+  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open', 'waves', 'gull1', 'gull2'];
 const SND = { buf: {}, state: 'idle', base: 'sonidos/', els: {} };
 function loadSounds() {
   if (SND.state !== 'idle' || !AC) return;
@@ -3816,7 +3920,7 @@ function playSnd(name, vol = 1, pos = null, delay = 0) {
 const AMB = { ready: false, ins: 0, kind: '', t: {}, acc: 0, L: [] };
 const AMB_KIND = { cafe: 'cafe', arcade: 'arcade', mercado: 'mercado', biblioteca: 'biblioteca', ramen: 'ramen', taller: 'taller', centro_comercial: 'mall', torre_aurora: 'lobby' };
 // nombre, grupo ('out' = calle; o el local), volumen base
-const AMB_LAYERS = [['city', 'out', 1.5], ['breeze', 'out', 1.3], ['birds', 'out', .9], ['wind_strong', 'out', 1.6], ['night', 'out', 1.5],
+const AMB_LAYERS = [['city', 'out', 1.5], ['breeze', 'out', 1.3], ['birds', 'out', .9], ['wind_strong', 'out', 1.6], ['night', 'out', 1.5], ['waves', 'out', 1.9],
   ['cafe', 'cafe', 1.7], ['arcade', 'arcade', 1.2], ['market', 'mercado', 1.7], ['library', 'biblioteca', 1.9], ['cafe', 'ramen', 1.3], ['sizzle', 'ramen', 1.1],
   ['workshop', 'taller', 1.6], ['mall', 'mall', 1.7], ['fountain', 'mall', 1.1], ['lobby', 'lobby', 2.2]];
 function initAmbience() {
@@ -3841,6 +3945,14 @@ function initAmbience() {
     AMB.L.push(L);
   }
 }
+function updateBeach(dt) {
+  BEACH.t += dt; BEACH.sea.uTime.value = BEACH.t; const t = BEACH.t;
+  for (const b of BEACH.boats) { b.mesh.position.y = b.y0 + Math.sin(t * 1.1 + b.ph) * .06; b.mesh.rotation.z = Math.sin(t * .9 + b.ph) * .035; b.mesh.rotation.x = Math.sin(t * .7 + b.ph) * .02; }
+  for (const g of BEACH.gulls) {
+    const a = g.ph + t * g.sp; g.g.position.set(g.cx + Math.cos(a) * g.r, g.h + Math.sin(t * .6 + g.ph) * 1.5, g.cz + Math.sin(a) * g.r);
+    g.g.rotation.y = Math.atan2(-Math.sin(a), Math.cos(a)); const f = Math.sin(t * 6 + g.ph * 3) * .45; g.wl.rotation.z = f; g.wr.rotation.z = -f;
+  }
+}
 function updateAmbience(dt) {
   if (!AC) return;
   if (G.state !== 'play' || !G.player) { if (AMB.bus) AMB.bus.gain.setTargetAtTime(0, AC.currentTime, .3); return; }
@@ -3858,12 +3970,15 @@ function updateAmbience(dt) {
     const day = (1 - night) * (1 - storm * .8);
     const target = {
       city: outs * (1 - high * .55), breeze: outs * day * (1 - high * .7) * (1 - storm), birds: outs * day * (1 - high * .8) * (1 - storm),
-      wind_strong: outs * clamp(high * 1.1 + storm * .8 + cloud * .25 - .05, 0, 1.15), night: outs * night * (1 - storm * .7)
+      wind_strong: outs * clamp(high * 1.1 + storm * .8 + cloud * .25 - .05, 0, 1.15), night: outs * night * (1 - storm * .7),
+      waves: outs * Math.pow(clamp(1 - (SHORE(p.pos.x) - p.pos.z) / 62, 0, 1), 1.3) * (1 - high * .5)
     };
     for (const L of AMB.L) L.set(L.group === 'out' ? target[L.name] : (L.group === kind ? ins : 0));
   }
   if (!on) return;
   const due = (key, a, b) => { if (now < (AMB.t[key] || 0)) return false; AMB.t[key] = now + a + Math.random() * (b - a); return true; };
+  const near = clamp(1 - (SHORE(p.pos.x) - p.pos.z) / 50, 0, 1) * outs;
+  if (near > .15 && WX.night < .6 && due('gull', 5, 13)) playSnd(Math.random() < .5 ? 'gull1' : 'gull2', .5 * near);
   const vi = kind ? ins : 0;
   if (!vi) return;
   switch (kind) {
@@ -6833,10 +6948,10 @@ function citySegment(a,b,pad=.65,cameraTest=false){
 }
 // Cuadrícula fija; los bots rodean las manzanas en vez de empujar sus fachadas.
 const CITY_NAV=(()=>{
-  const n=87,step=1.5,origin=-64.5,free=new Uint8Array(n*n);
+  const n=157,step=1.5,origin=-117,free=new Uint8Array(n*n);
   for(let z=0;z<n;z++)for(let x=0;x<n;x++){
     const wx=origin+x*step,wz=origin+z*step;
-    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
+    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
   }
   return {n,step,origin,free};
 })();
@@ -6845,7 +6960,7 @@ function rebuildCityNav(){
   const {n,step,origin,free}=CITY_NAV;
   for(let z=0;z<n;z++)for(let x=0;x<n;x++){
     const wx=origin+x*step,wz=origin+z*step;
-    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
+    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
   }
 }
 function cityRoute(from,to){
@@ -6863,17 +6978,20 @@ function cityRoute(from,to){
     return -1;
   };
   const start=nearest(from),end=nearest(to);if(start<0||end<0)return [];
-  const costs=new Float32Array(total).fill(Infinity),prev=new Int32Array(total).fill(-1),closed=new Uint8Array(total),open=[start];
-  costs[start]=0;const heuristic=i=>Math.hypot(i%n-end%n,Math.floor(i/n)-Math.floor(end/n));
-  while(open.length){
-    let at=0;for(let j=1;j<open.length;j++)if(costs[open[j]]+heuristic(open[j])<costs[open[at]]+heuristic(open[at]))at=j;
-    const id=open.splice(at,1)[0];if(id===end)break;if(closed[id])continue;closed[id]=1;
+  const costs=new Float32Array(total).fill(Infinity),prev=new Int32Array(total).fill(-1),closed=new Uint8Array(total);
+  costs[start]=0;const ex=end%n,ez=Math.floor(end/n),heuristic=i=>Math.hypot(i%n-ex,Math.floor(i/n)-ez);
+  // montículo binario por f = coste + heurística (la cuadrícula ahora es mucho más grande)
+  const heap=[[heuristic(start),start]];
+  const push=e=>{let i=heap.push(e)-1;while(i>0){const q=(i-1)>>1;if(heap[q][0]<=e[0])break;heap[i]=heap[q];i=q;}heap[i]=e;};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){let i=0;for(;;){let c=i*2+1;if(c>=heap.length)break;if(c+1<heap.length&&heap[c+1][0]<heap[c][0])c++;if(heap[c][0]>=last[0])break;heap[i]=heap[c];i=c;}heap[i]=last;}return top;};
+  while(heap.length){
+    const id=pop()[1];if(id===end)break;if(closed[id])continue;closed[id]=1;
     const x=id%n,z=Math.floor(id/n);
     for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){
       const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=n||zz>=n)continue;
       const next=zz*n+xx;if(!free[next]||closed[next]||(dx&&dz&&(!free[z*n+xx]||!free[zz*n+x])))continue;
       const cost=costs[id]+Math.hypot(dx,dz);if(cost>=costs[next])continue;
-      costs[next]=cost;prev[next]=id;open.push(next);
+      costs[next]=cost;prev[next]=id;push([cost+heuristic(next),next]);
     }
   }
   if(start!==end&&prev[end]<0)return [];
@@ -8767,6 +8885,7 @@ function loop(now) {
   updateCamera(rdt);
   updateCityWeather(G.paused && !G.mp ? 0 : rdt);
   updateAmbience(rdt);
+  updateBeach(rdt);
   // durante el hitstop de una coreografía, el que recibe vibra (congelado pero temblando, como en el anime)
   if (G.hitstop > 0 && G.chore && G.chore.tg.model) { const m = G.chore.tg.model.root; m.position.copy(G.chore.tg.pos); const pulse = Math.min(1, G.hitstop / .06); m.position.x += Math.sin(now * .14) * .035 * pulse; m.position.y += Math.sin(now * .18) * .018 * pulse; }
   updateHUD(rdt);
