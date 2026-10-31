@@ -350,6 +350,7 @@ tr.me td{color:var(--hot);font-weight:700}
       <div class="field"><label for="nbots">Rivales <output id="nbots-o">5</output></label><input id="nbots" type="range" min="1" max="9" value="5"></div>
       <div class="field"><label for="lvl">Nivel de los bots <output id="lvl-o">5 · Peleador</output></label><input id="lvl" type="range" min="1" max="10" step="1" value="5"></div>
       <label class="chk"><input id="auto" type="checkbox" checked><span>Auto-equilibrio<small>Si vas ganando muy fácil los bots suben de nivel; si perdés seguido, bajan (hasta 3 niveles).</small></span></label>
+      <div class="field"><label>Calidad gráfica (si va lento, bájala)</label><select class="gfxsel" aria-label="Calidad gráfica"><option value="auto">Auto (recomendado)</option><option value="0">Alta</option><option value="1">Media</option><option value="2">Baja</option><option value="3">Mínima</option></select></div>
       <div class="field"><label for="goalsel">Meta de K.O.</label><select id="goalsel"><option>5</option><option selected>10</option><option>20</option></select></div>
     </div>
     <div class="keys">
@@ -415,6 +416,7 @@ tr.me td{color:var(--hot);font-weight:700}
     <h2>PAUSA</h2>
     <div class="field"><label for="plvl">Nivel de los bots <output id="plvl-o">5</output></label><input id="plvl" type="range" min="1" max="10" step="1" value="5"></div>
     <label class="chk" style="align-self:flex-start"><input id="pauto" type="checkbox" checked><span>Auto-equilibrio</span></label>
+    <div class="field"><label>Calidad gráfica</label><select class="gfxsel" aria-label="Calidad gráfica"><option value="auto">Auto (recomendado)</option><option value="0">Alta</option><option value="1">Media</option><option value="2">Baja</option><option value="3">Mínima</option></select></div>
     <div class="btns"><button class="big" id="resume" type="button">Continuar</button><button class="big alt" id="tomenu" type="button">Menú</button></div>
   </div>
 </div>
@@ -6102,9 +6104,53 @@ try {
     }
   }
 } catch (e) { composer = null; }
+// ================= Calidad gráfica adaptable =================
+// 0 Alta (bloom, sombras 2048, contornos) · 1 Media (sin bloom, sombras 1024) · 2 Baja (sin sombras ni contornos) · 3 Mínima (resolución reducida)
+// En "Auto" baja un nivel cuando el juego va lento y se acuerda en ese navegador; así cada amigo juega al máximo que su equipo aguanta.
+const GFX = { level: 0, auto: true, post: true, names: ['Alta', 'Media', 'Baja', 'Mínima'], acc: 0, frames: 0, bad: 0, cool: 6, soft: false, fps: 60 };
+function gfxSet(level, auto, save = true) {
+  level = clamp(level | 0, 0, 3); GFX.level = level; GFX.auto = !!auto; GFX.post = level === 0;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, [1.5, 1.25, 1, .75][level]));
+  renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight); }
+  const shadows = level < 2, wasOn = renderer.shadowMap.enabled;
+  renderer.shadowMap.enabled = shadows; sun.castShadow = shadows;
+  renderer.shadowMap.type = level === 0 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  sun.shadow.mapSize.set(level === 0 ? 2048 : 1024, level === 0 ? 2048 : 1024);
+  if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  if (wasOn !== shadows) scene.traverse(o => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach(x => { x.needsUpdate = true; }); } });
+  OUTLINE_MAT.visible = level < 2;
+  if (save) { try { localStorage.setItem('bsb_gfx', JSON.stringify({ level, auto: !!auto })); } catch (e) { } }
+  document.querySelectorAll('.gfxsel').forEach(el => { el.value = auto ? 'auto' : String(level); });
+}
+function gfxInit() {
+  let sv = null; try { sv = JSON.parse(localStorage.getItem('bsb_gfx') || 'null'); } catch (e) { }
+  const q = /[?&]q=([0-3])/.exec(location.search);
+  try {   // sin aceleración por hardware (render por software): arranca en Mínima
+    const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'), name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+    GFX.soft = /swiftshader|llvmpipe|software|basic render|softpipe/i.test(name); GFX.gpu = name;
+  } catch (e) { }
+  if (q) gfxSet(+q[1], false, false);
+  else if (sv && typeof sv.level === 'number') gfxSet(sv.level, sv.auto !== false, false);
+  else gfxSet(GFX.soft ? 3 : 0, true, false);
+  document.querySelectorAll('.gfxsel').forEach(el => el.addEventListener('change', () => { if (el.value === 'auto') gfxSet(0, true); else gfxSet(+el.value, false); GFX.bad = 0; GFX.cool = 6; }));
+}
+// llamado cada cuadro con el tiempo real: si durante 3 s seguidos va por debajo de ~42 FPS, baja un nivel
+function gfxWatch(rawDt) {
+  if (document.hidden || rawDt > .5) { GFX.acc = 0; GFX.frames = 0; return; }   // pestaña oculta o parón largo (carga de shaders): no cuenta
+  GFX.acc += rawDt; GFX.frames++;
+  if (GFX.acc < 1) return;
+  GFX.fps = GFX.frames / GFX.acc; GFX.acc = 0; GFX.frames = 0;
+  if (GFX.cool > 0) { GFX.cool--; return; }
+  if (!GFX.auto || GFX.level >= 3) return;
+  GFX.bad = GFX.fps < 42 ? GFX.bad + 1 : 0;
+  if (GFX.bad >= 3) {
+    GFX.bad = 0; GFX.cool = 5; gfxSet(GFX.level + 1, true);
+    try { showBanner('CALIDAD ' + GFX.names[GFX.level].toUpperCase(), '#9ba1ba', 'El juego iba lento: bajé los efectos (se puede cambiar en Pausa)'); } catch (e) { }
+  }
+}
 const IMP_BLACK = new THREE.MeshBasicMaterial({ color: 0x050505 }), IMP_WHITE = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const C_WHITE = new THREE.Color(0xffffff), C_BLACK = new THREE.Color(0x050505);
-function renderView(sc, cm) { if (composer) { renderPass.scene = sc; renderPass.camera = cm; composer.render(); } else renderer.render(sc, cm); }
+function renderView(sc, cm) { if (composer && GFX.post) { renderPass.scene = sc; renderPass.camera = cm; composer.render(); } else renderer.render(sc, cm); }
 // paneles de cómic: tres cámaras a la vez (cara, cuerpo entero, detalle del arma/visor/mano)
 const PCAMS = [0, 1, 2].map(() => new THREE.PerspectiveCamera(35, 1, .05, 200));
 const PANEL_CUTS = [0, .36, .68, 1];
@@ -7198,7 +7244,7 @@ function netDebug(dt) {
   if (!G.netDbg) { if (el) el.style.display = 'none'; return; }
   if (!el) { el = document.createElement('pre'); el.id = 'netdbg'; el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:60;margin:0;padding:8px 10px;background:rgba(0,0,0,.72);color:#9dff9d;font:11px/1.35 ui-monospace,Consolas,monospace;border-radius:6px;pointer-events:none;max-width:60vw;white-space:pre'; document.body.appendChild(el); }
   el.style.display = 'block'; G.fpsEst = G.fpsEst ? G.fpsEst * .95 + (1 / Math.max(dt, .001)) * .05 : 60; _dbgT -= dt; if (_dbgT > 0) return; _dbgT = .5;
-  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(G.fpsEst || 0)}`];
+  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(GFX.fps)}  calidad: ${GFX.names[GFX.level]}${GFX.auto ? ' (auto)' : ''}${GFX.soft ? ' · SIN ACELERACIÓN GRÁFICA' : ''}`];
   for (const px of NET.proxies.values()) {
     const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
     L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  ${NET.named && NET.named.rtcOpen && NET.named.rtcOpen(px.peer) ? 'DIRECTO' : 'relay (' + (NET.named && NET.named.rtcInfo ? NET.named.rtcInfo(px.peer) : '?') + ')'}  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
@@ -7431,7 +7477,7 @@ function step(dt) {
 let last = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
-  const rdt = Math.min(.05, (now - last) / 1000); last = now;
+  const rawDt = (now - last) / 1000, rdt = Math.min(.05, rawDt); last = now; gfxWatch(rawDt);
   updateFaceAnims(now / 1000);
   for (const c of CLOUDS) { c.position.x += rdt * 1.5; if (c.position.x > 160) c.position.x = -160; }
   IMPACT.cd -= rdt; if (IMPACT.t > 0) IMPACT.t -= rdt;
@@ -7459,6 +7505,7 @@ function loop(now) {
   renderMain();
 }
 initWeatherControls();
+gfxInit();
 requestAnimationFrame(loop);
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás
 setInterval(() => { if (G.mp && G.state === 'play' && performance.now() - last > 250) { last = performance.now(); netTick(.1); } }, 200);
