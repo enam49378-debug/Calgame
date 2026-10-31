@@ -1,6 +1,6 @@
 """Genera los edificios exteriores de la ciudad como proyectos de Blockbench (.bbmodel).
 1 bloque de Minecraft (16 px en Blockbench) = 1 metro del juego. El frente del edificio mira a +Z (sur).
-Uso:  python tools/gen_edificios.py   ->  escribe ciudad/*.bbmodel, ciudad/atlas.png y ciudad/edificios.json
+Biblioteca de piezas y exteriores. Se ejecuta con:  python tools/gen_ciudad.py
 """
 import base64, io, json, math, random, uuid
 from pathlib import Path
@@ -8,7 +8,8 @@ from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parents[1] / 'ciudad'
 OUT.mkdir(exist_ok=True)
-TS, COLS = 32, 8          # tile 32x32 px, atlas de 8 columnas (256 px)
+TS, COLS = 32, 8          # tile 32x32 px, atlas de 8 columnas (256 px de ancho; las filas crecen según los tiles)
+AW, AH = TS * COLS, TS * COLS
 PPM = 8                   # px de textura por metro
 
 
@@ -137,11 +138,17 @@ stripes('awn_gold', '#d9ad4a', '#f2ecdc')
 grille('vent', '#8a979c', '#4b5a64')
 planks('planks', '#9a6a40')
 checker('checker', '#f1ece0', '#3b4452')
-assert len(TILES) <= COLS * COLS
+
+
+def pad_to(n):
+    while len(PAINT) < n:
+        add_tile('_vacio%d' % len(PAINT), lambda d, im, rng: None)
 
 
 def atlas():
-    im = Image.new('RGBA', (TS * COLS, TS * COLS), (0, 0, 0, 0))
+    global AW, AH
+    AW, AH = TS * COLS, TS * math.ceil(len(PAINT) / COLS)
+    im = Image.new('RGBA', (AW, AH), (0, 0, 0, 0))
     for i, (name, fn) in enumerate(PAINT):
         t = Image.new('RGB', (TS, TS))
         fn(ImageDraw.Draw(t), t, random.Random(i * 7919 + 3))
@@ -167,10 +174,10 @@ class Model:
         if w <= 0 or h <= 0 or d <= 0:
             return
         self.n += 1
-        el = {'name': label or f'cubo_{self.n}', 'box_uv': False, 'rescale': False, 'locked': False, 'render_order': 'default', 'allow_mirror_modeling': True,
+        el = {'name': label or f'cubo_{self.n}', 'box_uv': False,
               'from': [round((x - w / 2) * 16, 3), round(y * 16, 3), round((z - d / 2) * 16, 3)],
               'to': [round((x + w / 2) * 16, 3), round((y + h) * 16, 3), round((z + d / 2) * 16, 3)],
-              'autouv': 0, 'color': 0, 'inflate': 0, 'origin': [round(x * 16, 3), round((y + h / 2) * 16, 3), round(z * 16, 3)], 'type': 'cube',
+              'autouv': 0, 'color': 0, 'origin': [round(x * 16, 3), round((y + h / 2) * 16, 3), round(z * 16, 3)], 'type': 'cube',
               'uuid': str(uuid.uuid4())}
         if rot:
             el['rotation'] = list(rot)
@@ -184,6 +191,13 @@ class Model:
         el['faces'] = fc
         self.cur.append(el)
 
+    def col(self, x, z, w, d, h, y0=0.0):
+        """Colisión (invisible en el juego): cubo del grupo 'colision'."""
+        keep = self.cur
+        self.cur = self.groups.setdefault('colision', [])
+        self.cube(x, y0, z, w, h, d, 'shadow', label='col')
+        self.cur = keep
+
     def save(self, tex):
         elements, outliner = [], []
         for gname, els in self.groups.items():
@@ -192,11 +206,11 @@ class Model:
             elements += els
         data = {'meta': {'format_version': '4.10', 'model_format': 'free', 'box_uv': False}, 'name': self.name, 'model_identifier': self.name,
                 'visible_box': [4, 4, 0], 'variable_placeholders': '', 'variable_placeholder_buttons': [], 'timeline_setups': [], 'unhandled_root_fields': {},
-                'resolution': {'width': TS * COLS, 'height': TS * COLS}, 'elements': elements, 'outliner': outliner,
+                'resolution': {'width': AW, 'height': AH}, 'elements': elements, 'outliner': outliner,
                 'textures': [{'path': '', 'name': 'atlas.png', 'folder': '', 'namespace': '', 'id': '0', 'particle': False, 'render_mode': 'default',
                               'render_sides': 'auto', 'frame_time': 1, 'frame_order_type': 'loop', 'frame_order': '', 'frame_interpolate': False,
                               'visible': True, 'internal': True, 'saved': False, 'uuid': str(uuid.uuid4()), 'source': tex,
-                              'width': TS * COLS, 'height': TS * COLS, 'uv_width': TS * COLS, 'uv_height': TS * COLS}],
+                              'width': AW, 'height': AH, 'uv_width': AW, 'uv_height': AH}],
                 'animations': []}
         (OUT / (self.name + '.bbmodel')).write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
         return len(elements)
@@ -732,18 +746,6 @@ BUILDINGS = [
     ('museo',                    'I_museo',       'pl_cream',  'trim_white', 'glass',      None),
 ]
 
-if __name__ == '__main__':
-    tex = atlas()
-    info = {}
-    for i, (name, des, wall, trim, gl, acc) in enumerate(BUILDINGS):
-        m = Model(name)
-        DES[des](m, random.Random(i + 11), wall, trim, gl, acc)
-        n = m.save(tex)
-        info[name] = {'w': m.W, 'd': m.D, 'h': round(m.H, 2), 'cubos': n}
-        print(f'{name:28s} {m.W:>5.1f} x {m.D:>5.1f} x {m.H:>5.1f}   {n} cubos')
-    (OUT / 'edificios.json').write_text(json.dumps(info, indent=1, ensure_ascii=False), encoding='utf-8')
-
-
 def export_js():
     """Copia de cada .bbmodel como .js (sin textura) + atlas.js: el juego las usa cuando se abre index.html sin servidor (file://), donde fetch no funciona."""
     for f in OUT.glob('*.bbmodel'):
@@ -754,6 +756,3 @@ def export_js():
     (OUT / 'atlas.js').write_text("window.BB_ATLAS=%s;" % json.dumps(atlas_src), encoding='utf-8')
     print('js exportados')
 
-
-if __name__ == '__main__':
-    export_js()

@@ -573,12 +573,15 @@ const CITY_PLAN = [
   [0,-54,16,14,46,'#a6b8c4','TORRE AURORA','#2a3b4a',{kind:'lobby',base:6.5,door:3.2}],
 ].map(([x,z,w,d,h,color,label,accent,acc]) => ({x,z,w,d,h,color,label,accent,acc,accessible:!!acc}));
 // Edificios sin interior: modelos de Blockbench (carpeta ciudad/). Tamaño tomado de cada modelo.
-const CITY_MODEL_DIMS = {"apartamentos_ladrillo": [9.0, 9.0, 12.1], "apartamentos_menta": [9.0, 9.0, 12.1], "apartamentos_cielo": [9.0, 9.0, 12.1], "oficinas_gris": [10.0, 9.0, 15.0], "oficinas_azules": [10.0, 9.0, 15.0], "casa_tienda_durazno": [8.0, 7.0, 6.3], "casa_tienda_rosa": [8.0, 7.0, 6.3], "tienda_amarilla": [8.0, 6.0, 6.3], "tienda_lila": [8.0, 6.0, 6.3], "torre_residencial_salvia": [9.0, 9.0, 17.4], "torre_residencial_naranja": [9.0, 9.0, 17.4], "artdeco_crema": [9.0, 8.0, 22.7], "hotel_rosa": [8.0, 9.0, 12.3], "gimnasio": [12.0, 18.0, 7.5], "museo": [10.0, 16.0, 6.0]};
+const CITY_MODEL_DIMS = {"apartamentos_ladrillo": [9.0, 9.0, 12.1], "apartamentos_menta": [9.0, 9.0, 12.1], "apartamentos_cielo": [9.0, 9.0, 12.1], "oficinas_gris": [10.0, 9.0, 15.0], "oficinas_azules": [10.0, 9.0, 15.0], "casa_tienda_durazno": [8.0, 7.0, 6.3], "casa_tienda_rosa": [8.0, 7.0, 6.3], "tienda_amarilla": [8.0, 6.0, 6.3], "tienda_lila": [8.0, 6.0, 6.3], "torre_residencial_salvia": [9.0, 9.0, 17.4], "torre_residencial_naranja": [9.0, 9.0, 17.4], "artdeco_crema": [9.0, 8.0, 22.7], "hotel_rosa": [8.0, 9.0, 12.3], "gimnasio": [12.0, 18.0, 7.5], "museo": [10.0, 16.0, 6.0], "cafe": [13, 13, 8.0], "arcade": [13, 13, 7.2], "mercado": [13, 13, 7.2], "biblioteca": [16, 14, 8.4], "ramen": [16, 14, 7.5], "taller": [14, 14, 7.0], "centro_comercial": [28, 13, 9.5], "torre_aurora": [22, 14, 46.0]};
 {const A = {"3": "tienda_amarilla", "6": "casa_tienda_durazno", "7": "tienda_lila", "8": "tienda_lila", "10": "tienda_amarilla", "11": "casa_tienda_durazno", "12": "apartamentos_menta", "13": "hotel_rosa", "14": "oficinas_gris", "15": "casa_tienda_rosa", "16": "apartamentos_ladrillo", "17": "torre_residencial_salvia", "18": "hotel_rosa", "19": "casa_tienda_durazno", "20": "oficinas_gris", "21": "apartamentos_cielo", "22": "artdeco_crema", "23": "apartamentos_menta", "24": "gimnasio", "25": "museo", "26": "casa_tienda_rosa", "27": "apartamentos_cielo", "28": "tienda_lila", "29": "casa_tienda_durazno", "30": "oficinas_azules", "31": "tienda_amarilla", "32": "hotel_rosa", "33": "torre_residencial_naranja"}, M = {"20": [54, -16], "21": [54, 16], "22": [-54, -16], "23": [-54, 16]};
   for (const i in A) { const b = CITY_PLAN[i], dm = CITY_MODEL_DIMS[A[i]]; b.model = A[i]; b.w = dm[0]; b.d = dm[1]; b.h = dm[2]; if (M[i]) { b.x = M[i][0]; b.z = M[i][1]; } } }
+{const I = {"0": {"m": "cafe", "x": -12, "z": -12, "k": "cafe", "base": 4.5, "door": 3.2}, "1": {"m": "arcade", "x": 12, "z": -12, "k": "arcade", "base": 4.5, "door": 3.2}, "2": {"m": "mercado", "x": -12, "z": 12, "k": "market", "base": 4.5, "door": 3.2}, "4": {"m": "biblioteca", "x": -33, "z": -12, "k": "library", "base": 5.1, "door": 3.2}, "5": {"m": "ramen", "x": 33, "z": 12, "k": "ramen", "base": 4.5, "door": 3.2}, "9": {"m": "taller", "x": 12, "z": 33, "k": "workshop", "base": 4.7, "door": 3.2}, "34": {"m": "centro_comercial", "x": 0, "z": 53.5, "k": "mall", "base": 5.7, "door": 3.2}, "35": {"m": "torre_aurora", "x": 0, "z": -54, "k": "lobby", "base": 6.2, "door": 3.2}}, M2 = {"16": [-19, -53], "17": [19, -53], "18": [-21, 52], "19": [21, 52]};
+  for (const i in I) { const b = CITY_PLAN[i], q = I[i], dm = CITY_MODEL_DIMS[q.m]; b.model = q.m; b.x = q.x; b.z = q.z; b.w = dm[0]; b.d = dm[1]; b.h = dm[2]; b.acc = { kind: q.k, base: q.base, door: q.door }; b.accessible = true; }
+  for (const i in M2) { CITY_PLAN[i].x = M2[i][0]; CITY_PLAN[i].z = M2[i][1]; } }
 const SPAWN_POINTS = [
   [0,-33], [33,0], [0,33], [-33,0], [-22,-29], [22,29], [-29,22], [29,-22],
-  [-10,18], [10,-18], [-18,-10], [18,10], [0,-9], [9,0], [0,9], [-9,0],
+  [-22,10], [22,-10], [-22,-3], [22,3], [0,-9], [9,0], [0,9], [-9,0],
   [0,-44], [0,44], [44,0], [-44,0], [20,-44], [-20,-44], [20,44], [-20,44], [44,20], [44,-20], [-44,20], [-44,-20], [34,-44], [-34,44], [44,34], [-44,-34]
 ].map(([x,z],i) => ({ id: i + 1, x, z, yaw: Math.atan2(-x,-z) }));
 function cityGrassAt(x,z) {
@@ -773,6 +776,20 @@ function cityGrassAt(x,z) {
   function building(x,z,w,d,h,color,label,accent,acc){
     const face = z < 0 ? 1 : -1, front=z+face*d/2;
     const bm=CITY_PLAN.find(q=>q.x===x&&q.z===z&&q.model);
+    if(bm&&acc){
+      const wall=.4,DHm=3.0,door=acc.door||3.2,base=acc.base;
+      CITY.buildings.push({x,z,w,d,h,label,accessible:true,base,model:bm.model});
+      for(const side of [-1,1]){
+        solid(x+side*(w/2-wall/2),z,wall,d,base);
+        for(const end of [-1,1]){const span=(w-door)/2,cx=x+side*(door/2+span/2),cz=z+end*(d/2-wall/2);solid(cx,cz,span,wall,base);}
+      }
+      for(const end of [-1,1])solid(x,z+end*(d/2-wall/2),door,wall,base,DHm,true);
+      solid(x,z,w,d,h+.22,base,true);
+      CITY.interiors.push({x,z,w,d,h:base,label});
+      if(label)sign(label,x,3.775,front+face*.3,4.4,face>0?0:Math.PI,accent);
+      sign('ABIERTO · REFUGIO',x+door/2+1.05,2.6,front+face*.36,1.5,face>0?0:Math.PI,'#277d79');
+      return;
+    }
     if(bm&&!acc){
       CITY.buildings.push({x,z,w,d,h,label,accessible:false,base:3.15,model:bm.model});solid(x,z,w,d,h+.22);
       const SG={tienda:[3.65,.22,2.0],gimnasio:[4.35,.2,4.4],museo:[4.17,.16,2.2]},sg=bm.model==='gimnasio'?SG.gimnasio:bm.model==='museo'?SG.museo:SG.tienda;
@@ -874,14 +891,15 @@ function cityGrassAt(x,z) {
         idx.push(base,base+1,base+2,base,base+2,base+3);
       }
     };
-    const walk=(nodes,mat)=>{for(const n of nodes){
-      if(typeof n==='string'){const e=els.get(n);if(e)emit(e,mat);}
-      else walk(n.children||[],mat.clone().multiply(xf(n)));
+    const cols=[],isCol=n=>/^colisi/i.test(n.name||'');
+    const walk=(nodes,mat,col)=>{for(const n of nodes){
+      if(typeof n==='string'){const e=els.get(n);if(!e)continue;if(col){if(e.from&&e.to)cols.push([e.from[0]/16,e.from[1]/16,e.from[2]/16,e.to[0]/16,e.to[1]/16,e.to[2]/16]);}else emit(e,mat);}
+      else walk(n.children||[],mat.clone().multiply(xf(n)),col||isCol(n));
     }};
-    walk(data.outliner||[],new THREE.Matrix4());
+    walk(data.outliner||[],new THREE.Matrix4(),false);
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
-    g.setIndex(idx);g.computeVertexNormals();return g;
+    g.setIndex(idx);g.computeVertexNormals();g.userData.cols=cols;return g;
   }
   const bbCache=new Map();
   function loadBBModel(name){
@@ -892,7 +910,11 @@ function cityGrassAt(x,z) {
       const img=new Image();
       img.onload=()=>{
         const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;
-        const mat=cityAnimeMaterial(new THREE.MeshLambertMaterial({map}));
+        // Los tiles del atlas desde y=640 px son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
+        const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
+        if(img.height>640)cx.drawImage(img,0,640,img.width,img.height-640,0,640,img.width,img.height-640);
+        const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
+        const mat=cityAnimeMaterial(new THREE.MeshLambertMaterial({map,emissive:0xffffff,emissiveMap:em}));
         ok({geo:bbGeometry(data),mat});
       };
       img.onerror=fail;img.src=data.textures[0].source;
@@ -900,31 +922,30 @@ function cityGrassAt(x,z) {
     return bbCache.get(name);
   }
   // Los modelos entran al cargarse; si faltan (por ejemplo al abrir el archivo sin servidor) queda una caja de color.
+  const bbLoads=[];
   for(const b of CITY_PLAN)if(b.model){
     const face=b.z<0?1:-1;
-    loadBBModel(b.model).then(({geo,mat})=>{
+    bbLoads.push(loadBBModel(b.model).then(({geo,mat})=>{
       const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+      for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2;COL.push({x:b.x+face*lx,z:b.z+face*lz,hx:(x1-x0)/2,hz:(z1-z0)/2,h:y1,y0:y0<.05?0:y0,ceiling:false});}
     }).catch(()=>{
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),new THREE.MeshLambertMaterial({color:b.color}));mesh.position.set(b.x,b.h/2,b.z);scene.add(mesh);
-    });
+    }));
   }
+  Promise.all(bbLoads).then(()=>{if(typeof rebuildCityNav==='function')rebuildCityNav();});
   // Torre Aurora: el edificio más alto, con ascensor en el vestíbulo que lleva a la azotea y un pararrayos
   {
     const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA'),face=T.z<0?1:-1,rx=T.x,rz=T.z;
-    for(let yy=7;yy<T.h-1;yy+=6)box(T.x,yy,T.z,T.w+.25,.4,T.d+.25,'#dfe4e8');               // cornisas cada pocos pisos
-    for(const sx of [-1,1])for(const sz of [-1,1])box(T.x+sx*(T.w/2),T.h/2,T.z+sz*(T.d/2),.7,T.h,.7,'#c9a24a');   // columnas doradas en las esquinas
-    box(T.x,T.h+.9,T.z,T.w*.5,1.6,T.d*.5,'#9aa6ad');box(T.x,T.h+2.2,T.z,T.w*.3,1.2,T.d*.3,'#6f7d86');          // cuarto de máquinas
-    box(T.x+T.w*.25,T.h+7,T.z-T.d*.2,.18,12,.18,'#c8ccd0');box(T.x+T.w*.25,T.h+13.2,T.z-T.d*.2,.5,.5,.5,'#ff3b3b');   // pararrayos con baliza
     ELEVATORS.push({x:rx,z:rz-face*(T.d/2-1.35),roofY:T.h+.25,arrUp:{x:rx,z:rz},downX:rx,downZ:rz+face*(T.d/2-2.6),arrDown:{x:rx,z:rz-face*(T.d/2-1.35)+face*2.6}});
     flat(rx,rz-face*(T.d/2-1.35),2.2,2.2,'#7ad7ff',.058);flat(rx,rz-face*(T.d/2-1.35),1.6,1.6,'#e9fbff',.07);        // plataforma del ascensor (planta baja)
     box(rx,T.h+.38,rz+face*(T.d/2-2.6),2.2,.14,2.2,'#7ad7ff');box(rx,T.h+.47,rz+face*(T.d/2-2.6),1.6,.06,1.6,'#e9fbff');// plataforma de bajada (azotea)
     sign('▼ BAJAR',rx,T.h+2.2,rz+face*(T.d/2-2.6)+face*1.6,2.4,face>0?0:Math.PI,'#1b2330');
   }
   // Reloj de la estación, una referencia visible para orientarse.
-  box(-13,10.1,-29,2.2,2.4,2.2,'#deca8b');solid(-13,-29,2.2,2.2,11.3);
-  box(-13,11.4,-29,2.65,.3,2.65,'#577d7d');
+  box(-13,7.5,-29,2.2,2.4,2.2,'#deca8b');solid(-13,-29,2.2,2.2,8.7);
+  box(-13,8.8,-29,2.65,.3,2.65,'#577d7d');
   const dial=pixTex(64,64,g=>{g.fillStyle='#eee9d8';g.fillRect(0,0,64,64);g.strokeStyle='#344e60';g.lineWidth=4;g.strokeRect(2,2,60,60);g.translate(32,32);for(let i=0;i<12;i++){g.rotate(TAU/12);g.fillStyle='#344e60';g.fillRect(-1,-26,2,5);}g.fillRect(-2,-19,4,21);g.fillRect(0,-2,16,4);});
-  const clock=new THREE.Mesh(new THREE.PlaneGeometry(1.7,1.7),new THREE.MeshLambertMaterial({map:dial}));clock.position.set(-13,10.1,-27.88);scene.add(clock);
+  const clock=new THREE.Mesh(new THREE.PlaneGeometry(1.7,1.7),new THREE.MeshLambertMaterial({map:dial}));clock.position.set(-13,7.5,-27.88);scene.add(clock);
   function tree(x,z){
     box(x,1.15,z,.5,2.3,.5,'#81654a','log');solid(x,z,.5,.5,2.4);
     box(x,3,z,2.7,1.7,2.7,'#5a9766','leaves');box(x+.22,4,z-.14,2,1.1,2,'#69a66d','leaves');
@@ -940,7 +961,7 @@ function cityGrassAt(x,z) {
   // Pequeña fuente en una esquina de la plaza, dejando el centro libre.
   box(-6,.22,-6,2.8,.44,2.8,'#859eaa');box(-6,.46,-6,2.45,.1,2.45,'#64c3d5');
   box(-6,.8,-6,.6,1,.6,'#b4c8c9');box(-6,1.25,-6,1.25,.18,1.25,'#86bfc9');solid(-6,-6,2.8,2.8,1.34);
-  for(const [x,z] of [[-8,6],[8,-6],[-19,-7],[19,7],[-7,19],[7,-19]])planter(x,z,1.6,1.6);
+  for(const [x,z] of [[-3.2,-2],[3.2,2],[19.8,7]])planter(x,z,1.6,1.6);
   function bench(x,z,turn=false){
     const w=turn?.65:2.4,d=turn?2.4:.65;
     box(x,.52,z,w,.14,d,'#967852','plank');box(x,.25,z,w*.8,.5,d*.65,'#52616b');
@@ -6685,6 +6706,14 @@ const CITY_NAV=(()=>{
   }
   return {n,step,origin,free};
 })();
+// Los muebles de los interiores llegan con los modelos (después de crear la cuadrícula): se vuelve a calcular qué celdas están libres.
+function rebuildCityNav(){
+  const {n,step,origin,free}=CITY_NAV;
+  for(let z=0;z<n;z++)for(let x=0;x<n;x++){
+    const wx=origin+x*step,wz=origin+z*step;
+    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
+  }
+}
 function cityRoute(from,to){
   const {n,step,origin,free}=CITY_NAV,total=n*n;
   const nearest=p=>{
