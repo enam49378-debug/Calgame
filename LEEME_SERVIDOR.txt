@@ -1,0 +1,37 @@
+SERVIDOR LOCAL DE BLOCKSTRIKE
+=============================
+
+Qué hace
+  Sirve el juego y reenvía la partida entre los jugadores desde TU PC. No usa el relay público de internet,
+  así que la latencia en tu red es de menos de 1 ms.
+
+Cómo se usa
+  1. Haz doble clic en  Iniciar_Servidor.bat  (necesita Node.js: https://nodejs.org).
+  2. Se abre una ventana negra que muestra los links, por ejemplo:
+        En esta PC:        http://localhost:8080/
+        Tus amigos (wifi): http://192.168.2.106:8080/
+     Déjala abierta mientras juegan. Ctrl+C la cierra.
+  3. TÚ abre  http://localhost:8080/  (o el link de la red).
+  4. Tus amigos abren el link "Tus amigos" desde su navegador. Deben estar en el MISMO wifi / red que tu PC.
+  5. Todos eligen el mismo código de sala, tocan Entrar y luego PELEAR.
+     Dentro del juego, en la pestaña de amigos, aparece un link de invitación que ya usa tu IP de red.
+  6. F3 dentro de la partida muestra ping, paquetes por segundo y retraso de cada jugador.
+
+Si no pueden entrar
+  - Windows pregunta si permites Node.js en la red: di que SÍ (red privada). Si lo cerraste, abre
+    "Firewall de Windows > Permitir una aplicación" y marca Node.js, o ejecuta (como administrador):
+        netsh advfirewall firewall add rule name="Blockstrike" dir=in action=allow protocol=TCP localport=8080
+  - El puerto 8080 ocupado: abre una consola en esta carpeta y ejecuta:   set PORT=8090 && node server\server.js
+  - Hay que abrir el juego con el link http:// del servidor. Si abres la versión de GitHub o el archivo
+    index.html directamente, el juego usa el relay público como antes.
+
+Jugar por internet (amigos fuera de tu casa)
+  - Opción fácil, sin tocar el router: un túnel. Por ejemplo con Cloudflare (gratis, sin cuenta):
+        cloudflared tunnel --url http://localhost:8080
+    Te da un link https://algo.trycloudflare.com : tus amigos lo abren y juegan igual.
+  - Opción router: reenvía el puerto TCP 8080 a la IP de tu PC y pásales  http://TU_IP_PUBLICA:8080/
+    (puede fallar si tu proveedor usa CGNAT).
+
+Notas
+  - El servidor no guarda nada: solo reenvía lo que mandan los jugadores. Al cerrarlo se acaba la sala.
+  - El juego decide los golpes en cada navegador (igual que antes); el servidor solo hace de repetidor.

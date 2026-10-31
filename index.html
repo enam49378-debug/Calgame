@@ -6649,6 +6649,14 @@ function netAct(a) { a.s = ++NET.actSeq; NET.act = a; }
 async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
+  // si el juego se abrió desde el servidor local (server/server.js) se juega por él: más rápido y sin depender de internet
+  if (!window.claude && /^https?:$/.test(location.protocol)) {
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1200), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
+      const j = r.ok ? await r.json() : null;
+      if (j && j.ok) { NET.local = true; NET.room = 'relay'; NET.lanBase = j.ips && j.ips.length ? 'http://' + j.ips[0] + ':' + j.port : ''; }
+    } catch (e) { }
+  }
   if (!NET.room && !window.claude && window.mqtt) NET.room = 'relay';
   NET.ready = true; renderNetStatus();
   if (G.mode === 'mp' && NET.room && !NET.named && /^#sala-/.test(location.hash)) joinRoom();
@@ -6736,6 +6744,68 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
       pub('pg/' + myId, String(now));
       for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) forget(id);
     }, 2000);
+  });
+}
+// Sala por el servidor local: WebSocket a /ws del mismo servidor que sirve el juego. Misma forma que relayRoom().
+function localRoom(code, onStatus = () => { }) {
+  return new Promise((resolve, reject) => {
+    const myId = 'u' + Math.random().toString(36).slice(2, 10), STALE = 8000;
+    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, ws: null, local: true };
+    let settled = false, opened = false;
+    const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
+    const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
+    const send = o => { try { if (R.ws && R.ws.readyState === 1) R.ws.send(JSON.stringify(o)); } catch (e) { } };
+    R.peers = () => {
+      const now = Date.now(), a = [{ peer: myId, sameTab: true, isMe: true, presence: R.my }];
+      for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
+      return a;
+    };
+    R.onPeers = fn => { R.cbs.push(fn); return () => { R.cbs = R.cbs.filter(x => x !== fn); }; };
+    let lastKey = '';
+    R.presence = patch => {
+      for (const k in patch) { if (patch[k] === null) delete R.my[k]; else R.my[k] = patch[k]; }
+      send({ t: 'p', d: R.my }); R.lastSend = Date.now();
+      const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
+      return Promise.resolve();
+    };
+    R.setSkin = d => { R.mySkin = d; send({ t: 'sk', d: d || '' }); };
+    R.pubAs = (id, obj) => send({ t: 'pa', id, d: obj });
+    R.dropAs = id => send({ t: 'xa', id });
+    const forget = id => { if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
+    R.leave = () => { R.closed = true; clearInterval(R.timer); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    function connect() {
+      const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}`);
+      const failTo = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { } } }, 5000);
+      ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.mySkin) R.setSkin(R.mySkin); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
+      ws.onerror = () => { };
+      ws.onclose = () => {
+        clearTimeout(failTo);
+        if (R.closed) return;
+        if (!opened) { done(false, { code: 'server' }); return; }
+        setTimeout(() => { if (!R.closed) connect(); }, 1000);   // se cortó: reconecta solo
+      };
+      ws.onmessage = ev => {
+        let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (!m || typeof m !== 'object') return;
+        const id = m.id;
+        if (m.t === 'p' && id && m.d && typeof m.d === 'object') {
+          const prev = R.states.get(id); R.states.set(id, m.d); R.seen.set(id, Date.now());
+          if (!prev || prev.st !== m.d.st || prev.nm !== m.d.nm || prev.ch !== m.d.ch) notify();
+        } else if (m.t === 'x' && id) { forget(id); R.skins.delete(id); }
+        else if (m.t === 'sk' && id) { const d = m.d && m.d.length < 24000 ? m.d : null; R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d); }
+        else if (m.t === 'po') R.ping = Math.max(0, Date.now() - (+m.ts || 0));
+      };
+    }
+    onStatus('Conectando al servidor de tu PC…');
+    connect();
+    R.timer = setInterval(() => {
+      if (R.closed) return;
+      const now = Date.now();
+      if (now - R.lastSend > 1500 && Object.keys(R.my).length) R.presence({});
+      send({ t: 'pi', ts: now });
+      for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) forget(id);
+    }, 1000);
   });
 }
 // (sin uso) sala P2P directa entre navegadores
@@ -6846,7 +6916,7 @@ function netShareSkin() {
   try { if (G.customSkin) d = G.customSkin.toDataURL('image/png'); } catch (e) { }
   NET.named.setSkin(d);
 }
-function inviteLink() { return location.origin + location.pathname + '#sala-' + cleanCode($('roomcode').value); }
+function inviteLink() { const base = NET.local && NET.lanBase && /^(localhost|127\.|\[::1\])/.test(location.hostname) ? NET.lanBase : location.origin; return base + location.pathname + '#sala-' + cleanCode($('roomcode').value); }
 function cleanCode(s) { s = String(s || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 40); return s || 'amigos'; }
 // una sola conexión a la vez: tocar Entrar o PELEAR mientras conecta espera a la misma
 let joinP = null, joinCode = '';
@@ -6869,7 +6939,7 @@ async function doJoin(code) {
   try {
     if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
     st('Conectando al servidor…');
-    const room = NET.room === 'relay' ? await relayRoom(code.slice(3), st) : await NET.room.join(code);
+    const room = NET.room === 'relay' ? (NET.local ? await localRoom(code.slice(3), st) : await relayRoom(code.slice(3), st)) : await NET.room.join(code);
     if (joinCode !== code) { try { room.leave(); } catch (e) { } return false; }
     NET.named = room; NET.code = code; NET.joinT = Date.now();
     NET.named.onPeers(() => renderLobby(), () => { NET.named = null; renderNetStatus(); });
@@ -6972,7 +7042,7 @@ function netInterp(px, pr, nowMs) {
     }
   }
   const n = B.length; if (!n) return { x: +pr.x || 0, y: +pr.y || 0, z: +pr.z || 0, yw: +pr.yw || 0, ry: +pr.ry || 0, j: null };
-  const delay = clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, 90, 300), rt = nowMs - px.netOff - delay;
+  const delay = clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300), rt = nowMs - px.netOff - delay;
   let a = B[0], b = null;
   for (let i = 0; i < n; i++) { if (B[i].ts <= rt) a = B[i]; else { b = B[i]; break; } }
   if (!b) {   // se quedó sin paquetes nuevos: sigue un instante con la última velocidad y se queda quieto
@@ -7026,10 +7096,10 @@ function netDebug(dt) {
   if (!G.netDbg) { if (el) el.style.display = 'none'; return; }
   if (!el) { el = document.createElement('pre'); el.id = 'netdbg'; el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:60;margin:0;padding:8px 10px;background:rgba(0,0,0,.72);color:#9dff9d;font:11px/1.35 ui-monospace,Consolas,monospace;border-radius:6px;pointer-events:none;max-width:60vw;white-space:pre'; document.body.appendChild(el); }
   el.style.display = 'block'; G.fpsEst = G.fpsEst ? G.fpsEst * .95 + (1 / Math.max(dt, .001)) * .05 : 60; _dbgT -= dt; if (_dbgT > 0) return; _dbgT = .5;
-  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(G.fpsEst || 0)}`];
+  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(G.fpsEst || 0)}`];
   for (const px of NET.proxies.values()) {
     const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
-    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, 90, 300))} ms`);
+    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
   }
   if (L.length === 1) L.push('(sin otros jugadores)');
   el.textContent = L.join('\n');
