@@ -1,0 +1,92 @@
+{
+ "apartamentos_ladrillo": {
+  "w": 9.0,
+  "d": 9.0,
+  "h": 12.1,
+  "cubos": 1006
+ },
+ "apartamentos_menta": {
+  "w": 9.0,
+  "d": 9.0,
+  "h": 12.1,
+  "cubos": 1015
+ },
+ "apartamentos_cielo": {
+  "w": 9.0,
+  "d": 9.0,
+  "h": 12.1,
+  "cubos": 993
+ },
+ "oficinas_gris": {
+  "w": 10.0,
+  "d": 9.0,
+  "h": 15.0,
+  "cubos": 775
+ },
+ "oficinas_azules": {
+  "w": 10.0,
+  "d": 9.0,
+  "h": 15.0,
+  "cubos": 775
+ },
+ "casa_tienda_durazno": {
+  "w": 8.0,
+  "d": 7.0,
+  "h": 6.3,
+  "cubos": 385
+ },
+ "casa_tienda_rosa": {
+  "w": 8.0,
+  "d": 7.0,
+  "h": 6.3,
+  "cubos": 355
+ },
+ "tienda_amarilla": {
+  "w": 8.0,
+  "d": 6.0,
+  "h": 6.3,
+  "cubos": 307
+ },
+ "tienda_lila": {
+  "w": 8.0,
+  "d": 6.0,
+  "h": 6.3,
+  "cubos": 311
+ },
+ "torre_residencial_salvia": {
+  "w": 9.0,
+  "d": 9.0,
+  "h": 17.4,
+  "cubos": 1489
+ },
+ "torre_residencial_naranja": {
+  "w": 9.0,
+  "d": 9.0,
+  "h": 17.4,
+  "cubos": 1475
+ },
+ "artdeco_crema": {
+  "w": 9.0,
+  "d": 8.0,
+  "h": 22.7,
+  "cubos": 780
+ },
+ "hotel_rosa": {
+  "w": 8.0,
+  "d": 9.0,
+  "h": 12.3,
+  "cubos": 1069
+ },
+ "gimnasio": {
+  "w": 12.0,
+  "d": 18.0,
+  "h": 7.5,
+  "cubos": 448
+ },
+ "museo": {
+  "w": 10.0,
+  "d": 16.0,
+  "h": 6.0,
+  "cubos": 478
+ }
+}
