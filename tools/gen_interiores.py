@@ -5,7 +5,8 @@ Las colisiones de los muebles van en el grupo `colision` del propio modelo (se p
 import math, random
 from PIL import ImageDraw
 import gen_edificios as G
-from gen_edificios import Model, add_tile, solid, hexrgb, shade, TS, split, place, facade, core, roof, band, corners, base_plinth
+from texturas_nativas import native_tiles, NAT
+from gen_edificios import Model, add_tile, solid, hexrgb, shade, TS, B, split, place, facade, core, roof, band, corners, base_plinth
 
 T = .4          # grosor de los muros
 DH = 3.0        # alto de la puerta
@@ -14,7 +15,8 @@ DW = 3.2        # ancho de la puerta
 
 # ------------------------------------------------------------------ texturas nuevas ------------------
 def pix(name, fn):
-    add_tile(name, fn)
+    if name not in NAT:
+        add_tile(name, fn)
 
 
 def noisy(c, k, rng):
@@ -23,17 +25,17 @@ def noisy(c, k, rng):
 
 def fill(im, col, noise=.05, rng=None):
     rng = rng or random.Random(5)
-    for y in range(TS):
-        for x in range(TS):
+    for y in range(B):
+        for x in range(B):
             im.putpixel((x, y), noisy(col, noise, rng))
 
 
 def planks_t(name, col, rows=4, dark=.78):
     def f(d, im, rng):
-        h = TS // rows
+        h = B // rows
         for r in range(rows):
             off = (r * 11) % 16
-            for x in range(TS):
+            for x in range(B):
                 for y in range(h):
                     k = 1 + rng.uniform(-.05, .05) + (0.03 if (x + off) % 17 < 2 else 0)
                     im.putpixel((x, r * h + y), shade(hexrgb(col), k * (1 if y else dark)))
@@ -42,28 +44,29 @@ def planks_t(name, col, rows=4, dark=.78):
 
 
 def register():
+    native_tiles()
     # ---- suelos
-    planks_t('oak_planks', '#b98a57', 4)
-    planks_t('dark_planks', '#6b4527', 4)
-    planks_t('ceil_wood', '#5a3a22', 2)
-    pix('carpet_red', lambda d, im, r: (fill(im, '#8d2f3b', .06, r), [d.line([0, i, TS - 1, i], fill=hexrgb('#a13d49')) for i in range(0, TS, 4)]))
+    G.planks('oak_planks', '#b98a57')
+    G.planks('dark_planks', '#6b4527')
+    G.planks('ceil_wood', '#5a3a22')
+    pix('carpet_red', lambda d, im, r: (fill(im, '#8d2f3b', .06, r), [d.line([0, i, B - 1, i], fill=hexrgb('#a13d49')) for i in range(0, B, 4)]))
     def carpet_arc(d, im, r):
         fill(im, '#1c2146', .04, r)
-        for i in range(0, TS, 8):
-            d.line([i, 0, i, TS - 1], fill=hexrgb('#2c3470')); d.line([0, i, TS - 1, i], fill=hexrgb('#2c3470'))
+        for i in range(0, B, 8):
+            d.line([i, 0, i, B - 1], fill=hexrgb('#2c3470')); d.line([0, i, B - 1, i], fill=hexrgb('#2c3470'))
         for (x, y, c) in ((4, 4, '#ff5fc2'), (20, 12, '#5ff0ff'), (12, 24, '#ffe45f'), (26, 28, '#7dff7d')):
             d.rectangle([x, y, x + 2, y + 2], fill=hexrgb(c))
     pix('carpet_arcade', carpet_arc)
-    pix('tile_white', lambda d, im, r: (fill(im, '#eceae2', .025, r), d.line([0, 0, TS - 1, 0], fill=hexrgb('#b9b6aa')), d.line([0, 0, 0, TS - 1], fill=hexrgb('#b9b6aa')),
-                                         d.line([TS // 2, 0, TS // 2, TS - 1], fill=hexrgb('#cfccc0')), d.line([0, TS // 2, TS - 1, TS // 2], fill=hexrgb('#cfccc0'))))
+    pix('tile_white', lambda d, im, r: (fill(im, '#eceae2', .025, r), d.line([0, 0, B - 1, 0], fill=hexrgb('#b9b6aa')), d.line([0, 0, 0, B - 1], fill=hexrgb('#b9b6aa')),
+                                         d.line([B // 2, 0, B // 2, B - 1], fill=hexrgb('#cfccc0')), d.line([0, B // 2, B - 1, B // 2], fill=hexrgb('#cfccc0'))))
     def marble(d, im, r):
         fill(im, '#efe9dc', .03, r)
         for _ in range(3):
-            x, y = r.randint(0, TS), r.randint(0, TS)
+            x, y = r.randint(0, B), r.randint(0, B)
             for i in range(14):
                 x += r.choice((-1, 0, 1, 1)); y += 1
-                if 0 <= x < TS and 0 <= y < TS: im.putpixel((x, y), hexrgb('#b8b2a4'))
-        d.line([0, 0, TS - 1, 0], fill=hexrgb('#cbc5b6')); d.line([0, 0, 0, TS - 1], fill=hexrgb('#cbc5b6'))
+                if 0 <= x < B and 0 <= y < B: im.putpixel((x, y), hexrgb('#b8b2a4'))
+        d.line([0, 0, B - 1, 0], fill=hexrgb('#cbc5b6')); d.line([0, 0, 0, B - 1], fill=hexrgb('#cbc5b6'))
     pix('marble', marble)
     def garage(d, im, r):
         fill(im, '#8c9194', .06, r)
@@ -72,31 +75,31 @@ def register():
     pix('garage_floor', garage)
     def tatami(d, im, r):
         fill(im, '#c8c27e', .04, r)
-        for y in range(0, TS, 3): d.line([0, y, TS - 1, y], fill=hexrgb('#b2ac68'))
-        d.line([0, 0, TS - 1, 0], fill=hexrgb('#4c5a35')); d.line([0, TS - 1, TS - 1, TS - 1], fill=hexrgb('#4c5a35'))
+        for y in range(0, B, 3): d.line([0, y, B - 1, y], fill=hexrgb('#b2ac68'))
+        d.line([0, 0, B - 1, 0], fill=hexrgb('#4c5a35')); d.line([0, B - 1, B - 1, B - 1], fill=hexrgb('#4c5a35'))
     pix('tatami', tatami)
     # ---- paredes y techos
     def wallp(d, im, r):
         fill(im, '#f1e6cc', .02, r)
-        for x in range(0, TS, 8): d.line([x, 0, x, TS - 1], fill=hexrgb('#e4d4b0'))
+        for x in range(0, B, 8): d.line([x, 0, x, B - 1], fill=hexrgb('#e4d4b0'))
     pix('wallpaper_cream', wallp)
     def wallp_dark(d, im, r):
         fill(im, '#2a2150', .03, r)
-        for i in range(0, TS, 8):
+        for i in range(0, B, 8):
             d.polygon([(i + 4, 0), (i + 8, 4), (i + 4, 8), (i, 4)], outline=hexrgb('#3d3076'))
             d.polygon([(i + 4, 16), (i + 8, 20), (i + 4, 24), (i, 20)], outline=hexrgb('#3d3076'))
     pix('wallpaper_dark', wallp_dark)
     def wallw(d, im, r):
         fill(im, '#c9a272', .04, r)
-        for x in range(0, TS, 8): d.line([x, 0, x, TS - 1], fill=hexrgb('#9a7448'))
+        for x in range(0, B, 8): d.line([x, 0, x, B - 1], fill=hexrgb('#9a7448'))
     pix('wall_wood', wallw)
     def pegb(d, im, r):
         fill(im, '#b99a6c', .03, r)
-        for y in range(2, TS, 4):
-            for x in range(2, TS, 4): im.putpixel((x, y), hexrgb('#5b4429'))
+        for y in range(2, B, 4):
+            for x in range(2, B, 4): im.putpixel((x, y), hexrgb('#5b4429'))
     pix('pegboard', pegb)
-    pix('ceil_white', lambda d, im, r: (fill(im, '#f3efe4', .025, r), d.line([0, 0, TS - 1, 0], fill=hexrgb('#d9d4c4')), d.line([0, 0, 0, TS - 1], fill=hexrgb('#d9d4c4'))))
-    pix('ceil_dark', lambda d, im, r: (fill(im, '#15122e', .03, r), d.line([0, 0, TS - 1, 0], fill=hexrgb('#262050'))))
+    pix('ceil_white', lambda d, im, r: (fill(im, '#f3efe4', .025, r), d.line([0, 0, B - 1, 0], fill=hexrgb('#d9d4c4')), d.line([0, 0, 0, B - 1], fill=hexrgb('#d9d4c4'))))
+    pix('ceil_dark', lambda d, im, r: (fill(im, '#15122e', .03, r), d.line([0, 0, B - 1, 0], fill=hexrgb('#262050'))))
     pix('wall_green', lambda d, im, r: fill(im, '#8fb89d', .03, r))
     pix('wall_red', lambda d, im, r: fill(im, '#a8473c', .04, r))
     pix('wall_blue', lambda d, im, r: fill(im, '#6f93b3', .03, r))
@@ -104,27 +107,27 @@ def register():
     # ---- muebles
     def books(pal, name):
         def f(d, im, r):
-            d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb('#4a301c'))
+            d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb('#4a301c'))
             for row in range(2):
                 y0 = row * 16 + 1
                 x = 1
-                while x < TS - 2:
+                while x < B - 2:
                     w = r.choice((2, 3, 3, 4)); h = r.randint(10, 14)
                     c = hexrgb(r.choice(pal))
                     d.rectangle([x, y0 + 14 - h, x + w - 1, y0 + 14], fill=c)
                     d.line([x, y0 + 14 - h + 2, x + w - 1, y0 + 14 - h + 2], fill=shade(c, 1.25))
                     x += w
-                d.line([0, y0 + 15, TS - 1, y0 + 15], fill=hexrgb('#8a5e36'))
+                d.line([0, y0 + 15, B - 1, y0 + 15], fill=hexrgb('#8a5e36'))
         pix(name, f)
     books(['#b23b3b', '#3b6fb2', '#3fa05a', '#d9ad4a', '#7a4cb0', '#e0e0d0', '#c2662c'], 'books')
     books(['#8e2f2f', '#2f5a8e', '#d0c9b0', '#4f7f5a', '#a85d2a', '#6a3e82'], 'books2')
     def goods(d, im, r):
-        d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb('#d8d4c6'))
+        d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb('#d8d4c6'))
         for row in range(3):
             y0 = row * 10 + 1
-            d.rectangle([0, y0 + 8, TS - 1, y0 + 9], fill=hexrgb('#8f8a78'))
+            d.rectangle([0, y0 + 8, B - 1, y0 + 9], fill=hexrgb('#8f8a78'))
             x = 1
-            while x < TS - 3:
+            while x < B - 3:
                 w = r.choice((3, 4, 4, 5)); h = r.randint(5, 8)
                 c = hexrgb(r.choice(['#e25b4b', '#f2c94c', '#4b9ee2', '#58b368', '#f28fb0', '#f2f2f2', '#ff9d3a']))
                 d.rectangle([x, y0 + 8 - h, x + w - 1, y0 + 7], fill=c)
@@ -132,23 +135,23 @@ def register():
                 x += w + 1
     pix('goods', goods)
     def fridge(d, im, r):
-        d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb('#bfe0ea'))
-        d.rectangle([0, 0, TS - 1, 1], fill=hexrgb('#e8f4f7'))
+        d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb('#bfe0ea'))
+        d.rectangle([0, 0, B - 1, 1], fill=hexrgb('#e8f4f7'))
         for row in range(3):
             y0 = row * 10 + 3
-            d.line([0, y0 + 7, TS - 1, y0 + 7], fill=hexrgb('#8fb0bb'))
-            for x in range(2, TS - 3, 4):
+            d.line([0, y0 + 7, B - 1, y0 + 7], fill=hexrgb('#8fb0bb'))
+            for x in range(2, B - 3, 4):
                 c = hexrgb(r.choice(['#e23b3b', '#3b9ee2', '#58c36a', '#f2c94c', '#f28f3a']))
                 d.rectangle([x, y0, x + 2, y0 + 6], fill=c); d.rectangle([x, y0 - 1, x + 2, y0], fill=hexrgb('#dcdcdc'))
     pix('fridge', fridge)
-    pix('counter_top', lambda d, im, r: (fill(im, '#ebe7da', .03, r), d.line([0, 0, TS - 1, 0], fill=hexrgb('#c9c4b3'))))
+    pix('counter_top', lambda d, im, r: (fill(im, '#ebe7da', .03, r), d.line([0, 0, B - 1, 0], fill=hexrgb('#c9c4b3'))))
     def cfront(d, im, r):
         fill(im, '#8a5a36', .04, r)
-        for x in range(0, TS, 8): d.rectangle([x + 1, 3, x + 6, TS - 4], outline=hexrgb('#6a4326'))
+        for x in range(0, B, 8): d.rectangle([x + 1, 3, x + 6, B - 4], outline=hexrgb('#6a4326'))
     pix('counter_front', cfront)
     def cab(d, im, r):
         fill(im, '#25336b', .03, r)
-        d.rectangle([0, 0, 3, TS - 1], fill=hexrgb('#ff5fc2')); d.rectangle([TS - 4, 0, TS - 1, TS - 1], fill=hexrgb('#5ff0ff'))
+        d.rectangle([0, 0, 3, B - 1], fill=hexrgb('#ff5fc2')); d.rectangle([B - 4, 0, B - 1, B - 1], fill=hexrgb('#5ff0ff'))
     pix('cab_body', cab)
     def ctrl(d, im, r):
         fill(im, '#1a1a24', .03, r)
@@ -169,55 +172,55 @@ def register():
     pix('redbrick_dull', brick_floor)
     def paint(name, sky, ground, accent):
         def f(d, im, r):
-            d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb('#6b4a2d'))
-            d.rectangle([3, 3, TS - 4, TS - 4], fill=hexrgb(sky))
-            d.rectangle([3, 19, TS - 4, TS - 4], fill=hexrgb(ground))
+            d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb('#6b4a2d'))
+            d.rectangle([3, 3, B - 4, B - 4], fill=hexrgb(sky))
+            d.rectangle([3, 19, B - 4, B - 4], fill=hexrgb(ground))
             d.polygon([(6, 19), (13, 9), (20, 19)], fill=hexrgb(accent))
             d.ellipse([21, 6, 25, 10], fill=hexrgb('#ffe27a'))
         pix(name, f)
     paint('paint_a', '#8ec9ea', '#5f9a55', '#7a8f9c'); paint('paint_b', '#f3b27a', '#6a5a8a', '#b8566a'); paint('paint_c', '#a8d8c0', '#d8c88a', '#4f7f8a')
     def menu(d, im, r):
-        d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb('#2b3a33'))
-        d.rectangle([1, 1, TS - 2, TS - 2], outline=hexrgb('#8a5e36'))
-        for y in range(5, TS - 4, 5):
+        d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb('#2b3a33'))
+        d.rectangle([1, 1, B - 2, B - 2], outline=hexrgb('#8a5e36'))
+        for y in range(5, B - 4, 5):
             d.line([5, y, 5 + r.randint(10, 20), y], fill=hexrgb('#f0efe0'))
-            d.line([TS - 9, y, TS - 5, y], fill=hexrgb('#e8c53a'))
+            d.line([B - 9, y, B - 5, y], fill=hexrgb('#e8c53a'))
     pix('menu_board', menu)
     def poster(name, bg, fg):
         def f(d, im, r):
-            d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb(bg)); d.rectangle([2, 2, TS - 3, TS - 3], outline=hexrgb(fg))
+            d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb(bg)); d.rectangle([2, 2, B - 3, B - 3], outline=hexrgb(fg))
             d.ellipse([9, 6, 22, 19], fill=hexrgb(fg)); d.rectangle([6, 22, 25, 25], fill=hexrgb(fg)); d.rectangle([10, 27, 21, 28], fill=hexrgb(fg))
         pix(name, f)
     poster('poster_a', '#3a2a6a', '#ff5fc2'); poster('poster_b', '#1f4a5a', '#5ff0ff'); poster('poster_c', '#6a3a1f', '#ffe45f')
     def elev(d, im, r):
         fill(im, '#b6bfc4', .03, r)
-        d.line([TS // 2, 0, TS // 2, TS - 1], fill=hexrgb('#5a666c')); d.line([TS // 2 - 1, 0, TS // 2 - 1, TS - 1], fill=hexrgb('#5a666c'))
-        d.rectangle([0, 0, TS - 1, 1], fill=hexrgb('#7a868c'))
+        d.line([B // 2, 0, B // 2, B - 1], fill=hexrgb('#5a666c')); d.line([B // 2 - 1, 0, B // 2 - 1, B - 1], fill=hexrgb('#5a666c'))
+        d.rectangle([0, 0, B - 1, 1], fill=hexrgb('#7a868c'))
     pix('elev_door', elev)
     def shoji(d, im, r):
         fill(im, '#f4ecd2', .02, r)
-        for i in range(0, TS, 8): d.line([i, 0, i, TS - 1], fill=hexrgb('#8a6a3a')); d.line([0, i, TS - 1, i], fill=hexrgb('#8a6a3a'))
+        for i in range(0, B, 8): d.line([i, 0, i, B - 1], fill=hexrgb('#8a6a3a')); d.line([0, i, B - 1, i], fill=hexrgb('#8a6a3a'))
     pix('shoji', shoji)
-    pix('mirror', lambda d, im, r: [d.line([0, y, TS - 1, y], fill=(int(190 + y * 1.2), int(215 + y * .8), 225)) for y in range(TS)])
+    pix('mirror', lambda d, im, r: [d.line([0, y, B - 1, y], fill=(int(190 + y * 1.2), int(215 + y * .8), 225)) for y in range(B)])
     def apples(d, im, r):
         fill(im, '#7a5a35', .04, r)
-        for y in range(2, TS - 3, 6):
-            for x in range(2, TS - 3, 6):
+        for y in range(2, B - 3, 6):
+            for x in range(2, B - 3, 6):
                 d.ellipse([x, y, x + 4, y + 4], fill=hexrgb(r.choice(['#d93a2a', '#e8c53a', '#7ac24a', '#f0912a'])))
     pix('produce', apples)
     def bread(d, im, r):
         fill(im, '#7a5a35', .04, r)
-        for x in range(2, TS - 6, 9): d.ellipse([x, 8, x + 8, 18], fill=hexrgb('#d9a050')); d.line([x + 2, 11, x + 6, 14], fill=hexrgb('#b07a30'))
+        for x in range(2, B - 6, 9): d.ellipse([x, 8, x + 8, 18], fill=hexrgb('#d9a050')); d.line([x + 2, 11, x + 6, 14], fill=hexrgb('#b07a30'))
     pix('bakery', bread)
     def cake(d, im, r):
         fill(im, '#e8c27a', .03, r)
-        d.rectangle([0, 0, TS - 1, 9], fill=hexrgb('#f4a3c1'))
-        for x in range(0, TS, 4): d.ellipse([x, 8, x + 3, 12], fill=hexrgb('#f4a3c1'))
+        d.rectangle([0, 0, B - 1, 9], fill=hexrgb('#f4a3c1'))
+        for x in range(0, B, 4): d.ellipse([x, 8, x + 3, 12], fill=hexrgb('#f4a3c1'))
         d.ellipse([12, 2, 16, 6], fill=hexrgb('#c9302c'))
     pix('cake', cake)
     def hazard(d, im, r):
-        for y in range(TS):
-            for x in range(TS): im.putpixel((x, y), hexrgb('#e8c53a') if ((x + y) // 6) % 2 == 0 else hexrgb('#23262a'))
+        for y in range(B):
+            for x in range(B): im.putpixel((x, y), hexrgb('#e8c53a') if ((x + y) // 6) % 2 == 0 else hexrgb('#23262a'))
     pix('hazard', hazard)
     def dots(d, im, r):
         fill(im, '#5b3a22', .04, r)
@@ -231,7 +234,7 @@ def register():
     solid('neon_yellow', '#ffe45f', .02); solid('neon_green', '#7dff7d', .02); solid('lantern', '#ff6a3a', .04); solid('glow_orange', '#ffb04a', .03)
     def scr(name, kind):
         def f(d, im, r):
-            d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb('#0a0a1e'))
+            d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb('#0a0a1e'))
             if kind == 'a':     # invasores
                 for gy in range(3):
                     for gx in range(5):
@@ -239,20 +242,20 @@ def register():
                         d.rectangle([x, y, x + 2, y + 2], fill=hexrgb(('#7dff7d', '#5ff0ff', '#ff5fc2')[gy]))
                 d.rectangle([14, 26, 18, 28], fill=hexrgb('#ffe45f'))
             elif kind == 'b':   # carrera
-                d.polygon([(14, 0), (18, 0), (30, TS - 1), (2, TS - 1)], fill=hexrgb('#3a3a4a'))
-                for y in range(2, TS, 8): d.rectangle([15, y, 16, y + 3], fill=hexrgb('#f0f0f0'))
+                d.polygon([(14, 0), (18, 0), (30, B - 1), (2, B - 1)], fill=hexrgb('#3a3a4a'))
+                for y in range(2, B, 8): d.rectangle([15, y, 16, y + 3], fill=hexrgb('#f0f0f0'))
                 d.rectangle([13, 22, 18, 28], fill=hexrgb('#ff4a4a'))
             else:               # laberinto
-                for y in range(2, TS, 8): d.line([2, y, TS - 3, y], fill=hexrgb('#4a6aff'))
-                for x in range(2, TS, 10): d.line([x, 2, x, TS - 3], fill=hexrgb('#4a6aff'))
+                for y in range(2, B, 8): d.line([2, y, B - 3, y], fill=hexrgb('#4a6aff'))
+                for x in range(2, B, 10): d.line([x, 2, x, B - 3], fill=hexrgb('#4a6aff'))
                 d.ellipse([12, 12, 19, 19], fill=hexrgb('#ffe45f')); d.ellipse([4, 4, 7, 7], fill=hexrgb('#ff5fc2'))
         pix(name, f)
     scr('screen_a', 'a'); scr('screen_b', 'b'); scr('screen_c', 'c')
     def marq(name, a, b):
         def f(d, im, r):
-            d.rectangle([0, 0, TS - 1, TS - 1], fill=hexrgb(a))
-            for x in range(1, TS, 6): d.rectangle([x, 12, x + 3, 19], fill=hexrgb(b))
-            d.rectangle([0, 0, TS - 1, 2], fill=hexrgb(b)); d.rectangle([0, TS - 3, TS - 1, TS - 1], fill=hexrgb(b))
+            d.rectangle([0, 0, B - 1, B - 1], fill=hexrgb(a))
+            for x in range(1, B, 6): d.rectangle([x, 12, x + 3, 19], fill=hexrgb(b))
+            d.rectangle([0, 0, B - 1, 2], fill=hexrgb(b)); d.rectangle([0, B - 3, B - 1, B - 1], fill=hexrgb(b))
         pix(name, f)
     marq('marquee_a', '#7a1f6a', '#ff9de0'); marq('marquee_b', '#1f4a6a', '#9df0ff')
 
@@ -812,11 +815,11 @@ def lobby(m, rng, W, D, Hc):
     m.cube(0, 1.5, 1.4, 1.2, .3, .15, 'glow_warm') if False else None
     m.cube(0, 2.6, 1.7, 3.0, 1.0, .16, 'sign_dark') if False else None
     m.group('Ascensores')
-    for i, x in enumerate((-4.4, 0.0, 4.4)):
+    for i, x in enumerate((-4.4, 4.4)):
         m.cube(x, 0, -hz + .05, 2.6, 3.4, .1, 'elev_door'); m.cube(x, 3.4, -hz + .05, 3.0, .3, .16, 'gold')
-        m.cube(x, 3.1, -hz + .17, .9, .2, .06, 'neon_green' if i == 1 else 'glow');
+        m.cube(x, 3.1, -hz + .17, .9, .2, .06, 'glow')
         for sg in (-1, 1): m.cube(x + sg * 1.45, 0, -hz + .08, .3, 3.5, .16, 'gold')
-    m.cube(0, 0, -hz + .45, 14.0, .3, .8, 'stone') if False else None
+    elevator_cabin(m, hz)
     m.group('Sala de espera')
     for z in (-3.4, 3.8):
         sofa(m, -5.2 if False else -hx + 2.4, z, 3.0, 'E', 'sofa_dark'); sofa(m, hx - 2.4, z, 3.0, 'W', 'sofa_dark')
@@ -847,15 +850,86 @@ SPECS = [
 ]
 
 
+def elevator_cabin(m, hz):
+    """Cabina del ascensor al fondo del vestíbulo: paredes, techo con luz, espejo y pasamanos. Las puertas (que se abren) las crea el juego en z = -3.8."""
+    m.group('Cabina del ascensor')
+    zc = (-hz + -3.8) / 2
+    dz = -3.8 - (-hz)
+    for sg in (-1, 1):
+        m.cube(sg * 1.65, 0, zc, .3, 3.4, dz, 'marble'); m.cube(sg * 1.5, 0, zc, .05, 3.3, dz - .2, 'wall_sand')
+        m.col(sg * 1.65, zc, .3, dz, 3.4)
+        m.cube(sg * 1.45, 1.0, zc, .08, .08, dz - .4, 'brass')
+        m.cube(sg * 1.55, 0, -3.8, .3, 3.5, .3, 'gold')
+    m.cube(0, 3.3, zc, 3.7, .2, dz + .1, 'steel'); m.cube(0, 3.24, zc, 1.6, .06, 1.6, 'glow_cool')
+    m.cube(0, .7, -hz + .08, 2.6, 1.9, .05, 'mirror'); m.cube(0, 1.0, -hz + .14, 2.8, .08, .08, 'brass')
+    m.cube(0, 3.4, -3.8, 3.8, .45, .3, 'gold'); m.cube(0, 3.5, -3.62, .9, .22, .05, 'neon_green')
+    m.cube(0, 3.85, -3.8, 3.8, 2.35, .3, 'marble')     # paño sobre la puerta (sostiene el cartel)
+    m.cube(0, 0, -3.5, 3.4, .03, .5, 'steel')
+    m.cube(1.9, 1.2, -3.62, .12, .5, .05, 'neon_cyan')
+
+
+def roof_elevator(m, H, zc=4.4):
+    """Caseta del ascensor en la azotea (puerta hacia el centro, z = zc - 1.7). Las puertas las crea el juego."""
+    m.group('Caseta del ascensor')
+    y = H + .1
+    hd = 3.4
+    for sg in (-1, 1):
+        m.cube(sg * 1.65, y, zc, .3, 3.4, hd, 'trim_stone'); m.col(sg * 1.65, zc, .3, hd, 3.4, y)
+        m.cube(sg * 1.55, y, zc - 1.7, .3, 3.5, .3, 'gold')
+    m.cube(0, y, zc + 1.7, 3.6, 3.4, .3, 'trim_stone'); m.col(0, zc + 1.7, 3.6, .3, 3.4, y)
+    m.cube(0, y + 3.4, zc, 4.0, .3, hd + .4, 'trim_stone'); m.cube(0, y + 3.7, zc, 3.8, .08, hd + .2, 'roof_tar')
+    m.col(0, zc, 4.0, hd + .4, .3, y + 3.4)
+    m.cube(0, y + 3.0, zc - 1.7, 3.8, .45, .3, 'gold')
+    m.cube(0, y + 3.28, zc, 1.6, .06, 1.6, 'glow_cool')
+    m.cube(0, y, zc + 1.5, 2.6, 2.0, .06, 'vent')
+    for k in range(3): m.cube(0, y + 3.0 - k * .0, zc + 1.45, 2.4, .05, .05, 'metal_dark') if False else None
+
+
 def tower_top(m, W, D, H):
-    """Columnas doradas en las esquinas, cornisas, cuarto de máquinas y pararrayos con baliza (la azotea queda libre para el ascensor)."""
+    """Azotea de la torre: pista de helicóptero, paneles solares, sala de máquinas, tanque, pararrayos y la caseta del ascensor."""
     m.group('Torre')
     for sx in (-1, 1):
-        for sz in (-1, 1): m.cube(sx * (W / 2 + .05), 0, sz * (D / 2 + .05), .8, H, .8, 'gold')
+        for sz in (-1, 1):
+            m.cube(sx * (W / 2 + .05), 0, sz * (D / 2 + .05), .8, H + 1.2, .8, 'gold')
+            m.cube(sx * (W / 2 + .05), H + 1.2, sz * (D / 2 + .05), .95, .2, .95, 'trim_stone'); m.cube(sx * (W / 2 + .05), H + 1.4, sz * (D / 2 + .05), .5, .5, .5, 'glow')
     for y in range(7, int(H) - 1, 6): m.cube(0, y, 0, W + .5, .4, D + .5, 'trim_white')
-    m.cube(0, H + .1, 0, W * .5, 1.6, D * .4, 'concrete_dark'); m.cube(0, H + 1.7, 0, W * .3, 1.2, D * .3, 'metal')
-    m.cube(W * .25, H + .1, -D * .2, .2, 12.5, .2, 'steel'); m.cube(W * .25, H + 12.6, -D * .2, .5, .5, .5, 'lantern')
-    for k in range(3): m.cube(W * .25, H + 3 + k * 2.8, -D * .2, 1.0 - k * .25, .08, .08, 'steel')
+    m.cube(0, H - .6, 0, W + 1.3, .35, D + 1.3, 'gold')
+    roof_elevator(m, H)
+    m.group('Azotea')
+    y = H + .1
+    # caminos de concreto desde la caseta
+    m.cube(0, y, .9, 2.8, .04, 3.4, 'concrete'); m.cube(0, y, -1.8, 2.8, .04, 3.4, 'concrete')
+    # pista de helicóptero
+    hx, hz = -5.4, -1.0
+    m.cube(hx, y, hz, 7.0, .05, 7.0, 'concrete_dark')
+    for sg in (-1, 1):
+        m.cube(hx + sg * 3.15, y + .05, hz, .25, .02, 6.5, 'yellow_line'); m.cube(hx, y + .05, hz + sg * 3.15, 6.5, .02, .25, 'yellow_line')
+    m.cube(hx - 1.0, y + .05, hz, .4, .02, 3.0, 'yellow_line'); m.cube(hx + 1.0, y + .05, hz, .4, .02, 3.0, 'yellow_line'); m.cube(hx, y + .05, hz, 2.4, .02, .4, 'yellow_line')
+    for sx in (-1, 1):
+        for sz in (-1, 1): m.cube(hx + sx * 3.4, y + .05, hz + sz * 3.4, .3, .2, .3, 'neon_yellow')
+    # paneles solares inclinados
+    for i in range(3):
+        for j in range(2):
+            px, pz = 4.6 + j * 2.2, -0.2 + i * 2.0
+            m.cube(px, y, pz, .1, .5, .1, 'metal_dark'); m.cube(px, y + .55, pz, 1.9, .08, 1.6, 'glass_dark', rot=[-18, 0, 0]); m.cube(px, y + .5, pz, 1.9, .05, 1.6, 'metal_dark', rot=[-18, 0, 0])
+    # sala de máquinas al fondo con rejillas
+    m.cube(5.0, y, -4.6, 5.0, 2.6, 3.0, 'concrete_dark'); m.cube(5.0, y + 2.6, -4.6, 5.4, .25, 3.4, 'trim_stone')
+    for k in range(4): m.cube(3.5 + k * 1.0, y + .6, -3.07, .8, 1.4, .05, 'vent')
+    m.cube(7.0, y, -3.07, 1.0, 2.0, .08, 'door_navy'); m.cube(4.0, y + 2.85, -4.6, 1.2, .5, 1.2, 'metal'); m.cube(6.0, y + 2.85, -4.6, 1.2, .5, 1.2, 'metal')
+    # unidades de aire en fila y tanque de agua
+    for k in range(4):
+        m.cube(-8.4 + k * 1.5, y, -5.2, 1.2, .8, 1.0, 'metal'); m.cube(-8.4 + k * 1.5, y + .8, -5.2, 1.25, .08, 1.05, 'metal_dark'); m.cube(-8.4 + k * 1.5, y + .84, -5.2, .7, .08, .7, 'vent')
+    for sx in (-1, 1):
+        for sz in (-1, 1): m.cube(-2.6 + sx * .6, y, -5.2 + sz * .6, .14, 1.5, .14, 'metal_dark')
+    m.cube(-2.6, y + 1.5, -5.2, 1.8, 1.6, 1.8, 'tank'); m.cube(-2.6, y + 3.1, -5.2, 2.0, .14, 2.0, 'metal_dark')
+    # pararrayos central con baliza
+    m.cube(0, y, -5.4, .3, .3, .3, 'steel'); m.cube(0, y, -5.4, .14, 13.0, .14, 'steel')
+    for k in range(3): m.cube(0, y + 4 + k * 2.8, -5.4, 1.2 - k * .3, .08, .08, 'steel')
+    m.cube(0, y + 13.0, -5.4, .45, .45, .45, 'lantern')
+    # antena
+    m.cube(-8.8, y, 3.8, .12, 5.0, .12, 'metal_dark'); m.cube(-8.8, y + 3.2, 3.8, 1.2, .06, .06, 'metal_dark'); m.cube(-8.8, y + 5.0, 3.8, .2, .2, .2, 'lantern')
+    m.col(-5.4, -1.0, .0, .0, .0) if False else None
+    m.col(5.0, -4.6, 5.0, 3.0, 2.6, y); m.col(-2.6, -5.2, 1.8, 1.8, 3.2, y)
 
 
 def build_all(tex_source):
@@ -867,7 +941,7 @@ def build_all(tex_source):
         shell(m, rng, W, D, Hc, H, wall=wall, inner=inner, floor=floor, ceil=ceil, trim=trim, glass_t=glass_t, awn=awn, board=board,
               ww=2.6 if W > 20 else 2.4, upper_ww=1.5 if name != 'torre_aurora' else 1.9,
               floor_h=3.6 if name == 'torre_aurora' else 2.9,
-              roof_kw=dict(ac=0, antenna=False, dish=False) if name == 'torre_aurora' else None)
+              roof_kw=dict(ac=0, antenna=False, dish=False, vents=False, accent='gold') if name == 'torre_aurora' else None)
         fn(m, rng, W, D, Hc)
         if name == 'torre_aurora': tower_top(m, W, D, H)
         m.W, m.D, m.H = W, D, H

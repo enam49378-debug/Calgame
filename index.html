@@ -910,9 +910,9 @@ function cityGrassAt(x,z) {
       const img=new Image();
       img.onload=()=>{
         const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;
-        // Los tiles del atlas desde y=640 px son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
+        // Los tiles del atlas desde la fila 20 (índice 160) son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
         const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
-        if(img.height>640)cx.drawImage(img,0,640,img.width,img.height-640,0,640,img.width,img.height-640);
+        const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);
         const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
         const mat=cityAnimeMaterial(new THREE.MeshLambertMaterial({map,emissive:0xffffff,emissiveMap:em}));
         ok({geo:bbGeometry(data),mat});
@@ -936,10 +936,19 @@ function cityGrassAt(x,z) {
   // Torre Aurora: el edificio más alto, con ascensor en el vestíbulo que lleva a la azotea y un pararrayos
   {
     const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA'),face=T.z<0?1:-1,rx=T.x,rz=T.z;
-    ELEVATORS.push({x:rx,z:rz-face*(T.d/2-1.35),roofY:T.h+.25,arrUp:{x:rx,z:rz},downX:rx,downZ:rz+face*(T.d/2-2.6),arrDown:{x:rx,z:rz-face*(T.d/2-1.35)+face*2.6}});
+    const gx=rx,gz=rz-face*(T.d/2-1.35),qx=rx,qz=rz+face*(T.d/2-2.6),roofY=T.h+.25;
+    const doorMat=new THREE.MeshLambertMaterial({color:0xb6bfc4,emissive:0x1b2024});
+    const mkStation=(px,pz,dz,y0)=>{
+      const st={px,pz,dx:px,dz,y0,open:0,target:0,panels:[],col:{x:px,z:dz,hx:1.4,hz:.15,h:y0+3.3,y0:y0||0,ceiling:false}};
+      for(const sg of [-1,1]){const m=new THREE.Mesh(new THREE.BoxGeometry(1.4,3.3,.12),doorMat);m.position.set(px+sg*.7,y0+1.65,dz);m.castShadow=true;scene.add(m);st.panels.push(m);}
+      COL.push(st.col);return st;
+    };
+    ELEVATORS.push({x:gx,z:gz,roofY,arrUp:{x:qx,z:qz},downX:qx,downZ:qz,arrDown:{x:gx,z:gz},ride:null,
+      st:[mkStation(gx,gz,rz-face*(T.d/2-3.2),0),mkStation(qx,qz,rz+face*(T.d/2-4.3),roofY)]});
+    sign('▲ AZOTEA',rx,4.6,rz-face*3.6,2.2,face>0?0:Math.PI,'#1b2330');
     flat(rx,rz-face*(T.d/2-1.35),2.2,2.2,'#7ad7ff',.058);flat(rx,rz-face*(T.d/2-1.35),1.6,1.6,'#e9fbff',.07);        // plataforma del ascensor (planta baja)
     box(rx,T.h+.38,rz+face*(T.d/2-2.6),2.2,.14,2.2,'#7ad7ff');box(rx,T.h+.47,rz+face*(T.d/2-2.6),1.6,.06,1.6,'#e9fbff');// plataforma de bajada (azotea)
-    sign('▼ BAJAR',rx,T.h+2.2,rz+face*(T.d/2-2.6)+face*1.6,2.4,face>0?0:Math.PI,'#1b2330');
+    sign('▼ BAJAR',rx,T.h+3.33,rz+face*(T.d/2-4.5),1.6,face>0?Math.PI:0,'#1b2330');
   }
   // Reloj de la estación, una referencia visible para orientarse.
   box(-13,7.5,-29,2.2,2.4,2.2,'#deca8b');solid(-13,-29,2.2,2.2,8.7);
@@ -6943,20 +6952,53 @@ function physics(f, dt) {
 }
 // paso de tiempo real para bucles por cuadro (later(0, ...)): cada llamada devuelve los segundos de juego desde la anterior
 // Ascensor de la Torre Aurora: quedarse parado en la plataforma sube a la azotea (y en la azotea, baja)
-function updateElevator(f, dt) {
-  if (!f.alive || f.action || f.ragdoll > 0 || f.stun > 0) { f.elevT = 0; return; }
+// Ascensor con cabina: las puertas se abren al acercarse, el jugador entra a la plataforma, se cierran, espera ~3 s y se abren arriba (o abajo).
+function updateElevatorDoors(dt) {
   for (const e of ELEVATORS) {
-    const up = f.pos.y < 2 && Math.hypot(f.pos.x - e.x, f.pos.z - e.z) < 1.1, down = f.pos.y > e.roofY - 1 && Math.hypot(f.pos.x - e.downX, f.pos.z - e.downZ) < 1.1;
-    if (!up && !down) continue;
-    f.elevT = (f.elevT || 0) + dt;
-    if (Math.random() < dt * 40) emit(f.pos.x + rand(-.5, .5), f.pos.y + .1, f.pos.z + rand(-.5, .5), 0, rand(2, 5), 0, '#7ad7ff', .16, .5, -.1, 1);
-    if (f.elevT > .75) {
-      f.elevT = 0; ghost(f, '#7ad7ff', .5, .35); const to = up ? e.arrUp : e.arrDown;
-      f.pos.set(to.x, up ? e.roofY : 0, to.z); f.vel.set(0, 0, 0); f.onGround = false; ghost(f, '#7ad7ff', .5, .35);
-      ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7ad7ff', 3, .5); sfx('tp', f.pos);
-      if (f.isPlayer) showBanner(up ? 'AZOTEA' : 'PLANTA BAJA', '#7ad7ff', up ? 'Cuidado con los rayos en tormenta' : 'Ascensor');
+    if (!e.st) continue;
+    for (const s of e.st) {
+      let near = false;
+      for (const g of G.fighters) if (g.alive && Math.abs(g.pos.y - s.y0) < 2.8 && Math.hypot(g.pos.x - s.px, g.pos.z - s.pz) < 4.8 && !(e.ride && e.ride.who === g && e.ride.stage !== 'arrive')) near = true;
+      const r = e.ride;
+      if (r && r.from === s && (r.stage === 'enter' || r.stage === 'moving')) near = false;
+      if (r && r.to === s) near = r.stage === 'arrive' && r.t > .35;
+      s.target = near ? 1 : 0;
+      s.open += clamp(s.target - s.open, -dt * 1.3, dt * 1.3);
+      const sc = Math.max(.07, 1 - s.open * .93), w = 1.4 * sc;
+      s.panels[0].scale.x = s.panels[1].scale.x = sc; s.panels[0].position.x = s.dx - (1.4 - w / 2); s.panels[1].position.x = s.dx + (1.4 - w / 2);
+      s.col.hx = s.open > .6 ? .01 : 1.4;
     }
-    return;
+  }
+}
+function updateElevator(f, dt) {
+  if (f.isPlayer) updateElevatorDoors(dt);
+  if (!f.alive) { for (const e of ELEVATORS) if (e.ride && e.ride.who === f) e.ride = null; f.elevT = 0; return; }
+  for (const e of ELEVATORS) {
+    const r = e.ride, pads = e.st ? e.st : [];
+    if (r && r.who === f) {
+      r.t += dt; const pad = r.stage === 'arrive' || r.stage === 'done' ? r.to : r.from, y = pad.y0;
+      f.pos.set(pad.px, y, pad.pz); f.vel.set(0, 0, 0); f.onGround = true;
+      if (r.stage === 'enter') { if (r.from.open < .05) { r.stage = 'moving'; r.t = 0; sfx('tp', f.pos); if (f.isPlayer) showBanner(r.up ? 'SUBIENDO' : 'BAJANDO', '#7ad7ff', 'Ascensor'); } }
+      else if (r.stage === 'moving') {
+        if (Math.random() < dt * 25) emit(f.pos.x + rand(-.8, .8), f.pos.y + .1, f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, '#7ad7ff', .12, .5, -.1, 1);
+        if (r.t > 3) { r.stage = 'arrive'; r.t = 0; f.pos.set(r.to.px, r.to.y0, r.to.pz); sfx('tp', f.pos); }
+      } else if (r.stage === 'arrive') {
+        if (r.to.open > .92) { if (f.isPlayer) showBanner(r.up ? 'AZOTEA' : 'PLANTA BAJA', '#7ad7ff', r.up ? 'Cuidado con los rayos en tormenta' : 'Ascensor'); f.elevLock = e; e.ride = null; }
+      }
+      return;
+    }
+    if (r) continue;
+    for (const [i, s] of pads.entries()) {
+      const on = Math.abs(f.pos.y - s.y0) < 1.3 && Math.hypot(f.pos.x - s.px, f.pos.z - s.pz) < .9;
+      if (!on) continue;
+      if (f.elevLock === e) break;
+      f.elevT = (f.elevT || 0) + dt;
+      if (s.open > .9 && f.elevT > .5 && !f.action && !(f.ragdoll > 0) && !(f.stun > 0)) {
+        f.elevT = 0; e.ride = { who: f, from: s, to: pads[1 - i], stage: 'enter', t: 0, up: i === 0 };
+      }
+      return;
+    }
+    if (f.elevLock === e && !pads.some(s => Math.hypot(f.pos.x - s.px, f.pos.z - s.pz) < 1.9 && Math.abs(f.pos.y - s.y0) < 2)) f.elevLock = null;
   }
   f.elevT = 0;
 }

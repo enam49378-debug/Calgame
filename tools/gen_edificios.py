@@ -8,9 +8,10 @@ from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parents[1] / 'ciudad'
 OUT.mkdir(exist_ok=True)
-TS, COLS = 32, 8          # tile 32x32 px, atlas de 8 columnas (256 px de ancho; las filas crecen según los tiles)
+B = 32                    # tamaño base con el que se dibujan la mayoría de los tiles (se amplían x2)
+TS, COLS = 64, 8          # tile 64x64 px = 4 m x 4 m; atlas de 8 columnas (512 px de ancho; las filas crecen según los tiles)
 AW, AH = TS * COLS, TS * COLS
-PPM = 8                   # px de textura por metro
+PPM = 16                  # px de textura por metro (como Minecraft)
 
 
 # ---------------------------------------------------------------- textura (atlas de tiles) ----------
@@ -27,63 +28,105 @@ TILES = {}   # nombre -> indice
 PAINT = []   # (nombre, funcion(draw, img, rng))
 
 
-def add_tile(name, fn):
-    TILES[name] = len(PAINT)
-    PAINT.append((name, fn))
+class SD:
+    """Dibuja con coordenadas base (32 px) sobre un lienzo más grande."""
+    def __init__(self, d, k): self.d, self.k = d, k
+    def rectangle(self, xy, fill=None, outline=None, width=1):
+        k = self.k; x0, y0, x1, y1 = xy
+        self.d.rectangle([x0 * k, y0 * k, (x1 + 1) * k - 1, (y1 + 1) * k - 1], fill=fill, outline=outline, width=width * k)
+    def line(self, xy, fill=None, width=1):
+        k = self.k
+        self.d.line([c * k + k // 2 for c in xy], fill=fill, width=max(1, width * k))
+    def ellipse(self, xy, fill=None, outline=None):
+        k = self.k; x0, y0, x1, y1 = xy
+        self.d.ellipse([x0 * k, y0 * k, (x1 + 1) * k - 1, (y1 + 1) * k - 1], fill=fill, outline=outline, width=k)
+    def polygon(self, xy, fill=None, outline=None):
+        k = self.k
+        self.d.polygon([(x * k, y * k) for x, y in xy], fill=fill, outline=outline)
 
+
+class SI:
+    def __init__(self, im, k): self.im, self.k = im, k
+    def putpixel(self, xy, c):
+        k = self.k
+        for dx in range(k):
+            for dy in range(k): self.im.putpixel((xy[0] * k + dx, xy[1] * k + dy), c)
+    def getpixel(self, xy): return self.im.getpixel((xy[0] * self.k + self.k // 2, xy[1] * self.k + self.k // 2))
+
+
+def blotch(rng, n=6):
+    """Ruido suave de baja frecuencia (manchas): f(x, y) con x,y en 0..1 -> -1..1."""
+    g = [[rng.uniform(-1, 1) for _ in range(n + 1)] for _ in range(n + 1)]
+    def f(x, y):
+        fx, fy = x * n, y * n; ix, iy = min(n - 1, int(fx)), min(n - 1, int(fy)); tx, ty = fx - ix, fy - iy
+        a = g[iy][ix] * (1 - tx) + g[iy][ix + 1] * tx; b = g[iy + 1][ix] * (1 - tx) + g[iy + 1][ix + 1] * tx
+        return a * (1 - ty) + b * ty
+    return f
+
+
+def add_tile(name, fn, native=False):
+    TILES[name] = len(PAINT)
+    PAINT.append((name, fn, native))
 
 def solid(name, col, noise=.05):
     c = hexrgb(col)
 
     def f(d, im, rng):
+        bl = blotch(rng)
         for y in range(TS):
             for x in range(TS):
-                im.putpixel((x, y), shade(c, 1 + rng.uniform(-noise, noise)))
-    add_tile(name, f)
-
+                k = 1 + rng.uniform(-noise, noise) * .7 + bl(x / TS, y / TS) * noise * .9
+                im.putpixel((x, y), shade(c, k))
+    add_tile(name, f, True)
 
 def brick(name, col, mortar='#d8d0c0'):
     c, m = hexrgb(col), hexrgb(mortar)
 
     def f(d, im, rng):
-        d.rectangle([0, 0, TS - 1, TS - 1], fill=m)
+        for y in range(TS):
+            for x in range(TS):
+                im.putpixel((x, y), shade(m, 1 + rng.uniform(-.05, .05)))
         for row in range(TS // 4):
             off = 4 if row % 2 else 0
             for bx in range(-8, TS, 8):
                 x0 = bx + off
-                if x0 + 6 < 0:
-                    continue
-                k = 1 + rng.uniform(-.09, .09)
-                d.rectangle([max(0, x0), row * 4, min(TS - 1, x0 + 6), row * 4 + 2], fill=shade(c, k))
-    add_tile(name, f)
-
+                k = 1 + rng.uniform(-.12, .12)
+                for yy in range(3):
+                    for xx in range(7):
+                        x, y = x0 + xx, row * 4 + yy
+                        if 0 <= x < TS:
+                            sh = 1.1 if yy == 0 else (.9 if yy == 2 else 1.0)
+                            im.putpixel((x, y), shade(c, k * sh * (1 + rng.uniform(-.05, .05))))
+    add_tile(name, f, True)
 
 def glass(name, top, bot, lines=True):
     t, b = hexrgb(top), hexrgb(bot)
 
     def f(d, im, rng):
         for y in range(TS):
-            k = y / (TS - 1)
-            d.line([0, y, TS - 1, y], fill=tuple(int(t[i] * (1 - k) + b[i] * k) for i in range(3)))
+            kk = y / (TS - 1)
+            col = tuple(int(t[i] * (1 - kk) + b[i] * kk) for i in range(3))
+            for x in range(TS): im.putpixel((x, y), col)
         if lines:
-            for o in (4, 10, 20, 26):
-                for i in range(10):
-                    x, y = o + i, 2 + i
-                    if x < TS and y < TS:
-                        r, g, bl = im.getpixel((x, y))
-                        im.putpixel((x, y), (min(255, r + 45), min(255, g + 45), min(255, bl + 40)))
-    add_tile(name, f)
-
+            for o, w, a in ((-6, 5, 55), (6, 2, 40), (20, 7, 45), (40, 3, 35)):
+                for y in range(TS):
+                    for xx in range(w):
+                        x = o + y + xx
+                        if 0 <= x < TS:
+                            r, g, bl = im.getpixel((x, y)); im.putpixel((x, y), (min(255, r + a), min(255, g + a), min(255, bl + a - 8)))
+            for x in range(TS):                      # borde inferior más oscuro
+                im.putpixel((x, TS - 1), shade(b, .8))
+    add_tile(name, f, True)
 
 def stripes(name, a, b, n=4):
     ca, cb = hexrgb(a), hexrgb(b)
 
     def f(d, im, rng):
-        w = TS // (n * 2)
-        for i in range(TS):
-            d.line([i, 0, i, TS - 1], fill=ca if (i // w) % 2 == 0 else cb)
-        d.line([0, TS - 2, TS - 1, TS - 2], fill=shade(ca, .8))
-        d.line([0, TS - 1, TS - 1, TS - 1], fill=shade(ca, .65))
+        w = B // (n * 2)
+        for i in range(B):
+            d.line([i, 0, i, B - 1], fill=ca if (i // w) % 2 == 0 else cb)
+        d.line([0, B - 2, B - 1, B - 2], fill=shade(ca, .8))
+        d.line([0, B - 1, B - 1, B - 1], fill=shade(ca, .65))
     add_tile(name, f)
 
 
@@ -91,9 +134,9 @@ def grille(name, base, line):
     cb, cl = hexrgb(base), hexrgb(line)
 
     def f(d, im, rng):
-        d.rectangle([0, 0, TS - 1, TS - 1], fill=cb)
-        for y in range(3, TS, 4):
-            d.line([2, y, TS - 3, y], fill=cl)
+        d.rectangle([0, 0, B - 1, B - 1], fill=cb)
+        for y in range(3, B, 4):
+            d.line([2, y, B - 3, y], fill=cl)
     add_tile(name, f)
 
 
@@ -101,11 +144,15 @@ def planks(name, col):
     c = hexrgb(col)
 
     def f(d, im, rng):
-        for x in range(TS):
-            k = 1 + (-.12 if x % 8 == 0 else rng.uniform(-.04, .04))
-            d.line([x, 0, x, TS - 1], fill=shade(c, k))
-    add_tile(name, f)
-
+        for r in range(TS // 4):
+            off = rng.randint(0, 40); kb = 1 + rng.uniform(-.08, .08)
+            for x in range(TS):
+                seam = ((x + off) % 40) == 0
+                for y in range(4):
+                    k = kb * (.62 if y == 3 else (1.07 if y == 0 else 1.0)) * (.7 if seam else 1) * (1 + rng.uniform(-.035, .035))
+                    if y == 1 and (x * 3 + r * 7) % 11 == 0: k *= .93      # veta
+                    im.putpixel((x, r * 4 + y), shade(c, k))
+    add_tile(name, f, True)
 
 def checker(name, a, b):
     ca, cb = hexrgb(a), hexrgb(b)
@@ -113,9 +160,11 @@ def checker(name, a, b):
     def f(d, im, rng):
         for y in range(TS):
             for x in range(TS):
-                im.putpixel((x, y), ca if ((x // 8) + (y // 8)) % 2 == 0 else cb)
-    add_tile(name, f)
-
+                base = ca if ((x // 16) + (y // 16)) % 2 == 0 else cb
+                k = 1 + rng.uniform(-.025, .025)
+                if x % 16 == 0 or y % 16 == 0: k *= .88
+                im.putpixel((x, y), shade(base, k))
+    add_tile(name, f, True)
 
 for n, c in dict(pl_cream='#f0e6cf', pl_peach='#f0bf7b', pl_rose='#e49aab', pl_mint='#77beaa', pl_yellow='#e9cd83', pl_lilac='#b9a0db',
                  pl_orange='#eda777', pl_blue='#88b8dc', pl_sage='#a9cd86', pl_sky='#87c8d0', pl_gray='#b4bcc0',
@@ -142,24 +191,30 @@ checker('checker', '#f1ece0', '#3b4452')
 
 def pad_to(n):
     while len(PAINT) < n:
-        add_tile('_vacio%d' % len(PAINT), lambda d, im, rng: None)
+        add_tile('_vacio%d' % len(PAINT), lambda d, im, rng: None, True)
 
 
 def atlas():
     global AW, AH
     AW, AH = TS * COLS, TS * math.ceil(len(PAINT) / COLS)
     im = Image.new('RGBA', (AW, AH), (0, 0, 0, 0))
-    for i, (name, fn) in enumerate(PAINT):
+    k = TS // B
+    for i, (name, fn, native) in enumerate(PAINT):
         t = Image.new('RGB', (TS, TS))
-        fn(ImageDraw.Draw(t), t, random.Random(i * 7919 + 3))
+        rng = random.Random(i * 7919 + 3)
+        if native: fn(ImageDraw.Draw(t), t, rng)
+        else: fn(SD(ImageDraw.Draw(t), k), SI(t, k), rng)
         im.paste(t, ((i % COLS) * TS, (i // COLS) * TS))
     b = io.BytesIO()
     im.save(b, 'PNG')
     im.save(OUT / 'atlas.png')
     return 'data:image/png;base64,' + base64.b64encode(b.getvalue()).decode()
 
-
 # ---------------------------------------------------------------- modelo ----------------------------
+IMAGE_TILES = set()   # tiles que son una imagen completa (cuadros, pantallas, carteles): se estiran enteros sobre la cara
+TALL_TILES = set()    # tiles de estantería: ocupan todo el alto del tile
+
+
 class Model:
     def __init__(self, name):
         self.name, self.groups, self.cur, self.n = name, {}, None, 0
@@ -187,6 +242,8 @@ class Model:
         fc = {}
         for f, (a, b) in dims.items():
             uw, uh = min(TS, max(2, round(a * PPM))), min(TS, max(2, round(b * PPM)))
+            if t in IMAGE_TILES: uw = uh = TS
+            elif t in TALL_TILES: uh = TS
             fc[f] = {'uv': [ox, oy, ox + uw, oy + uh], 'texture': 0}
         el['faces'] = fc
         self.cur.append(el)
@@ -338,7 +395,7 @@ def core(m, W, D, y0, y1, tile='shadow', inset=.3):
     m.cube(0, y0, 0, W - inset * 2, y1 - y0, D - inset * 2, tile)
 
 
-def roof(m, W, D, y, wall, rng, *, parapet=.55, ac=2, tank=False, antenna=True, stair=True, dish=True, accent='trim_white'):
+def roof(m, W, D, y, wall, rng, *, parapet=.55, ac=2, tank=False, antenna=True, stair=True, dish=True, accent='trim_white', vents=True):
     m.group('Techo')
     m.cube(0, y - .02, 0, W - .2, .12, D - .2, 'roof_tar')
     m.cube(0, y - .35, 0, W + .5, .22, D + .5, 'trim_stone')
@@ -406,7 +463,7 @@ def roof(m, W, D, y, wall, rng, *, parapet=.55, ac=2, tank=False, antenna=True, 
             m.cube(px, y + .1, pz, .1, .6, .1, 'metal_dark')
             m.cube(px, y + .7, pz + .1, .8, .8, .1, 'trim_white', rot=[-25, 0, 0])
             m.cube(px, y + 1.0, pz + .28, .12, .12, .3, 'metal_dark')
-    for _ in range(2):
+    for _ in range(2 if vents else 0):
         p = put(.3)
         if p:
             px, pz = p
