@@ -42,3 +42,5 @@ Recorder: Arlo Barnes | CC0 | [Commons](https://commons.wikimedia.org/wiki/File%
 | `applause.mp3` | Applause i.ogg | thore | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AApplause_i.ogg) |
 
 Las licencias CC BY / CC BY-SA piden atribución (esta lista) y que las versiones modificadas de *esos sonidos* mantengan la misma licencia.
+
+- randi_voz1.mp3 / randi_voz2.mp3: voces de ElRandi aportadas por el usuario (a punto de matar / al matar).

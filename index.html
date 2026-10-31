@@ -1273,7 +1273,7 @@ function cityGrassAt(x,z) {
     if(['#77b3c6','#7fb5c5','#aac5d1'].includes(batch.color))CITY.windowMaterials.push(mat);
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
-    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);if(!road&&p[1]-p[4]/2>.12&&p[3]*p[4]*p[5]<9&&Math.max(p[3],p[4],p[5])<3.6)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
+    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
     cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
   }
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
@@ -2453,24 +2453,87 @@ function scarDecal(p, r, n) {
   if (n) { m.position.copy(p).addScaledVector(n, .05); m.lookAt(p.x + n.x, p.y + n.y, p.z + n.z); m.rotateZ(rand(0, TAU)); } else { m.rotation.x = -Math.PI / 2; m.rotation.z = rand(0, TAU); m.position.set(p.x, p.y + .04, p.z); }
   addFx(m, 40, (o, k) => { mat.opacity = k < .8 ? .95 : .95 * (1 - (k - .8) / .2); }, () => { SCAR_N--; geo.dispose(); mat.dispose(); });
 }
-const DEST_OFF = [], _dm = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _dv = new V3(), _ds = new V3();
-function worldBreak(c, r, maxVol) {
-  const L = window.DESTR; if (!L) return 0; let n = 0;
-  for (const d of L) {
-    if (d.off) continue; const q = d.p, dx = q[0] - c.x, dy = q[1] - c.y, dz = q[2] - c.z;
-    if (dx * dx + dy * dy + dz * dz > r * r || q[3] * q[4] * q[5] > maxVol) continue;
-    d.off = true; d.back = G.time + 26 + Math.random() * 14; DEST_OFF.push(d);
-    _dm.compose(_dv.set(q[0], -60, q[2]), _dq, _ds.set(.001, .001, .001)); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true;
-    if (n++ < 14) burst(new V3(q[0], q[1], q[2]), 3, d.col, 7, .2, .9, 1.4, 5);
+const DEST_OFF = [], COL_OFF = [], _dm = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _dv = new V3(), _ds = new V3(), _de = new THREE.Euler();
+let DEST_GEO = null;
+const DEB = { m: null, a: [], max: 800 };
+// cubos de escombro con física propia (gravedad, rebote en el piso, giro); se encogen y desaparecen
+function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
+  if (!DEB.m) { DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB.m = new THREE.InstancedMesh(DEST_GEO, new THREE.MeshLambertMaterial({ color: 0xffffff }), DEB.max); DEB.m.count = 0; DEB.m.frustumCulled = false; DEB.m.castShadow = true; scene.add(DEB.m); }
+  if (DEB.a.length >= DEB.max) return;
+  DEB.a.push({ x, y, z, sx, sy, sz, vx, vy, vz, rx: rand(0, TAU), ry: rand(0, TAU), wx: rand(-9, 9), wy: rand(-9, 9), life: rand(5, 9), c: new THREE.Color(col) });
+}
+function destUpdate(dt) {
+  if (!DEB.m) return; const A = DEB.a;
+  for (let i = A.length - 1; i >= 0; i--) {
+    const d = A[i]; d.life -= dt; if (d.life <= 0) { A[i] = A[A.length - 1]; A.pop(); continue; }
+    d.vy -= 26 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; d.rx += d.wx * dt; d.ry += d.wy * dt;
+    const gy = groundAt(d.x, d.z), h = Math.min(d.sx, d.sy, d.sz) / 2;
+    if (d.y - h < gy) { d.y = gy + h; if (d.vy < -2) { d.vy *= -.35; d.vx *= .6; d.vz *= .6; d.wx *= .6; d.wy *= .6; } else { d.vy = 0; d.vx *= .85; d.vz *= .85; d.wx *= .8; d.wy *= .8; } }
+  }
+  const M = DEB.m; M.count = A.length;
+  for (let i = 0; i < A.length; i++) {
+    const d = A[i], k = d.life < .6 ? Math.max(.01, d.life / .6) : 1;
+    _de.set(d.rx, d.ry, 0); _dq.setFromEuler(_de); _dm.compose(_dv.set(d.x, d.y, d.z), _dq, _ds.set(d.sx * k, d.sy * k, d.sz * k)); M.setMatrixAt(i, _dm); M.setColorAt(i, d.c);
+  }
+  M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
+}
+function destHide(d) {
+  _dm.compose(_dv.set(d.p[0], -60, d.p[2]), _dq, _ds.set(.001, .001, .001)); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; d.off = true;
+  if (d.parent) d.parent.back = Math.max(d.parent.back, G.time + 18); else { d.back = G.time + 26 + Math.random() * 14; DEST_OFF.push(d); }
+}
+// parte una pieza grande en cubos: los que caen dentro de la explosión salen volando y el resto queda como bloques sueltos (que también se pueden romper)
+function carveBox(d, c, r) {
+  const q = d.p; let cs = .9, nx, ny, nz;
+  do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.25; } while (nx * ny * nz > 420);
+  const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = []; let sp = 0;
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+    const x = q[0] - q[3] / 2 + (i + .5) * sx, y = q[1] - q[4] / 2 + (j + .5) * sy, z = q[2] - q[5] / 2 + (k + .5) * sz, dx = x - c.x, dy = y - c.y, dz = z - c.z, dd = Math.hypot(dx, dy, dz);
+    if (dd < r) { if (sp < 34 && Math.random() < .5) { sp++; const l = dd || 1, f = 6 + 9 * (1 - dd / r); spawnDebris(x, y, z, sx * .95, sy * .95, sz * .95, d.col, dx / l * f + rand(-2, 2), dy / l * f * .6 + rand(3, 9), dz / l * f + rand(-2, 2)); } }
+    else keep.push([x, y, z, sx, sy, sz]);
+  }
+  destHide(d);
+  if (keep.length) {
+    DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1);
+    const mesh = new THREE.InstancedMesh(DEST_GEO, d.m.material, keep.length); mesh.receiveShadow = true; mesh.castShadow = true;
+    keep.forEach((p, i) => { _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5])); mesh.setMatrixAt(i, _dm); });
+    scene.add(mesh); d.rubble = mesh; d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: d.col, parent: d, cell: true, off: false }));
+    for (const x of d.cells) window.DESTR.push(x);
+  }
+}
+function worldBreak(c, r, maxVol, carve) {
+  const L = window.DESTR; if (!L) return 0; let n = 0, carved = 0;
+  for (let k = 0; k < L.length; k++) {
+    const d = L[k]; if (d.off || d.dead) continue; const q = d.p;
+    const dx = Math.max(Math.abs(c.x - q[0]) - q[3] / 2, 0), dy = Math.max(Math.abs(c.y - q[1]) - q[4] / 2, 0), dz = Math.max(Math.abs(c.z - q[2]) - q[5] / 2, 0);
+    if (dx * dx + dy * dy + dz * dz > r * r) continue;
+    const vol = q[3] * q[4] * q[5];
+    if (vol <= maxVol) {
+      destHide(d); n++;
+      if (n <= 16) { const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1; spawnDebris(q[0], q[1], q[2], Math.min(q[3], .8), Math.min(q[4], .8), Math.min(q[5], .8), d.col, ex / l * 9 + rand(-2, 2), ey / l * 5 + rand(2, 7), ez / l * 9 + rand(-2, 2)); }
+    } else if (carve && carved < 6) { carveBox(d, c, r); carved++; n++; }
   }
   return n;
 }
+// los muros delgados dejan de bloquear donde se rompieron y vuelven con la reparación
+function colCarve(c, r) {
+  for (let i = COL.length - 1; i >= 0; i--) {
+    const b = COL[i]; if (b.ceiling || b.h < 2 || Math.min(b.hx, b.hz) > .55) continue;
+    const dx = Math.max(Math.abs(c.x - b.x) - b.hx, 0), dz = Math.max(Math.abs(c.z - b.z) - b.hz, 0);
+    if (dx * dx + dz * dz > r * r || c.y > b.h + r) continue;
+    COL.splice(i, 1); COL_OFF.push({ b, back: G.time + 28 + Math.random() * 12 });
+  }
+}
 function destRestore(all) {
+  let comp = false;
   for (let i = DEST_OFF.length - 1; i >= 0; i--) {
     const d = DEST_OFF[i]; if (!all && G.time < d.back) continue;
     const q = d.p; _dm.compose(_dv.set(q[0], q[1], q[2]), _dq, _ds.set(q[3], q[4], q[5])); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; d.off = false; DEST_OFF.splice(i, 1);
-    if (!all && Math.random() < .35) burst(new V3(q[0], q[1], q[2]), 2, '#ffffff', 2, .08, .4, 0);
+    if (d.rubble) { scene.remove(d.rubble); d.rubble.dispose(); for (const x of d.cells) x.dead = true; d.rubble = null; d.cells = null; comp = true; if (!all) burst(new V3(q[0], q[1], q[2]), 6, '#ffffff', 3, .1, .5, 0); }
+    else if (!all && Math.random() < .35) burst(new V3(q[0], q[1], q[2]), 2, '#ffffff', 2, .08, .4, 0);
   }
+  for (let i = COL_OFF.length - 1; i >= 0; i--) { const e = COL_OFF[i]; if (all || G.time >= e.back) { COL.push(e.b); COL_OFF.splice(i, 1); } }
+  if (comp && window.DESTR) window.DESTR = window.DESTR.filter(x => !x.dead);
+  if (all) { DEB.a.length = 0; if (DEB.m) DEB.m.count = 0; }
 }
 // daño al escenario en un punto: marca en el piso, marcas en las paredes cercanas y piezas pequeñas que saltan (el ragdoll lo hace en menor medida)
 function worldDamage(c, r, power) {
@@ -2484,7 +2547,7 @@ function worldDamage(c, r, power) {
     if (d < .05 || d > r + .6) continue;
     scarDecal(new V3(qx, clamp(c.y, .9, b.h - .7), qz), Math.min(3.4, r * .8), new V3(dx / d, 0, dz / d)); k++;
   }
-  if (r >= 1.5) worldBreak(c, r * .85 * power, (.8 + r * .9) * power);
+  if (r >= 1.5) { const big = r >= 2.8 && power >= 1; worldBreak(c, r * .85 * power, (.8 + r * .9) * power, big); if (big) colCarve(c, r * .85); }
 }
 
 // ===== Expansión de dominio de ElRandi: cinemática oscura (animales del Perú, círculo cortado y bandera), cúpula negra y brillante, y cristal que se rompe =====
@@ -4574,7 +4637,7 @@ try{
 }catch(e){}
 let gameAudioBus=null,ambientAudioBus=null;
 const HTML_AUDIO_LEVELS=new Set();
-const GAME_RECORDINGS=new Set(['vhit','vland','whistle','applause','elev_ride','door_close','door_open']);
+const GAME_RECORDINGS=new Set(['randi_voz1','randi_voz2','vhit','vland','whistle','applause','elev_ride','door_close','door_open']);
 function soundCategory(name){return GAME_RECORDINGS.has(name)?'game':'ambient';}
 function soundChannel(category='game'){return (category==='ambient'?ambientAudioBus:gameAudioBus)||master;}
 function syncAudioControls(){
@@ -4714,7 +4777,7 @@ addEventListener('keydown', e => { if (e.code === 'KeyM' && !e.repeat && e.targe
 // Con servidor se decodifican con WebAudio (bucles sin cortes y apagado de la calle al entrar); abriendo el archivo sin servidor (file://)
 // se reproducen con elementos <audio> (solo volumen).
 const SND_LIST = ['city', 'birds', 'breeze', 'wind_strong', 'night', 'rain', 'thunder1', 'thunder2', 'cafe', 'clink1', 'clink2', 'sizzle', 'market', 'cash', 'arcade', 'library', 'page',
-  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open', 'waves', 'gull1', 'gull2', 'vhit', 'vland', 'whistle', 'applause'];
+  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open', 'waves', 'gull1', 'gull2', 'vhit', 'vland', 'whistle', 'applause', 'randi_voz1', 'randi_voz2'];
 const SND = { buf: {}, state: 'idle', base: 'sonidos/', els: {} };
 function loadSounds() {
   if (SND.state !== 'idle' || !AC) return;
@@ -4887,6 +4950,7 @@ function applyHit(att, t, o) {
   const dmg = (o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL) * adaptMul(t, att) * picoMul(t, att, o) * (att.pisco > 0 ? 1.2 : 1) * (att.tinku > 0 ? 1.2 : 1);
   t.hp -= dmg;
   if (att.clippy && t !== att && !o.noAssist && dmg >= .4) clippyAssist(att, t);
+  if (att.ch && att.ch.id === 'randi' && t !== att && t.hp > 0 && t.hp < t.maxHp * .22 && G.time - (att.voiceT || -9) > 7) { att.voiceT = G.time; playSnd('randi_voz1', 1.5, att.pos); }   // a punto de matar
   if (att.pisco > 0 && t !== att && dmg >= .4) att.hp = Math.min(att.maxHp, att.hp + dmg * .3);   // el pisco sour cura un poco con cada golpe
   if (att.capRandi && t !== att && dmg >= .4) att.capT = Math.min(45, att.capT + .7);   // cada golpe de Capitán Perú le suma tiempo
   if (dmg >= .5 && t !== att && (att.fireT > 0 || (att.awak > 0 && att.ch.fireSword))) poisonOn(t, att, { dps: att.fireT > 0 ? 2.4 : 1.6, dur: 3.2, col: '#ff7a1a', label: 'ARDE' });   // Espada de Fénix y despertar de ItzUkyo: quema
@@ -4981,6 +5045,7 @@ function freeze(g, dur) { g.frozen = dur; iceBlock(g, dur); }
 function kill(v, k) {
   if (!v.alive) return;
   if (v.capRandi) { capEnd(v); return; }   // Capitán Perú cae y ElRandi con él
+  if (k && k !== v && k.ch && (k.ch.id === 'randi' || k.capRandi) && G.time - (k.voiceT || -9) > 3) { k.voiceT = G.time; playSnd('randi_voz2', 1.5, k.pos); }   // mató a alguien
   if (k && k !== v && k.capRandi) k.capT = Math.min(45, k.capT + 10);   // matar le suma tiempo a Capitán Perú
   v.alive = false; v.hp = 0; v.respawnT = v.dummy ? 2 : 4; v.deathT = 0; v.blocking = false; v.frozen = 0; v.grabbed = false;
   endAction(v); v.ragdoll = 3; v.deaths++;
@@ -10178,7 +10243,7 @@ try {
 
 // ================= Bucle principal =================
 function step(dt) {
-  destRestore();
+  destRestore(); destUpdate(dt);
   G.time += dt;
   for (let i = TIMERS.length - 1; i >= 0; i--) { const tm = TIMERS[i]; tm.t -= dt; if (tm.t <= 0) { TIMERS.splice(i, 1); tm.fn(); } }
   for (const f of G.fighters) {
