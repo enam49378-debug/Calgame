@@ -348,6 +348,7 @@ tr.me td{color:var(--hot);font-weight:700}
       <div id="fe-pal"></div>
       <div class="fe-row"><input id="fe-color" type="color" value="#ff4d4d" aria-label="Color propio"><button type="button" id="fe-addcolor">Agregar color</button></div>
       <div class="fe-row"><button type="button" id="fe-clear">Limpiar</button><button type="button" id="fe-reset">Restaurar</button></div>
+      <div class="fe-row"><button type="button" id="fe-pngout" title="Baja la cara de esta expresión como PNG para editarla en otro programa">Exportar cara PNG</button><button type="button" id="fe-pngin" title="Carga un PNG editado como esta expresión (cualquier tamaño, se reduce a 8×8)">Importar cara PNG</button><input type="file" id="fe-pngfile" accept="image/png,image/*" class="hidden"></div>
       <small>Clic pinta · clic derecho borra (vuelve al píxel de la skin). La cara 3D de la izquierda se actualiza sola.</small>
     </div>
   </div>
@@ -1190,6 +1191,36 @@ function feImgChanged(live) {
   const e = feExpr(); if (!e.img) return; e.img.fit = { s: +$('fe-is').value, ox: +$('fe-ix').value, oy: +$('fe-iy').value };
   feRender(); if (SH.fig) SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; if (SH.fig) SH.fig.faceKey = ''; if (!live) saveFaceLib(); else refreshFaces();
 }
+// PNG de la cara (sin la imagen superpuesta): original + Normal + esta expresión, ampliada con píxeles nítidos
+function feFaceCanvas(cid, ex, px) { const c = document.createElement('canvas'); c.width = c.height = 8 * px; feDrawFace(c, cid, ex, px, true); return c; }
+function feDownload(canvas, name) { canvas.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }, 'image/png'); }
+// letra de la paleta para un color (si no existe se agrega uno propio)
+function feLetterFor(lib, hex) {
+  hex = hex.toLowerCase(); for (const k in lib.pal) if (lib.pal[k].toLowerCase() === hex) return k;
+  const k = FACE_POOL.split('').find(c => !(c in lib.pal)); if (!k) return null; lib.pal[k] = hex; return k;
+}
+function feImportPNG(file) {
+  const rd = new FileReader();
+  rd.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(im, 0, 0, 8, 8);
+      const d = g.getImageData(0, 0, 8, 8).data, lib = feLib(), ex = feExpr(), nm = lib.exprs.find(e => e.id === 'normal'), grid = [];
+      for (let y = 0; y < 8; y++) {
+        let row = '';
+        for (let x = 0; x < 8; x++) {
+          const i = (y * 8 + x) * 4; if (d[i + 3] < 128) { row += '.'; continue; }
+          const k = feLetterFor(lib, hex2(d[i], d[i + 1], d[i + 2])); row += k || '.';
+          if (ex !== nm && nm && k && nm.grid[y][x] === k) row = row.slice(0, -1) + '.';   // igual que la Normal: queda como "original"
+        }
+        grid.push(row);
+      }
+      ex.grid = grid; saveFaceLib(); feSelect(); feMsg('Cara importada');
+    };
+    im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
 function feMsg(t) { $('fe-msg').textContent = t; clearTimeout(feMsg.t); feMsg.t = setTimeout(() => { $('fe-msg').textContent = ''; }, 1800); }
 // muestra la expresión elegida en la cabeza 3D del menú
 function feSelect() { feRender(); if (SH.fig) { SH.fig.faceForce = FE.id; SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; } }
@@ -1217,6 +1248,9 @@ function feInit() {
   cv.addEventListener('pointermove', e => { if (FE.painting) fePaintAt(e); });
   cv.addEventListener('pointerup', () => { FE.painting = false; saveFaceLib(); });
   $('fe-mirror').addEventListener('change', e => { FE.mirror = e.target.checked; });
+  $('fe-pngout').addEventListener('click', () => feDownload(feFaceCanvas(FE.cid, feExpr(), 32), FE.cid + '_cara_' + FE.id + '.png'));
+  $('fe-pngin').addEventListener('click', () => $('fe-pngfile').click());
+  $('fe-pngfile').addEventListener('change', e => { const f = e.target.files[0]; if (f) feImportPNG(f); e.target.value = ''; });
   $('fe-img').addEventListener('change', e => {
     const v = e.target.value, ex = feExpr();
     if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), hideEyes: ex.img ? ex.img.hideEyes !== false : true, fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };

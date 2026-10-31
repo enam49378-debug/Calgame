@@ -1,0 +1,11 @@
+Caras de los peleadores para editar
+====================================
+<personaje>_cara_8x8.png          la cara original de la skin (8x8 píxeles, tamaño real)
+<personaje>_cara_x32.png          la misma cara ampliada 32 veces (256x256) para editarla cómoda
+<personaje>_cabeza_textura_x16.png  toda la textura de la cabeza de la skin (izquierda: capa base, derecha: sombrero), ampliada 16 veces
+
+Cómo volver a meterla en el juego
+---------------------------------
+Menú > EDITOR DE EXPRESIONES > elegí el personaje y la expresión (por ejemplo "Normal") > "Importar cara PNG".
+Acepta cualquier tamaño: se reduce a 8x8 sin suavizar. Los píxeles transparentes se quedan como la cara original.
+En una expresión que no sea la Normal, los píxeles iguales a los de la Normal quedan como "original".
