@@ -2281,7 +2281,14 @@ function adaptMul(t, att) {
   t.adaptLvl = Math.max(t.adaptLvl || 0, e.lvl);
   return 1 - [0, .25, .45, .6][e.lvl];
 }
+function capHud(f) {
+  let h = document.getElementById('caphud');
+  if (!h) { h = document.createElement('div'); h.id = 'caphud'; h.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:31;pointer-events:none;text-align:center;font:700 18px "Chakra Petch",sans-serif;color:#fff;text-shadow:0 2px 6px #000a;display:none'; h.innerHTML = '<div id="caphudt"></div><div style="width:260px;height:10px;background:#0008;border:2px solid #ffd23f;margin:4px auto 0"><i id="caphudb" style="display:block;height:100%;background:linear-gradient(90deg,#d6222c,#ffd23f)"></i></div>'; document.body.appendChild(h); }
+  const on = f && f.isPlayer && f.capRandi && f.capT > 0; h.style.display = on ? 'block' : 'none';
+  if (on) { document.getElementById('caphudt').textContent = 'CAPITÁN PERÚ · ' + f.capT.toFixed(1) + ' s'; document.getElementById('caphudb').style.width = Math.min(100, f.capT / 45 * 100) + '%'; }
+}
 function updateCapitan(f, m, dt, T) {
+  if (f.isPlayer) capHud(f);
   if (!f.ch.adapt) { if (f.wheel) { scene.remove(f.wheel.mesh); f.wheel.mesh.geometry.dispose(); f.wheel.mat.dispose(); f.wheel.tex.dispose(); f.wheel = null; } return; }
   let w = f.wheel;
   if (!w) {
@@ -2295,14 +2302,15 @@ function updateCapitan(f, m, dt, T) {
   w.mesh.position.set(f.pos.x, f.pos.y + 3.05, f.pos.z); w.mesh.quaternion.copy(camera.quaternion); w.mesh.rotateZ(w.a); const sc = 1 + (f.wheelPulse || 0) * .5 + (f.capDef > 0 ? .15 : 0); w.mesh.scale.setScalar(sc);
   w.mat.color.setHex(f.capDef > 0 ? 0xffffff : 0xffe58a);
 }
-const capUnpossess = f => {
+// Capitán Perú cae (se acabó su tiempo o lo derrotaron): ElRandi vuelve un instante y cae con él, así que reapareces con todo reiniciado
+const capEnd = f => {
   const rs = f.capRandi; if (!rs) return;
-  const pos = f.pos.clone(); morphFighter(f, rs.key); f.maxHp = rs.maxHp; f.hp = Math.max(rs.hp, rs.maxHp * .3); f.cd = rs.cd; f.capT = 0; f.capRandi = null; f.adapt = null; f.adaptLvl = 0; f.capDef = 0;
-  f.pos.copy(pos); f.vel.set(0, 3, 0); f.stun = Math.max(f.stun, .7); f.iframes = Math.max(f.iframes, 1.2); f.ult = 0;
-  popText(chestOf(f), 'Randi vuelve…', '#ffb3b8', 22); burst(chestOf(f), 26, '#e63946', 8, .2, .6, .3); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#e63946', 4, .5); sfx('tp', f.pos);
-  if (f.isPlayer) showBanner('RANDI REGRESA', '#d6222c', 'Capitán Perú se retira');
+  burst(chestOf(f), 44, '#e63946', 12, .26, .8, .3); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#e63946', 6, .6); popText(chestOf(f), 'Capitán Perú cae…', '#ffb3b8', 24); sfx('ko', f.pos);
+  morphFighter(f, rs.key); f.maxHp = rs.maxHp; f.cd = [0, 0, 0, 0]; f.awak = 0; f.capT = 0; f.capRandi = null; f.adapt = null; f.adaptLvl = 0; f.capDef = 0;
+  if (f.isPlayer) showBanner('CAPITÁN PERÚ CAE', '#d6222c', 'ElRandi cae con él: reapareces');
+  kill(f, f);
 };
-function randiSummon(f) {
+function randiSummon(f, tg) {
   const F = fwd(f.yaw), P = new V3(f.pos.x + F.x * 3.4, f.pos.y, f.pos.z + F.z * 3.4); clampArena(P, 2);
   f.iframes = Math.max(f.iframes, 3.2);
   startAction(f, { name: 'randiSummon', dur: 2.4, noControl: true, armor: true, speedMul: 0, aim: false, anim: [[0, 'castUp', 600], [.7, 'vpose', 1200]] });
@@ -2334,10 +2342,10 @@ function randiSummon(f) {
     if (f.remote || !f.alive) return;
     const key = Object.keys(CHARS).find(k => CHARS[k] === f.ch);
     f.capRandi = { key, hp: f.hp, maxHp: f.maxHp, cd: f.cd.slice() };
-    morphFighter(f, 'capitan'); f.maxHp = CHARS.capitan.hp; f.hp = f.maxHp; f.cd = [0, 0, 0, 0]; f.capT = 25; f.adapt = {}; f.adaptLvl = 0; f.capDef = 0;
+    morphFighter(f, 'capitan'); f.maxHp = CHARS.capitan.hp; f.hp = f.maxHp; f.cd = [0, 0, 0, 0]; f.capT = 22; f.adapt = {}; f.adaptLvl = 0; f.capDef = 0;
     if (f.action) endAction(f); f.pos.set(at.x, groundAt(at.x, at.z), at.z); f.vel.set(0, 0, 0); f.ragdoll = 0; f.stun = 0; f.iframes = Math.max(f.iframes, .8);
     lightColumn(f.pos, '#e63946', 16); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#e63946', 7, .6); burst(chestOf(f), 40, '#ffffff', 11, .24, .7, .3); sfx('ult', f.pos);
-    if (f.isPlayer) showBanner('CAPITÁN PERÚ', '#e63946', 'Lo controlas 25 s · se adapta a los golpes · Rueda de Adaptación (4)');
+    if (f.isPlayer) showBanner('CAPITÁN PERÚ', '#e63946', 'Golpear y matar suma tiempo · se adapta a los golpes · si se acaba, cae y ElRandi con él');
   });
 }
 // ===== Alas del despertar (Sekza): plumas de voxel que se abren al despertar y aletean =====
@@ -3812,8 +3820,8 @@ const CHARS = {
     cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
   },
   randi: {
-    name: 'ElRandi', title: 'Invocador del Perú', role: 'INVOCADOR', color: '#d6222c', hp: 100, spd: 1.03, ai: 'mid', stance: 'idle', summon: true,
-    desc: 'Peruano y maestro de las sombras (a lo Megumi). Manda palomas de la Plaza de Armas, tira lomo saltado en llamas, revienta botellas de Inca Kola y baila marinera para colarse. Su invocación final llama a Capitán Perú: el héroe le pega una patada... y pasas a controlarlo. Se adapta a los golpes como Mahoraga.',
+    name: 'ElRandi', title: 'Invocador del Perú', role: 'INVOCADOR', color: '#d6222c', hp: 100, spd: 1.03, ai: 'mid', stance: 'idle',
+    desc: 'Peruano y maestro de las sombras (a lo Megumi). Manda palomas de la Plaza de Armas, tira lomo saltado en llamas, revienta botellas de Inca Kola y baila marinera. Al despertar (G) gana nuevas habilidades y una de ellas es la gran invocación: acércate a un rival y llama a Capitán Perú, que le pega una patada a ElRandi y pasas a controlarlo.',
     stats: [3, 3, 4, 3, 4],
     skin: { skin: '#c99a7b', hair: '#8b3a12', eye: '#2b1a10', shirt: '#1b1517', pants: '#1b1517', shoes: '#1b1517', sleeve: 12 },
     skinData: 'data:image/png;base64,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',
@@ -3823,7 +3831,7 @@ const CHARS = {
       { n: 'Inca Kola', d: 'Lanza una botella agitada de Inca Kola que revienta en una explosión amarilla y aturde.', k: 'randiKola', cd: 8, o: { dmg: 8 }, r: [3, 20], tags: 'proj aoe' },
       { n: 'Marinera Veloz', d: 'Baila un paso de marinera y atraviesa al rival con el pañuelo, lanzándolo por el aire.', k: 'rush', cd: 8, o: { dmg: 8, kb: 12, up: 5, ragdoll: .7, pose: 'kickRush', hitPose: 'kick' }, r: [2, 12], tags: 'gap gb' },
     ],
-    ult: { n: 'Capitán Perú', d: 'Invoca al Gran General del Perú: Capitán Perú aparece, le pega una patada a ElRandi... y pasas a controlarlo 25 s. Tiene su propia vida y se adapta a los golpes que recibe (como Mahoraga).', k: 'serious', o: {}, r: [0, 12] },
+    ult: { n: 'Sombras del Perú', d: 'ElRandi despierta 30 s: se cura del todo y sus habilidades cambian por otras más fuertes, entre ellas la invocación de Capitán Perú (cerca de un rival; gasta 12 s de despertar).', k: 'serious', o: {}, r: [0, 12] },
     intro: [[0, 'idle', 500], [.5, 'castUp', 700], [1.0, 'point', 500], [1.4, 'idle', 400]],
     cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
   },
@@ -3831,7 +3839,7 @@ const CHARS = {
     name: 'Capitán Perú', title: 'Héroe de la Patria', role: 'INVOCACIÓN', color: '#e63946', hp: 160, spd: 1.08, ai: 'melee', stance: 'idle', hidden: true, adapt: true, noUlt: true,
     desc: 'El Gran General invocado por ElRandi. Pega duro y se adapta: cada golpe que recibe lo hace más resistente a ese rival.', stats: [5, 3, 4, 2, 4],
     skin: { skin: '#c99a7b', hair: '#1c1616', eye: '#2b1a10', shirt: '#d6222c', pants: '#f0eee8', shoes: '#d6222c', sleeve: 12 },
-    skinData: 'data:image/png;base64,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',
+    skinData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAADyUlEQVR42u1bv2/TQBT+ro3VpAo6JQNDVYl4qrrRIpBaxkqoI1IFA0uRQPwBMLRD2RhgKBMjlWBhq9SxSDBChw6wIYSEM1QdkHCwGlAjRzqG9qLz5ew4Pl/iNH5LfD98vvf5e+/e+V0Iesjze9cZNGTz3SHRud91Xa3nV6vVyOdPYMwlByAHIAcgByAHYJyF9FrnLcuC7/t9t8WVR6/eDxWAgkopLr7vBxTkbbyO/8r3XFgTkAFJS05PT3u2i33kcpIxQxng+37gjVqWhcdvPoEQgo3bVwEAL/a+gjGGl/dvBgDRAafRaKBSqSgVmZmZIQDgOA4DANu2CQAcHx+zYrGoHKtUKiX3ATLVefmX9w8AcJlOK9uTAMB9QKPR6NSpgPA8r6O44ziMUqpUPGqM2CYgU52XK9MWKtNWaLuORE1YVJ4zwPO8RGP1NIGo1eDJ288AgO31ZSO+oJ+Jp3V/oR8HuL2+PBRPTymF67qMv3UV/RPHAXKFAwR8wsOFuUD7xy/fI/fX8v3dHZzIZpHqccb/UQi+w1vtNtFnwPkkKaXAylKyt+a6EN+YV60aYYfoCWgagZDsfLIuNO1IsPPGNJX3PK9jqyaB1GUACbVZyVb7pfGgTKCX2Ao/18WA5tQUAKDcailZIHtdub/q/ihvrerP67io2sKeF3c+WstgEhOIK7LyvC6OAkY3Q5TSxGvu2s487LtnY6ztzI/nBxHn0B6a7fe1CnRRrUewEoeauw++YQ3znWs8szMKgELZUNqrgLHtSBDSEBnwfsuRAKiUDfP+yr4R/iNOPz7hsFXgAyF66LHoyLxwJ2Goy+W14UDoyuSkHgDttvllUEU5OY7wElKUs4cKv5CutXaDKwtzWtlX9vdPV92lchkAMLu0iqOD/U79SbOpHIP3l+Wk2cTmz99aAPTaHRpZBrmiRwf7mF1ajVSet4ntcjmXXHLJxZSQrEyEsWDEQgghQ8kNDkv5uqQvY4wNAoSJLClfYwy1cyLUCelixYU+H1ATdK2Z1zt7AFx7WgK5Ue9cj+UJEefQRp0QjJUwxphz9sMWt4pscavIxLqxAkCUQQGQGRMQqT9IMyBZjQNqjA0kGBr7SDDfC6S+lKV8vkA3/z/wvYCYFI36ZI6EGeDMb4ZMpMLpKO4G5S/BWWUAScPmA7QHUqU/NPP/AwuExEyQ6jyBmPlJu5wfl8+KD0jz/F7+h4mRB0BIpZdbrUA+UC6PdCQYdnI7dkyguVrorgIFE3bfz5neXcP5f+MA6J4v2DCc/x9JJ+gprr18FcgBMCL/ASzIEcgyXmMuAAAAAElFTkSuQmCC',
     skills: [
       { n: 'Patada Peruana', d: 'Sale disparado con una patada voladora que lanza al rival muy lejos.', k: 'rush', cd: 7, o: { dmg: 10, kb: 20, up: 7, ragdoll: 1.1, pose: 'kickRush', hitPose: 'kick' }, r: [2, 12], tags: 'gap gb' },
       { n: '¡Fuerza Peruana!', d: 'Salta y cae con un impacto que aplasta todo alrededor.', k: 'slam', cd: 9, o: { radius: 5, dmg: 12 }, r: [0, 5], tags: 'aoe gb' },
@@ -3992,6 +4000,12 @@ const AWK = {
     { n: 'Abrazo de Verity', d: 'Verity aparece detrás del rival, lo mira fijo con una sonrisa enorme... y lo lanza de un rayo.', k: 'chore', cd: 14, o: { id: 'sebHug' }, r: [0, 5], tags: 'close gap gb', cine: 1 },
     { n: 'Variantes', d: 'Presenta a Lovity y Antiverity: dos esferas orbitan 9 s a su alrededor; Lovity lo cura y Antiverity dispara sombras al rival.', k: 'sebVariants', cd: 16, o: { dur: 9 }, r: [0, 25], tags: '' },
     { n: 'Eclipse', d: 'Verity se hace enorme sobre el rival, oscurece todo y cae de golpe aplastando una zona enorme.', k: 'sebEclipse', cd: 13, o: { dmg: 14, r: 6.5 }, r: [2, 22], tags: 'aoe gb' },
+  ],
+  randi: [
+    { n: 'Capitán Perú', d: 'La gran invocación (necesita un rival cerca y gasta 12 s de despertar): Capitán Perú patea a ElRandi y pasas a controlarlo. Matar y golpear le suma tiempo; cuando se acaba, Capitán Perú cae y ElRandi con él.', k: 'randiMahoraga', cd: 3, o: {}, r: [0, 9], tags: 'close' },
+    { n: 'Bandada de Palomas', d: 'Diez palomas salen volando a la vez y persiguen al rival.', k: 'randiFlock', cd: 9, o: { dmg: 2.4 }, r: [3, 24], tags: 'proj' },
+    { n: 'Pachamanca', d: 'Marca el suelo del rival: se abre en una erupción de pachamanca y lo lanza por el aire.', k: 'pillar', cd: 9, o: { radius: 3.2, delay: .6, dmg: 11, up: 16, ragdoll: 1.2, color: '#ff7a1a' }, r: [2, 16], tags: 'aoe' },
+    { n: 'Inti Raymi', d: 'El sol inca baja al piso: una zona de fuego que quema y frena a quien esté adentro.', k: 'zone', cd: 10, o: { r: 6.5, dur: 5, dmg: 2.8, stun: .3, fx: 'fire' }, r: [0, 6.5], tags: 'aoe' },
   ],
   jesuluto: [
     { n: 'Lluvia de Errores', d: 'Marca una zona y le llueven ventanas de error del cielo: cada una explota al caer.', k: 'jlRain', cd: 11, o: { dmg: 3.6 }, r: [3, 24], tags: 'aoe' },
@@ -4616,6 +4630,7 @@ function applyHit(att, t, o) {
   const dmg = (o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL) * adaptMul(t, att);
   t.hp -= dmg;
   if (att.clippy && t !== att && !o.noAssist && dmg >= .4) clippyAssist(att, t);
+  if (att.capRandi && t !== att && dmg >= .4) att.capT = Math.min(45, att.capT + .7);   // cada golpe de Capitán Perú le suma tiempo
   if (dmg >= .5 && t !== att && (att.fireT > 0 || (att.awak > 0 && att.ch.fireSword))) poisonOn(t, att, { dps: att.fireT > 0 ? 2.4 : 1.6, dur: 3.2, col: '#ff7a1a', label: 'ARDE' });   // Espada de Fénix y despertar de ItzUkyo: quema
   att.ult = Math.min(100, att.ult + dmg * 1.1 * ULT_GAIN); t.ult = Math.min(100, t.ult + dmg * .6 * ULT_GAIN);
   t.flashT = .12; t.lastHurtT = G.time;
@@ -4700,7 +4715,8 @@ function segDist(p, a, b) {
 function freeze(g, dur) { g.frozen = dur; iceBlock(g, dur); }
 function kill(v, k) {
   if (!v.alive) return;
-  if (v.capRandi) { capUnpossess(v); return; }   // Capitán Perú cae: ElRandi vuelve
+  if (v.capRandi) { capEnd(v); return; }   // Capitán Perú cae y ElRandi con él
+  if (k && k !== v && k.capRandi) k.capT = Math.min(45, k.capT + 10);   // matar le suma tiempo a Capitán Perú
   v.alive = false; v.hp = 0; v.respawnT = v.dummy ? 2 : 4; v.deathT = 0; v.blocking = false; v.frozen = 0; v.grabbed = false;
   endAction(v); v.ragdoll = 3; v.deaths++;
   sfx('ko', v.pos);
@@ -6752,6 +6768,19 @@ const MOVES = {
       } }],
     });
   },
+  // La gran invocación: solo si hay un rival cerca; gasta 12 s del despertar (en Jujutsu Shenanigans gasta el 40 % de la barra)
+  randiMahoraga(f, o) {
+    const tg = findTarget(f, 9);
+    if (!tg || f.awak < 4 || f.capRandi) { if (f.isPlayer) popText(chestOf(f), f.capRandi ? 'Ya está invocado' : f.awak < 4 ? 'Poco despertar' : 'Acércate a un rival', '#ffb3b8', 18); return false; }
+    f.awak = Math.max(.5, f.awak - 12); randiSummon(f, tg);
+  },
+  randiFlock(f, o) {
+    startAction(f, {
+      name: 'randiFlock', dur: .8, speedMul: .3, aim: true, anim: [[0, 'castUp', 500], [.25, 'point', 500]],
+      start: () => popText(chestOf(f), '¡Bandada!', '#e6ecf2', 22),
+      steps: [{ at: .22, fn: () => { for (let i = 0; i < 10; i++) later(i * .06, () => { if (G.state === 'play' && f.alive) jlPigeon(f, i, o); }); sfx('whoosh', f.pos); } }],
+    });
+  },
   // Rueda de Adaptación (como el modo defensa de Mahoraga): el próximo golpe que reciba lo cura y lo adapta a ese rival
   capAdapt(f, o) {
     startAction(f, {
@@ -7683,7 +7712,6 @@ function useUlt(f) {
 // el despertar no es un ataque: termina la animación y las habilidades cambian por un tiempo
 function runUlt(f) {
   if (f.isPlayer && G.mp) netAct({ k: 'u' });
-  if (f.ch.summon) { f.ult = 0; randiSummon(f); return; }
   f.awak = AWAKE_DUR; f.ult = 0; f.cd = [0, 0, 0, 0]; f.iframes = Math.max(f.iframes, .6);
   if (f.hp < f.maxHp) { f.hp = f.maxHp; popText(chestOf(f), '¡VIDA AL MÁXIMO!', '#7dff6a', 22); burst(chestOf(f), 24, '#7dff6a', 6, .2, .6, .4); }   // despertar: se cura del todo
   startAction(f, { name: 'awaken', dur: .7, armor: true, speedMul: 0, anim: [[0, 'charge', 500], [.25, 'vpose', 800]] });
@@ -8213,7 +8241,7 @@ function poisonOn(g, att, o) {
 }
 function tickTimers(f, dt) {
   if (f.capDef > 0) f.capDef -= dt;
-  if (f.capT > 0 && f.capRandi) { f.capT -= dt; if (f.capT <= 0) capUnpossess(f); }
+  if (f.capT > 0 && f.capRandi) { f.capT -= dt; if (f.capT <= 0) capEnd(f); }
   if (f.poison && f.alive) {
     const q = f.poison; q.t -= dt; q.acc += dt;
     if (Math.random() < dt * 14) emit(f.pos.x + rand(-.4, .4), f.pos.y + rand(.3, 1.8), f.pos.z + rand(-.4, .4), 0, rand(1, 3), 0, q.col, .14, .5, -.1, 1);

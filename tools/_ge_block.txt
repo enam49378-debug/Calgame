@@ -1,0 +1,133 @@
+B = 32                    # tamaño base con el que se dibujan la mayoría de los tiles (se amplían x2)
+TS, COLS = 64, 8          # tile 64x64 px = 4 m x 4 m; atlas de 8 columnas (512 px de ancho; las filas crecen según los tiles)
+AW, AH = TS * COLS, TS * COLS
+PPM = 16                  # px de textura por metro (como Minecraft)
+
+
+# ---------------------------------------------------------------- textura (atlas de tiles) ----------
+def hexrgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def shade(c, k):
+    return tuple(max(0, min(255, int(v * k))) for v in c)
+
+
+TILES = {}   # nombre -> indice
+PAINT = []   # (nombre, funcion(draw, img, rng))
+
+
+def add_tile(name, fn):
+    TILES[name] = len(PAINT)
+    PAINT.append((name, fn))
+
+
+def solid(name, col, noise=.05):
+    c = hexrgb(col)
+
+    def f(d, im, rng):
+        for y in range(B):
+            for x in range(B):
+                im.putpixel((x, y), shade(c, 1 + rng.uniform(-noise, noise)))
+    add_tile(name, f)
+
+
+def brick(name, col, mortar='#d8d0c0'):
+    c, m = hexrgb(col), hexrgb(mortar)
+
+    def f(d, im, rng):
+        d.rectangle([0, 0, B - 1, B - 1], fill=m)
+        for row in range(B // 4):
+            off = 4 if row % 2 else 0
+            for bx in range(-8, B, 8):
+                x0 = bx + off
+                if x0 + 6 < 0:
+                    continue
+                k = 1 + rng.uniform(-.09, .09)
+                d.rectangle([max(0, x0), row * 4, min(B - 1, x0 + 6), row * 4 + 2], fill=shade(c, k))
+    add_tile(name, f)
+
+
+def glass(name, top, bot, lines=True):
+    t, b = hexrgb(top), hexrgb(bot)
+
+    def f(d, im, rng):
+        for y in range(B):
+            k = y / (B - 1)
+            d.line([0, y, B - 1, y], fill=tuple(int(t[i] * (1 - k) + b[i] * k) for i in range(3)))
+        if lines:
+            for o in (4, 10, 20, 26):
+                for i in range(10):
+                    x, y = o + i, 2 + i
+                    if x < B and y < B:
+                        r, g, bl = im.getpixel((x, y))
+                        im.putpixel((x, y), (min(255, r + 45), min(255, g + 45), min(255, bl + 40)))
+    add_tile(name, f)
+
+
+def stripes(name, a, b, n=4):
+    ca, cb = hexrgb(a), hexrgb(b)
+
+    def f(d, im, rng):
+        w = B // (n * 2)
+        for i in range(B):
+            d.line([i, 0, i, B - 1], fill=ca if (i // w) % 2 == 0 else cb)
+        d.line([0, B - 2, B - 1, B - 2], fill=shade(ca, .8))
+        d.line([0, B - 1, B - 1, B - 1], fill=shade(ca, .65))
+    add_tile(name, f)
+
+
+def grille(name, base, line):
+    cb, cl = hexrgb(base), hexrgb(line)
+
+    def f(d, im, rng):
+        d.rectangle([0, 0, B - 1, B - 1], fill=cb)
+        for y in range(3, B, 4):
+            d.line([2, y, B - 3, y], fill=cl)
+    add_tile(name, f)
+
+
+def planks(name, col):
+    c = hexrgb(col)
+
+    def f(d, im, rng):
+        for x in range(B):
+            k = 1 + (-.12 if x % 8 == 0 else rng.uniform(-.04, .04))
+            d.line([x, 0, x, B - 1], fill=shade(c, k))
+    add_tile(name, f)
+
+
+def checker(name, a, b):
+    ca, cb = hexrgb(a), hexrgb(b)
+
+    def f(d, im, rng):
+        for y in range(B):
+            for x in range(B):
+                im.putpixel((x, y), ca if ((x // 8) + (y // 8)) % 2 == 0 else cb)
+    add_tile(name, f)
+
+
+for n, c in dict(pl_cream='#f0e6cf', pl_peach='#f0bf7b', pl_rose='#e49aab', pl_mint='#77beaa', pl_yellow='#e9cd83', pl_lilac='#b9a0db',
+                 pl_orange='#eda777', pl_blue='#88b8dc', pl_sage='#a9cd86', pl_sky='#87c8d0', pl_gray='#b4bcc0',
+                 trim_white='#ece7d8', trim_stone='#c8c2ae', stone_dark='#677681', concrete='#a9afb0', concrete_dark='#7f878b', roof_tar='#3f464d',
+                 metal='#8f9ba0', metal_dark='#4b5a64', wood='#8a5a3a', door_navy='#263e50', door_red='#9b3b3b', door_glass='#5d8da0',
+                 gold='#c9a24a', night='#1b2330', pot='#a36d58', plant='#5f9a55', flower_pink='#e87aa0', flower_yellow='#f2cf55',
+                 lamp='#fff2c0', pipe='#657a80', sign_dark='#2a3b4a', sign_teal='#277d79', sign_red='#b0463c', sign_gold='#d9ad4a', rust='#9a5a3c',
+                 curtain='#e8d9b8', tank='#c06a4a', water_blue='#4d7fa8', shadow='#1d2a36').items():
+    solid(n, c)
+brick('br_red', '#b5654f')
+brick('br_tan', '#c9a77c')
+brick('br_brown', '#8a5a44', '#bfb29c')
+glass('glass', '#9fd3e6', '#4f8fae')
+glass('glass_dark', '#3d6f8a', '#1f3f55')
+glass('glass_warm', '#ffe7a8', '#e0a45a', False)
+stripes('awn_red', '#c8473f', '#f2ecdc')
+stripes('awn_blue', '#3d6fa8', '#f2ecdc')
+stripes('awn_green', '#3f8f5a', '#f2ecdc')
+stripes('awn_gold', '#d9ad4a', '#f2ecdc')
+grille('vent', '#8a979c', '#4b5a64')
+planks('planks', '#9a6a40')
+checker('checker', '#f1ece0', '#3b4452')
+
+
