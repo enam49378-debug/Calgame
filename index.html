@@ -280,10 +280,15 @@ tr.me td{color:var(--hot);font-weight:700}
 #pause .pause-back{display:flex;justify-content:center;position:sticky;bottom:-26px;padding:10px 0 3px;background:#101118}
 @media(max-width:500px){#pause .obox{padding:20px}#pause .pause-back{bottom:-20px}}
 
+#spear-recovery{position:fixed;bottom:124px;left:50%;transform:translateX(-50%);padding:10px 18px;background:#101925ed;border:1px solid #e0b85d;color:#ffe2a1;font-weight:700;z-index:20;pointer-events:none;text-align:center}
+#spear-marker{position:fixed;z-index:19;pointer-events:none;transform:translate(-50%,-100%);padding:4px 8px;background:#101925dd;border-bottom:2px solid #e0b85d;color:#ffe2a1;font-size:12px;font-weight:700}
+#skills.no-spear .slot{filter:saturate(.2);opacity:.55}
 </style>
 
 </head>
 <body>
+<div id="spear-recovery" class="hidden"></div>
+<div id="spear-marker" class="hidden">▼ Tu lanza</div>
 <div id="wrap"></div>
 <canvas id="lines"></canvas>
 <div id="cinedim"></div>
@@ -2846,6 +2851,7 @@ function buildSword() {
 }
 const WEAPONS = { spear: buildSpear, scepter: buildScepter, sword: buildSword };
 function setSpear(o, out) {
+  if (out && ownsMissingSpear(o)) return;
   const s = o.spear; if (!s) return;
   (out ? o.model.gripRot : o.model.backHold).add(s);
   s.position.set(0, 0, out ? 0 : -7 * PX); o.spearOut = out;
@@ -3167,7 +3173,7 @@ const BB_ACTIONS = {
 };
 function javiBBSelection(f, a, speed) {
   const key = f.ch.id, D = bbSet(key); if (!D) return null;
-  if (f.choreTrack || f.forcePose || f.frozen > 0 || f.grabbed) return null;
+  if (f.choreTrack || f.forcePose || f.frozen > 0 || f.grabbed || a?.unarmed) return null;
   const pick = (...names) => names.find(n => D[n]) || null, mk = (n, time) => n ? { name: n, time } : null;
   if (!f.alive || f.ragdoll > 0) return f.onGround ? mk(pick('en_el_piso'), .35) : null;
   if (f.hurtT > 0) {
@@ -3383,7 +3389,7 @@ const CHARS = {
     skin: { skin: '#c8a07a', hair: '#4a2f1b', eye: '#3b82f6', shirt: '#2f6fd6', pants: '#22324d', shoes: '#333333', sleeve: 12 },
     skills: [
       { n: 'Embestida', d: 'Carga con la lanza al frente y atraviesa a todos en el camino.', k: 'lunge', cd: 7, o: { dmg: 9 }, r: [2, 13], tags: 'gap gb' },
-      { n: 'Lanza Leal', d: 'Arroja la lanza: atraviesa rivales y vuelve sola a tu mano.', k: 'spearThrow', cd: 6, o: { dmg: 8 }, r: [3, 22], tags: 'proj' },
+      { n: 'Lanza Leal', d: 'Arroja la lanza. Si elimina al rival, queda clavada: acércate al cuerpo para recuperarla.', k: 'spearThrow', cd: 6, o: { dmg: 8 }, r: [3, 22], tags: 'proj' },
       { n: 'Torbellino', d: 'Gira la lanza a tu alrededor, atrae a los rivales y al final los expulsa.', k: 'whirl', cd: 9, o: {}, r: [0, 2.8], tags: 'close aoe' },
       { n: 'Picado del Dragón', d: 'Salta sobre el rival y clava la lanza en el suelo.', k: 'slam', cd: 10, o: { radius: 3.8, dmg: 12, jump: 15, fwd: 4, track: true, upPose: 'spearThrowW', downPose: 'plunge', landPose: 'plunge' }, r: [2, 12], tags: 'gap aoe gb' },
     ],
@@ -3731,11 +3737,12 @@ class Fighter {
     }
   }
   reset() {
-    Object.assign(this, { hp: this.maxHp, ult: 0, awak: 0, seq: null, poison: null, fireT: 0, stun: 0, ragdoll: 0, iframes: 0, action: null, blocking: false, comboIdx: 0, comboTimer: 0, m1cd: 0, dashCd: 0, dashT: 0, airDash: true, alive: true, respawnT: 0, deathT: 0, cd: [0, 0, 0, 0], rFlightT:0,rFlightCD:0,rGullCD:0,rTapUntil:0,rFlightAltitude:0, onGround: true, hurtT: 0, hurtPose: 'hurtA', getupT: 0, landT: 0, flashT: 0, frozen: 0, grabbed: false, ghostT: 0, spearThrown: false, atkT: 0, flourT: rand(3, 6), twirl: null, twA: 0, catchT: 0, blockHitT: 0, victory: false, landHard: false, gbT: -9 });
+    releaseOwnerSpear(this);
+    Object.assign(this, { hp: this.maxHp, ult: 0, awak: 0, seq: null, poison: null, fireT: 0, stun: 0, ragdoll: 0, iframes: 0, action: null, blocking: false, comboIdx: 0, comboTimer: 0, m1cd: 0, dashCd: 0, dashT: 0, airDash: true, alive: true, respawnT: 0, deathT: 0, cd: [0, 0, 0, 0], rFlightT:0,rFlightCD:0,rGullCD:0,rTapUntil:0,rFlightAltitude:0, onGround: true, hurtT: 0, hurtPose: 'hurtA', getupT: 0, landT: 0, flashT: 0, frozen: 0, grabbed: false, ghostT: 0, spearThrown: false, spearLost: null, atkT: 0, flourT: rand(3, 6), twirl: null, twA: 0, catchT: 0, blockHitT: 0, victory: false, landHard: false, gbT: -9 });
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
-  dispose() { endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
+  dispose() { releaseOwnerSpear(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
 const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
@@ -4168,7 +4175,7 @@ function netHit(att, t, o) {
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
   const dmg = o.dmg * (att.awak > 0 ? 1.15 : 1), col = o.color || att.ch.color, heavy = (o.ragdoll || 0) > 0 || o.dmg >= 8;
-  NET.hitsOut.push({ s: ++NET.hitSeq, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col });
+  NET.hitsOut.push({ s: ++NET.hitSeq, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col, sf: o.spearFinish || null });
   while (NET.hitsOut.length > 10) NET.hitsOut.shift();
   att.ult = Math.min(100, att.ult + dmg * ULT_GAIN); t.flashT = .12;
   const chest = chestOf(t);
@@ -4373,7 +4380,7 @@ function twirlAngle(o, dt) {
 const startTwirl = (o, turns, dur) => { if (o.spear) o.twirl = { t: 0, dur, turns }; };
 function startFlourish(f) {
   const fl = f.ch.flourish;
-  if (fl.needWeapon && !f.spearOut) return;
+  if (ownsMissingSpear(f) || fl.needWeapon && !f.spearOut) return;
   startAction(f, {
     name: 'flourish', soft: true, speedMul: 1, dur: fl.dur, anim: fl.anim, eyes: !!fl.eyes,
     start: () => { if (fl.twirl) startTwirl(f, fl.twirl[0], fl.twirl[1]); },
@@ -4383,16 +4390,16 @@ function startFlourish(f) {
 function doM1(f, upVariant) {
   if (f.action && f.action.soft) endAction(f);
   if (f.m1cd > 0 || f.action) return;
-  if (f.spear && !f.spearOut && !f.remote) { drawSpear(f); return; }
+  if (f.spear && !f.spearOut && !f.remote && !ownsMissingSpear(f)) { drawSpear(f); return; }
   if (f.comboTimer <= 0) f.comboIdx = 0;
   const i = f.comboIdx, fin = i === 3;
   f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.1; f.m1cd = fin ? .9 : .29; f.atkT = 0;
   if (f.isPlayer && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0 });
   sfx('swing', f.pos, .6);
-  const set = f.ch.m1set;
+  const unarmed = ownsMissingSpear(f), set = unarmed ? null : f.ch.m1set;
   const def = set ? set[fin ? (upVariant ? 4 : 3) : i] : fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i];
   startAction(f, {
-    name: 'm1', bbClip: fin ? (upVariant ? 'combo_4_arriba' : 'combo_4') : 'combo_'+(i+1), dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
+    name: 'm1', unarmed, bbClip: fin ? (upVariant ? 'combo_4_arriba' : 'combo_4') : 'combo_'+(i+1), dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
     steps: [{
       at: fin ? .09 : .07, fn: () => {
         const F = fwd(f.yaw); if (f.onGround) { f.vel.x += F.x * 3; f.vel.z += F.z * 3; }
@@ -4401,13 +4408,13 @@ function doM1(f, upVariant) {
         if (def.magic) { const p = front(f, 2.0, 1.2); burst(p, 8, f.ch.color, 4, .12, .3, -.2); burst(p, 4, '#ffd54f', 3, .08, .25, -.2); }
         if (def.eyeStab) { const a = front(f, .35, 1.72), b = front(f, 3.4, 1.4); slashLine(a, b, f.ch.color, .2, .16); slashLine(a, b, '#ffffff', .14, .06); sfx('zap', f.pos, .5); }
         if (def.twirl) startTwirl(f, 1, .32);
-        if (bbSet(f.ch.id)) javiStrikeFx(f, fin, i);
+        if (!unarmed && bbSet(f.ch.id)) javiStrikeFx(f, fin, i);
         const o = fin
           ? { dmg: 6, kb: upVariant ? 2 : 17, up: upVariant ? 15 : 6, ragdoll: upVariant ? 0 : 1.0, stun: upVariant ? .9 : 0 }
           : { dmg: 3.5, stun: .45, kb: 1.4 };
         const n = hitArea(f, front(f, def.reach || 1.25, 1.1), def.r || 1.25, o);
         if (n && !f.onGround) f.vel.y = Math.max(f.vel.y, 2.4);
-        if (!f.spear) fistFx(f, f.ch.color);
+        if (!f.spear || unarmed) fistFx(f, f.ch.color);
       }
     }],
   });
@@ -4437,17 +4444,19 @@ function stabFx(f, col) {
   ringAt(b, col, .9, .2, 'face', f.yaw);
 }
 function drawSpear(f) {
+  if (ownsMissingSpear(f)) { missingSpearHint(f); return; }
   f.atkT = 0;
   startAction(f, { name: 'draw', dur: .34, speedMul: .8, anim: [[0, 'reach', 1100], [.13, 'twirlPose', 900], [.26, 'thrust_w', 700]], steps: [{ at: .11, fn: () => { setSpear(f, true); startTwirl(f, 1, .3); sfx('draw', f.pos); arcSlash(f, f.ch.color, { tilt: -1.3, r: 1.7, len: 2.6, dir: -1, dur: .25 }); } }] });
 }
 function prepWeapon(f) {
+  if (ownsMissingSpear(f)) return;
   if (f.action && f.action.soft) endAction(f);
   f.atkT = 0;
   if (f.spear && !f.spearOut && !f.remote) { setSpear(f, true); f.anim.v.arx -= 20; sfx('draw', f.pos); arcSlash(f, f.ch.color, { tilt: -1.2, r: 1.6, len: 2.2, dir: -1, dur: .2 }); }
 }
 function spawnSpearProj(f, o) {
   const F = fwd(f.yaw), mesh = buildSpear(1.25);
-  const p = { owner: f, pos: front(f, .8, 1.35), vel: F.multiplyScalar(38), speed: 38, life: 24 / 38, age: 0, o, mesh, size: .5, loyal: true, phase: 'out', set: new Set() };
+  const p = { owner: f, pos: front(f, .8, 1.35), vel: F.multiplyScalar(38), speed: 38, life: 24 / 38, age: 0, o, mesh, size: .5, loyal: true, phase: 'out', spearId: spearActorId(f)+':'+(++JAVI_SPEARS.sequence), finisherEligible: f.ch===CHARS.javi && f.awak<=0 && !f.remote, set: new Set() };
   mesh.position.copy(p.pos); scene.add(mesh); PROJ.push(p);
 }
 // ===== Coreografías cinemáticas (agarres estilo TSB) =====
@@ -6880,6 +6889,147 @@ const MOVES = {
 
 // ================= Proyectiles =================
 const PROJ = [];
+// Eliminatoria de la Lanza Leal: la muerte confirma el impacto y el dueño recupera su única lanza.
+const JAVI_SPEARS={drops:new Map(),settled:new Set(),sequence:0,actorSequence:0,bodyLife:15,pickupRange:1.8};
+const SPEAR_BODY_PARTS=['root','inner','torso','head','armL','armR','legL','legR'];
+function spearActorId(f){return f.netId||f.peer||(f.isPlayer&&G.mp?(NET.named?.myId||NET.myPeer):null)||(f._spearActorId||=( 'local-'+(++JAVI_SPEARS.actorSequence)));}
+function spearActor(id){return G.fighters.find(f=>spearActorId(f)===id);}
+function ownsMissingSpear(f){return !!(f.ch===CHARS.javi&&f.spearLost);}
+function spearVector(values){return Array.isArray(values)&&values.length===3&&values.every(v=>Number.isFinite(v)&&Math.abs(v)<ARENA+80);}
+function validSpearRecord(e){return !!(e&&typeof e.id==='string'&&/^[a-zA-Z0-9_.:-]{1,100}$/.test(e.id)&&typeof e.owner==='string'&&typeof e.victim==='string'&&e.id.startsWith(e.owner+':')&&spearVector(e.at)&&spearVector(e.dir)&&Number.isFinite(e.n)&&Number.isFinite(e.yaw)&&Number.isFinite(e.age)&&e.age>=0&&e.age<7200);}
+function copySpearBody(d){
+  const t=d.victim;
+  if(!d.body||!t||t.alive||t.deaths!==d.data.n||!G.fighters.includes(t))return false;
+  for(const key of SPEAR_BODY_PARTS){
+    d.body[key].position.copy(t.model[key].position);d.body[key].quaternion.copy(t.model[key].quaternion);d.body[key].scale.copy(t.model[key].scale);
+  }
+  t.model.root.visible=false;d.body.root.visible=true;return true;
+}
+function spearBodyPose(d){return d.body?SPEAR_BODY_PARTS.map(k=>{const p=d.body[k];return [...p.position.toArray(),...p.quaternion.toArray(),...p.scale.toArray()].map(v=>Math.round(v*1000)/1000);}):null;}
+function restoreSpearBodyPose(d,pose){
+  if(!d.body||!Array.isArray(pose)||pose.length!==8||!pose.every(row=>Array.isArray(row)&&row.length===10&&row.every(Number.isFinite)&&row.slice(0,3).every(v=>Math.abs(v)<ARENA+80)&&row.slice(3,7).every(v=>Math.abs(v)<=1.01)&&row.slice(7).every(v=>v>=.1&&v<=4)))return false;
+  SPEAR_BODY_PARTS.forEach((k,i)=>{const p=d.body[k],row=pose[i];p.position.fromArray(row);p.quaternion.fromArray(row,3).normalize();p.scale.fromArray(row,7);});d.body.root.updateMatrixWorld(true);return true;
+}
+function spearDropPoint(d){
+  if(d.body){d.body.root.updateMatrixWorld(true);return d.body.torso.localToWorld(new V3(0,6*PX,0));}
+  return d.point.clone();
+}
+function retireLoyalSpear(p){
+  if(!p||p.removed)return;p.removed=true;p.mesh.parent?.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();
+  const i=PROJ.indexOf(p);if(i>=0)PROJ.splice(i,1);
+}
+function removeSpearDrop(id,settle=true){
+  const d=JAVI_SPEARS.drops.get(id);if(!d)return;
+  d.mesh.parent?.remove(d.mesh);d.mesh.geometry.dispose();d.mesh.material.dispose();
+  if(d.body)disposeModel(d.body);
+  if(d.jet){scene.remove(d.jet.mesh);d.jet.mesh.geometry.dispose();d.jet.mesh.material.dispose();}
+  JAVI_SPEARS.drops.delete(id);if(settle)JAVI_SPEARS.settled.add(id);
+}
+function releaseOwnerSpear(f){
+  if(!f.spearLost)return;
+  const id=f.spearLost.id;removeSpearDrop(id);f.spearLost=null;f.spearRecovery=id;f.spearRecoveryUntil=G.time+12;
+}
+function createSpearBlood(d){
+  const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0xb5223b}),48),rng=wxRandom(ROOM_ATMOSPHERE.hash(d.id)),drops=[];
+  for(let i=0;i<48;i++)drops.push({delay:i*.011,size:.05+rng()*.045,pos:null,vel:new V3((rng()-.5)*1.3,1+rng()*2,(rng()-.5)*1.3).addScaledVector(d.direction,-3.5-rng()*2.5)});
+  mesh.frustumCulled=false;scene.add(mesh);d.jet={mesh,drops,time:0};updateSpearBlood(d,0);
+}
+function updateSpearBlood(d,dt){
+  const jet=d.jet;if(!jet)return;jet.time+=dt;
+  if(jet.time>1.4){scene.remove(jet.mesh);jet.mesh.geometry.dispose();jet.mesh.material.dispose();d.jet=null;return;}
+  const matrix=new THREE.Matrix4(),q=new THREE.Quaternion(),scale=new V3(),center=spearDropPoint(d).addScaledVector(d.direction,-.18);
+  for(let i=0;i<jet.drops.length;i++){
+    const drop=jet.drops[i],t=jet.time-drop.delay;
+    if(t<0){matrix.makeScale(0,0,0);jet.mesh.setMatrixAt(i,matrix);continue;}
+    if(!drop.pos)drop.pos=center.clone();
+    const p=drop.pos.clone().addScaledVector(drop.vel,t);p.y-=10*t*t;
+    const floor=Math.min(drop.pos.y-.06,groundAt(p.x,p.z,drop.pos.y));p.y=Math.max(floor+.025,p.y);
+    const size=drop.size*Math.max(0,1-t/.8);matrix.compose(p,q,scale.set(size,size*.8,size));jet.mesh.setMatrixAt(i,matrix);
+  }
+  jet.mesh.instanceMatrix.needsUpdate=true;
+}
+function createSpearDrop(data,blood=true){
+  if(!validSpearRecord(data)||JAVI_SPEARS.settled.has(data.id))return null;
+  if(JAVI_SPEARS.drops.has(data.id))return JAVI_SPEARS.drops.get(data.id);
+  const owner=spearActor(data.owner);if(!owner||owner.ch!==CHARS.javi)return null;
+  if(owner.spearLost&&owner.spearLost.id!==data.id)return null;
+  const victim=spearActor(data.victim),direction=new V3(...data.dir).normalize();if(direction.lengthSq()<.1)return null;
+  const d={id:data.id,data:{...data},owner,victim,direction,age:data.age,point:new V3(...(spearVector(data.anchor)?data.anchor:data.at)),body:null,mesh:buildSpear(1.25),jet:null};
+  if(!data.floor&&data.age<JAVI_SPEARS.bodyLife){
+    const ch=CHARS[data.character]||(data.character==='dummy'?DUMMY_CH:CHARS.javi),skin=victim?.skin||ch.skinCanvas||makeSkinCanvas(ch.skin);
+    d.body=buildModel(copyCanvas(skin),!!(victim?.ch.slim||ch.slim),scene);
+    if(!copySpearBody(d)){
+      const anim=new Animator(d.body);anim.x.ix=Math.PI/2;anim.x.alx=-.4;anim.x.arx=-.25;anim.x.llx=.1;anim.apply();d.body.root.position.set(...data.at);d.body.root.rotation.y=data.yaw;
+      if(spearVector(data.anchor)){const at=spearDropPoint(d);d.body.root.position.add(new V3(...data.anchor).sub(at));}
+      restoreSpearBodyPose(d,data.pose);
+    }
+    d.body.root.updateMatrixWorld(true);const localDirection=direction.clone().applyQuaternion(d.body.torso.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
+    d.mesh.quaternion.setFromUnitVectors(new V3(0,0,1),localDirection);d.mesh.position.set(0,6*PX,0).addScaledVector(localDirection,-(26*PX*1.25-.23));d.body.torso.add(d.mesh);
+  }else{
+    d.point.y=groundAt(d.point.x,d.point.z,d.point.y)+.15;d.mesh.position.copy(d.point).addScaledVector(direction,-.9);d.mesh.quaternion.setFromUnitVectors(new V3(0,0,1),direction);scene.add(d.mesh);
+  }
+  JAVI_SPEARS.drops.set(data.id,d);owner.spearLost=d;owner.spearThrown=true;owner.spearOut=false;if(owner.spear)owner.spear.visible=false;
+  for(const p of [...PROJ])if(p.loyal&&p.owner===owner)retireLoyalSpear(p);
+  if(blood&&data.age<1)createSpearBlood(d);
+  return d;
+}
+function confirmSpearFinisher(owner,victim,shot){
+  if(owner.ch!==CHARS.javi||victim.alive||!shot||typeof shot.id!=='string'||!shot.id.startsWith(spearActorId(owner)+':')||!spearVector(shot.dir))return;
+  const record={id:shot.id,owner:spearActorId(owner),victim:spearActorId(victim),character:victim.ch.id,n:victim.deaths,at:victim.pos.toArray(),yaw:victim.yaw,dir:shot.dir,age:0};
+  const d=createSpearDrop(record,true);if(!d)return;
+  victim.spearReceipts=(victim.spearReceipts||[]).filter(e=>G.time-e.time<12&&e.data.id!==record.id);victim.spearReceipts.push({time:G.time,data:record});victim.spearReceipts=victim.spearReceipts.slice(-4);NET.sendT=0;
+}
+function loyalSpearHit(p,victim,hit){
+  const eligible=p.finisherEligible,local=!victim.remote,lethal=local&&victim.hp<=hit.dmg*(p.owner.ai?p.owner.ai.P.dmg:1);
+  const shot=eligible?{id:p.spearId,dir:p.vel.clone().normalize().toArray()}:null;
+  if(shot){hit.spearFinish=shot;if(lethal){hit.kb=3.2;hit.up=1.2;}}
+  const alive=victim.alive,result=applyHit(p.owner,victim,hit);
+  if(shot&&local&&alive&&!victim.alive&&result===true)confirmSpearFinisher(p.owner,victim,shot);
+  if(p.removed)return true;
+  if(eligible&&victim.remote&&victim.hp<=hit.dmg+.05){p.phase='finish-wait';p.finishWait=.8;p.waitVictim=victim;}
+  return false;
+}
+function recoverJaviSpear(f){
+  const d=f.spearLost;if(!d||f.remote||!f.alive||f.ragdoll>0||f.stun>0||f.grabbed||f.cineLock||d.age<.8)return false;
+  const point=spearDropPoint(d);if(Math.hypot(f.pos.x-point.x,f.pos.z-point.z)>JAVI_SPEARS.pickupRange||Math.abs(f.pos.y-point.y)>2.4)return false;
+  releaseOwnerSpear(f);f.spearThrown=false;f.catchT=.4;setSpear(f,true);if(f.spear)f.spear.visible=true;sfx('draw',f.pos,.7);NET.sendT=0;return true;
+}
+function serializeLostSpear(f){
+  const d=f.spearLost;if(!d)return null;
+  return {...d.data,at:(d.body?d.body.root.position:d.point).toArray().map(r2),anchor:spearDropPoint(d).toArray().map(r2),pose:spearBodyPose(d),age:r2(d.age),floor:!d.body};
+}
+function spearReceiptList(f){return(f.spearReceipts||[]).filter(e=>G.time-e.time<12).map(e=>({...e.data,age:r2(Math.max(0,G.time-e.time))}));}
+function synchronizeSpearDrops(peer,pr){
+  if(typeof pr.sr==='string'&&pr.sr.length<=100&&pr.sr.startsWith(spearActorId(peer)+':')){JAVI_SPEARS.settled.add(pr.sr);const d=JAVI_SPEARS.drops.get(pr.sr);if(d){if(d.owner.spearLost?.id===d.id)d.owner.spearLost=null;removeSpearDrop(d.id);}}
+  for(const record of (Array.isArray(pr.jf)?pr.jf.slice(-4):[]))if(record?.victim===spearActorId(peer)&&validSpearRecord(record))createSpearDrop(record,true);
+  if(pr.sd&&pr.sd.owner===spearActorId(peer)&&validSpearRecord(pr.sd)){
+    const d=createSpearDrop(pr.sd,true);if(d&&peer.remote){
+      d.age=pr.sd.age;
+      if(!d.victim||d.victim.alive||d.victim.deaths!==d.data.n)restoreSpearBodyPose(d,pr.sd.pose);
+    }
+  }
+}
+function updateSpearDrops(dt){
+  for(const d of [...JAVI_SPEARS.drops.values()]){
+    if(!G.fighters.includes(d.owner)){removeSpearDrop(d.id);continue;}
+    d.age+=dt;
+    if(d.body){copySpearBody(d);d.point.copy(spearDropPoint(d));if(d.age>JAVI_SPEARS.bodyLife){
+      const dir=d.mesh.getWorldDirection(new V3());d.mesh.parent?.remove(d.mesh);disposeModel(d.body);d.body=null;d.point.y=groundAt(d.point.x,d.point.z,d.point.y)+.15;d.mesh.position.copy(d.point).addScaledVector(dir,-.9);d.mesh.quaternion.setFromUnitVectors(new V3(0,0,1),dir);scene.add(d.mesh);
+    }}
+    updateSpearBlood(d,dt);if(!d.owner.remote)recoverJaviSpear(d.owner);
+  }
+  if(JAVI_SPEARS.settled.size>256)JAVI_SPEARS.settled=new Set([...JAVI_SPEARS.settled].slice(-128));
+  const f=G.player,el=$('spear-recovery');
+  const marker=$('spear-marker');
+  if(f?.spearLost&&f.alive&&!G.viewer){
+    const p=spearDropPoint(f.spearLost),dist=Math.round(Math.hypot(f.pos.x-p.x,f.pos.z-p.z));el.classList.remove('hidden');el.textContent='Recupera tu lanza · '+dist+' m';$('skills').classList.add('no-spear');
+    p.y+=.6;p.project(camera);const visible=p.z>=-1&&p.z<=1&&Math.abs(p.x)<.94&&Math.abs(p.y)<.9;
+    marker.classList.toggle('hidden',!visible);if(visible){marker.style.left=(p.x*.5+.5)*innerWidth+'px';marker.style.top=(-p.y*.5+.5)*innerHeight+'px';}
+  }
+  else{el.classList.add('hidden');marker.classList.add('hidden');$('skills').classList.remove('no-spear');}
+}
+function clearSpearDrops(){for(const id of [...JAVI_SPEARS.drops.keys()])removeSpearDrop(id,false);JAVI_SPEARS.settled.clear();$('spear-recovery').classList.add('hidden');$('spear-marker').classList.add('hidden');}
+function missingSpearHint(f){if(f.isPlayer&&G.time>(f.spearHintAt||0)){f.spearHintAt=G.time+.8;popText(chestOf(f),'Recupera tu lanza','#bce5f6',17);}}
 function spawnProj(f, yaw, o) {
   const F = fwd(yaw), size = o.size || .4, speed = o.speed || 32;
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size * (o.long || 1)), new THREE.MeshBasicMaterial({ color: o.color }));
@@ -6917,29 +7067,42 @@ function updateProj(dt) {
 
 // Lanza Leal: sale, atraviesa y vuelve a la mano de su dueño
 function updLoyal(p, i, dt) {
-  const f = p.owner, o = p.o; p.life -= dt; p.age += dt;
-  if (p.phase === 'out') {
-    p.pos.addScaledVector(p.vel, dt);
-    for (const g of enemiesOf(f)) if (!p.set.has(g) && chestOf(g).distanceTo(p.pos) < 1.1) { p.set.add(g); applyHit(f, g, { dmg: o.dmg || 8, kb: 9, up: 5, ragdoll: .7, dir: p.vel.clone(), color: o.color, hitstop: .05 }); }
-    if (p.life <= 0 || p.pos.y < .2 || groundAt(p.pos.x, p.pos.z) > p.pos.y || Math.hypot(p.pos.x, p.pos.z) > ARENA + 1) { p.phase = 'back'; p.set.clear(); burst(p.pos, 10, '#c9a94a', 5, .15, .3); sfx('block', p.pos, .6); }
-  } else {
-    const to = chestOf(f).sub(p.pos), d = to.length();
-    p.vel.copy(to.normalize().multiplyScalar(40));
-    p.pos.addScaledVector(p.vel, dt);
-    for (const g of enemiesOf(f)) if (!p.set.has(g) && chestOf(g).distanceTo(p.pos) < 1.1) { p.set.add(g); applyHit(f, g, { dmg: (o.dmg || 8) * .6, kb: 6, up: 3, stun: .5, dir: p.vel.clone(), color: o.color }); }
-    if (d < 1.3 || !f.alive || p.age > 3 || !G.fighters.includes(f)) {
-      scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); PROJ.splice(i, 1);
-      f.spearThrown = false; if (f.spear) f.spear.visible = true; f.catchT = .4;
-      if (f.alive) { sfx('draw', f.pos); burst(chestOf(f), 8, o.color, 4, .12, .25); }
-      return;
+  const f=p.owner,o=p.o;p.life-=dt;p.age+=dt;
+  if(p.phase==='finish-wait'){
+    p.finishWait-=dt;
+    if(p.finishWait>0&&f.alive&&G.fighters.includes(f))return;
+    p.phase='back';p.set.clear();
+  }
+  if(p.phase==='out'){
+    p.pos.addScaledVector(p.vel,dt);
+    for(const g of enemiesOf(f))if(!p.set.has(g)&&chestOf(g).distanceTo(p.pos)<1.1){
+      p.set.add(g);
+      if(loyalSpearHit(p,g,{dmg:o.dmg||8,kb:9,up:5,ragdoll:.7,dir:p.vel.clone(),color:o.color,hitstop:.05}))return;
+      if(p.phase==='finish-wait')break;
+    }
+    if(p.phase==='out'&&(p.life<=0||p.pos.y<.2||groundAt(p.pos.x,p.pos.z)>p.pos.y||Math.hypot(p.pos.x,p.pos.z)>ARENA+1)){
+      p.phase='back';p.set.clear();burst(p.pos,10,'#c9a94a',5,.15,.3);sfx('block',p.pos,.6);
+    }
+  }else{
+    const to=chestOf(f).sub(p.pos),d=to.length();p.vel.copy(to.normalize().multiplyScalar(40));p.pos.addScaledVector(p.vel,dt);
+    for(const g of enemiesOf(f))if(!p.set.has(g)&&chestOf(g).distanceTo(p.pos)<1.1){
+      p.set.add(g);
+      if(loyalSpearHit(p,g,{dmg:(o.dmg||8)*.6,kb:6,up:3,stun:.5,dir:p.vel.clone(),color:o.color}))return;
+      if(p.phase==='finish-wait')break;
+    }
+    if(p.phase!=='finish-wait'&&(d<1.3||!f.alive||p.age>3||!G.fighters.includes(f))){
+      retireLoyalSpear(p);
+      if(!ownsMissingSpear(f)){f.spearThrown=false;if(f.spear)f.spear.visible=true;f.catchT=.4;}
+      if(f.alive){sfx('draw',f.pos);burst(chestOf(f),8,o.color,4,.12,.25);}return;
     }
   }
-  p.mesh.position.copy(p.pos); p.mesh.lookAt(p.pos.clone().add(p.vel));
-  emit(p.pos.x, p.pos.y, p.pos.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), o.color, .15, .25, 0, 2);
+  p.mesh.position.copy(p.pos);p.mesh.lookAt(p.pos.clone().add(p.vel));
+  emit(p.pos.x,p.pos.y,p.pos.z,rand(-.5,.5),rand(-.5,.5),rand(-.5,.5),o.color,.15,.25,0,2);
 }
 
 // ================= Habilidades, ulti y cinemática =================
 function useSkill(f, i) {
+  if (ownsMissingSpear(f)) { missingSpearHint(f); return; }
   const s = skillsOf(f)[i]; if (!s || f.cd[i] > 0) return;
   prepWeapon(f);
   const ok = MOVES[s.k](f, Object.assign({ color: f.ch.color, slot: i }, s.o));
@@ -6949,6 +7112,7 @@ function useSkill(f, i) {
   if (ok === false && f.isPlayer) popText(chestOf(f), 'Sin objetivo', '#aab', 15);
 }
 function useUlt(f) {
+  if (ownsMissingSpear(f)) { missingSpearHint(f); return; }
   if (f.ult < 100) return;
   prepWeapon(f);
   if (f.awak > 0) return;
@@ -7243,6 +7407,10 @@ function citySteer(f,target,c,dt){
 function aiCtl(f, dt) {
   const c = { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   const ai = f.ai, P = ai.P;
+  if(ownsMissingSpear(f)){
+    const pos=spearDropPoint(f.spearLost),dx=pos.x-f.pos.x,dz=pos.z-f.pos.z,d=Math.hypot(dx,dz)||1;
+    c.mx=dx/d;c.mz=dz/d;citySteer(f,{pos},c,dt);return c;
+  }
   ai.retarget -= dt;
   if (ai.retarget <= 0 || !ai.target || !ai.target.alive) { ai.retarget = rand(2.5, 5); ai.target = pickTarget(f); }
   const t = ai.target; if (!t) return c;
@@ -8041,6 +8209,7 @@ function updateShow(dt) {
 // ================= Partida =================
 function clearFighters() {
   clearSekzaFlocks();
+  clearSpearDrops();
   seqHud(null);
   G.fighters.forEach(f => f.dispose()); G.fighters = []; G.player = null;
   PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
@@ -8772,17 +8941,22 @@ function presenceOf(f, ch) {
   return {
     v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
+    jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0,
   };
 }
 function applyNetHit(px, h, p = G.player) {
   if (!p || !p.alive || VB.on) return;
-  applyHit(px, p, {
-    fromNet: true, dmg: clamp(+h.dm || 0, 0, 60), kb: clamp(+h.kb || 0, -30, 50), up: clamp(+h.up || 0, 0, 30), ragdoll: clamp(+h.rg || 0, 0, 3),
+  const dmg=clamp(+h.dm||0,0,60),shot=px.ch===CHARS.javi&&dmg>0&&dmg<=8.01&&h.sf&&typeof h.sf.id==='string'&&h.sf.id.length<=100&&h.sf.id.startsWith(spearActorId(px)+':')&&spearVector(h.sf.dir)?h.sf:null;
+  const lethal=shot&&p.hp<=dmg;
+  const hit=applyHit(px, p, {
+    fromNet: true, dmg, kb: lethal?3.2:clamp(+h.kb || 0, -30, 50), up: lethal?1.2:clamp(+h.up || 0, 0, 30), ragdoll: clamp(+h.rg || 0, 0, 3),
     stun: clamp(+h.st || 0, 0, 3), guardBreak: !!h.gb, freeze: clamp(+h.fz || 0, 0, 2.5), dir: new V3(+h.dx || 0, 0, +h.dz || 0),
     color: typeof h.c === 'string' && /^#[0-9a-f]{6}$/i.test(h.c) ? h.c : px.ch.color,
   });
+  if(shot&&hit===true&&!p.alive)confirmSpearFinisher(px,p,shot);
 }
+
 function replayAct(px, a) {
   if (!px.alive || !a) return;
   if(a.k==='r'){
@@ -8864,7 +9038,7 @@ function proxyUpdate(px, dt) {
   m.root.position.copy(px.pos);
   m.root.rotation.y = st ? st.ry : (isFinite(+pr.ry) ? angLerp(m.root.rotation.y, +pr.ry, Math.min(1, dt * 14)) : px.yaw);
   m.root.visible = px.alive;
-  if (px.spear) { const out = !!pr.sp; if (out !== px.spearOut) setSpear(px, out); px.spear.visible = !!pr.sv; }
+  if (px.spear) { const out = !!pr.sp; if (out !== px.spearOut) setSpear(px, out); px.spear.visible = !!pr.sv && !ownsMissingSpear(px); }
   px.flashT -= dt;
   px.rFlightT=clamp(+pr.rft||0,0,SEKZA_R.duration);
   const fl = Math.max(0, px.flashT) / .12;
@@ -8911,6 +9085,7 @@ function netTick(dt) {
       if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
+    synchronizeSpearDrops(px,pr);
     if (Array.isArray(pr.hits)) {
       // golpes dirigidos a mí o a uno de mis dummies
       const mineD = {}; for (const d of dummies()) if (d.netId) mineD[d.netId] = d;
@@ -9108,6 +9283,7 @@ function step(dt) {
   }
   updateProj(dt); updateZones(dt); updateFx(dt); PS.update(dt);
   updateSekzaSpecials(dt);
+  updateSpearDrops(dt);
   autoBalance(dt);
   pressed.clear();
 }
