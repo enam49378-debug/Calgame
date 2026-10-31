@@ -490,6 +490,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.domElement.style.filter = 'contrast(1.07) saturate(1.22) brightness(1.03)';   // gradación final: más color y contraste, menos apagado
 $('wrap').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const SKY = 0xa8d5ff;
@@ -530,18 +531,46 @@ const BLOCK_TEX = {
 };
 
 // Sombreado por bandas y color con más saturación, también cuando se desactiva el posprocesado.
-function cityAnimeMaterial(material){
+// Corte transparente (como en los juegos de vista isométrica): lo que queda entre la cámara y el jugador se disuelve con trama,
+// así las paredes y techos de los edificios no tapan al personaje ni obligan a acercar la cámara.
+const CITY_CUT={cam:{value:new THREE.Vector3()},pl:{value:new THREE.Vector3()},on:{value:0}};
+const CUT_GLSL=`
+  if(uCutOn>.5){
+    vec3 cutAB=uCutPl-uCutCam;float cutL=length(cutAB);vec3 cutD=cutAB/max(cutL,.001);
+    float cutS=dot(vCutPos-uCutCam,cutD),cutU=cutL-cutS;
+    if(cutS>.15&&cutU>1.7){
+      float cutDist=length(vCutPos-(uCutCam+cutD*cutS));
+      float cutR=min(2.3,.5*cutS)*smoothstep(1.6,4.4,cutU);
+      float cutN=fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))));
+      if(cutDist<cutR*(.5+.5*cutN)&&vCutPos.y>uCutPl.y-1.1)discard;
+    }
+  }
+`;
+// Sombreado de la ciudad: bandas suaves de dibujo animado + color de película (sombras frías, luces cálidas), contorno de cielo y
+// saturación; con opts.cut añade el corte transparente. Los materiales Phong reciben además luz de contorno.
+function cityAnimeMaterial(material,opts={}){
+  const cut=!!opts.cut,phong=!!material.isMeshPhongMaterial;
   material.onBeforeCompile=shader=>{
+    if(cut){
+      shader.uniforms.uCutCam=CITY_CUT.cam;shader.uniforms.uCutPl=CITY_CUT.pl;shader.uniforms.uCutOn=CITY_CUT.on;
+      shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vCutPos;')
+        .replace('#include <project_vertex>','#include <project_vertex>\nvec4 cutW=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\ncutW=instanceMatrix*cutW;\n#endif\ncutW=modelMatrix*cutW;vCutPos=cutW.xyz;');
+      shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vCutPos;\nuniform vec3 uCutCam;uniform vec3 uCutPl;uniform float uCutOn;')
+        .replace('void main() {','void main() {\n'+CUT_GLSL);
+    }
     shader.fragmentShader=shader.fragmentShader.replace('#include <fog_fragment>',`
       float cityLuma=max(.001,dot(gl_FragColor.rgb,vec3(.299,.587,.114)));
-      float cityBand=floor(cityLuma*5.+.5)/5.;
-      gl_FragColor.rgb*=mix(1.,max(.15,cityBand)/cityLuma,.3);
+      float cityBand=floor(cityLuma*6.+.5)/6.;
+      gl_FragColor.rgb*=mix(1.,max(.15,cityBand)/cityLuma,.26);
+      ${phong?'float cityRim=pow(1.-clamp(dot(normalize(vNormal),normalize(vViewPosition)),0.,1.),3.);gl_FragColor.rgb+=vec3(.5,.68,1.)*cityRim*.12*cityLuma;':''}
+      gl_FragColor.rgb=mix(gl_FragColor.rgb*vec3(.93,.98,1.07),gl_FragColor.rgb*vec3(1.08,1.01,.92),smoothstep(.22,.82,cityLuma));
+      gl_FragColor.rgb=(gl_FragColor.rgb-.5)*1.1+.5+.025;
       float cityGray=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-      gl_FragColor.rgb=max(vec3(0.),mix(vec3(cityGray),gl_FragColor.rgb,1.23));
+      gl_FragColor.rgb=max(vec3(0.),mix(vec3(cityGray),gl_FragColor.rgb,1.34));
       #include <fog_fragment>
     `);
   };
-  material.customProgramCacheKey=()=> 'aurora-anime-v3';return material;
+  material.customProgramCacheKey=()=> 'aurora-anime-v4'+(cut?'-cut':'')+(phong?'-p':'');return material;
 }
 
 // ================= Mundo: Ciudad Aurora =================
@@ -777,7 +806,7 @@ function cityGrassAt(x,z) {
     const face = z < 0 ? 1 : -1, front=z+face*d/2;
     const bm=CITY_PLAN.find(q=>q.x===x&&q.z===z&&q.model);
     if(bm&&acc){
-      const wall=.4,DHm=3.0,door=acc.door||3.2,base=acc.base;
+      const wall=.4,DHm=3.0,door=acc.door||3.2,base=acc.base,n0=COL.length;
       CITY.buildings.push({x,z,w,d,h,label,accessible:true,base,model:bm.model});
       for(const side of [-1,1]){
         solid(x+side*(w/2-wall/2),z,wall,d,base);
@@ -785,13 +814,14 @@ function cityGrassAt(x,z) {
       }
       for(const end of [-1,1])solid(x,z+end*(d/2-wall/2),door,wall,base,DHm,true);
       solid(x,z,w,d,h+.22,base,true);
+      for(let i=n0;i<COL.length;i++)COL[i].nocam=true;
       CITY.interiors.push({x,z,w,d,h:base,label});
       if(label)sign(label,x,3.775,front+face*.3,4.4,face>0?0:Math.PI,accent);
       sign('ABIERTO · REFUGIO',x+door/2+1.05,2.6,front+face*.36,1.5,face>0?0:Math.PI,'#277d79');
       return;
     }
     if(bm&&!acc){
-      CITY.buildings.push({x,z,w,d,h,label,accessible:false,base:3.15,model:bm.model});solid(x,z,w,d,h+.22);
+      CITY.buildings.push({x,z,w,d,h,label,accessible:false,base:3.15,model:bm.model});solid(x,z,w,d,h+.22);COL[COL.length-1].nocam=true;
       const SG={tienda:[3.65,.22,2.0],gimnasio:[4.35,.2,4.4],museo:[4.17,.16,2.2]},sg=bm.model==='gimnasio'?SG.gimnasio:bm.model==='museo'?SG.museo:SG.tienda;
       if(label)sign(label,x,sg[0],front+face*sg[1],sg[2],face>0?0:Math.PI,accent);
       return;
@@ -914,7 +944,7 @@ function cityGrassAt(x,z) {
         const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
         const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);
         const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
-        const mat=cityAnimeMaterial(new THREE.MeshLambertMaterial({map,emissive:0xffffff,emissiveMap:em}));
+        const mat=cityAnimeMaterial(new THREE.MeshPhongMaterial({map,emissive:0xffffff,emissiveMap:em,shininess:24,specular:0x2c2c2c}),{cut:true});
         ok({geo:bbGeometry(data),mat});
       };
       img.onerror=fail;img.src=data.textures[0].source;
@@ -927,7 +957,7 @@ function cityGrassAt(x,z) {
     const face=b.z<0?1:-1;
     bbLoads.push(loadBBModel(b.model).then(({geo,mat})=>{
       const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
-      for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2;COL.push({x:b.x+face*lx,z:b.z+face*lz,hx:(x1-x0)/2,hz:(z1-z0)/2,h:y1,y0:y0<.05?0:y0,ceiling:false});}
+      for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2;COL.push({x:b.x+face*lx,z:b.z+face*lz,hx:(x1-x0)/2,hz:(z1-z0)/2,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true});}
     }).catch(()=>{
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),new THREE.MeshLambertMaterial({color:b.color}));mesh.position.set(b.x,b.h/2,b.z);scene.add(mesh);
     }));
@@ -939,7 +969,7 @@ function cityGrassAt(x,z) {
     const gx=rx,gz=rz-face*(T.d/2-1.35),qx=rx,qz=rz+face*(T.d/2-2.6),roofY=T.h+.25;
     const doorMat=new THREE.MeshLambertMaterial({color:0xb6bfc4,emissive:0x1b2024});
     const mkStation=(px,pz,dz,y0)=>{
-      const st={px,pz,dx:px,dz,y0,open:0,target:0,panels:[],col:{x:px,z:dz,hx:1.4,hz:.15,h:y0+3.3,y0:y0||0,ceiling:false}};
+      const st={px,pz,dx:px,dz,y0,open:0,target:0,panels:[],col:{x:px,z:dz,hx:1.4,hz:.15,h:y0+3.3,y0:y0||0,ceiling:false,nocam:true}};
       for(const sg of [-1,1]){const m=new THREE.Mesh(new THREE.BoxGeometry(1.4,3.3,.12),doorMat);m.position.set(px+sg*.7,y0+1.65,dz);m.castShadow=true;scene.add(m);st.panels.push(m);}
       COL.push(st.col);return st;
     };
@@ -1457,9 +1487,9 @@ function updateCityWeather(dt,instant=false){
   if(!blocked){
     scene.background.copy(WX.skyHorizon);scene.fog.color.copy(WX.skyHorizon);scene.fog.near=Math.max(2,48-WX.fogAmount*48*WX.fogStrength);scene.fog.far=Math.max(22,192-WX.fogAmount*137*WX.fogStrength);
     HEMI.color.set(0x7b92c1).lerp(_c.set(0xe4f1ff),day);HEMI.groundColor.set(0x26394d).lerp(_c.set(0x657c54),day);
-    HEMI.intensity=.56+day*.15+WX.flash*.3;
+    HEMI.intensity=.62+day*.2+WX.flash*.3;
     sun.position.set(Math.cos(a)*55,height*70,22);sun.color.set(0xfff0d0).lerp(_c.set(0xffaf78),sunset*.75);
-    sun.intensity=Math.sqrt(Math.max(0,height))*.86*(1-WX.cloud*.7)+WX.flash;
+    sun.intensity=Math.sqrt(Math.max(0,height))*.96*(1-WX.cloud*.5)+WX.flash;
     WX.moonLight.intensity=night*.36*(1-WX.cloud*.45);
     WX.fillLight.intensity=night*.19;WX.fillLight.position.copy(camera.position).add(new V3(0,4,0));WX.fillLight.target.position.copy(focus);
     WX.moonLight.position.set(-Math.cos(a)*45,Math.max(12,-height*65),-22);
@@ -3750,6 +3780,113 @@ function sfx(k, pos, mul = 1) {
     case 'whoosh': nz(t, .3, 1500, 1.2, .3 * v, 'bandpass'); break;
     case 'draw': nz(t, .18, 6000, 2, .25 * v, 'highpass'); tone(t, .15, 1400, 2400, 'triangle', .08 * v); break;
     case 'drop': nz(t, .35, 300, .7, .6 * v); tone(t, .3, 110, 40, 'sine', .7 * v); break;
+    case 'ding': tone(t, .8, 1175, 1175, 'sine', .22 * v); tone(t + .28, .9, 880, 880, 'sine', .2 * v); break;
+    case 'slide': nz(t, .5, 900, 1.2, .2 * v, 'bandpass'); tone(t, .45, 150, 105, 'sine', .14 * v); break;
+  }
+}
+
+// ================= Ambiente sonoro: ciudad, viento, pájaros y sonido propio de cada local =================
+const AMB = { ready: false, ins: 0, kind: '', t: {}, acc: 0, arp: 0 };
+const AMB_KIND = { cafe: 'cafe', arcade: 'arcade', mercado: 'mercado', biblioteca: 'biblioteca', ramen: 'ramen', taller: 'taller', centro_comercial: 'mall', torre_aurora: 'lobby' };
+const AMB_LAYERS = {
+  cafe: [['bandpass', 600, .8, .04]], arcade: [['bandpass', 450, .8, .045]], mercado: [['lowpass', 120, .5, .07], ['bandpass', 700, .7, .016]],
+  biblioteca: [['lowpass', 200, .5, .016]], ramen: [['highpass', 3200, .6, .022], ['bandpass', 550, .8, .035]], taller: [['lowpass', 90, .6, .08], ['bandpass', 1500, 1.5, .006]],
+  mall: [['bandpass', 700, .7, .05], ['bandpass', 1500, .6, .024]], lobby: [['lowpass', 110, .5, .04], ['bandpass', 600, .8, .013]]
+};
+function initAmbience() {
+  if (!AC || !master || AMB.ready) return;
+  AMB.ready = true;
+  const mk = (type) => {
+    const b = AC.createBuffer(1, AC.sampleRate * 4, AC.sampleRate), d = b.getChannelData(0); let last = 0, mx = .001;
+    for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; last = type === 'brown' ? last * .97 + w * .2 : w; d[i] = last; mx = Math.max(mx, Math.abs(last)); }
+    for (let i = 0; i < d.length; i++) d[i] = d[i] / mx * .9;
+    return b;
+  };
+  AMB.brown = mk('brown'); AMB.white = mk('white');
+  const src = (buf, type, f, q, gain, bus) => {
+    const s = AC.createBufferSource(); s.buffer = buf; s.loop = true;
+    const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    const g = AC.createGain(); g.gain.value = gain; s.connect(fl); fl.connect(g); g.connect(bus); s.start(0, Math.random() * 3);
+    return { s, fl, g };
+  };
+  AMB.bus = AC.createGain(); AMB.bus.gain.value = 0; AMB.bus.connect(master);
+  AMB.out = AC.createGain(); AMB.outLP = AC.createBiquadFilter(); AMB.outLP.type = 'lowpass'; AMB.outLP.frequency.value = 18000;
+  AMB.out.connect(AMB.outLP); AMB.outLP.connect(AMB.bus);
+  AMB.inn = AC.createGain(); AMB.inn.connect(AMB.bus);
+  AMB.wind = src(AMB.brown, 'lowpass', 520, .6, 0, AMB.out); AMB.hum = src(AMB.brown, 'lowpass', 150, .5, 0, AMB.out); AMB.traf = src(AMB.brown, 'bandpass', 260, .7, 0, AMB.out);
+  AMB.room = src(AMB.brown, 'lowpass', 240, .5, 0, AMB.inn);
+  AMB.L = {};
+  for (const k in AMB_LAYERS) {
+    const g = AC.createGain(); g.gain.value = 0; g.connect(AMB.inn); AMB.L[k] = { g };
+    for (const [type, f, q, gain] of AMB_LAYERS[k]) src(k === 'ramen' && type === 'highpass' ? AMB.white : AMB.brown, type, f, q, gain, g);
+  }
+}
+function updateAmbience(dt) {
+  if (!AC) return;
+  if (G.state !== 'play' || !G.player) { if (AMB.bus) AMB.bus.gain.setTargetAtTime(0, AC.currentTime, .3); return; }
+  initAmbience(); if (!AMB.ready) return;
+  const now = AC.currentTime, p = G.player;
+  let kind = '', inside = 0;
+  for (const b of CITY.buildings) if (b.accessible && b.model && Math.abs(p.pos.x - b.x) < b.w / 2 - .2 && Math.abs(p.pos.z - b.z) < b.d / 2 - .2 && p.pos.y < b.base + .6) { kind = AMB_KIND[b.model] || ''; inside = 1; break; }
+  AMB.ins += (inside - AMB.ins) * Math.min(1, dt * 3);
+  const on = WX.sound ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .88, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = WX.rain || 0, cloud = WX.cloud || 0;
+  AMB.acc += dt;
+  if (AMB.acc > .1) {
+    AMB.acc = 0;
+    AMB.bus.gain.setTargetAtTime(on, now, .3);
+    AMB.out.gain.setTargetAtTime(outs, now, .25); AMB.outLP.frequency.setTargetAtTime(18000 - ins * 17200, now, .25);
+    AMB.wind.g.gain.setTargetAtTime(.05 + high * .18 + storm * .14 + cloud * .04 + .025 * Math.sin(now * .37), now, .6);
+    AMB.hum.g.gain.setTargetAtTime(.055 * (1 - high * .6), now, .5);
+    AMB.traf.g.gain.setTargetAtTime((.012 + .016 * (.5 + .5 * Math.sin(now * .19))) * (1 - high * .5), now, 1);
+    AMB.room.g.gain.setTargetAtTime(.022 * ins, now, .3);
+    for (const k in AMB.L) AMB.L[k].g.gain.setTargetAtTime(k === kind ? ins : 0, now, .4);
+  }
+  if (!on) return;
+  const due = (key, a, b) => { if (now < (AMB.t[key] || 0)) return false; AMB.t[key] = now + a + Math.random() * (b - a); return true; };
+  const vo = outs > .5 ? outs : 0, vi = kind ? ins : 0;
+  if (vo && WX.night < .5 && storm < .2 && due('bird', 1.8, 6)) {
+    const f = 2400 + Math.random() * 1800, n = 2 + (Math.random() * 3 | 0);
+    for (let i = 0; i < n; i++) tone(now + i * .09, .07, f * (1 + i * .05), f * (1.15 + Math.random() * .2), 'sine', .03 * vo * (1 - high * .6));
+  }
+  if (vo && WX.night > .55 && storm < .2 && due('cricket', 1.1, 2.8)) for (let i = 0; i < 6; i++) tone(now + i * .07, .035, 4300, 4300, 'sine', .011 * vo);
+  if (vo && due('car', 12, 28)) nz(now, 1.4, 320, .6, .03 * vo, 'bandpass');
+  if (!vi) return;
+  switch (kind) {
+    case 'cafe':
+      if (due('clink', 1.2, 3.6)) { tone(now, .08, 3200, 2800, 'triangle', .045 * vi); tone(now + .07, .06, 4100, 3600, 'triangle', .03 * vi); }
+      if (due('hiss', 9, 18)) nz(now, .9, 3500, 1, .05 * vi, 'highpass');
+      break;
+    case 'arcade':
+      if (due('arp', .19, .19)) {
+        const sc = [262, 330, 392, 523, 392, 330, 294, 370], f = sc[AMB.arp % 8] * (Math.floor(AMB.arp / 16) % 2 ? 1.12 : 1); AMB.arp++;
+        tone(now, .15, f, f, 'square', .016 * vi); if (AMB.arp % 4 === 1) tone(now, .3, f / 2, f / 2, 'triangle', .022 * vi);
+      }
+      if (due('blip', .5, 1.8)) { if (Math.random() < .5) { tone(now, .08, 988, 988, 'square', .03 * vi); tone(now + .08, .2, 1319, 1319, 'square', .03 * vi); } else tone(now, .14, 400 + Math.random() * 600, 1200 + Math.random() * 900, 'square', .026 * vi); }
+      break;
+    case 'mercado':
+      if (due('beep', 2.5, 7)) tone(now, .07, 1900, 1900, 'square', .028 * vi);
+      if (due('rattle', 12, 25)) nz(now, .5, 900, 2, .05 * vi, 'bandpass');
+      break;
+    case 'biblioteca':
+      if (due('page', 5, 11)) nz(now, .15, 6000, 1, .035 * vi, 'highpass');
+      if (due('tick', 1, 1)) tone(now, .02, 1500, 1100, 'square', .01 * vi);
+      break;
+    case 'ramen':
+      if (due('clat', 2, 5)) { tone(now, .05, 1700, 1300, 'triangle', .045 * vi); nz(now, .12, 2500, 1.2, .05 * vi, 'bandpass'); }
+      if (due('chop', 3, 7)) nz(now, .05, 900, 2, .12 * vi);
+      break;
+    case 'taller':
+      if (due('clank', 2, 6)) { tone(now, .12, 1200, 800, 'square', .035 * vi); tone(now + .05, .15, 2400, 1900, 'triangle', .028 * vi); nz(now, .1, 3000, 2, .06 * vi, 'highpass'); }
+      if (due('air', 6, 14)) nz(now, .5, 4500, 1, .05 * vi, 'highpass');
+      if (due('drill', 12, 25)) tone(now, .6, 200, 260, 'sawtooth', .028 * vi);
+      break;
+    case 'mall':
+      if (due('chime', 14, 28)) { tone(now, .6, 880, 880, 'sine', .035 * vi); tone(now + .35, .7, 1175, 1175, 'sine', .035 * vi); }
+      if (due('splash', .4, 1.2)) tone(now, .05, 1800 + Math.random() * 900, 1500, 'sine', .02 * vi);
+      break;
+    case 'lobby':
+      if (due('ding', 9, 18)) { tone(now, .7, 1175, 1175, 'sine', .04 * vi); tone(now + .3, .8, 880, 880, 'sine', .035 * vi); }
+      break;
   }
 }
 
@@ -6696,6 +6833,7 @@ function citySegment(a,b,pad=.65,cameraTest=false){
   let nearest=1;
   for(const c of COL){
     if(!cameraTest&&c.y0>1.9)continue;
+    if(cameraTest&&(c.nocam||(c.hx<.6&&c.hz<.6)))continue;   // edificios (se ven a través) y postes finos: no acercan la cámara
     let enter=0,exit=1;
     for(const [axis,lo,hi] of [ ['x',c.x-c.hx-pad,c.x+c.hx+pad], ['z',c.z-c.hz-pad,c.z+c.hz+pad], ...(cameraTest?[['y',(c.y0||0)-pad,c.h+pad]]:[]) ]){
       const delta=b[axis]-a[axis];
@@ -6963,6 +7101,7 @@ function updateElevatorDoors(dt) {
       if (r && r.from === s && (r.stage === 'enter' || r.stage === 'moving')) near = false;
       if (r && r.to === s) near = r.stage === 'arrive' && r.t > .35;
       s.target = near ? 1 : 0;
+      if (s.lastT !== s.target) { if (s.lastT !== undefined) sfx('slide', new V3(s.px, s.y0 + 1, s.pz)); s.lastT = s.target; }
       s.open += clamp(s.target - s.open, -dt * 1.3, dt * 1.3);
       const sc = Math.max(.07, 1 - s.open * .93), w = 1.4 * sc;
       s.panels[0].scale.x = s.panels[1].scale.x = sc; s.panels[0].position.x = s.dx - (1.4 - w / 2); s.panels[1].position.x = s.dx + (1.4 - w / 2);
@@ -6981,7 +7120,7 @@ function updateElevator(f, dt) {
       if (r.stage === 'enter') { if (r.from.open < .05) { r.stage = 'moving'; r.t = 0; sfx('tp', f.pos); if (f.isPlayer) showBanner(r.up ? 'SUBIENDO' : 'BAJANDO', '#7ad7ff', 'Ascensor'); } }
       else if (r.stage === 'moving') {
         if (Math.random() < dt * 25) emit(f.pos.x + rand(-.8, .8), f.pos.y + .1, f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, '#7ad7ff', .12, .5, -.1, 1);
-        if (r.t > 3) { r.stage = 'arrive'; r.t = 0; f.pos.set(r.to.px, r.to.y0, r.to.pz); sfx('tp', f.pos); }
+        if (r.t > 3) { r.stage = 'arrive'; r.t = 0; f.pos.set(r.to.px, r.to.y0, r.to.pz); sfx('ding', f.pos); }
       } else if (r.stage === 'arrive') {
         if (r.to.open > .92) { if (f.isPlayer) showBanner(r.up ? 'AZOTEA' : 'PLANTA BAJA', '#7ad7ff', r.up ? 'Cuidado con los rayos en tormenta' : 'Ascensor'); f.elevLock = e; e.ride = null; }
       }
@@ -7409,6 +7548,7 @@ function updateCamera(dt) {
   if(wallT<1)pos.copy(cam.focus).lerp(pos,Math.max(0,wallT-.04));
   camera.position.copy(pos);
   camera.lookAt(pos.x + dir.x, pos.y + dir.y, pos.z + dir.z);
+  CITY_CUT.cam.value.copy(pos); CITY_CUT.pl.value.set(p.pos.x, p.pos.y + 1.4, p.pos.z); CITY_CUT.on.value = G.state === 'play' && p.alive ? 1 : 0;
   const want = 70 + (p.awak > 0 ? 4 : 0) + G.fovKick;
   G.fovKick = Math.max(0, G.fovKick - dt * 18);
   cam.fov += (want * (1 - CAMFX.zoom * .1) - cam.fov) * Math.min(1, dt * 10);
@@ -8622,6 +8762,7 @@ function loop(now) {
   updateCamFx(rdt);
   updateCamera(rdt);
   updateCityWeather(G.paused && !G.mp ? 0 : rdt);
+  updateAmbience(rdt);
   // durante el hitstop de una coreografía, el que recibe vibra (congelado pero temblando, como en el anime)
   if (G.hitstop > 0 && G.chore && G.chore.tg.model) { const m = G.chore.tg.model.root; m.position.copy(G.chore.tg.pos); const pulse = Math.min(1, G.hitstop / .06); m.position.x += Math.sin(now * .14) * .035 * pulse; m.position.y += Math.sin(now * .18) * .018 * pulse; }
   updateHUD(rdt);
