@@ -264,6 +264,22 @@ tr.me td{color:var(--hot);font-weight:700}
 @media(max-width:700px){#weatherbtn{font-size:11px}#weather-controls .wx-presets{grid-template-columns:1fr 1fr}}
 
 #sekza-special{position:fixed;right:18px;bottom:115px;display:grid;gap:4px;padding:9px 13px;background:rgba(13,22,34,.88);border-left:3px solid #f3ba60;color:#f7e1b0;font-size:13px;pointer-events:none}#sekza-special.hidden{display:none}#sekza-special small{color:#b7cbd7;font-size:11px}
+#pause .obox{width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow:auto;padding:26px 30px;scrollbar-width:thin}
+#pause .pause-view{display:flex;flex-direction:column;gap:20px;width:100%}
+#pause .pause-view h2{margin:0;text-align:center;font-size:clamp(40px,7vh,66px)}
+#pause .pause-menu{display:flex;flex-direction:column;gap:12px;width:min(320px,100%);margin:0 auto 6px}
+#pause .pause-menu .big{width:100%}
+#pause-settings h3{margin:0 0 13px;color:var(--ink);font-family:var(--display);font-size:21px;letter-spacing:.06em}
+#pause-settings section{display:flex;flex-direction:column;text-align:left;gap:12px}
+#pause-settings .field{margin:0;gap:5px}
+#pause-settings .audio-field small{font-size:12px;line-height:1.35;color:var(--muted);text-transform:none;letter-spacing:0}
+#pause-settings .audio-field output{font-variant-numeric:tabular-nums}
+#pause-settings input[type=range]{accent-color:var(--hot);width:100%}
+#pause-settings .pause-game-settings{padding-top:17px;border-top:1px solid var(--line)}
+#pause-settings .chk{align-self:flex-start}
+#pause .pause-back{display:flex;justify-content:center;position:sticky;bottom:-26px;padding:10px 0 3px;background:#101118}
+@media(max-width:500px){#pause .obox{padding:20px}#pause .pause-back{bottom:-20px}}
+
 </style>
 
 </head>
@@ -413,15 +429,47 @@ tr.me td{color:var(--hot);font-weight:700}
   <small>Cámara libre: arrastrá con el mouse para girar y usá la rueda para acercar. Espacio pausa. La escena se repite sola.</small>
 </div>
 
-<div id="pause" class="overlay hidden">
+<div id="pause" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
   <div class="obox">
-    <h2>PAUSA</h2>
-    <div class="field"><label for="plvl">Nivel de los bots <output id="plvl-o">5</output></label><input id="plvl" type="range" min="1" max="10" step="1" value="5"></div>
-    <label class="chk" style="align-self:flex-start"><input id="pauto" type="checkbox" checked><span>Auto-equilibrio</span></label>
-    <div class="field"><label>Calidad gráfica</label><select class="gfxsel" aria-label="Calidad gráfica"><option value="auto">Auto (recomendado)</option><option value="0">Alta</option><option value="1">Media</option><option value="2">Baja</option><option value="3">Mínima</option></select></div>
-    <div class="btns"><button class="big" id="resume" type="button">Continuar</button><button class="big alt" id="tomenu" type="button">Menú</button></div>
+    <div id="pause-home" class="pause-view">
+      <h2 id="pause-title">PAUSA</h2>
+      <div class="pause-menu">
+        <button class="big" id="resume" type="button">Reanudar</button>
+        <button class="big alt" id="pause-options" type="button">Opciones</button>
+        <button class="big alt" id="tomenu" type="button">Menú</button>
+      </div>
+    </div>
+    <div id="pause-settings" class="pause-view hidden">
+      <h2 id="pause-options-title">OPCIONES</h2>
+      <section class="audio-settings" aria-labelledby="audio-settings-title">
+        <h3 id="audio-settings-title">SONIDOS</h3>
+        <div class="field audio-field">
+          <label for="volume-general">Volumen general <output id="volume-general-value" for="volume-general">100%</output></label>
+          <input id="volume-general" data-volume="general" type="range" min="0" max="100" step="1" value="100">
+          <small>Todos los sonidos del juego.</small>
+        </div>
+        <div class="field audio-field">
+          <label for="volume-ambient">Ambiente <output id="volume-ambient-value" for="volume-ambient">100%</output></label>
+          <input id="volume-ambient" data-volume="ambient" type="range" min="0" max="100" step="1" value="100">
+          <small>Lluvia, mar, viento, pájaros y sonidos de los locales.</small>
+        </div>
+        <div class="field audio-field">
+          <label for="volume-game">Sonidos del juego <output id="volume-game-value" for="volume-game">100%</output></label>
+          <input id="volume-game" data-volume="game" type="range" min="0" max="100" step="1" value="100">
+          <small>Golpes, combos, habilidades y otros efectos.</small>
+        </div>
+      </section>
+      <section class="pause-game-settings" aria-labelledby="pause-game-title">
+        <h3 id="pause-game-title">PARTIDA Y GRÁFICOS</h3>
+        <div class="field"><label for="plvl">Nivel de los bots <output id="plvl-o">5</output></label><input id="plvl" type="range" min="1" max="10" step="1" value="5"></div>
+        <label class="chk"><input id="pauto" type="checkbox" checked><span>Auto-equilibrio</span></label>
+        <div class="field"><label for="pause-quality">Calidad gráfica</label><select id="pause-quality" class="gfxsel" aria-label="Calidad gráfica"><option value="auto">Auto (recomendado)</option><option value="0">Alta</option><option value="1">Media</option><option value="2">Baja</option><option value="3">Mínima</option></select></div>
+      </section>
+      <div class="pause-back"><button class="big alt" id="pause-back" type="button">Volver</button></div>
+    </div>
   </div>
 </div>
+
 
 <div id="dpanel" class="overlay hidden">
   <div class="obox">
@@ -1415,7 +1463,7 @@ function updateAtmosphereStrikes(s){
     active.add(e.id);let v=WX_ROOM.visuals.get(e.id);if(!v){v=buildLightningVisual(e);WX_ROOM.visuals.set(e.id,v);}
     const age=s.t-e.at;v.root.visible=visible&&age>=0&&age<.65;v.bolt.visible=age>=0&&age<.42;v.shock.visible=age>=0&&age<.55;
     v.shock.scale.setScalar(1+Math.max(0,age)*5);v.shock.material.opacity=Math.max(0,.65-age*1.3);
-    if(age>=0&&!v.played){v.played=true;if(visible&&age<.65){WX.flash=.34;if(WX.sound&&AC){if(SND.buf.thunder1)playSnd(Math.random()<.5?'thunder1':'thunder2',.9,null,.1);else nz(AC.currentTime+.04,1.4,180,.4,.32);}}}
+    if(age>=0&&!v.played){v.played=true;if(visible&&age<.65){WX.flash=.34;if(WX.sound&&AC){if(SND.buf.thunder1)playSnd(Math.random()<.5?'thunder1':'thunder2',.9,null,.1);else nz(AC.currentTime+.04,1.4,180,.4,.32,'lowpass','ambient');}}}
     if(e.resolved&&!WX_ROOM.seen.has(e.id)){
       WX_ROOM.seen.add(e.id);for(const hit of e.victims){const f=G.fighters.find((f,i)=>!f.remote&&weatherEntityId(f,i)===hit.id);lightningDamage(f,e,hit.damage);}
     }
@@ -1571,7 +1619,7 @@ function cityWeatherAudio(dt,visible){
   if(!WX.audio){
     const source=AC.createBufferSource();source.buffer=SND.buf.rain||NB;source.loop=true;WX.rainReal=!!SND.buf.rain;
     const filter=AC.createBiquadFilter();filter.type='lowpass';filter.frequency.value=WX.rainReal?9000:1800;
-    const gain=AC.createGain();gain.gain.value=0;source.connect(filter);filter.connect(gain);gain.connect(master);source.start();WX.audio={source,filter,gain};
+    const gain=AC.createGain();gain.gain.value=0;source.connect(filter);filter.connect(gain);gain.connect(soundChannel('ambient'));source.start();WX.audio={source,filter,gain};
   }
   const roof=WX.rainUniforms.uCenter.value,n=WX.roof.image.width,ix=clamp(Math.floor((roof.x+128)/256*n),0,n-1),iz=clamp(Math.floor((roof.z+128)/256*n),0,n-1);
   const underCover=WX.roof.image.data[iz*n+ix]/255*64>roof.y+1.8;
@@ -3869,12 +3917,72 @@ function updateNums(dt) {
 }
 
 // ================= Audio sintetizado =================
+// Preferencias locales: el volumen nunca se transmite a los demás jugadores de la sala.
+const AUDIO_LEVELS={general:100,ambient:100,game:100};
+try{
+  const saved=JSON.parse(localStorage.getItem('bsb_audio_levels_v1')||'null');
+  if(saved)for(const key of Object.keys(AUDIO_LEVELS))if(typeof saved[key]==='number'&&Number.isFinite(saved[key]))AUDIO_LEVELS[key]=Math.round(clamp(saved[key],0,100));
+}catch(e){}
+let gameAudioBus=null,ambientAudioBus=null;
+const HTML_AUDIO_LEVELS=new Set();
+const GAME_RECORDINGS=new Set(['vhit','vland','whistle','applause','elev_ride','door_close','door_open']);
+function soundCategory(name){return GAME_RECORDINGS.has(name)?'game':'ambient';}
+function soundChannel(category='game'){return (category==='ambient'?ambientAudioBus:gameAudioBus)||master;}
+function syncAudioControls(){
+  for(const key of Object.keys(AUDIO_LEVELS)){
+    $('volume-'+key).value=AUDIO_LEVELS[key];$('volume-'+key+'-value').textContent=AUDIO_LEVELS[key]+'%';
+    $('volume-'+key).setAttribute('aria-valuetext',AUDIO_LEVELS[key]+'%');
+  }
+}
+function refreshHtmlAudio(record){
+  const records=record?[record]:HTML_AUDIO_LEVELS;
+  for(const r of records){
+    const enabled=r.category!=='ambient'||(WX.sound&&G.state==='play');
+    const volume=enabled?clamp(r.base*AUDIO_LEVELS.general/100*AUDIO_LEVELS[r.category]/100,0,1):0;
+    if(Math.abs(r.el.volume-volume)>.0001)r.el.volume=volume;
+  }
+}
+function trackHtmlAudio(el,base,category){
+  const r={el,base,category};HTML_AUDIO_LEVELS.add(r);refreshHtmlAudio(r);
+  const release=()=>HTML_AUDIO_LEVELS.delete(r);el.addEventListener('ended',release,{once:true});el.addEventListener('error',release,{once:true});
+  return r;
+}
+function applyAudioLevels(){
+  if(AC&&master){
+    const t=AC.currentTime;
+    master.gain.cancelScheduledValues(t);master.gain.setTargetAtTime(.5*AUDIO_LEVELS.general/100,t,.025);
+    for(const [node,key]of [[ambientAudioBus,'ambient'],[gameAudioBus,'game']])if(node){node.gain.cancelScheduledValues(t);node.gain.setTargetAtTime(AUDIO_LEVELS[key]/100,t,.025);}
+  }
+  refreshHtmlAudio();
+}
+function setAudioLevel(key,value){
+  if(!Object.prototype.hasOwnProperty.call(AUDIO_LEVELS,key)||!Number.isFinite(+value))return;
+  AUDIO_LEVELS[key]=Math.round(clamp(+value,0,100));
+  try{localStorage.setItem('bsb_audio_levels_v1',JSON.stringify(AUDIO_LEVELS));}catch(e){}
+  syncAudioControls();applyAudioLevels();
+}
+function setPauseView(view,focus=true){
+  const options=view==='options';
+  $('pause-home').classList.toggle('hidden',options);$('pause-settings').classList.toggle('hidden',!options);
+  $('pause').dataset.view=options?'options':'home';$('pause').setAttribute('aria-labelledby',options?'pause-options-title':'pause-title');
+  $('pause').querySelector('.obox').scrollTop=0;
+  if(options)syncAudioControls();
+  if(focus&&G.paused)(options?$('volume-general'):$('pause-options')).focus({preventScroll:true});
+}
+function initPauseAudioControls(){
+  syncAudioControls();$('pause-options').addEventListener('click',()=>setPauseView('options'));
+  $('pause-back').addEventListener('click',()=>setPauseView('home'));
+  for(const el of document.querySelectorAll('[data-volume]'))el.addEventListener('input',()=>setAudioLevel(el.dataset.volume,el.value));
+}
+
 let AC = null, master = null, NB = null;
 function initAudio() {
   if (!AC) {
     try {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      master = AC.createGain(); master.gain.value = .5; master.connect(AC.destination);
+      master = AC.createGain(); master.gain.value = .5*AUDIO_LEVELS.general/100; master.connect(AC.destination);
+      gameAudioBus=AC.createGain();gameAudioBus.gain.value=AUDIO_LEVELS.game/100;gameAudioBus.connect(master);
+      ambientAudioBus=AC.createGain();ambientAudioBus.gain.value=AUDIO_LEVELS.ambient/100;ambientAudioBus.connect(master);
       NB = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = NB.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     } catch (e) { AC = null; }
@@ -3882,16 +3990,16 @@ function initAudio() {
   if (AC && AC.state === 'suspended') AC.resume();
   if (AC) loadSounds();
 }
-function nz(t, dur, freq, q, gain, type = 'lowpass') {
+function nz(t, dur, freq, q, gain, type = 'lowpass', category = 'game') {
   const s = AC.createBufferSource(); s.buffer = NB;
   const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
-  s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * .05); s.stop(t + dur + .05);
+  s.connect(f); f.connect(g); g.connect(soundChannel(category)); s.start(t, Math.random() * .05); s.stop(t + dur + .05);
 }
 function tone(t, dur, f0, f1, type, gain) {
   const o = AC.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
   const g = AC.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .05);
+  o.connect(g); g.connect(soundChannel('game')); o.start(t); o.stop(t + dur + .05);
 }
 const UI_SFX = new Set(['select', 'drop', 'whoosh', 'draw']);
 function sfx(k, pos, mul = 1) {
@@ -3942,13 +4050,14 @@ function loadSounds() {
 }
 // sonido puntual: pos opcional (se atenúa con la distancia a la cámara)
 function playSnd(name, vol = 1, pos = null, delay = 0) {
-  if (!AC || !WX.sound || G.state !== 'play') return;
+  const category=soundCategory(name);
+  if (!AC || (category==='ambient'&&!WX.sound) || G.state !== 'play') return;
   const v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 40, 0, 1) : 1) * vol;
   if (v < .02) return;
   if (SND.buf[name]) {
-    const src = AC.createBufferSource(); src.buffer = SND.buf[name]; const g = AC.createGain(); g.gain.value = v; src.connect(g); g.connect(master); src.start(AC.currentTime + delay);
+    const src = AC.createBufferSource(); src.buffer = SND.buf[name]; const g = AC.createGain(); g.gain.value = v; src.connect(g); g.connect(soundChannel(category)); src.start(AC.currentTime + delay);
   } else if (SND.state === 'fallback') {
-    setTimeout(() => { const el = new Audio(SND.base + name + '.mp3'); el.volume = clamp(v * .5, 0, 1); el.play().catch(() => { }); }, delay * 1000);
+    setTimeout(() => { if(G.state!=='play')return;const el=new Audio(SND.base+name+'.mp3');trackHtmlAudio(el,v*.5,category);el.play().catch(()=>{}); },delay*1000);
   }
 }
 const AMB = { ready: false, ins: 0, kind: '', t: {}, acc: 0, L: [] };
@@ -3962,7 +4071,7 @@ function initAmbience() {
   if (SND.state === 'idle') { loadSounds(); return; }
   if (SND.state === 'loading' || AMB.ready) return;
   AMB.ready = true;
-  AMB.bus = AC.createGain(); AMB.bus.gain.value = 0; AMB.bus.connect(master);
+  AMB.bus = AC.createGain(); AMB.bus.gain.value = 0; AMB.bus.connect(soundChannel('ambient'));
   AMB.out = AC.createGain(); AMB.outLP = AC.createBiquadFilter(); AMB.outLP.type = 'lowpass'; AMB.outLP.frequency.value = 18000;
   AMB.out.connect(AMB.outLP); AMB.outLP.connect(AMB.bus);
   AMB.inn = AC.createGain(); AMB.inn.connect(AMB.bus);
@@ -3973,8 +4082,8 @@ function initAmbience() {
       const g = AC.createGain(); g.gain.value = 0; s.connect(g); g.connect(group === 'out' ? AMB.out : AMB.inn); s.start(0, Math.random() * SND.buf[name].duration * .9);
       L.set = (v, t = .5) => g.gain.setTargetAtTime(v * gain, AC.currentTime, t);
     } else if (SND.state === 'fallback') {
-      const el = new Audio(SND.base + name + '.mp3'); el.loop = true; el.volume = 0; el.play().catch(() => { });
-      L.set = v => { el.volume = clamp(v * gain * .3, 0, 1); };
+      const el=new Audio(SND.base+name+'.mp3');el.loop=true;el.volume=0;const tracked=trackHtmlAudio(el,0,'ambient');el.play().catch(()=>{});
+      L.set=v=>{tracked.base=v*gain*.3;refreshHtmlAudio(tracked);};
     }
     AMB.L.push(L);
   }
@@ -3988,6 +4097,7 @@ function updateBeach(dt) {
   }
 }
 function updateAmbience(dt) {
+  refreshHtmlAudio();
   if (!AC) return;
   if (G.state !== 'play' || !G.player) { if (AMB.bus) AMB.bus.gain.setTargetAtTime(0, AC.currentTime, .3); return; }
   if (!AMB.ready) { initAmbience(); if (!AMB.ready) return; }
@@ -8012,12 +8122,16 @@ document.addEventListener('pointerlockchange', () => {
 });
 document.addEventListener('pointerlockerror', () => { lockFailed = true; });
 function setPause(on) {
+  const opening=on&&!G.paused;
   G.paused = on; $('pause').classList.toggle('hidden', !on);
+  if(on&&document.pointerLockElement===canvas)unlock();
   if (on) { $('plvl').value = Math.round(G.botLvl); $('plvl-o').textContent = `${Math.round(G.botLvl)} · ${LVL_NAMES[Math.round(G.botLvl)]}`; $('pauto').checked = G.auto; }
+  if(opening){setPauseView('home',false);syncAudioControls();$('resume').focus({preventScroll:true});}
   for (const k in keys) keys[k] = false; mouse.left = mouse.right = false;
 }
 addEventListener('keydown', e => {
   const tag = e.target.tagName;
+  if(G.paused&&$('pause').contains(e.target)&&(tag==='INPUT'||tag==='SELECT')&&e.code!=='Escape')return;
   if ((tag === 'INPUT' || tag === 'SELECT') && (G.state === 'menu' || G.panelOpen || e.target.type === 'text')) return;
   if (G.state === 'menu') {
     if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { const i = CHAR_IDS.indexOf(G.charId), n = CHAR_IDS.length; G.charId = CHAR_IDS[(i + (e.code === 'ArrowRight' ? 1 : n - 1)) % n]; showSelect(G.charId); e.preventDefault(); }
@@ -8026,7 +8140,7 @@ addEventListener('keydown', e => {
   }
   if (['Space', 'Tab', 'KeyQ', 'KeyF', 'KeyG', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (G.viewer) { if (e.code === 'Escape') closeViewer(); else if (e.code === 'Space') { vTogglePlay(); e.preventDefault(); } return; }
-  if (!G.over && e.code === 'Escape' && !locked) { if (G.panelOpen) togglePanel(false); else if (!G.paused) setPause(true); return; }
+  if(!G.over&&e.code==='Escape'&&!locked){e.preventDefault();if(G.panelOpen)togglePanel(false);else if(G.paused){if($('pause').dataset.view==='options')setPauseView('home');else{setPause(false);requestLock();}}else setPause(true);return;}
   if (!G.over && e.code === 'KeyP') { setPause(!G.paused); if (!G.paused) requestLock(); return; }
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { } }
   if(e.code==='KeyR'&&!e.repeat&&!G.panelOpen&&!G.paused&&!G.over){if(G.player?.ch===CHARS.sekza){e.preventDefault();sekzaSpecialKey(G.player);}return;}
@@ -9274,6 +9388,7 @@ function loop(now) {
   renderMain();
 }
 initWeatherControls();
+initPauseAudioControls();
 gfxInit();
 requestAnimationFrame(loop);
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás

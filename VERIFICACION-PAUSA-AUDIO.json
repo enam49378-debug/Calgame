@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "menu": [
+    "Reanudar",
+    "Opciones",
+    "Menú"
+  ],
+  "baseline": {
+    "game": 0.07071067741003842,
+    "ambient": 0.07071067678457911,
+    "master": 0.04999999887582883
+  },
+  "ambientMuted": {
+    "game": 0.07071067741003842,
+    "ambient": 0.00001404676813158407,
+    "master": 0.035355341058905775
+  },
+  "allMuted": {
+    "game": 0.04596193895049676,
+    "ambient": 0,
+    "master": 0
+  },
+  "saved": {
+    "general": 50,
+    "ambient": 0,
+    "game": 65
+  },
+  "reloadGains": {
+    "master": 0.25,
+    "game": 0.6499999761581421,
+    "ambient": 0
+  },
+  "fallback": {
+    "gameWithEnvironmentOff": 0.1625,
+    "ambientScaled": 0.06,
+    "bothMuted": true
+  },
+  "keyboardAndNavigation": true,
+  "errors": []
+}

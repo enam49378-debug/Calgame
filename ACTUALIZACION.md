@@ -1,3 +1,13 @@
+# Pausa y opciones de sonido
+
+La pausa muestra **Reanudar**, **Opciones** y **Menú**. En Opciones se pueden ajustar por separado el volumen general, el ambiente (lluvia, mar, viento, pájaros y locales) y los efectos del juego (golpes, combos, habilidades y vóley). Los valores van de 0 a 100 % y se guardan en el navegador.
+
+Las opciones existentes de bots y calidad gráfica también están en Opciones. Volver regresa a la pantalla de pausa. Escape regresa desde Opciones y permite reanudar desde la pantalla principal de pausa.
+
+Se comprobó la navegación con teclado y botones, la persistencia al recargar, el aislamiento real de los canales de audio y la reproducción alternativa al abrir el juego sin servidor. Prueba de desarrollo: `npm run test:audio`.
+
+---
+
 # Actualización: Sekza y ambiente
 
 - **R de Sekza:** especial de movilidad, separado de los cuatro ataques. Vuelo de 3,5 segundos, recarga de 8 segundos. WASD mueve, Espacio sube y C baja. Fuera de la playa, R permite terminar el vuelo antes.

@@ -6,7 +6,8 @@
     "test": "node tests/ambiente.cjs",
     "test:ambiente": "node tests/ambiente.cjs",
     "test:sekza": "node tests/especial-sekza.cjs",
-    "test:multijugador": "node tests/especial-red.cjs"
+    "test:multijugador": "node tests/especial-red.cjs",
+    "test:audio": "node tests/pausa-audio.cjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"
