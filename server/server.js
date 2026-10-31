@@ -42,7 +42,8 @@ const server = http.createServer((req, res) => {
     return;
   }
   let file = path.join(ROOT, p === '/' ? 'index.html' : p);
-  if (!file.startsWith(ROOT)) { res.writeHead(403); res.end('403'); return; }
+  // nada fuera de la carpeta del juego, ni archivos ocultos (.git...), ni el código del servidor
+  if (!file.startsWith(ROOT) || /(^|[\\/])\./.test(path.relative(ROOT, file)) || /^server([\\/]|$)/i.test(path.relative(ROOT, file))) { res.writeHead(403); res.end('403'); return; }
   fs.stat(file, (err, st) => {
     if (!err && st.isDirectory()) file = path.join(file, 'index.html');
     fs.readFile(file, (e2, buf) => {

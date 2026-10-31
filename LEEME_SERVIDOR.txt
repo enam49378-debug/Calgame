@@ -25,7 +25,16 @@ Si no pueden entrar
   - Hay que abrir el juego con el link http:// del servidor. Si abres la versión de GitHub o el archivo
     index.html directamente, el juego usa el relay público como antes.
 
-Amigos de otros países: playit.gg (gratis, sin abrir puertos en el router)
+Amigos de otros países, GRATIS y sin instalar nada: Iniciar_Internet.bat
+  1. Doble clic en  Iniciar_Internet.bat . Abre el servidor, un túnel gratis (localhost.run, usa el ssh que ya trae
+     Windows) y el juego.
+  2. En la ventana "Blockstrike - Tunel" aparece el LINK PARA TUS AMIGOS (algo como https://abc123.lhr.life).
+     Ya queda copiado al portapapeles y guardado en publico.txt, y el link de invitación del juego lo usa.
+  3. Tú juegas desde http://localhost:52018/ ; tus amigos abren el link https://... en su navegador.
+  4. Deja las ventanas abiertas mientras juegan. El link CAMBIA cada vez que abres el túnel.
+  Si Windows pide permiso para ssh o Node, di que sí. Si el túnel falla, la ventana muestra el motivo.
+
+Amigos de otros países con playit.gg (los túneles TCP son de pago; esto solo sirve si tienes plan)
   playit crea una dirección pública que apunta al servidor de tu PC. Se hace una sola vez:
   1. Entra a https://playit.gg , descarga el programa para Windows (playit) y ábrelo.
   2. La primera vez te muestra un link para "reclamar" el agente: ábrelo y crea tu cuenta gratis.
