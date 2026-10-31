@@ -2054,18 +2054,29 @@ function jlDialogTex(kind = 'error') {
 }
 const JL_WIN_GEO = new THREE.PlaneGeometry(1.7, 1.17);
 const jlWinMat = kind => new THREE.MeshBasicMaterial({ map: jlDialogTex(kind), side: THREE.DoubleSide, transparent: true, depthWrite: false });
-function jlLaunchWindow(f, yaw, o) {
-  const kind = Math.random() < .3 ? 'warn' : 'error', mat = jlWinMat(kind), mesh = new THREE.Mesh(JL_WIN_GEO, mat), start = front(f, .9, 1.7);
-  mesh.position.copy(start); scene.add(mesh);
-  const dir = new V3(Math.sin(yaw), 0, Math.cos(yaw)), nd = ndt(); let life = 0, done = false;
+function jlBarTex() {
+  if (JL_TEX.bar) return JL_TEX.bar;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 40; const g = cv.getContext('2d');
+  g.fillStyle = '#ece9d8'; g.fillRect(0, 0, 256, 40); g.strokeStyle = '#555'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, 253, 37); g.fillStyle = '#0a8cff';
+  for (let i = 0; i < 14; i++) g.fillRect(8 + i * 17, 9, 12, 22);
+  const t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; return (JL_TEX.bar = t);
+}
+function jlLaunchWindow(f, yaw, o, big) {
+  const kind = big ? 'error' : Math.random() < .3 ? 'warn' : 'error', mat = jlWinMat(kind), mesh = new THREE.Mesh(JL_WIN_GEO, mat), start = front(f, .9, 1.7);
+  mesh.position.copy(start); if (big) mesh.scale.setScalar(2.1); scene.add(mesh);
+  const dir = new V3(Math.sin(yaw), 0, Math.cos(yaw)), nd = ndt(), spd = big ? 19 : 26; let life = 0, done = false;
   const end = () => { if (done) return; done = true; scene.remove(mesh); mat.dispose(); };
   const tick = () => {
-    const dt = nd(); life += dt; mesh.position.addScaledVector(dir, 25 * dt); mesh.lookAt(camera.position.x, mesh.position.y, camera.position.z); mesh.rotation.z = Math.sin(life * 9) * .1;
-    emit(mesh.position.x, mesh.position.y, mesh.position.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), '#3aa0ff', .1, .25, 0, 0);
-    for (const g of enemiesOf(f)) if (chestOf(g).distanceTo(mesh.position) < 1.15) {
-      applyHit(f, g, { dmg: o.dmg || 4.5, stun: .45, kb: 5, up: 1, color: '#0078d7', hitstop: .04, shake: .18 }); popText(chestOf(g), '¡Error!', '#7ad7ff', 18); burst(mesh.position.clone(), 12, '#3aa0ff', 7, .16, .35, 0); sfx('hit', mesh.position, .6); end(); return;
+    const dt = nd(); life += dt;
+    let best = null, bd = 1e9; for (const g of enemiesOf(f)) { const to = chestOf(g).sub(mesh.position), d = to.length(); if (d < 18 && to.dot(dir) / d > .55 && d < bd) { bd = d; best = g; } }
+    if (best) dir.lerp(chestOf(best).sub(mesh.position).normalize(), Math.min(1, 2.6 * dt)).normalize();
+    mesh.position.addScaledVector(dir, spd * dt); mesh.lookAt(camera.position.x, mesh.position.y, camera.position.z); mesh.rotation.z = Math.sin(life * 9) * .1;
+    emit(mesh.position.x, mesh.position.y, mesh.position.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), '#3aa0ff', big ? .22 : .1, .25, 0, 0);
+    for (const g of enemiesOf(f)) if (chestOf(g).distanceTo(mesh.position) < (big ? 1.7 : 1.15)) {
+      applyHit(f, g, big ? { dmg: (o.dmg || 4.5) * 2.1, stun: 1, kb: 11, up: 6, ragdoll: .6, guardBreak: true, color: '#0078d7', hitstop: .08, shake: .4 } : { dmg: o.dmg || 4.5, stun: .45, kb: 5, up: 1, color: '#0078d7', hitstop: .04, shake: .18 });
+      popText(chestOf(g), big ? '¡ERROR FATAL!' : '¡Error!', big ? '#ffffff' : '#7ad7ff', big ? 24 : 18); burst(mesh.position.clone(), big ? 26 : 12, '#3aa0ff', big ? 10 : 7, .16, .35, 0); sfx('hit', mesh.position, .6); end(); return;
     }
-    if (life > 1.0 || groundAt(mesh.position.x, mesh.position.z) > mesh.position.y) { burst(mesh.position.clone(), 8, '#3aa0ff', 5, .14, .3, 0); end(); return; }
+    if (life > (big ? 1.3 : 1.1) || groundAt(mesh.position.x, mesh.position.z) > mesh.position.y) { burst(mesh.position.clone(), 8, '#3aa0ff', 5, .14, .3, 0); end(); return; }
     if (G.state === 'play') later(0, tick); else end();
   };
   later(0, tick);
@@ -2161,18 +2172,37 @@ function updateJesuluto(f, m, dt, T) {
   c.angryT = (c.angryT || 0) - dt;
   if (c.sayT > 0) { c.sayT -= dt; if (c.sayT <= 0) c.bub.visible = false; }
   else if (f.alive && Math.random() < dt * .06) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
-  if (f.alive && !c.ov && f.ragdoll <= 0 && f.stun <= 0 && !f.choreTrack && !f.grabbed) {
-    c.cd -= dt;
-    if (c.cd <= 0) {
-      let best = null, bd = 22; for (const g of enemiesOf(f)) { const d = chestOf(g).distanceTo(c.pos); if (d < bd) { bd = d; best = g; } }
-      if (best) {
-        c.cd = fury ? .5 : awk ? 1.1 : 2.4; c.angryT = .25; const q = chestOf(best);
-        spawnProj(f, Math.atan2(q.x - c.pos.x, q.z - c.pos.z), { from: c.pos.clone(), color: '#cfd6df', speed: 34, size: .24, long: 1.5, homing: 3, range: 26, dmg: fury ? 3.4 : awk ? 3.2 : 2.6, stun: .25, kb: 2 });
-        sfx('zap', c.pos, .4); burst(c.pos.clone(), 5, '#cfd6df', 4, .12, .25, 0);
-        if (Math.random() < .2) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
-      } else c.cd = .3;
-    }
+  jlGlitch(f, m, dt, T);
+}
+// Clippy solo ayuda: cuando Jesuluto conecta un golpe, Clippy dispara un clip al mismo rival (nunca ataca por su cuenta)
+function clippyAssist(f, t) {
+  const c = f.clippy; if (!c || !f.alive || c.ov || f.remote) return;
+  const fury = G.time < (f.jlFury || 0), awk = f.awak > 0, cd = fury ? .4 : awk ? .8 : 1.6;
+  if (G.time - (c.lastAssist || 0) < cd) return; c.lastAssist = G.time; c.angryT = .3;
+  const q = chestOf(t), dmg = fury ? 2.4 : awk ? 2.1 : 1.5;
+  spawnProj(f, Math.atan2(q.x - c.pos.x, q.z - c.pos.z), { from: c.pos.clone(), color: '#cfd6df', speed: 36, size: .22, long: 1.4, homing: 3, range: 22, onHit: g => applyHit(f, g, { dmg, stun: .2, kb: 2, color: '#cfd6df', noAssist: true }) });
+  sfx('zap', c.pos, .4); burst(c.pos.clone(), 5, '#cfd6df', 4, .12, .25, 0);
+  if (Math.random() < .2) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
+}
+// aura glitcheada del despertar: barras de color que saltan alrededor, el cuerpo parpadea en cian/magenta y se deforma a ratos
+function jlGlitch(f, m, dt, T) {
+  const on = f.alive && f.awak > 0;
+  if (!m.glitch) {
+    if (!on) return;
+    const g = new THREE.Group(), geo = new THREE.BoxGeometry(1, 1, 1), mats = [0x00ffff, 0xff00ff, 0xffffff].map(c => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false })), bars = [];
+    for (let i = 0; i < 18; i++) { const b = new THREE.Mesh(geo, mats[i % 3]); g.add(b); bars.push(b); }
+    g.position.y = 1.0; m.root.add(g); m.glitch = { g, bars, t: 0 };
   }
+  const gl = m.glitch; gl.g.visible = on; if (!on) { m.root.scale.x = 1; return; }
+  gl.t -= dt;
+  if (gl.t <= 0) {
+    gl.t = .06 + Math.random() * .08;
+    for (const b of gl.bars) { b.visible = Math.random() < .7; b.scale.set(.2 + Math.random() * 1.0, .04 + Math.random() * .12, .1 + Math.random() * .3); b.position.set((Math.random() - .5) * 1.5, (Math.random() - .5) * 2.2, (Math.random() - .5) * .9); }
+    gl.sx = Math.random() < .3 ? 1 + (Math.random() - .5) * .22 : 1;
+  }
+  m.root.scale.x = gl.sx || 1;
+  if (Math.random() < .14) { const col = Math.random() < .5 ? 0x00ffff : 0xff00ff; for (const mt of m.mats) if (mt.emissive) mt.emissive.setHex(col).multiplyScalar(.5); }
+  if (Math.random() < dt * 45) emit(f.pos.x + rand(-.6, .6), f.pos.y + rand(0, 2), f.pos.z + rand(-.6, .6), rand(-1, 1), rand(1, 3), rand(-1, 1), ['#00ffff', '#ff00ff', '#ffffff'][Math.random() * 3 | 0], .14, .35, 0, 1);
 }
 // cascada de ventanas de error de Windows y pantalla azul en la pantalla del jugador (efecto del despertar)
 const JL_CSS = document.createElement('style');
@@ -3686,9 +3716,9 @@ const CHARS = {
     skin: { skin: '#f2b07a', hair: '#e8a860', eye: '#6bff3a', shirt: '#f0a84e', pants: '#f0a84e', shoes: '#f0c9a0', sleeve: 12 },
     skinData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAExElEQVR42u1aTWgbRxT+1l6w5bUtrLAugtJCUhA9FRpoD6U9hBQSg/FF0B4LRYXGbUIDJRF1Ti24ObYkOCB6d6l6MrELCT320EOhp2YPycEY1EpEQbL1hxumh9Uos7Mz0uxfvWvpwTL7o93R++a97715MxpGCNnbJI4besX5g3+zqDVazPN/BqdmOgXt/e81RCjkwVXC/x9WtMvFof3rKp3Uc+zViw4yjyt9RQ3miykkSZQAyFg8CC+UB8BZQMdhAacCAAqC0AViIryruVw3CAAnPcIOZZgBoEqLeEa7XNRUQNA9Ke961oFpRK+8jINcBOhDppBwGRZlRkUATxwwTJIcBYR+Qs3eTBtuF2DiPOWBWqOjzgkKcfrpk00yIF3XkIlJuH4uizNni1qoUYAqv3rvJ+Hznc/eGygvzSHOZfH8jycAgOk3zwIAnv9uf3f6LTUCkZlyGBygs6MdplBgpmPuAlNm2lBS/vUfLOG5nBdSMNMpZB5XHOcZywbbTBvIWDEAoNZoDQ11QSxglHvEIhNUNf2/Ps4Jz4dZgIpUywUCAMv5UqiTpur2hoMflj/8RhP1q7OjHxYPsCPPRgk7Cjj7o0BVywVCQaBsTiOULBOU5QLV7Q3C6zIApB/FaL8ajxT/okoYlCkvBuAlZ1+SsOZ1Gq2a+/P9aTKTpIr13ig6ns8uZzUVkxYpDADmmSaCzN9d36cm7tOFEp8Kx3YucGX7Gdpv30H7nVu4Un40fgAkpiIk8ykqM39uCtNPvzG+9nSRu9NS8nHVcOqVE/Rcoey6aZXySgrmCmVYpbz0+auPvnSRnJfZZK3Rscn44nfAw2tDo43fIo0uUyzY9DgF4JlLSd8Z58NrQhBizQHtdju8j0WkfKQA3P/itfDAoBaQ1Chw//N3Y2sBOmIutUYH+PkTX/OQUwHAgNU5KwgrCghdoHKwj8rBfnxQiNIFrK11LK7eQHPnNhZXbwAAmju3YaaNAQgzc/P2xKh95PpAc+969ABEGAbtgsjcPGjbax/B/ODrPn0fxYMDAGUe8MwBvfMfAbW/AdoC6LWcivPXp0lG5svdaoV4qQdMpsMTACYATGRsZW1tjfDFE75am8/niddNUIQQQh5cdRxDfx/CmmEoAIjEKwCJ5YCVlRWhosfHx+NBgru7u9ooMBKRCJ20yPxZtnJEfx/1Bs3xSYVjYwHcbDAsCxByQLd1SLqtQzIO9YCp6vYG6bYOCW27rUMyayxos8aCRq+p0Gv2+F8AiLAoKja7vowFB/DTXa+S9Olx6PUAmvrSVaDFC+ve9hdwGzYg2eIymQ1OAJgAEI9ESLY5adRKMF0S97tiHBYn6MHL1nIFcp/eFd63ttaHvufarnfpJvDLt8rgugaFe5/diBUYxaWlpUBh1NpaHw2AAPSwLCD+HHDppn0A47k6zJrueAIg8GHPxJw0DkhUFEAkewIM5+hxruApCgjeZy1Al9UDAGDWWPCFMl1Wz778yslzwIj3p0Tzfb4eUC0XHC17VA72Ua/XUa/XBxsrZn77Cs2964Nrq5R3tOyhzAFBOUTmAqJRprUATdOYZyWudVoLX8ExYW+omJmbt7et9Nuen+Tqx1ve0lvXjvNidPWAoNL89e6JkuB/mTu8MvwY4jwAAAAASUVORK5CYII=',
     skills: [
-      { n: 'Ventanas de Error', d: 'Lanza tres ventanas de error de Windows en abanico: cada una que acierta aturde un instante al rival.', k: 'jlError', cd: 6, o: { dmg: 4.5 }, r: [3, 20], tags: 'proj' },
-      { n: 'Asistente Clippy', d: '«¡Parece que estás atacando!» Clippy se emociona y durante 8 s dispara clips a toda velocidad.', k: 'jlClippy', cd: 12, o: { dur: 8 }, r: [0, 22], tags: '' },
-      { n: 'Ctrl + Z', d: 'Deshace los últimos 3 segundos: vuelve a donde estaba y recupera parte de la vida perdida.', k: 'jlUndo', cd: 11, o: {}, r: [0, 4], tags: 'gap' },
+      { n: 'Ventanas de Error', d: 'Lanza cuatro ventanas de error que persiguen al rival; las tres primeras aturden y la última es enorme: «ERROR FATAL», lo lanza por los aires.', k: 'jlError', cd: 7, o: { dmg: 4.5 }, r: [3, 20], tags: 'proj' },
+      { n: 'Clipazo', d: '«¡Parece que estás atacando!» Clippy sale disparado, golpea y aturde al rival y vuelve emocionado: durante 6 s ayuda mucho más con cada golpe tuyo.', k: 'jlClippy', cd: 11, o: { dmg: 8, dur: 6 }, r: [2, 22], tags: 'gap' },
+      { n: 'Ctrl + Z', d: 'Deshace los últimos 3 segundos: vuelve a donde estabas y recupera vida. La copia que deja atrás estalla.', k: 'jlUndo', cd: 11, o: {}, r: [0, 4], tags: 'gap' },
       { n: 'Formatear C:', d: 'Empieza a formatear el piso a su alrededor (¡sin apagar!). Al llegar al 100 % estalla, rompe guardias y lanza a los rivales.', k: 'jlFormat', cd: 10, o: { dmg: 11, r: 6.2 }, r: [0, 6], tags: 'close aoe gb' },
     ],
     ult: { n: 'Pantalla Azul', d: 'Se cuelga con una Pantalla Azul de la Muerte que lanza una onda y llena todo de errores. Al despertar se cura del todo, Clippy crece y sus habilidades se vuelven puro caos de Windows.', k: 'serious', o: {}, r: [0, 12] },
@@ -3835,8 +3865,8 @@ const AWK = {
   jesuluto: [
     { n: 'Lluvia de Errores', d: 'Marca una zona y le llueven ventanas de error del cielo: cada una explota al caer.', k: 'jlRain', cd: 11, o: { dmg: 3.6 }, r: [3, 24], tags: 'aoe' },
     { n: 'Clippy Gigante', d: 'Clippy se hace enorme, se lanza sobre el rival y cae de golpe lanzándolo por los aires.', k: 'jlGiant', cd: 13, o: { dmg: 13 }, r: [3, 22], tags: 'gap gb' },
-    { n: 'Actualización Forzada', d: '«No apagues el equipo»: un campo eléctrico de actualización aturde y daña a quien esté adentro.', k: 'zone', cd: 10, o: { r: 6.5, dur: 5, dmg: 2.3, stun: .5, fx: 'elec' }, r: [0, 6.5], tags: 'aoe' },
-    { n: 'Virus.exe', d: 'Cinco virus orbitan a tu alrededor y salen a infectar al rival.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'orb', dur: 7, rate: .55, proj: { speed: 30, dmg: 5, size: .45, explode: 2.2, homing: 2 } }, r: [0, 25], tags: 'proj' },
+    { n: 'No Responde', d: 'Una barra de progreso gigante avanza arrasando: quien toca queda congelado «sin responder» y con la guardia rota.', k: 'jlWave', cd: 11, o: { dmg: 7 }, r: [3, 22], tags: 'proj gb' },
+    { n: 'Virus.exe', d: 'Cinco virus orbitan a tu alrededor y salen a infectar al rival; cada uno estalla al tocar.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'orb', dur: 7, rate: .55, proj: { speed: 30, dmg: 5, size: .45, explode: 2.2, homing: 2 } }, r: [0, 25], tags: 'proj' },
   ],
   kaiza: [
     { n: 'Combo Aéreo', d: 'Gancho al cielo, salta detrás y lo estrella de vuelta.', k: 'airCombo', cd: 8, o: { dmg: 12 }, r: [0, 3], tags: 'close' },
@@ -3885,9 +3915,10 @@ const CHAR_IDS = Object.keys(CHARS);
 // Equilibrio: todos pegan algo menos (DMG_GLOBAL) y cada personaje ajusta su fuerza (dmgMul) para que ninguno domine
 const DMG_GLOBAL = .85;
 {
-  const DM = { javi: 1.12, redbird: .88, gato: 1, sekza: 1, rocket: 1, ukyo: .95, sebolla: .92, kaiza: 1, nyx: 1, volt: .95, brasa: .93, yuki: 1, titan: .95, jesuluto: 1 };
+  // Valores ajustados con duelos automáticos entre bots (28 combinaciones): los que ganaban de más bajan, los que perdían de más suben
+  const DM = { javi: .9, redbird: 1.2, gato: 1.5, sekza: 1.7, rocket: 1.1, ukyo: .72, sebolla: 1.5, jesuluto: .9 };
   for (const k in DM) if (CHARS[k]) CHARS[k].dmgMul = DM[k];
-  if (CHARS.titan) CHARS.titan.hp = 122;
+  CHARS.javi.hp = 92; CHARS.gato.hp = 95;
 }
 const DUMMY_CH = {
   name: 'Dummy', title: 'Entrenamiento', role: 'DUMMY', color: '#c8a165', hp: 100, spd: .7, ai: 'melee', stance: 'idle', stats: [3, 1, 1, 1, 1],
@@ -4453,6 +4484,7 @@ function applyHit(att, t, o) {
   }
   const dmg = o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL;
   t.hp -= dmg;
+  if (att.clippy && t !== att && !o.noAssist && dmg >= .4) clippyAssist(att, t);
   if (dmg >= .5 && t !== att && (att.fireT > 0 || (att.awak > 0 && att.ch.fireSword))) poisonOn(t, att, { dps: att.fireT > 0 ? 2.4 : 1.6, dur: 3.2, col: '#ff7a1a', label: 'ARDE' });   // Espada de Fénix y despertar de ItzUkyo: quema
   att.ult = Math.min(100, att.ult + dmg * 1.1 * ULT_GAIN); t.ult = Math.min(100, t.ult + dmg * .6 * ULT_GAIN);
   t.flashT = .12; t.lastHurtT = G.time;
@@ -6545,18 +6577,22 @@ const MOVES = {
   // ---------- Jesuluto: la computadora (ventanas de error, Clippy, Ctrl+Z, formatear y pantalla azul) ----------
   jlError(f, o) {
     startAction(f, {
-      name: 'jlError', dur: .5, speedMul: .3, aim: true, anim: [[0, 'castUp', 400], [.2, 'point', 400]],
-      start: () => jlScreen(f, 'error', 1.2),
-      steps: [{ at: .2, fn: () => { sfx('zap', f.pos); for (let i = -1; i <= 1; i++) jlLaunchWindow(f, f.yaw + i * .24, o); } }],
+      name: 'jlError', dur: .8, speedMul: .3, aim: true, anim: [[0, 'castUp', 400], [.25, 'point', 500]],
+      start: () => jlScreen(f, 'error', 1.5),
+      steps: [0, .13, .26, .46].map((t, i) => ({ at: .18 + t, fn: () => { sfx('zap', f.pos); jlLaunchWindow(f, f.yaw + (i === 3 ? 0 : (i - 1) * .32), o, i === 3); } })),
     });
   },
+  // «Clipazo»: Clippy sale disparado a por el rival, lo golpea y vuelve emocionado (ayuda más durante unos segundos)
   jlClippy(f, o) {
+    const tg = findTarget(f, 22);
     startAction(f, {
-      name: 'jlClippy', dur: .55, speedMul: .3, anim: [[0, 'castUp', 500]],
-      steps: [{ at: .2, fn: () => {
-        f.jlFury = G.time + (o.dur || 8); jlScreen(f, 'clippy', 1.4);
-        if (f.clippy) { f.clippy.say('¡Parece que estás atacando!'); ringAt(f.clippy.pos.clone(), '#cfd6df', 2.6, .4); burst(f.clippy.pos.clone(), 14, '#cfd6df', 6, .14, .4, 0); }
-        sfx('tp', f.pos);
+      name: 'jlClippy', dur: .9, speedMul: .3, aim: true, anim: [[0, 'castUp', 500], [.3, 'point', 500]],
+      start: () => { jlScreen(f, 'clippy', 1.6); if (f.clippy) f.clippy.say('¡Parece que estás atacando!'); },
+      steps: [{ at: .25, fn: () => {
+        const c = f.clippy; if (!c) return; const dest = tg ? chestOf(tg) : front(f, 9, 1.4), from = c.pos.clone(), t0 = G.time;
+        c.ov = { until: G.time + .95, sc: 1.9, mood: 'angry', pos: () => { const u = clamp((G.time - t0) / .35, 0, 1), bk = clamp((G.time - t0 - .5) / .4, 0, 1), e = u < 1 ? u : 1 - bk; return new V3(from.x + (dest.x - from.x) * e, from.y + (dest.y - from.y) * e + Math.sin(u * Math.PI) * .8, from.z + (dest.z - from.z) * e); } };
+        f.jlFury = G.time + (o.dur || 6);
+        later(.33, () => { if (G.state !== 'play') return; explode(f, dest, 2.6, { dmg: o.dmg || 8, stun: .9, kb: 9, up: 5, ragdoll: .5, color: '#cfd6df', hitstop: .07, shake: .3 }); popText(dest, '¡Clip!', '#ffffff', 24); burst(dest, 18, '#cfd6df', 9, .16, .4, 0); sfx('hit', dest); });
       } }],
     });
   },
@@ -6566,11 +6602,35 @@ const MOVES = {
       start: () => { jlScreen(f, 'undo', 1.2); popText(chestOf(f), 'Ctrl + Z', '#7ad7ff', 26); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7ad7ff', 3, .4); },
       steps: [{ at: .3, fn: () => {
         const h = f.jlHist, snap = h && h[0]; if (!snap) return;
+        explode(f, chestOf(f), 3.4, { dmg: 4, stun: .5, kb: 8, up: 3, color: '#0078d7', hitstop: .04, shake: .2 });   // la «copia» que deja atrás estalla
         ghost(f, '#0078d7', .6, .45);
         const heal = Math.max(10, (snap.hp - f.hp) * .6); if (!f.remote) { f.pos.set(snap.x, snap.y, snap.z); f.vel.set(0, 0, 0); f.hp = Math.min(f.maxHp, f.hp + heal); }
         f.jlHist = [];
         ghost(f, '#0078d7', .6, .45); burst(chestOf(f), 24, '#7ad7ff', 8, .18, .5, 0); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7ad7ff', 4, .45); sfx('tp', f.pos);
         popText(chestOf(f), '+' + Math.round(heal), '#7dff6a', 22);
+      } }],
+    });
+  },
+  // «No responde»: una barra de progreso gigante avanza y deja congelado (y sin guardia) a quien toca
+  jlWave(f, o) {
+    startAction(f, {
+      name: 'jlWave', dur: .85, speedMul: .15, aim: true, anim: [[0, 'castUp', 600], [.3, 'point', 500]],
+      start: () => { jlScreen(f, 'load', 2.4); popText(chestOf(f), 'Instalando actualización…', '#7ad7ff', 20); },
+      steps: [{ at: .35, fn: () => {
+        const yaw = f.yaw, dir = new V3(Math.sin(yaw), 0, Math.cos(yaw)), geo = new THREE.BoxGeometry(7.4, .75, .4), mat = new THREE.MeshBasicMaterial({ map: jlBarTex(), transparent: true, opacity: .96 }), mesh = new THREE.Mesh(geo, mat), hit = new Set(), nd = ndt(); let life = 0;
+        mesh.position.copy(front(f, 1.6, 1.2)); mesh.rotation.y = yaw; scene.add(mesh); sfx('beam', f.pos, .8);
+        const end = () => { scene.remove(mesh); geo.dispose(); mat.dispose(); };
+        const tick = () => {
+          const dt = nd(); life += dt; mesh.position.addScaledVector(dir, 26 * dt); mesh.scale.y = 1 + Math.sin(life * 22) * .06;
+          emit(mesh.position.x + rand(-3.5, 3.5) * Math.cos(yaw), mesh.position.y + rand(-.3, .6), mesh.position.z - rand(-3.5, 3.5) * Math.sin(yaw), 0, rand(.5, 2), 0, '#7ad7ff', .14, .35, 0, 1);
+          for (const g of enemiesOf(f)) {
+            if (hit.has(g)) continue; const q = chestOf(g).sub(mesh.position), along = q.dot(dir), side = Math.abs(q.x * dir.z - q.z * dir.x);
+            if (Math.abs(along) < 1.3 && side < 3.9) { hit.add(g); applyHit(f, g, { dmg: o.dmg || 7, stun: 1.6, freeze: 1.6, kb: 3, color: '#0078d7', guardBreak: true, hitstop: .08, shake: .3 }); popText(chestOf(g), 'No responde', '#ffffff', 20); burst(chestOf(g), 16, '#7ad7ff', 8, .16, .4, 0); sfx('ice', g.pos); }
+          }
+          if (life > 1.05 || groundAt(mesh.position.x, mesh.position.z) > 1.6) { end(); return; }
+          if (G.state === 'play') later(0, tick); else end();
+        };
+        later(0, tick);
       } }],
     });
   },
