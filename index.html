@@ -6967,14 +6967,18 @@ function proxyUpdate(px, dt) {
   if (px.netSeen !== pr) {
     const ds = isFinite(+pr.ts) && isFinite(px.netTs) ? (+pr.ts - px.netTs) / 1000 : (nowMs - px.netT) / 1000;   // intervalo medido con la hora del emisor: no depende del jitter de la red
     if (ds > .02 && ds < .6 && px.netPos.distanceTo(_tp) < 8) {
-      px.netVel.x = px.netVel.x * .4 + (_tp.x - px.netPos.x) / ds * .6; px.netVel.z = px.netVel.z * .4 + (_tp.z - px.netPos.z) / ds * .6;
-      if (Math.hypot(px.netVel.x, px.netVel.z) > 45) px.netVel.set(0, 0, 0);
+      const vx = (_tp.x - px.netPos.x) / ds, vz = (_tp.z - px.netPos.z) / ds, sp0 = Math.hypot(px.netVel.x, px.netVel.z), sp1 = Math.hypot(vx, vz);
+      // si frena o cambia de golpe se toma la velocidad nueva al instante (así no se pasa de largo); si no, se promedia
+      if (sp1 < sp0 * .7) px.netVel.set(vx, 0, vz); else { px.netVel.x = px.netVel.x * .5 + vx * .5; px.netVel.z = px.netVel.z * .5 + vz * .5; }
+      if (Math.hypot(px.netVel.x, px.netVel.z) > 14) px.netVel.set(0, 0, 0);   // dashes y teletransportes no se predicen
     } else px.netVel.set(0, 0, 0);
     px.netPos.copy(_tp); px.netT = nowMs; px.netTs = +pr.ts; px.netSeen = pr;
   }
-  const lat = clamp(((NET.named && NET.named.ping) || 140) / 2000, .03, .15), ahead = Math.min(.25, (nowMs - px.netT) / 1000 + .05 + lat);
+  const lat = clamp(((NET.named && NET.named.ping) || 140) / 4000, .02, .08), ahead = Math.min(.14, (nowMs - px.netT) / 1000 + lat);
+  const snapD = px.pos.distanceTo(_tp);
   _tp.x += px.netVel.x * ahead; _tp.z += px.netVel.z * ahead;
-  if (px.pos.distanceTo(_tp) > 6) px.pos.copy(_tp); else px.pos.lerp(_tp, Math.min(1, dt * 20));
+  // si la red se corta un momento y se atrasa, se desliza rápido en vez de teletransportarse; solo salta si está muy lejos
+  if (snapD > 16) px.pos.copy(_tp); else px.pos.lerp(_tp, Math.min(1, dt * (snapD > 4 ? 30 : 16)));
   px.yaw = angLerp(px.yaw, +pr.yw || 0, Math.min(1, dt * 18));
   if (Array.isArray(pr.j)) JOINTS.forEach((k, i) => { const v = +pr.j[i]; if (isFinite(v)) px.anim.x[k] += (v - px.anim.x[k]) * Math.min(1, dt * 24); });
   px.anim.apply();
