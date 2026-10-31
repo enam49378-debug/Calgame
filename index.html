@@ -905,11 +905,13 @@ function drawFace(f, eyes, mouth) {
 // ===== Expresiones hechas a mano (editables desde el EDITOR DE EXPRESIONES) =====
 // Los datos están en FACE_DEFAULTS (los genera tools/gen-faces.py). Lo que edites en el editor se guarda en el navegador.
 const FACE_STATES = [
-  ['blink', 'Parpadeo'], ['idle', 'Normal (sin cambios)'], ['attack', 'Atacando'], ['attackShout', 'Atacando (grito)'], ['awaken', 'Despertar'],
-  ['flourish', 'Lucimiento'], ['block', 'Bloqueando'], ['hurt', 'Golpeado'], ['stun', 'Mareado o congelado'], ['grabbed', 'Agarrado'],
+  ['blink', 'Parpadeo'], ['idle', 'Normal (sin cambios)'], ['attack', 'Atacando'], ['attackShout', 'Atacando (primeros 0,35 s; si no la elegís usa "Atacando")'], ['awaken', 'Despertar'],
+  ['flourish', 'Lucimiento (si no la elegís usa "Feliz")'], ['block', 'Bloqueando'], ['hurt', 'Golpeado'], ['stun', 'Mareado o congelado'], ['grabbed', 'Agarrado'],
   ['ragdoll', 'Por los aires'], ['ko', 'K.O.'], ['happy', 'Feliz'], ['glow', 'Despierto (aura)'], ['lowhp', 'Poca vida'], ['victory', 'Victoria'],
   ['glanceL', 'Mirada a la izquierda'], ['glanceR', 'Mirada a la derecha'], ['glanceU', 'Mirada hacia arriba'], ['glanceD', 'Mirada hacia abajo'],
 ];
+// si una situación no tiene expresión usa la "pariente" y, si tampoco, la de reposo (casi todos los ataques duran menos de 0,35 s: sin esto solo se vería "al empezar")
+const FACE_FALLBACK = { attackShout: 'attack', flourish: 'happy' };
 const FACE_LIB = {};
 function loadFaceLib() {
   for (const id in FACE_DEFAULTS) FACE_LIB[id] = JSON.parse(JSON.stringify(FACE_DEFAULTS[id]));
@@ -989,7 +991,7 @@ function updateFace(f, dt) {
   if (!f.faceCtx) return;
   f.blinkT -= dt; if (f.blinkT < -.13) f.blinkT = rand(1.8, 4.5);
   if (f.facePreset && FACE_LIB[f.facePreset]) {
-    const lib = FACE_LIB[f.facePreset], st = faceState(f, dt), id = f.faceForce != null ? f.faceForce : (lib.use[st] || lib.use.idle || '');   // una situación sin expresión usa la de reposo (ojos abiertos), no la cara sin ojos
+    const lib = FACE_LIB[f.facePreset], st = faceState(f, dt), id = f.faceForce != null ? f.faceForce : (lib.use[st] || lib.use[FACE_FALLBACK[st]] || lib.use.idle || '');   // una situación sin expresión usa la de reposo (ojos abiertos), no la cara sin ojos
     const key = f.facePreset + ':' + id + ':' + (f.faceVer || 0) + ':' + (f.faceForce != null ? 'f' : ''); if (key === f.faceKey) return;
     f.faceKey = key; paintFacePreset(f, id); return;
   }
