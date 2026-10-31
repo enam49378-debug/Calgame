@@ -885,7 +885,10 @@ function cityGrassAt(x,z) {
   }
   const bbCache=new Map();
   function loadBBModel(name){
-    if(!bbCache.has(name))bbCache.set(name,fetch('ciudad/'+name+'.bbmodel').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).then(data=>new Promise((ok,fail)=>{
+    // Con servidor se lee el .bbmodel directo (los cambios hechos en Blockbench se ven al recargar); sin servidor (file://) se usa la copia ciudad/<nombre>.js
+    const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
+    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];d.textures[0].source=window.BB_ATLAS;return d;});
+    if(!bbCache.has(name))bbCache.set(name,fetch('ciudad/'+name+'.bbmodel').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}).catch(viaScript).then(data=>new Promise((ok,fail)=>{
       const img=new Image();
       img.onload=()=>{
         const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;

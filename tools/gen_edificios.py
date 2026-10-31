@@ -742,3 +742,18 @@ if __name__ == '__main__':
         info[name] = {'w': m.W, 'd': m.D, 'h': round(m.H, 2), 'cubos': n}
         print(f'{name:28s} {m.W:>5.1f} x {m.D:>5.1f} x {m.H:>5.1f}   {n} cubos')
     (OUT / 'edificios.json').write_text(json.dumps(info, indent=1, ensure_ascii=False), encoding='utf-8')
+
+
+def export_js():
+    """Copia de cada .bbmodel como .js (sin textura) + atlas.js: el juego las usa cuando se abre index.html sin servidor (file://), donde fetch no funciona."""
+    for f in OUT.glob('*.bbmodel'):
+        d = json.loads(f.read_text(encoding='utf-8'))
+        atlas_src = d['textures'][0]['source']
+        d['textures'][0]['source'] = ''
+        (OUT / (f.stem + '.js')).write_text("(window.BB_MODELS=window.BB_MODELS||{})['%s']=%s;" % (f.stem, json.dumps(d, ensure_ascii=False, separators=(',', ':'))), encoding='utf-8')
+    (OUT / 'atlas.js').write_text("window.BB_ATLAS=%s;" % json.dumps(atlas_src), encoding='utf-8')
+    print('js exportados')
+
+
+if __name__ == '__main__':
+    export_js()
