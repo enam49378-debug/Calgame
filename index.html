@@ -2238,6 +2238,108 @@ function jlAwaken(f) {
   popText(chestOf(f), '¡PANTALLA AZUL!', '#3aa0ff', 28);
   if (involvesPlayerNear(f)) jlErrorCascade(f === G.player);
 }
+// ===== ElRandi: palomas, invocación de Capitán Perú (patada y cambio de control) y adaptación tipo Mahoraga =====
+const PIG_MATS = {};
+function jlPigeon(f, i, o) {
+  const mat = c => PIG_MATS[c] || (PIG_MATS[c] = new THREE.MeshLambertMaterial({ color: c })), g = new THREE.Group();
+  const part = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x, y, z); g.add(m); return m; };
+  part(.34, .24, .55, '#98a2ad', 0, 0, 0); part(.2, .2, .2, '#7f8a96', 0, .1, .34); part(.06, .05, .12, '#f0a830', 0, .08, .46); part(.24, .1, .2, '#6f56a6', 0, .12, .18);
+  const wing = sg => { const w = new THREE.Group(), a = new THREE.Mesh(new THREE.BoxGeometry(.55, .05, .32), mat('#b4bcc6')); a.position.x = sg * .28; w.add(a); w.position.set(sg * .15, .08, 0); g.add(w); return w; };
+  const wl = wing(-1), wr = wing(1);
+  const a0 = rand(0, TAU), pos = new V3(f.pos.x + Math.cos(a0) * 1.1, f.pos.y + 1.8 + rand(0, .8), f.pos.z + Math.sin(a0) * 1.1); g.position.copy(pos); scene.add(g);
+  const nd = ndt(); let life = 0, dir = fwd(f.yaw), done = false; dir = new V3(dir.x, .15, dir.z).normalize();
+  const end = () => { if (done) return; done = true; scene.remove(g); };
+  const tick = () => {
+    const dt = nd(); life += dt;
+    let best = null, bd = 1e9; for (const t of enemiesOf(f)) { const d = chestOf(t).distanceTo(pos); if (d < 22 && d < bd) { bd = d; best = t; } }
+    if (best) dir.lerp(chestOf(best).sub(pos).normalize(), Math.min(1, (life < .2 ? 2 : 9) * dt)).normalize();
+    pos.addScaledVector(dir, 17 * dt); pos.y += Math.sin(life * 14 + i) * .02; g.position.copy(pos); g.lookAt(pos.clone().add(dir)); const fl = Math.sin(life * 40) * .7; wl.rotation.z = fl; wr.rotation.z = -fl;
+    if (best && chestOf(best).distanceTo(pos) < 1) {
+      applyHit(f, best, { dmg: o.dmg || 2.8, stun: .3, kb: 3, up: 1, color: '#cfd6df' }); burst(pos.clone(), 10, '#e8ecf0', 5, .12, .4, 0); popText(chestOf(best), ['¡Plaf!', '¡Currrr!', '¡Picotazo!'][i % 3], '#e8ecf0', 16); sfx('hit', pos, .5); end(); return;
+    }
+    if (life > 2.6 || groundAt(pos.x, pos.z) > pos.y) { burst(pos.clone(), 5, '#e8ecf0', 4, .1, .3, 0); end(); return; }
+    if (G.state === 'play') later(0, tick); else end();
+  };
+  later(0, tick);
+}
+// --- cambia el personaje de un peleador sin crear otro (la invocación: ElRandi <-> Capitán Perú)
+function morphFighter(f, key) {
+  const ch = CHARS[key]; if (!ch) return;
+  const skin = ch.skinCanvas || makeSkinCanvas(Object.assign({}, ch.skin)), faceC = copyCanvas(skin);
+  if (f.wheel) { scene.remove(f.wheel.mesh); f.wheel.mesh.geometry.dispose(); f.wheel.mat.dispose(); f.wheel.tex.dispose(); f.wheel = null; }
+  try { disposeModel(f.model); } catch (e) { }
+  f.model = buildModel(faceC, !!ch.slim, scene); f.ch = ch; f.skin = skin; setupFace(f, faceC, true); f.anim = new Animator(f.model);
+  f.model.root.visible = true; if (f.plate) f.plate.querySelector('span').style.color = ch.color;
+  if (f.isPlayer) { buildSkillBar(f); $('hud').style.setProperty('--c', ch.color); headPortrait(f.skin, $('hface')); }
+}
+function adaptMul(t, att) {
+  if (!t.ch.adapt) return 1;
+  const key = att.peer || att.name, A = t.adapt || (t.adapt = {}), e = A[key] || (A[key] = { hits: 0, lvl: 0 });
+  e.hits++;
+  if (t.capDef > 0) { t.capDef = 0; e.lvl = Math.min(3, e.lvl + 1); t.hp = Math.min(t.maxHp, t.hp + 15); popText(chestOf(t), '¡ADAPTADO! +15', '#ffd23f', 24); t.wheelPulse = 1; sfx('counter', t.pos); }
+  else if (e.hits % 4 === 0 && e.lvl < 3) { e.lvl++; popText(chestOf(t), 'Adaptación ' + e.lvl, '#ffd23f', 18); t.wheelPulse = 1; }
+  t.adaptLvl = Math.max(t.adaptLvl || 0, e.lvl);
+  return 1 - [0, .25, .45, .6][e.lvl];
+}
+function updateCapitan(f, m, dt, T) {
+  if (!f.ch.adapt) { if (f.wheel) { scene.remove(f.wheel.mesh); f.wheel.mesh.geometry.dispose(); f.wheel.mat.dispose(); f.wheel.tex.dispose(); f.wheel = null; } return; }
+  let w = f.wheel;
+  if (!w) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.translate(64, 64); g.strokeStyle = '#ffd23f'; g.fillStyle = '#ffd23f'; g.lineWidth = 7;
+    g.beginPath(); g.arc(0, 0, 44, 0, TAU); g.stroke(); g.beginPath(); g.arc(0, 0, 10, 0, TAU); g.fill();
+    for (let i = 0; i < 8; i++) { g.rotate(TAU / 8); g.fillRect(-4, -62, 8, 20); g.fillRect(-3, -40, 6, 30); }
+    const tex = new THREE.CanvasTexture(cv), mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), mat);
+    scene.add(mesh); w = f.wheel = { mesh, mat, tex, a: 0 };
+  }
+  w.mesh.visible = f.alive; w.a += dt * (1.2 + (f.adaptLvl || 0) * 1.6 + (f.capDef > 0 ? 5 : 0) + (f.wheelPulse || 0) * 8); f.wheelPulse = Math.max(0, (f.wheelPulse || 0) - dt * 2);
+  w.mesh.position.set(f.pos.x, f.pos.y + 3.05, f.pos.z); w.mesh.quaternion.copy(camera.quaternion); w.mesh.rotateZ(w.a); const sc = 1 + (f.wheelPulse || 0) * .5 + (f.capDef > 0 ? .15 : 0); w.mesh.scale.setScalar(sc);
+  w.mat.color.setHex(f.capDef > 0 ? 0xffffff : 0xffe58a);
+}
+const capUnpossess = f => {
+  const rs = f.capRandi; if (!rs) return;
+  const pos = f.pos.clone(); morphFighter(f, rs.key); f.maxHp = rs.maxHp; f.hp = Math.max(rs.hp, rs.maxHp * .3); f.cd = rs.cd; f.capT = 0; f.capRandi = null; f.adapt = null; f.adaptLvl = 0; f.capDef = 0;
+  f.pos.copy(pos); f.vel.set(0, 3, 0); f.stun = Math.max(f.stun, .7); f.iframes = Math.max(f.iframes, 1.2); f.ult = 0;
+  popText(chestOf(f), 'Randi vuelve…', '#ffb3b8', 22); burst(chestOf(f), 26, '#e63946', 8, .2, .6, .3); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#e63946', 4, .5); sfx('tp', f.pos);
+  if (f.isPlayer) showBanner('RANDI REGRESA', '#d6222c', 'Capitán Perú se retira');
+};
+function randiSummon(f) {
+  const F = fwd(f.yaw), P = new V3(f.pos.x + F.x * 3.4, f.pos.y, f.pos.z + F.z * 3.4); clampArena(P, 2);
+  f.iframes = Math.max(f.iframes, 3.2);
+  startAction(f, { name: 'randiSummon', dur: 2.4, noControl: true, armor: true, speedMul: 0, aim: false, anim: [[0, 'castUp', 600], [.7, 'vpose', 1200]] });
+  popText(chestOf(f), 'Gran General del Perú…', '#ffb3b8', 22); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#15151c', 6, .9); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#d6222c', 4, 1.1); sfx('ult', f.pos);
+  const ring = new THREE.Mesh(new THREE.CircleGeometry(3.6, 36), new THREE.MeshBasicMaterial({ color: 0x0a0a10, transparent: true, opacity: .75, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.set(P.x, groundAt(P.x, P.z) + .06, P.z);
+  addFx(ring, 2.6, (o, k) => { o.scale.setScalar(Math.min(1, k * 6)); o.material.opacity = .75 * (k > .8 ? (1 - k) / .2 : 1); });
+  let cap = null;
+  later(.9, () => {
+    if (G.state !== 'play') return;
+    cap = new Fighter({ name: 'Capitán Perú', ch: CHARS.capitan, lvlVar: 0 }); cap.dummy = 'cap'; cap.iframes = 1e9; cap.flourT = 1e9; cap.ai.P = aiParams(1);
+    cap.pos.set(P.x, groundAt(P.x, P.z), P.z); cap.yaw = cap.prevYaw = Math.atan2(f.pos.x - P.x, f.pos.z - P.z); G.fighters.push(cap);
+    lightColumn(P, '#e63946', 18); ringAt(new V3(P.x, P.y + .1, P.z), '#ffffff', 6, .6); burst(new V3(P.x, P.y + 1, P.z), 40, '#e63946', 10, .22, .7, .3); shakeFrom(P, .5); sfx('boom', P);
+    popText(new V3(P.x, P.y + 2.6, P.z), '¡CAPITÁN PERÚ!', '#ffffff', 30);
+  });
+  later(1.6, () => {
+    if (!cap || G.state !== 'play') return;
+    startAction(cap, { name: 'capKick', dur: .7, speedMul: 0, anim: [[0, 'kickRush', 600], [.15, 'kick', 700]] });
+    later(.18, () => {
+      if (!cap) return;
+      const d = new V3(f.pos.x - cap.pos.x, 0, f.pos.z - cap.pos.z).normalize(); burst(chestOf(f), 24, '#e63946', 10, .22, .5, .4); impactStar(chestOf(f), '#ffffff', 3, .3); shakeFrom(f.pos, .6); sfx('heavy', f.pos);
+      popText(chestOf(cap), '¡Patada Peruana!', '#ffffff', 26);
+      if (!f.remote) { f.vel.set(d.x * 17, 8, d.z * 17); f.onGround = false; f.ragdoll = Math.max(f.ragdoll, .9); }
+    });
+  });
+  later(2.5, () => {
+    if (G.state !== 'play') return;
+    const at = cap ? cap.pos.clone() : P.clone();
+    if (cap) { cap.dispose(); const k = G.fighters.indexOf(cap); if (k >= 0) G.fighters.splice(k, 1); cap = null; }
+    if (f.remote || !f.alive) return;
+    const key = Object.keys(CHARS).find(k => CHARS[k] === f.ch);
+    f.capRandi = { key, hp: f.hp, maxHp: f.maxHp, cd: f.cd.slice() };
+    morphFighter(f, 'capitan'); f.maxHp = CHARS.capitan.hp; f.hp = f.maxHp; f.cd = [0, 0, 0, 0]; f.capT = 25; f.adapt = {}; f.adaptLvl = 0; f.capDef = 0;
+    if (f.action) endAction(f); f.pos.set(at.x, groundAt(at.x, at.z), at.z); f.vel.set(0, 0, 0); f.ragdoll = 0; f.stun = 0; f.iframes = Math.max(f.iframes, .8);
+    lightColumn(f.pos, '#e63946', 16); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#e63946', 7, .6); burst(chestOf(f), 40, '#ffffff', 11, .24, .7, .3); sfx('ult', f.pos);
+    if (f.isPlayer) showBanner('CAPITÁN PERÚ', '#e63946', 'Lo controlas 25 s · se adapta a los golpes · Rueda de Adaptación (4)');
+  });
+}
 // ===== Alas del despertar (Sekza): plumas de voxel que se abren al despertar y aletean =====
 function addWings(model, col) {
   const mat = c => { const m = new THREE.MeshToonMaterial({ color: c, gradientMap: TOON_GRAD, side: THREE.DoubleSide, emissive: 0x000000 }); model.mats.push(m); return m; };
@@ -3633,12 +3735,12 @@ const CHARS = {
     skinData: 'data:image/png;base64,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',
     skin: { skin: '#f3bdab', hair: '#ebebeb', eye: '#4c3b3b', shirt: '#84292d', pants: '#48698c', shoes: '#2e2728', sleeve: 12 },
     skills: [
-      { n: 'Ilusiones', d: 'Crea dos copias de sí mismo que persiguen al rival y explotan.', k: 'illusion', cd: 7, o: { count: 2, dmg: 7, bbClip: 'habilidad_1_ilusiones' }, r: [3, 18], tags: 'proj' },
+      { n: 'Ilusiones', d: 'Crea dos copias de sí mismo que persiguen al rival y explotan.', k: 'illusion', cd: 8, o: { count: 2, dmg: 5.5, bbClip: 'habilidad_1_ilusiones' }, r: [3, 18], tags: 'proj' },
       { n: 'Dagas Arrojadizas', d: 'Cuatro dagas que persiguen y aturden.', k: 'shoot', cd: 5, o: { count: 4, spread: .12, speed: 44, dmg: 3.5, stun: .5, size: .25, long: 3, homing: 2.5, anim: 'throw', bbClip: 'habilidad_2_dagas' }, r: [3, 24], tags: 'proj' },
       { n: 'Engaño', d: 'Deja un señuelo que explota y aparece a la espalda del rival.', k: 'blink', cd: 8, o: { dmg: 8, kb: 12, up: 9, ragdoll: 1, decoy: true, bbClip: 'habilidad_3_enganio' }, r: [3, 20], tags: 'gap gb' },
       { n: 'Hechizo del Cetro', d: 'Rayo de energía del cetro que deja al rival hechizado y quieto.', k: 'shoot', cd: 9, o: { count: 1, speed: 30, dmg: 5, stun: 1.6, size: .55, homing: 3, bbClip: 'habilidad_4_hechizo' }, r: [3, 22], tags: 'proj' },
     ],
-    ult: { n: 'Ejército de Ilusiones', d: 'Seis copias salen en círculo, persiguen a todos y explotan.', k: 'illusion', o: { count: 6, dmg: 7, speed: 14, life: 3.2, army: true }, r: [0, 22] },
+    ult: { n: 'Ejército de Ilusiones', d: 'Seis copias salen en círculo, persiguen a todos y explotan.', k: 'illusion', o: { count: 5, dmg: 5.5, speed: 14, life: 3, army: true }, r: [0, 22] },
     intro: [[0, 'cross', 500], [.45, 'signs', 600], [.8, 'point', 700], [1.2, 'elegant', 400]],
     cine: [[0, 'signs'], [.5, 'cross'], [.78, 'magicPalm'], [1.0, 'scepterW'], [1.35, 'bow'], [1.6, 'gatoHero']],
     cineTwirl: [[1.0, 1, .4], [1.6, 2, .45]],
@@ -3708,6 +3810,35 @@ const CHARS = {
     ult: { n: 'Verity™', d: 'Abre un paquete misterioso y aparece Verity, la esfera sonriente que lo sabe todo. Al despertar se cura del todo, y Verity lo acompaña: ataca sola y obedece sus habilidades.', k: 'serious', o: {}, r: [0, 12] },
     intro: [[0, 'idle', 500], [.5, 'castUp', 700], [1.0, 'point', 500], [1.4, 'idle', 400]],
     cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
+  },
+  randi: {
+    name: 'ElRandi', title: 'Invocador del Perú', role: 'INVOCADOR', color: '#d6222c', hp: 100, spd: 1.03, ai: 'mid', stance: 'idle', summon: true,
+    desc: 'Peruano y maestro de las sombras (a lo Megumi). Manda palomas de la Plaza de Armas, tira lomo saltado en llamas, revienta botellas de Inca Kola y baila marinera para colarse. Su invocación final llama a Capitán Perú: el héroe le pega una patada... y pasas a controlarlo. Se adapta a los golpes como Mahoraga.',
+    stats: [3, 3, 4, 3, 4],
+    skin: { skin: '#c99a7b', hair: '#8b3a12', eye: '#2b1a10', shirt: '#1b1517', pants: '#1b1517', shoes: '#1b1517', sleeve: 12 },
+    skinData: 'data:image/png;base64,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',
+    skills: [
+      { n: 'Palomas Mensajeras', d: 'Suelta cinco palomas de la Plaza de Armas que persiguen al rival y lo picotean.', k: 'randiPigeons', cd: 7, o: { dmg: 2.8 }, r: [3, 24], tags: 'proj' },
+      { n: 'Lomo Saltado', d: 'Lanza un wok de lomo saltado en llamas: estalla al caer y deja el suelo ardiendo.', k: 'randiLomo', cd: 9, o: { dmg: 8 }, r: [3, 20], tags: 'proj aoe' },
+      { n: 'Inca Kola', d: 'Lanza una botella agitada de Inca Kola que revienta en una explosión amarilla y aturde.', k: 'randiKola', cd: 8, o: { dmg: 8 }, r: [3, 20], tags: 'proj aoe' },
+      { n: 'Marinera Veloz', d: 'Baila un paso de marinera y atraviesa al rival con el pañuelo, lanzándolo por el aire.', k: 'rush', cd: 8, o: { dmg: 8, kb: 12, up: 5, ragdoll: .7, pose: 'kickRush', hitPose: 'kick' }, r: [2, 12], tags: 'gap gb' },
+    ],
+    ult: { n: 'Capitán Perú', d: 'Invoca al Gran General del Perú: Capitán Perú aparece, le pega una patada a ElRandi... y pasas a controlarlo 25 s. Tiene su propia vida y se adapta a los golpes que recibe (como Mahoraga).', k: 'serious', o: {}, r: [0, 12] },
+    intro: [[0, 'idle', 500], [.5, 'castUp', 700], [1.0, 'point', 500], [1.4, 'idle', 400]],
+    cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
+  },
+  capitan: {
+    name: 'Capitán Perú', title: 'Héroe de la Patria', role: 'INVOCACIÓN', color: '#e63946', hp: 160, spd: 1.08, ai: 'melee', stance: 'idle', hidden: true, adapt: true, noUlt: true,
+    desc: 'El Gran General invocado por ElRandi. Pega duro y se adapta: cada golpe que recibe lo hace más resistente a ese rival.', stats: [5, 3, 4, 2, 4],
+    skin: { skin: '#c99a7b', hair: '#1c1616', eye: '#2b1a10', shirt: '#d6222c', pants: '#f0eee8', shoes: '#d6222c', sleeve: 12 },
+    skinData: 'data:image/png;base64,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',
+    skills: [
+      { n: 'Patada Peruana', d: 'Sale disparado con una patada voladora que lanza al rival muy lejos.', k: 'rush', cd: 7, o: { dmg: 10, kb: 20, up: 7, ragdoll: 1.1, pose: 'kickRush', hitPose: 'kick' }, r: [2, 12], tags: 'gap gb' },
+      { n: '¡Fuerza Peruana!', d: 'Salta y cae con un impacto que aplasta todo alrededor.', k: 'slam', cd: 9, o: { radius: 5, dmg: 12 }, r: [0, 5], tags: 'aoe gb' },
+      { n: 'Combo Bicolor', d: 'Gancho al cielo, salto y remate rojiblanco.', k: 'airCombo', cd: 8, o: { dmg: 13 }, r: [0, 3], tags: 'close' },
+      { n: 'Rueda de Adaptación', d: 'Modo defensa 3.5 s: el próximo golpe que reciba lo recupera 15 de vida y lo hace mucho más resistente a ese rival.', k: 'capAdapt', cd: 12, o: {}, r: [0, 8], tags: 'counter' },
+    ],
+    ult: { n: '—', d: '', k: 'serious', o: {}, r: [0, 0] }, intro: [], cine: [],
   },
   jesuluto: {
     name: 'Jesuluto', title: 'Computadora del Caos', role: 'ORDENADOR', color: '#0078d7', hp: 100, spd: 1, ai: 'mid', stance: 'idle', screenHead: true, bsod: true,
@@ -3845,10 +3976,10 @@ const AWK = {
     { n: 'Mirada Letal', d: 'Fija con la vista a todos los rivales a la vez y los castiga con un rayo de luz cayendo del cielo.', k: 'sekLock', cd: 13, o: { dmg: 9, range: 30 }, r: [3, 30], tags: 'proj gb' },
   ],
   rocket: [
-    { n: 'Patas Lanza', d: 'Las patas de araña clavan cinco estocadas al frente; la última lanza al rival por el aire.', k: 'rkLegStabs', cd: 9, o: { dmg: 3, dmg2: 8 }, r: [1, 9], tags: 'close gb' },
-    { n: 'Capullo Mortal', d: 'Lo envuelve en seda, lo alza sobre su cabeza, lo hace girar y lo estrella contra el suelo.', k: 'chore', cd: 14, o: { id: 'rkCocoon' }, r: [0, 4], tags: 'close gap gb', cine: 1 },
-    { n: 'Red Gigante', d: 'Extiende una telaraña enorme en el piso que arrastra a todos hacia el centro y los hiere sin parar.', k: 'rkWebField', cd: 12, o: { dmg: 1.8, r: 7 }, r: [0, 14], tags: 'aoe' },
-    { n: 'Enjambre', d: 'Suelta seis arañitas que persiguen al rival y lo muerden varias veces.', k: 'rkSwarm', cd: 10, o: { n: 6, dmg: 1.2 }, r: [2, 22], tags: 'proj' },
+    { n: 'Patas Lanza', d: 'Las patas de araña clavan cinco estocadas al frente; la última lanza al rival por el aire.', k: 'rkLegStabs', cd: 11, o: { dmg: 2.3, dmg2: 6.5 }, r: [1, 9], tags: 'close gb' },
+    { n: 'Capullo Mortal', d: 'Lo envuelve en seda, lo alza sobre su cabeza, lo hace girar y lo estrella contra el suelo.', k: 'chore', cd: 16, o: { id: 'rkCocoon' }, r: [0, 4], tags: 'close gap gb', cine: 1 },
+    { n: 'Red Gigante', d: 'Extiende una telaraña enorme en el piso que arrastra a todos hacia el centro y los hiere sin parar.', k: 'rkWebField', cd: 15, o: { dmg: 1.1, r: 6 }, r: [0, 14], tags: 'aoe' },
+    { n: 'Enjambre', d: 'Suelta seis arañitas que persiguen al rival y lo muerden varias veces.', k: 'rkSwarm', cd: 12, o: { n: 5, dmg: .9 }, r: [2, 22], tags: 'proj' },
   ],
   ukyo: [
     { n: 'Corte Solar', d: 'Alza la espada ardiendo y baja un arco de fuego enorme que atraviesa a todos los que encuentra y los lanza al aire.', k: 'ukSun', cd: 9, o: { dmg: 8 }, r: [3, 20], tags: 'proj' },
@@ -3910,15 +4041,15 @@ const skillsOf = f => (f.awak > 0 && f.ch.awk) ? f.ch.awk : f.ch.skills;
 // por ahora el elenco es de tres: los demás peleadores quedan fuera del juego
 for (const id of ['kaiza', 'nyx', 'volt', 'brasa', 'yuki', 'titan']) delete CHARS[id];
 for (const id in CHARS) CHARS[id].id = id;
-const CHAR_IDS = Object.keys(CHARS);
+const CHAR_IDS = Object.keys(CHARS).filter(k => !CHARS[k].hidden);   // los personajes ocultos (invocaciones) no salen en el menú
 // muñeco de entrenamiento (no aparece en el selector)
 // Equilibrio: todos pegan algo menos (DMG_GLOBAL) y cada personaje ajusta su fuerza (dmgMul) para que ninguno domine
 const DMG_GLOBAL = .85;
 {
   // Valores ajustados con duelos automáticos entre bots (28 combinaciones): los que ganaban de más bajan, los que perdían de más suben
-  const DM = { javi: .9, redbird: 1.2, gato: 1.5, sekza: 1.7, rocket: 1.1, ukyo: .72, sebolla: 1.5, jesuluto: .9 };
+  const DM = { javi: .9, redbird: .85, gato: 1, sekza: 1.7, rocket: 1, ukyo: .72, sebolla: 1.5, jesuluto: .9, randi: 1, capitan: 1.1 };
   for (const k in DM) if (CHARS[k]) CHARS[k].dmgMul = DM[k];
-  CHARS.javi.hp = 92; CHARS.gato.hp = 95;
+  CHARS.javi.hp = 92; CHARS.gato.hp = 92;
 }
 const DUMMY_CH = {
   name: 'Dummy', title: 'Entrenamiento', role: 'DUMMY', color: '#c8a165', hp: 100, spd: .7, ai: 'melee', stance: 'idle', stats: [3, 1, 1, 1, 1],
@@ -3929,7 +4060,7 @@ const STAT_NAMES = ['VIDA', 'DAÑO', 'VELOCIDAD', 'ALCANCE', 'DIFICULTAD'];
 const SKIN_CACHE = {};
 const charSkin = id => SKIN_CACHE[id] || (SKIN_CACHE[id] = CHARS[id].skinCanvas || makeSkinCanvas(CHARS[id].skin));
 function loadCharSkins() {
-  return Promise.all(CHAR_IDS.filter(id => CHARS[id].skinData).map(id => new Promise(res => {
+  return Promise.all(Object.keys(CHARS).filter(id => CHARS[id].skinData).map(id => new Promise(res => {
     const img = new Image();
     img.onload = () => { const c = normalizeSkin(img); if (c) { CHARS[id].skinCanvas = c; CHARS[id].slim = detectSlim(c); } res(); };
     img.onerror = res; img.src = CHARS[id].skinData;
@@ -3982,7 +4113,7 @@ class Fighter {
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
-  dispose() { releaseOwnerSpear(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
+  dispose() { releaseOwnerSpear(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
 const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
@@ -4482,7 +4613,7 @@ function applyHit(att, t, o) {
       }
     }
   }
-  const dmg = o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL;
+  const dmg = (o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL) * adaptMul(t, att);
   t.hp -= dmg;
   if (att.clippy && t !== att && !o.noAssist && dmg >= .4) clippyAssist(att, t);
   if (dmg >= .5 && t !== att && (att.fireT > 0 || (att.awak > 0 && att.ch.fireSword))) poisonOn(t, att, { dps: att.fireT > 0 ? 2.4 : 1.6, dur: 3.2, col: '#ff7a1a', label: 'ARDE' });   // Espada de Fénix y despertar de ItzUkyo: quema
@@ -4569,6 +4700,7 @@ function segDist(p, a, b) {
 function freeze(g, dur) { g.frozen = dur; iceBlock(g, dur); }
 function kill(v, k) {
   if (!v.alive) return;
+  if (v.capRandi) { capUnpossess(v); return; }   // Capitán Perú cae: ElRandi vuelve
   v.alive = false; v.hp = 0; v.respawnT = v.dummy ? 2 : 4; v.deathT = 0; v.blocking = false; v.frozen = 0; v.grabbed = false;
   endAction(v); v.ragdoll = 3; v.deaths++;
   sfx('ko', v.pos);
@@ -5447,7 +5579,7 @@ const CHORE = {
       { t: 1.0, fx: 'ring', at: 'vic', r: 2, face: 1 },
       { t: 1.4, fx: 'charge', at: 'att' },
       { t: 1.9, text: '¡A dormir!', who: 'att', fx: 'ring', at: 'vic', r: 3, face: 1 },
-      { t: 2.28, rel: { dmg: 15, kb: 5, up: 0, rag: 1.8 }, fx: 'boom', at: 'ground', r: 3.4, big: 1, slow: .25 },
+      { t: 2.28, rel: { dmg: 11, kb: 5, up: 0, rag: 1.8 }, fx: 'boom', at: 'ground', r: 3.4, big: 1, slow: .25 },
       { t: 2.3, fx: 'crack', at: 'ground' },
     ],
     shots: [[0, 'two', { fov: 50 }], [.5, 'lowA'], [1.2, 'up'], [1.8, 'orbit', { r: 5, spd: 2.4, h: 1 }], [2.15, 'top'], [2.3, 'ground'], [2.8, 'hero']],
@@ -6359,7 +6491,7 @@ const MOVES = {
     startAction(f, {
       name: 'rkWebField', bbClip: 'despertar_red', dur: .7, speedMul: .2, aim: true,
       steps: [{ at: .3, fn: () => {
-        const wd = buildWebDisc(R, 5, 12, .55), life = 5.5; wd.grp.position.set(C.x, C.y + .08, C.z);
+        const wd = buildWebDisc(R, 5, 12, .55), life = 3.6; wd.grp.position.set(C.x, C.y + .08, C.z);
         addFx(wd.grp, life, (g, k) => { const sc = Math.min(1, k * 14); g.scale.set(sc, 1, sc); wd.mat.opacity = (k > .85 ? (1 - k) / .15 : 1) * (.45 + .15 * Math.sin(k * 60)); }, wd.dispose);
         sfx('zap', C); ringAt(C, '#ffffff', R, .5);
         let t = 0, acc = 0;
@@ -6368,11 +6500,11 @@ const MOVES = {
           for (const g of enemiesOf(f)) {
             const dx = C.x - g.pos.x, dz = C.z - g.pos.z, d = Math.hypot(dx, dz);
             if (d < R && g.pos.y - C.y < 2.5 && g.alive) {
-              if (!g.remote) { g.vel.x += dx / (d || 1) * 3.2 * (dt / .05); g.vel.z += dz / (d || 1) * 3.2 * (dt / .05); g.stun = Math.max(g.stun, .12); }
-              if (acc >= .5) applyHit(f, g, { dmg: o.dmg || 1.8, stun: .2, kb: 0, color: '#ffffff', hitstop: 0, shake: .05, noCounter: true });
+              if (!g.remote) { g.vel.x += dx / (d || 1) * 2.1 * (dt / .05); g.vel.z += dz / (d || 1) * 2.1 * (dt / .05); }
+              if (acc >= .6) applyHit(f, g, { dmg: o.dmg || 1.1, stun: 0, kb: 0, color: '#ffffff', hitstop: 0, shake: .05, noCounter: true });
             }
           }
-          if (acc >= .5) acc = 0;
+          if (acc >= .6) acc = 0;
           if (t < life && G.state === 'play') later(0, tick);
         };
         later(0, tick);
@@ -6572,6 +6704,59 @@ const MOVES = {
     startAction(f, {
       name: 'ukRing', bbClip: 'despertar_anillo', dur: .9, speedMul: 0, aim: true, armor: true,
       steps: [{ at: .3, fn: () => pulse(6.5, o.dmg || 6, 6, 0) }, { at: .65, fn: () => pulse(9, (o.dmg || 6) * 1.3, 12, .8) }],
+    });
+  },
+  // ---------- ElRandi y Capitán Perú ----------
+  randiPigeons(f, o) {
+    startAction(f, {
+      name: 'randiPigeons', dur: .7, speedMul: .3, aim: true, anim: [[0, 'castUp', 500], [.2, 'point', 500]],
+      start: () => popText(chestOf(f), '¡Palomitas!', '#e6ecf2', 20),
+      steps: [{ at: .2, fn: () => { for (let i = 0; i < 5; i++) later(i * .09, () => { if (G.state === 'play' && f.alive) jlPigeon(f, i, o); }); sfx('whoosh', f.pos); } }],
+    });
+  },
+  randiLomo(f, o) {
+    const tg = findTarget(f, 22), F = fwd(f.yaw), dest = tg ? tg.pos.clone() : new V3(f.pos.x + F.x * 10, 0, f.pos.z + F.z * 10);
+    clampArena(dest, 1.5); dest.y = groundAt(dest.x, dest.z);
+    startAction(f, {
+      name: 'randiLomo', dur: .6, speedMul: .25, aim: true, anim: [[0, 'throw', 500]],
+      start: () => popText(chestOf(f), '¡Lomo saltado!', '#ffb347', 20),
+      steps: [{ at: .22, fn: () => {
+        const start = front(f, .8, 1.7), T = .8, grp = new THREE.Group(), pg = new THREE.BoxGeometry(.9, .18, .9), pm = new THREE.MeshBasicMaterial({ color: '#23262d' }), fg = new THREE.SphereGeometry(.4, 8, 6), fm = glowMat('#ff7a1a', .9);
+        const pan = new THREE.Mesh(pg, pm), fire = new THREE.Mesh(fg, fm); fire.position.y = .25; grp.add(pan, fire); grp.position.copy(start); scene.add(grp); warnCircle(dest, 3.4, '#ff7a1a', T + .1); sfx('swing', f.pos);
+        let t = 0; const nd = ndt(), done = () => { scene.remove(grp); pg.dispose(); pm.dispose(); fg.dispose(); fm.dispose(); };
+        const tick = () => {
+          t += nd(); const u = Math.min(1, t / T); grp.position.set(start.x + (dest.x - start.x) * u, start.y + (dest.y + .4 - start.y) * u + 4 * Math.sin(Math.PI * u), start.z + (dest.z - start.z) * u); grp.rotation.x += .3; emit(grp.position.x, grp.position.y, grp.position.z, rand(-1, 1), rand(0, 1), rand(-1, 1), '#ffb347', .16, .3, 0, 0);
+          if (u >= 1) { const c = new V3(dest.x, dest.y + .6, dest.z); explode(f, c, 3.2, { dmg: o.dmg || 8, kb: 8, up: 6, ragdoll: .6, color: '#ff7a1a', hitstop: .08, shake: .3 }); firePatch(f, dest, 3, 4.5, '#ff7a1a'); sfx('fire', dest); burst(c, 22, '#ff7a1a', 8, .2, .5, .3); done(); return; }
+          if (G.state === 'play') later(0, tick); else done();
+        };
+        tick();
+      } }],
+    });
+  },
+  randiKola(f, o) {
+    const tg = findTarget(f, 22), F = fwd(f.yaw), dest = tg ? tg.pos.clone() : new V3(f.pos.x + F.x * 10, 0, f.pos.z + F.z * 10);
+    clampArena(dest, 1.5); dest.y = groundAt(dest.x, dest.z);
+    startAction(f, {
+      name: 'randiKola', dur: .6, speedMul: .25, aim: true, anim: [[0, 'throw', 500]],
+      start: () => popText(chestOf(f), '¡Inca Kola!', '#ffd23f', 20),
+      steps: [{ at: .22, fn: () => {
+        const start = front(f, .8, 1.7), T = .7, grp = new THREE.Group(), bg = new THREE.BoxGeometry(.28, .62, .28), bm = new THREE.MeshBasicMaterial({ color: '#ffd23f' }), cg = new THREE.BoxGeometry(.2, .12, .2), cm = new THREE.MeshBasicMaterial({ color: '#d6222c' });
+        const b = new THREE.Mesh(bg, bm), cap = new THREE.Mesh(cg, cm); cap.position.y = .36; grp.add(b, cap); grp.position.copy(start); scene.add(grp); warnCircle(dest, 3.8, '#ffd23f', T + .1); sfx('swing', f.pos);
+        let t = 0; const nd = ndt(), done = () => { scene.remove(grp); bg.dispose(); bm.dispose(); cg.dispose(); cm.dispose(); };
+        const tick = () => {
+          t += nd(); const u = Math.min(1, t / T); grp.position.set(start.x + (dest.x - start.x) * u, start.y + (dest.y + .5 - start.y) * u + 3.4 * Math.sin(Math.PI * u), start.z + (dest.z - start.z) * u); grp.rotation.z += .5; emit(grp.position.x, grp.position.y, grp.position.z, rand(-1, 1), rand(0, 1), rand(-1, 1), '#fff3a0', .12, .3, 0, 0);
+          if (u >= 1) { const c = new V3(dest.x, dest.y + .6, dest.z); explode(f, c, 3.8, { dmg: o.dmg || 8, stun: .8, kb: 9, up: 7, ragdoll: .5, color: '#ffd23f', hitstop: .08, shake: .3 }); popText(c, '¡PSSSH!', '#fff3a0', 24); burst(c, 34, '#ffd23f', 10, .22, .6, .4); burst(c, 18, '#ffffff', 7, .16, .5, .6); ringAt(new V3(dest.x, dest.y + .1, dest.z), '#ffd23f', 4.5, .45); sfx('boom', dest); done(); return; }
+          if (G.state === 'play') later(0, tick); else done();
+        };
+        tick();
+      } }],
+    });
+  },
+  // Rueda de Adaptación (como el modo defensa de Mahoraga): el próximo golpe que reciba lo cura y lo adapta a ese rival
+  capAdapt(f, o) {
+    startAction(f, {
+      name: 'capAdapt', dur: .45, speedMul: .4, anim: [[0, 'vpose', 500]],
+      start: () => { f.capDef = 3.5; popText(chestOf(f), '¡Modo defensa!', '#ffd23f', 22); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd23f', 3.5, .5); sfx('tp', f.pos); f.wheelPulse = 1; },
     });
   },
   // ---------- Jesuluto: la computadora (ventanas de error, Clippy, Ctrl+Z, formatear y pantalla azul) ----------
@@ -7485,6 +7670,7 @@ function useSkill(f, i) {
   if (ok === false && f.isPlayer) popText(chestOf(f), 'Sin objetivo', '#aab', 15);
 }
 function useUlt(f) {
+  if (f.ch.noUlt) return;
   if (ownsMissingSpear(f)) { missingSpearHint(f); return; }
   if (f.ult < 100) return;
   prepWeapon(f);
@@ -7497,6 +7683,7 @@ function useUlt(f) {
 // el despertar no es un ataque: termina la animación y las habilidades cambian por un tiempo
 function runUlt(f) {
   if (f.isPlayer && G.mp) netAct({ k: 'u' });
+  if (f.ch.summon) { f.ult = 0; randiSummon(f); return; }
   f.awak = AWAKE_DUR; f.ult = 0; f.cd = [0, 0, 0, 0]; f.iframes = Math.max(f.iframes, .6);
   if (f.hp < f.maxHp) { f.hp = f.maxHp; popText(chestOf(f), '¡VIDA AL MÁXIMO!', '#7dff6a', 22); burst(chestOf(f), 24, '#7dff6a', 6, .2, .6, .4); }   // despertar: se cura del todo
   startAction(f, { name: 'awaken', dur: .7, armor: true, speedMul: 0, anim: [[0, 'charge', 500], [.25, 'vpose', 800]] });
@@ -8025,6 +8212,8 @@ function poisonOn(g, att, o) {
   g.poison = { t: o.dur || 4.5, dps: o.dps || 2.4, att, acc: 0, col }; if (fresh) popText(chestOf(g), o.label || 'VENENO', col, 18);   // también sirve para quemaduras
 }
 function tickTimers(f, dt) {
+  if (f.capDef > 0) f.capDef -= dt;
+  if (f.capT > 0 && f.capRandi) { f.capT -= dt; if (f.capT <= 0) capUnpossess(f); }
   if (f.poison && f.alive) {
     const q = f.poison; q.t -= dt; q.acc += dt;
     if (Math.random() < dt * 14) emit(f.pos.x + rand(-.4, .4), f.pos.y + rand(.3, 1.8), f.pos.z + rand(-.4, .4), 0, rand(1, 3), 0, q.col, .14, .5, -.1, 1);
@@ -8136,6 +8325,7 @@ function animate(f, dt) {
   updateSwordFire(f, m, dt, T);   // después del destello de golpe: si no, este lo pisa
   updateVerity(f, m, dt, T);
   updateJesuluto(f, m, dt, T);
+  updateCapitan(f, m, dt, T);
 }
 
 // ================= HUD =================
@@ -9340,7 +9530,7 @@ function netSendPlay() {
   if (!NET.named || !G.player) return;
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
-  NET.named.presence(Object.assign(presenceOf(p, G.charId), { wx: atmospherePayload(), jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
+  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
   if (NET.named.pubAs) for (const d of dummies()) if (d.netId) NET.named.pubAs(d.netId, Object.assign(presenceOf(d, 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: [] }));
 }
 function presenceOf(f, ch) {
@@ -9450,7 +9640,7 @@ function proxyUpdate(px, dt) {
   const fl = Math.max(0, px.flashT) / .12;
   m.mats.forEach(x => { if (fl > 0) x.emissive.setRGB(fl * .9, fl * .9, fl * .9); else if (px.awak) x.emissive.set(px.ch.color).multiplyScalar(.15); else x.emissive.setRGB(0, 0, 0); });
   if (px.action) updateAction(px, dt);
-  eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000); updateWings(px, m, .016, performance.now() / 1000); updateSpiderLegs(px, m, .016, performance.now() / 1000); updateSwordFire(px, m, .016, performance.now() / 1000); updateVerity(px, m, .016, performance.now() / 1000); updateJesuluto(px, m, .016, performance.now() / 1000);
+  eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000); updateWings(px, m, .016, performance.now() / 1000); updateSpiderLegs(px, m, .016, performance.now() / 1000); updateSwordFire(px, m, .016, performance.now() / 1000); updateVerity(px, m, .016, performance.now() / 1000); updateJesuluto(px, m, .016, performance.now() / 1000); updateCapitan(px, m, .016, performance.now() / 1000);
   updateAura(px, dt, performance.now() / 1000);
   updateFace(px, dt);
 }
