@@ -1,4 +1,10 @@
 {
+ "applause": {
+  "dur": 5.0,
+  "kb": 35,
+  "tipo": "shot",
+  "fuente_seg": 17.3
+ },
  "arcade": {
   "dur": 40.0,
   "kb": 274,
@@ -161,11 +167,29 @@
   "tipo": "shot",
   "fuente_seg": 9.0
  },
+ "vhit": {
+  "dur": 1.2,
+  "kb": 9,
+  "tipo": "shot",
+  "fuente_seg": 3.0
+ },
+ "vland": {
+  "dur": 0.4,
+  "kb": 3,
+  "tipo": "shot",
+  "fuente_seg": 0.4
+ },
  "waves": {
   "dur": 38.0,
   "kb": 260,
   "tipo": "loop",
   "fuente_seg": 287.0
+ },
+ "whistle": {
+  "dur": 1.6,
+  "kb": 12,
+  "tipo": "shot",
+  "fuente_seg": 3.3
  },
  "wind_strong": {
   "dur": 28.0,

@@ -36,5 +36,9 @@ Recorder: Arlo Barnes | CC0 | [Commons](https://commons.wikimedia.org/wiki/File%
 | `waves.mp3` | Waves.ogg | Dsw4 | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AWaves.ogg) |
 | `gull1.mp3` | Gull 1.ogg | avphillips | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AGull_1.ogg) |
 | `gull2.mp3` | Gull 2.ogg | avphillips | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AGull_2.ogg) |
+| `vhit.mp3` | Soccer kick effect.ogg | Frogfriend99 | CC BY-SA 3.0 | [Commons](https://commons.wikimedia.org/wiki/File%3ASoccer_kick_effect.ogg) |
+| `vland.mp3` | Dull thud.ogg | gregoryweir | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3ADull_thud.ogg) |
+| `whistle.mp3` | 218318 splicesound referee-whistle-blow-gymnasium.wav | SpliceSound | CC0 | [Commons](https://commons.wikimedia.org/wiki/File%3A218318_splicesound_referee-whistle-blow-gymnasium.wav) |
+| `applause.mp3` | Applause i.ogg | thore | Public domain | [Commons](https://commons.wikimedia.org/wiki/File%3AApplause_i.ogg) |
 
 Las licencias CC BY / CC BY-SA piden atribución (esta lista) y que las versiones modificadas de *esos sonidos* mantengan la misma licencia.
