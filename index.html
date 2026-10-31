@@ -6664,6 +6664,86 @@ async function netInit() {
 // Sala por servidor intermedio público (MQTT sobre WebSocket): funciona detrás de cualquier router, sin anfitrión.
 // Tiene la misma forma que la sala de claude.ai: peers(), presence(), onPeers(), leave().
 const RELAYS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+// ===== Canal directo entre jugadores (WebRTC) =====
+// El relay público solo se usa para presentarse y como respaldo. Si los dos navegadores logran conectarse directo, el estado del juego
+// viaja por un canal sin orden ni reintentos (como UDP): sin pasar por el servidor del relay, que suele estar en otro continente.
+const HUMAN_ID = /^u[a-z0-9]{3,}$/;
+const RTC_CFG = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+function rtcMesh(R, myId, sigSend, onData) {
+  const M = new Map(), cool = new Map(); let closed = false;
+  const noRTC = typeof RTCPeerConnection === 'undefined' || /[?&]rtc=off/.test(location.search);
+  function kill(e, fail) {
+    if (M.get(e.id) === e) M.delete(e.id);
+    try { e.pc.close(); } catch (x) { }
+    e.open = false; e.dead = true;
+    const c = cool.get(e.id) || { fails: 0 }; if (fail) c.fails++; c.until = Date.now() + Math.min(30000, 2500 * (1 + c.fails * c.fails)); cool.set(e.id, c);
+  }
+  function start(id, initiator) {
+    const e = { id, pc: new RTCPeerConnection(RTC_CFG), dc: null, open: false, t0: Date.now(), cand: [], remote: false, init: initiator, dead: false };
+    M.set(id, e);
+    e.pc.onicecandidate = ev => { if (ev.candidate) sigSend(id, { k: 'c', c: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate }); };
+    e.pc.onconnectionstatechange = () => {
+      const st = e.pc.connectionState;
+      if (st === 'failed' || st === 'closed') kill(e, st === 'failed');
+      else if (st === 'disconnected') setTimeout(() => { if (M.get(id) === e && e.pc.connectionState === 'disconnected') kill(e, true); }, 4000);
+    };
+    const wire = ch => {
+      e.dc = ch;
+      ch.onopen = () => { e.open = true; const c = cool.get(id); if (c) c.fails = 0; };
+      ch.onclose = () => { e.open = false; };
+      ch.onmessage = ev => { try { const m = JSON.parse(ev.data); if (m && m.t === 'p') onData(id, m.d); } catch (x) { } };
+    };
+    if (initiator) {
+      wire(e.pc.createDataChannel('g', { ordered: false, maxRetransmits: 0 }));
+      e.pc.createOffer().then(o => e.pc.setLocalDescription(o)).then(() => sigSend(id, { k: 'o', s: e.pc.localDescription.sdp })).catch(() => kill(e, true));
+    } else e.pc.ondatachannel = ev => wire(ev.channel);
+    return e;
+  }
+  function flush(e) { for (const c of e.cand.splice(0)) e.pc.addIceCandidate(c).catch(() => { }); }
+  return {
+    // se llama cada vez que se ve a otro jugador: arranca la conexión directa (el de id menor inicia)
+    ensure(id) {
+      if (noRTC || closed || !HUMAN_ID.test(id)) return;
+      const e = M.get(id);
+      if (e) { if (!e.open && Date.now() - e.t0 > 10000) kill(e, true); return; }
+      const c = cool.get(id); if (c && Date.now() < c.until) return;
+      if (M.size >= 7) return;
+      if (myId < id) start(id, true);   // el otro lado espera nuestra oferta; si no llega, se reintenta con espera creciente
+    },
+    signal(m) {
+      if (noRTC || closed || !m || !HUMAN_ID.test(m.f || '')) return;
+      const id = m.f; let e = M.get(id);
+      if (m.k === 'o' && typeof m.s === 'string') {
+        if (e) kill(e);
+        e = start(id, false);
+        e.pc.setRemoteDescription({ type: 'offer', sdp: m.s }).then(() => { e.remote = true; flush(e); return e.pc.createAnswer(); })
+          .then(a => e.pc.setLocalDescription(a)).then(() => sigSend(id, { k: 'a', s: e.pc.localDescription.sdp })).catch(() => kill(e, true));
+      } else if (m.k === 'a' && e && e.init && !e.remote && typeof m.s === 'string') {
+        e.pc.setRemoteDescription({ type: 'answer', sdp: m.s }).then(() => { e.remote = true; flush(e); }).catch(() => kill(e, true));
+      } else if (m.k === 'c' && e && m.c) { if (e.remote) e.pc.addIceCandidate(m.c).catch(() => { }); else e.cand.push(m.c); }
+    },
+    send(str) { let n = 0; for (const e of M.values()) if (e.open && e.dc && e.dc.readyState === 'open' && e.dc.bufferedAmount < 65536) { try { e.dc.send(str); n++; } catch (x) { } } return n; },
+    isOpen(id) { const e = M.get(id); return !!(e && e.open && e.dc && e.dc.readyState === 'open'); },
+    drop(id) { const e = M.get(id); if (e) kill(e); cool.delete(id); },
+    closeAll() { closed = true; for (const e of [...M.values()]) kill(e); },
+  };
+}
+// acepta un estado de otro jugador venga por donde venga (relay o canal directo): ignora los más viejos que el que ya tenemos
+function acceptState(R, id, d, notify, mesh, src) {
+  if (!d || typeof d !== 'object') return;
+  const prev = R.states.get(id);
+  if (prev && isFinite(prev.ts) && isFinite(d.ts) && d.ts < prev.ts && prev.ts - d.ts < 5000) return;
+  R.states.set(id, d); R.seen.set(id, Date.now()); R.cnt[src] = (R.cnt[src] || 0) + 1;
+  if (!prev || prev.st !== d.st || prev.nm !== d.nm || prev.ch !== d.ch) notify();
+  mesh.ensure(id);
+}
+// tu estado: por el canal directo a quien esté conectado; por el relay solo a quien aún no (y un latido de vez en cuando)
+function sendPresence(R, mesh, mqttPub) {
+  const now = Date.now(), direct = mesh.send(JSON.stringify({ t: 'p', d: R.my }));
+  let need = now - (R.lastMqtt || 0) > 900;
+  if (!need) for (const [id] of R.states) if (HUMAN_ID.test(id) && now - (R.seen.get(id) || 0) < 8000 && !mesh.isOpen(id)) { need = true; break; }
+  if (need || !direct) { mqttPub(); R.lastMqtt = now; R.cnt.sent = (R.cnt.sent || 0) + 1; }
+}
 function relayRoom(code, onStatus = () => { }, bi = 0) {
   return new Promise((resolve, reject) => {
     const base = 'blockstrike/v2/' + code + '/', STALE = 8000;
@@ -6673,6 +6753,8 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
     const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
     const pub = (t, payload, opts) => { try { if (R.client && R.client.connected) R.client.publish(base + t, payload, opts || { qos: 0 }); } catch (e) { } };
+    R.cnt = {}; const mesh = rtcMesh(R, myId, (to, o) => pub('sig/' + to, JSON.stringify(Object.assign({ f: myId }, o))), (id, d) => acceptState(R, id, d, notify, mesh, 'rtc'));
+    R.rtcOpen = id => mesh.isOpen(id);
     R.peers = () => {
       const now = Date.now(), a = [{ peer: myId, sameTab: true, isMe: true, presence: R.my }];
       for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
@@ -6682,7 +6764,7 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
     let lastKey = '';
     R.presence = patch => {
       for (const k in patch) { if (patch[k] === null) delete R.my[k]; else R.my[k] = patch[k]; }
-      pub('p/' + myId, JSON.stringify(R.my)); R.lastSend = Date.now();
+      R.lastSend = Date.now(); sendPresence(R, mesh, () => pub('p/' + myId, JSON.stringify(R.my)));
       const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
       return Promise.resolve();
     };
@@ -6690,9 +6772,9 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
     // entidades extra del anfitrión (dummies): se publican como si fueran otros jugadores
     R.pubAs = (id, obj) => pub('p/' + id, JSON.stringify(obj));
     R.dropAs = id => pub('x/' + id, '1');
-    const forget = id => { if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
+    const forget = id => { mesh.drop(id); if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
     R.leave = () => {
-      R.closed = true; clearInterval(R.timer);
+      R.closed = true; clearInterval(R.timer); mesh.closeAll();
       pub('x/' + myId, '1'); if (R.mySkin) pub('sk/' + myId, '', { qos: 0, retain: true });
       try { R.client.end(false); } catch (e) { }
       return Promise.resolve();
@@ -6722,12 +6804,11 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
       if (!id) return;
       const s = buf.toString();
       if (kind === 'pg') { if (id === myId) R.ping = Math.max(0, Date.now() - (+s || 0)); return; }
+      if (kind === 'sig') { if (id === myId) { try { mesh.signal(JSON.parse(s)); } catch (e) { } } return; }
       if (id === myId || id.indexOf(myId + '-') === 0) return;
       if (kind === 'p') {
         let d; try { d = JSON.parse(s); } catch (e) { return; }
-        if (!d || typeof d !== 'object') return;
-        const prev = R.states.get(id); R.states.set(id, d); R.seen.set(id, Date.now());
-        if (!prev || prev.st !== d.st || prev.nm !== d.nm || prev.ch !== d.ch) notify();
+        acceptState(R, id, d, notify, mesh, 'relay');
       } else if (kind === 'x') {
         forget(id);
         if (R.skins.get(id)) pub('sk/' + id, '', { qos: 0, retain: true });
@@ -6755,6 +6836,8 @@ function localRoom(code, onStatus = () => { }) {
     const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
     const send = o => { try { if (R.ws && R.ws.readyState === 1) R.ws.send(JSON.stringify(o)); } catch (e) { } };
+    R.cnt = {}; const mesh = rtcMesh(R, myId, (to, o) => send({ t: 'sig', to, d: o }), (id, d) => acceptState(R, id, d, notify, mesh, 'rtc'));
+    R.rtcOpen = id => mesh.isOpen(id);
     R.peers = () => {
       const now = Date.now(), a = [{ peer: myId, sameTab: true, isMe: true, presence: R.my }];
       for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
@@ -6764,15 +6847,15 @@ function localRoom(code, onStatus = () => { }) {
     let lastKey = '';
     R.presence = patch => {
       for (const k in patch) { if (patch[k] === null) delete R.my[k]; else R.my[k] = patch[k]; }
-      send({ t: 'p', d: R.my }); R.lastSend = Date.now();
+      R.lastSend = Date.now(); sendPresence(R, mesh, () => send({ t: 'p', d: R.my }));
       const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
       return Promise.resolve();
     };
     R.setSkin = d => { R.mySkin = d; send({ t: 'sk', d: d || '' }); };
     R.pubAs = (id, obj) => send({ t: 'pa', id, d: obj });
     R.dropAs = id => send({ t: 'xa', id });
-    const forget = id => { if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
-    R.leave = () => { R.closed = true; clearInterval(R.timer); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
+    const forget = id => { mesh.drop(id); if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
+    R.leave = () => { R.closed = true; clearInterval(R.timer); mesh.closeAll(); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     function connect() {
       const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}`);
@@ -6789,10 +6872,9 @@ function localRoom(code, onStatus = () => { }) {
         let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
         if (!m || typeof m !== 'object') return;
         const id = m.id;
-        if (m.t === 'p' && id && m.d && typeof m.d === 'object') {
-          const prev = R.states.get(id); R.states.set(id, m.d); R.seen.set(id, Date.now());
-          if (!prev || prev.st !== m.d.st || prev.nm !== m.d.nm || prev.ch !== m.d.ch) notify();
-        } else if (m.t === 'x' && id) { forget(id); R.skins.delete(id); }
+        if (m.t === 'p' && id && m.d && typeof m.d === 'object') acceptState(R, id, m.d, notify, mesh, 'relay');
+        else if (m.t === 'sig' && m.from && m.d) mesh.signal(Object.assign({ f: m.from }, m.d));
+        else if (m.t === 'x' && id) { forget(id); R.skins.delete(id); }
         else if (m.t === 'sk' && id) { const d = m.d && m.d.length < 24000 ? m.d : null; R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d); }
         else if (m.t === 'po') R.ping = Math.max(0, Date.now() - (+m.ts || 0));
       };
@@ -7099,7 +7181,7 @@ function netDebug(dt) {
   const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(G.fpsEst || 0)}`];
   for (const px of NET.proxies.values()) {
     const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
-    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
+    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  ${NET.named && NET.named.rtcOpen && NET.named.rtcOpen(px.peer) ? 'DIRECTO' : 'relay  '}  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
   }
   if (L.length === 1) L.push('(sin otros jugadores)');
   el.textContent = L.join('\n');
