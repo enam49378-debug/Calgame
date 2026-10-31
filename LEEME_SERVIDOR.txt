@@ -32,8 +32,9 @@ Amigos de otros países: playit.gg (gratis, sin abrir puertos en el router)
   3. En la web de playit crea un túnel de tipo TCP (el "Custom TCP" / "TCP" normal; no UDP) cuyo destino local sea
      el puerto 8080 de esta PC (127.0.0.1:8080).
   4. playit te da una dirección como  abc-123.gl.at.ply.gg:45678 . Cópiala.
-  5. Pégala en el archivo  publico.txt  (en esta misma carpeta), en una línea sin el #, y guárdalo.
-  6. Deja abiertos los dos programas: Iniciar_Servidor.bat y playit.
+  5. Doble clic en  Configurar_Publico.bat , pega la dirección y presiona Enter (escribe publico.txt por ti).
+     Para que se inicie todo junto, deja playit.exe en esta carpeta (o en una subcarpeta llamada playit).
+  6. Desde ahora, doble clic en  Iniciar_Todo.bat : abre el servidor, playit (si está aquí) y el juego.
   7. Tú abres  http://localhost:8080/ , eliges sala y tocas Entrar. En la pestaña de amigos el link de invitación
      ya saldrá con la dirección de playit: mándaselo a tus amigos. Ellos solo lo abren en su navegador.
   Importante: el link empieza con http:// (no https://). Si el navegador de un amigo lo cambia a https, que lo
