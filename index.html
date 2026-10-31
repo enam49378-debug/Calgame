@@ -360,7 +360,7 @@ tr.me td{color:var(--hot);font-weight:700}
       <label>Mover ← → <input type="range" id="fe-ix" min="-4" max="4" step=".1" value="0"></label>
       <label>Mover ↑ ↓ <input type="range" id="fe-iy" min="-4" max="4" step=".1" value="0"></label>
     </div>
-    <small>La imagen se centra en la fila de ojos de cada skin y crece con la cabeza. Para subir tu propia imagen usá un PNG cuadrado con fondo transparente y la línea de los ojos en el centro.</small>
+    <small>La imagen se centra en la fila de ojos de cada skin y crece con la cabeza. Para subir tu propia imagen usá un PNG o un GIF animado cuadrado, con fondo transparente y la línea de los ojos en el centro (los GIF se leen en Chrome y Edge).</small>
   </details>
   <div id="fe-list"></div>
   <div class="fe-row"><button type="button" id="fe-new">Nueva</button><button type="button" id="fe-dup">Duplicar</button><button type="button" id="fe-ren">Renombrar</button><button type="button" id="fe-del">Borrar</button></div>
@@ -979,8 +979,8 @@ function faceState(f, dt) {
   return 'idle';
 }
 /* FACE_DATA_BEGIN */
-const FACE_VER = 4;
-const FACE_DEFAULTS = {"javi":{"pal":{"S":"#f3cbba","T":"#e0a590","K":"#3c302d","W":"#dedaf3","A":"#a3c6f8","B":"#576a95","X":"#ffffff","m":"#6b1f1f","p":"#e49a8c","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#ff4d4d","d":"#576a95","e":"#a3c6f8","f":"#a3c6f8","g":"#3c302d","h":"#3c302d","j":"#dedaf3","i":"#50372c","k":"#9f6b48","l":"#b27a54","n":"#634131","o":"#a9734e","q":"#df9d82","s":"#875d40","t":"#f0beaa","u":"#674934","v":"#b8b5d9","w":"#eeae41","x":"#f5c749","z":"#e7b631","C":"#d4823c","D":"#f2cfad","E":"#f7d9b9","F":"#ff4d4d","H":"#dedaf3"},"exprs":[{"id":"normal","label":"Normal (cara original)","grid":["iklnklli","ollkkllo","okkqqkko","stttttts","uHhSShHu","wfdxzdfC","DxzEEzCD","DDEEEEDD"]},{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".Kj..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".jK..Kj.",".ed..de.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".jW..jj.",".eK..Ke.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0},"hideEyes":true}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD","idle":"normal"}},"gato":{"pal":{"S":"#f3bdab","T":"#d99f8e","K":"#2e2728","W":"#ece6e6","A":"#958387","B":"#403334","X":"#ffffff","m":"#6b1f1f","p":"#e5a69b","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#84292d","d":"#e5d2d2","e":"#efefef","f":"#d0b8bc","g":"#4c3b3b","h":"#362c2e","i":"#bbb0b1","j":"#fdd6c1","k":"#584643"},"exprs":[{"id":"normal","label":"Normal (cara original)","grid":["cdeeeedc","fffddfff","fgBggBgf","BSSSBhBB","hKKSSKKh","hABSSBih","jXkppkXj","SSjjjjSS"]},{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0},"hideEyes":true}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD","idle":"normal"}}};
+const FACE_VER = 5;
+const FACE_DEFAULTS = {"javi":{"pal":{"S":"#f3cbba","T":"#e0a590","K":"#3c302d","W":"#dedaf3","A":"#a3c6f8","B":"#576a95","X":"#ffffff","m":"#6b1f1f","p":"#e49a8c","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#ff4d4d","d":"#576a95","e":"#a3c6f8","f":"#a3c6f8","g":"#3c302d","h":"#3c302d","j":"#dedaf3","i":"#50372c","k":"#9f6b48","l":"#b27a54","n":"#634131","o":"#a9734e","q":"#df9d82","s":"#875d40","t":"#f0beaa","u":"#674934","v":"#b8b5d9","w":"#eeae41","x":"#f5c749","z":"#e7b631","C":"#d4823c","D":"#f2cfad","E":"#f7d9b9","F":"#ff4d4d","H":"#dedaf3"},"exprs":[{"id":"normal","label":"Normal (cara sin ojos)","grid":["iklnklli","ollkkllo","okkqqkko","stttttts","uSSSSSSu","wSSxzSSC","DxzEEzCD","DDEEEEDD"]},{"id":"open","label":"Ojos abiertos (los de siempre)","grid":["........","........","........","........",".Hh..hH.",".fd..df.","........","........"]},{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".Kj..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".jK..Kj.",".ed..de.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".jW..jj.",".eK..Ke.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0},"hideEyes":true}},{"id":"kawaii","label":"Ojos kawaii","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"kawaii","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"sparkle","label":"Ojos brillantes","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"sparkle","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"hearts","label":"Ojos de corazón","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"hearts","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"stars","label":"Ojos de estrella","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"stars","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"cat","label":"Ojos de gato","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"cat","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"money","label":"Ojos de dinero","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"money","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"fire","label":"Ojos de fuego","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"fire","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"rage","label":"Ojos furiosos","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"rage","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"orbit","label":"Mareado (estrellitas)","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"orbit","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"sleepy","label":"Dormido (Zzz)","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"sleepy","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"cry","label":"Llorando a mares","grid":["........","........","........","........",".Hh..hH.",".fd..df.","........","........"],"img":{"kind":"preset","id":"tears","hideEyes":false,"fit":{"s":1,"ox":0,"oy":0}}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD","idle":"open"}},"gato":{"pal":{"S":"#f3bdab","T":"#d99f8e","K":"#2e2728","W":"#ece6e6","A":"#958387","B":"#403334","X":"#ffffff","m":"#6b1f1f","p":"#e5a69b","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#84292d","d":"#e5d2d2","e":"#efefef","f":"#d0b8bc","g":"#4c3b3b","h":"#362c2e","i":"#bbb0b1","j":"#fdd6c1","k":"#584643"},"exprs":[{"id":"normal","label":"Normal (cara sin ojos)","grid":["cdeeeedc","fffddfff","fgBggBgf","BSSSBhBB","hSSSSSSh","hSSSSSSh","jjSppSjj","SSjjjjSS"]},{"id":"open","label":"Ojos abiertos (los de siempre)","grid":["........","........","........","........",".KK..KK.",".AB..Bi.",".Xk..kX.","........"]},{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0},"hideEyes":true}},{"id":"kawaii","label":"Ojos kawaii","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"kawaii","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"sparkle","label":"Ojos brillantes","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"sparkle","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"hearts","label":"Ojos de corazón","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"hearts","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"stars","label":"Ojos de estrella","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"stars","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"cat","label":"Ojos de gato","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"cat","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"money","label":"Ojos de dinero","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"money","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"fire","label":"Ojos de fuego","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"fire","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"rage","label":"Ojos furiosos","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"rage","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"orbit","label":"Mareado (estrellitas)","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"orbit","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"sleepy","label":"Dormido (Zzz)","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"sleepy","hideEyes":true,"fit":{"s":1,"ox":0,"oy":0}}},{"id":"cry","label":"Llorando a mares","grid":["........","........","........","........",".KK..KK.",".AB..Bi.",".Xk..kX.","........"],"img":{"kind":"preset","id":"tears","hideEyes":false,"fit":{"s":1,"ox":0,"oy":0}}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD","idle":"open"}}};
 /* FACE_DATA_END */
 // elige la expresión según lo que esté pasando: parpadeo, enojo al atacar, dolor, K.O., alegría, despertar
 function updateFace(f, dt) {
@@ -1041,54 +1041,124 @@ function ensureNormal(cid) {
   lib.exprs.unshift(makeNormal(cid)); if (!lib.use.idle) lib.use.idle = 'normal'; return true;
 }
 function ensureNormalAll() { let ch = false; for (const cid in FACE_LIB) ch = ensureNormal(cid) || ch; if (ch) refreshFaces(); }
-// ---- imágenes generadas (pixel art en una grilla de 32×32; los ojos quedan en (7,16) y (25,16)) ----
-function drawFaceArt(g, id, col) {
-  const P = (x, y, c, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x * 2, y * 2, w * 2, h * 2); };
+// ---- imágenes de ojos ANIMADAS (pixel art en una grilla de 32×32; los ojos quedan en (7,16) y (25,16)) ----
+// Cada imagen se redibuja a 12 cuadros por segundo con el tiempo t (en segundos): giran, laten, brillan y parpadean.
+function drawFaceArt(g, id, col, t) {
+  g.clearRect(0, 0, 64, 64);
+  const P = (x, y, c, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(Math.round(x) * 2, Math.round(y) * 2, w * 2, h * 2); };
   const disc = (cx, cy, r, c) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * .6) P(cx + x, cy + y, c); };
+  const ell = (cx, cy, rx, ry, c) => { for (let y = -Math.ceil(ry); y <= Math.ceil(ry); y++) for (let x = -Math.ceil(rx); x <= Math.ceil(rx); x++) if ((x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1) P(cx + x, cy + y, c); };
+  const glint = (x, y, s, c = '#ffffff') => { P(x, y, c); if (s > 0) { P(x - 1, y, c); P(x + 1, y, c); P(x, y - 1, c); P(x, y + 1, c); } if (s > 1) { P(x - 2, y, c); P(x + 2, y, c); P(x, y - 2, c); P(x, y + 2, c); } };
   const EY = [[7, 16], [25, 16]], D = '#1b1b24';
   if (id === 'spiral') {
     EY.forEach(([cx, cy], n) => {
       disc(cx, cy, 6, D); disc(cx, cy, 5, '#ffffff');
-      const dir = n ? -1 : 1;
-      for (let t = 0; t < 12.4; t += .05) { const th = t * dir * 1.15, rr = .3 + t * .4; P(Math.round(cx + Math.cos(th) * rr), Math.round(cy + Math.sin(th) * rr), D); }
+      const dir = n ? -1 : 1, ph = t * 4 * dir;
+      for (let k = 0; k < 12.4; k += .05) { const th = k * dir * 1.15 + ph, rr = .3 + k * .4; P(Math.round(cx + Math.cos(th) * rr), Math.round(cy + Math.sin(th) * rr), D); }
     });
   } else if (id === 'hearts') {
-    EY.forEach(([cx, cy]) => {
-      for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) { const x = dx / 4.6, y = -dy / 4.6 + .15, v = Math.pow(x * x + y * y - 1, 3) - x * x * y * y * y; if (v <= 0) P(cx + dx, cy + dy, '#ff3b6b'); }
-      P(cx - 3, cy - 3, '#ffffff', 2, 1); P(cx - 3, cy - 2, '#ffffff', 1, 1);
+    const beat = Math.pow(Math.max(0, Math.sin(t * 7.5)), 2), sc = 1 + .16 * beat;
+    EY.forEach(([cx, cy], n) => {
+      for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) { const x = dx / (4.6 * sc), y = -dy / (4.6 * sc) + .15, v = Math.pow(x * x + y * y - 1, 3) - x * x * y * y * y; if (v <= 0) P(cx + dx, cy + dy, beat > .5 ? '#ff5c85' : '#ff3b6b'); }
+      P(cx - 3, cy - 3, '#ffffff', 2, 1); P(cx - 3, cy - 2, '#ffffff');
+      const a = t * 3 + n * 2; if (Math.sin(t * 5 + n) > .2) glint(cx + Math.round(Math.cos(a) * 8), cy + Math.round(Math.sin(a) * 6) - 2, 0, '#ffb3c6');
     });
   } else if (id === 'stars') {
-    EY.forEach(([cx, cy]) => {
-      const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.6 : 6.2; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
-      for (let dy = -7; dy <= 7; dy++) for (let dx = -7; dx <= 7; dx++) {
+    EY.forEach(([cx, cy], n) => {
+      const a0 = t * 1.8 * (n ? -1 : 1), sc = 1 + .1 * Math.sin(t * 6), pts = [];
+      for (let i = 0; i < 10; i++) { const a = a0 - Math.PI / 2 + i * Math.PI / 5, r = (i % 2 ? 2.6 : 6.2) * sc; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+      for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
         let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > dy) !== (yj > dy) && dx < (xj - xi) * (dy - yi) / (yj - yi) + xi) inside = !inside; }
         if (inside) P(cx + dx, cy + dy, '#ffd54f');
       }
       P(cx - 1, cy - 1, '#fff6c9', 2, 2);
+      if (Math.sin(t * 7 + n * 3) > .3) glint(cx + 6 - n * 12, cy - 7, 1, '#fffbe0');
     });
   } else if (id === 'sparkle') {
-    EY.forEach(([cx, cy]) => {
-      for (let dy = -7; dy <= 7; dy++) for (let dx = -5; dx <= 5; dx++) if ((dx * dx) / 22 + (dy * dy) / 52 <= 1) P(cx + dx, cy + dy, D);
-      for (let dy = -4; dy <= 5; dy++) for (let dx = -3; dx <= 3; dx++) if ((dx * dx) / 11 + (dy * dy) / 32 <= 1) P(cx + dx, cy + dy, col);
-      P(cx - 3, cy - 5, '#ffffff', 3, 3); P(cx + 1, cy + 1, '#ffffff', 2, 2); P(cx - 1, cy + 4, '#ffffffaa', 1, 1);
+    EY.forEach(([cx, cy], n) => {
+      ell(cx, cy, 5.5, 7.5, D); ell(cx, cy + 1, 4, 6, col);
+      P(cx - 3, cy - 5, '#ffffff', 3, 3); P(cx - 2, cy - 6, '#ffffff', 1, 1);
+      const a = t * 2.4 + n; P(cx + 1 + Math.round(Math.cos(a)), cy + 2 + Math.round(Math.sin(a)), '#ffffff', 2, 2);
+      if (Math.sin(t * 4 + n * 2) > .55) glint(cx + 4, cy - 6, Math.sin(t * 8) > 0 ? 2 : 1, '#ffffff');
     });
-  } else if (id === 'tears') {
+  } else if (id === 'kawaii') {
+    const bt = t % 3.3, closed = bt > 3.1, gaze = Math.sin(t * .9) * 1.6;
+    EY.forEach(([cx, cy], n) => {
+      if (closed) { P(cx - 5, cy + 1, D, 11, 2); P(cx - 6, cy, D, 2, 1); P(cx + 5, cy, D, 2, 1); return; }
+      const gx = Math.round(gaze);
+      disc(cx, cy, 6, D); disc(cx + gx, cy + 1, 4, col); disc(cx + gx, cy + 1, 2, D);
+      P(cx - 3 + gx, cy - 4, '#ffffff', 3, 3); P(cx + 1 + gx, cy + 1, '#ffffff', 2, 2);
+      if (Math.sin(t * 5 + n * 1.7) > .5) glint(cx + 4, cy - 5, 1, '#ffffff');
+    });
+  } else if (id === 'cat') {
+    EY.forEach(([cx, cy], n) => {
+      ell(cx, cy, 7.5, 6.5, D); ell(cx, cy, 6.3, 5.3, '#e9d83a'); ell(cx, cy + 2, 5, 2.5, '#c9b82a');
+      const w = 1 + Math.round(1.6 * (.5 + .5 * Math.sin(t * 2.2 + n)));
+      for (let dy = -5; dy <= 5; dy++) P(cx - Math.floor(w / 2), cy + dy, D, w, 1);
+      P(cx - 5, cy - 3, '#ffffff', 2, 2);
+    });
+  } else if (id === 'money') {
+    const G = ['..#..', '.###.', '#.#.#', '#.#..', '.###.', '..#.#', '#.#.#', '.###.', '..#..'], c = Math.sin(t * 4), hue = Math.sin(t * 9) > 0 ? '#2ecc40' : '#9dff6a';
     EY.forEach(([cx, cy]) => {
-      for (let y = cy + 3; y < cy + 13; y++) P(cx - 1, y, '#7cc4ff', 2, 1);
-      P(cx - 2, cy + 11, '#7cc4ff', 4, 2); P(cx - 1, cy + 4, '#dff3ff', 1, 4);
+      disc(cx, cy, 6, '#f8f2c8'); disc(cx, cy, 5, '#fffbe0');
+      G.forEach((row, y) => row.split('').forEach((ch, x) => { if (ch === '#') P(cx + Math.round((x - 2) * c), cy - 4 + y, hue, Math.abs(c) > .45 ? 1 : 1, 1); }));
+    });
+  } else if (id === 'fire') {
+    EY.forEach(([cx, cy], n) => {
+      for (let y = 0; y < 15; y++) {
+        const k = y / 14, w = Math.max(1, 9 * (1 - k * .9) * (1 + .3 * Math.sin(t * 15 + y * .9 + n * 2))), sway = Math.sin(t * 9 + y * .5 + n) * (k * 2.4);
+        const c = k < .35 ? '#ff3d00' : k < .7 ? '#ff9100' : '#ffe082';
+        P(cx + sway - w / 2, cy + 7 - y, c, Math.round(w), 1);
+      }
+      P(cx - 1, cy + 3, '#ffffff', 2, 2);
+    });
+  } else if (id === 'rage') {
+    EY.forEach(([cx, cy], n) => {
+      const s = n ? -1 : 1, pulse = .22 + .16 * Math.sin(t * 9);
+      g.globalAlpha = pulse; disc(cx, cy, 9, '#ff2a2a'); g.globalAlpha = 1;
+      for (let x = -7; x <= 7; x++) { const yc = cy + Math.round(-x * .3 * s); P(cx + x, yc - 1, '#e60f0f', 1, 3); P(cx + x, yc, '#ff8c8c'); }
+      for (let k = -8; k <= 7; k++) P(cx + k, cy - 6 + Math.round(k * .3 * s) + (n ? 0 : 0), D, 1, 2);
+    });
+  } else if (id === 'orbit') {
+    EY.forEach(([cx, cy], n) => {
+      for (const [dx, dy] of [[-2, -2], [2, -2], [0, 0], [-2, 2], [2, 2]]) P(cx + dx - 1, cy + dy - 1, D, 2, 2);
+      for (let k = 0; k < 3; k++) { const a = t * 4.4 * (n ? -1 : 1) + k * 2.094, x = cx + Math.cos(a) * 9, y = cy - 4 + Math.sin(a) * 4; glint(x, y, 1, '#ffd54f'); }
+    });
+  } else if (id === 'sleepy') {
+    EY.forEach(([cx, cy]) => { P(cx - 5, cy + 1, D, 11, 2); P(cx - 6, cy, D, 2, 1); P(cx + 5, cy, D, 2, 1); });
+    for (let k = 0; k < 3; k++) {
+      const u = ((t * .8 + k / 3) % 1), x = 24 + u * 5, y = 12 - u * 11, s = 2 + Math.floor(u * 3);
+      g.globalAlpha = 1 - u * .8;
+      for (let i = 0; i < s; i++) { P(x + i, y, '#ffffff'); P(x + s - 1 - i, y + i, '#ffffff'); P(x + i, y + s - 1, '#ffffff'); }
+      g.globalAlpha = 1;
+    }
+  } else if (id === 'tears') {
+    EY.forEach(([cx, cy], n) => {
+      for (let y = cy + 3; y < cy + 15; y++) P(cx - 1, y, '#7cc4ff', 2, 1);
+      for (let k = 0; k < 3; k++) { const y = cy + 3 + ((t * 13 + k * 4 + n * 2) % 12); P(cx - 2, y, '#bfe6ff', 4, 2); P(cx - 1, y + 2, '#7cc4ff', 2, 1); }
+      P(cx - 2, cy + 14, '#7cc4ff', 4, 1);
     });
   } else if (id === 'anger') {
-    const R = '#e63946', cx = 26, cy = 6;
-    for (const [dx, dy] of [[-3, -1], [-3, -2], [-2, -2], [-1, -3], [-1, -4], [2, -1], [3, -1], [3, -2], [2, 1], [3, 1], [3, 2], [-2, 1], [-3, 1], [-3, 2], [-1, 2], [-1, 3]]) P(cx + dx, cy + dy, R);
+    const R = '#e63946', cx = 26, cy = 6, big = Math.sin(t * 10) > 0;
+    for (const [dx, dy] of [[-3, -1], [-3, -2], [-2, -2], [-1, -3], [-1, -4], [2, -1], [3, -1], [3, -2], [2, 1], [3, 1], [3, 2], [-2, 1], [-3, 1], [-3, 2], [-1, 2], [-1, 3]]) P(cx + dx * (big ? 1.3 : 1), cy + dy * (big ? 1.3 : 1), R, big ? 2 : 1, big ? 2 : 1);
   } else if (id === 'blush') {
+    g.globalAlpha = .65 + .35 * Math.sin(t * 5);
     EY.forEach(([cx, cy]) => { for (let i = 0; i < 3; i++) { P(cx - 4 + i * 3, cy + 5, '#ff8aa0', 2, 1); P(cx - 3 + i * 3, cy + 6, '#ff8aa0', 2, 1); } });
+    g.globalAlpha = 1;
   } else if (id === 'sweat') {
-    const cx = 28, cy = 7; for (let dy = -4; dy <= 4; dy++) { const w = dy < 0 ? Math.max(0, 4 + dy) : Math.max(1, 3 - (dy > 2 ? dy - 2 : 0)); P(cx - Math.floor(w / 2), cy + dy, '#7cc4ff', Math.max(1, w), 1); }
-    P(cx - 1, cy, '#ffffff', 1, 2);
+    const u = (t * .7) % 1, cx = 28, cy = 5 + u * 14; g.globalAlpha = 1 - u * u;
+    for (let dy = -4; dy <= 4; dy++) { const w = dy < 0 ? Math.max(0, 4 + dy) : Math.max(1, 3 - (dy > 2 ? dy - 2 : 0)); P(cx - Math.floor(w / 2), cy + dy, '#7cc4ff', Math.max(1, w), 1); }
+    P(cx - 1, cy, '#ffffff', 1, 2); g.globalAlpha = 1;
   }
 }
+// lista de imágenes: [id, nombre, ¿tapa los ojos de la skin por defecto?]
+FACE_ART.length = 0;
+FACE_ART.push(['kawaii', 'Ojos kawaii (brillan y parpadean)', 1], ['sparkle', 'Ojos brillantes de anime', 1], ['spiral', 'Remolino (gira)', 1], ['hearts', 'Corazones (laten)', 1], ['stars', 'Estrellas (giran)', 1],
+  ['cat', 'Ojos de gato', 1], ['money', 'Ojos de dinero', 1], ['fire', 'Ojos de fuego', 1], ['rage', 'Ojos furiosos', 1], ['orbit', 'Mareado con estrellitas', 1], ['sleepy', 'Dormido (Zzz)', 1],
+  ['tears', 'Lágrimas que caen', 0], ['anger', 'Vena de enojo (late)', 0], ['blush', 'Rubor', 0], ['sweat', 'Gota de sudor', 0]);
+const FACE_FPS = 12;
 function faceImageTex(img, color) {
-  const key = img.kind === 'data' ? 'd:' + img.src.length + ':' + img.src.slice(-48) : 'p:' + img.id + ':' + color;
+  const key = img.kind === 'frames' ? 'f:' + img.frames.length + ':' + img.frames[0].length + ':' + img.frames[0].slice(-40) : img.kind === 'data' ? 'd:' + img.src.length + ':' + img.src.slice(-48) : 'p:' + img.id + ':' + color;
   let t = FACE_IMG_CACHE.get(key); if (t) return t;
   const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
   t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
@@ -1097,8 +1167,44 @@ function faceImageTex(img, color) {
     const im = new Image();
     im.onload = () => { g.clearRect(0, 0, 64, 64); g.drawImage(im, 0, 0, 64, 64); t.needsUpdate = true; refreshFaces(); if (!$('faceed').classList.contains('hidden')) feRender(); };
     im.src = img.src;
-  } else drawFaceArt(g, img.id, color);
+  } else if (img.kind === 'frames') {
+    // GIF: cuadros ya reducidos a 64×64; se van pasando según su duración
+    const imgs = img.frames.map(src => { const im = new Image(); im.src = src; return im; }), delays = img.delays || img.frames.map(() => 80);
+    t.anim = { kind: 'frames', g, imgs, delays, total: delays.reduce((a, b) => a + b, 0) || 1, key: -1 };
+    imgs[0].onload = () => { faceAnimTick(t, performance.now() / 1000, true); refreshFaces(); };
+  } else {
+    t.anim = { kind: 'preset', g, id: img.id, color, key: -1 };
+    faceAnimTick(t, performance.now() / 1000, true);
+  }
   return t;
+}
+// avanza la animación de una textura (devuelve true si cambió de cuadro)
+function faceAnimTick(tex, now, force) {
+  const a = tex.anim; if (!a) return false;
+  if (a.kind === 'preset') {
+    const k = Math.floor(now * FACE_FPS); if (k === a.key && !force) return false; a.key = k; drawFaceArt(a.g, a.id, a.color, k / FACE_FPS);
+  } else {
+    let ms = (now * 1000) % a.total, i = 0; while (i < a.delays.length - 1 && ms >= a.delays[i]) { ms -= a.delays[i]; i++; }
+    if (i === a.key && !force) return false; a.key = i; const im = a.imgs[i]; if (!im || !im.complete || !im.naturalWidth) return false;
+    a.g.clearRect(0, 0, 64, 64); a.g.drawImage(im, 0, 0, 64, 64);
+  }
+  tex.needsUpdate = true; return true;
+}
+// cada cuadro del juego: anima las imágenes que se están viendo (jugadores, rivales y la cabeza del menú)
+function updateFaceAnims(now) {
+  for (const f of G.fighters) { const d = f.model && f.model.decal; if (d && d.visible && d.material.map) faceAnimTick(d.material.map, now); }
+  if (SH.fig && SH.fig.model.decal && SH.fig.model.decal.visible && SH.fig.model.decal.material.map) faceAnimTick(SH.fig.model.decal.material.map, now);
+}
+// GIF animado → cuadros de 64×64 (necesita ImageDecoder, que trae Chrome/Edge)
+async function feGifFrames(file) {
+  if (!('ImageDecoder' in window)) return null;
+  const dec = new ImageDecoder({ data: await file.arrayBuffer(), type: file.type || 'image/gif' });
+  await dec.tracks.ready; const n = Math.min(dec.tracks.selectedTrack.frameCount, 48), frames = [], delays = [];
+  for (let i = 0; i < n; i++) {
+    const { image } = await dec.decode({ frameIndex: i }), c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'); g.drawImage(image, 0, 0, 64, 64); frames.push(c.toDataURL('image/png')); delays.push(Math.max(40, Math.round((image.duration || 80000) / 1000))); image.close();
+  }
+  return n > 1 ? { frames, delays } : null;
 }
 // pega (o esconde) la imagen en el frente de la cabeza; se centra en la fila de ojos de esa skin
 function setFaceDecal(f, img) {
@@ -1143,12 +1249,16 @@ function feDrawFace(cv, cid, ex, px, noImg) {
     g.drawImage(t.image, (4 + (fit.ox || 0)) * px - size / 2, (row + .5 - (fit.oy || 0)) * px - size / 2, size, size);
   }
 }
-function feRender() {
-  const lib = feLib(), ex = feExpr(), cv = $('fe-canvas'), g = cv.getContext('2d');
+function feDrawMain() {
+  const ex = feExpr(), cv = $('fe-canvas'), g = cv.getContext('2d');
   feDrawFace(cv, FE.cid, ex, 40);
   g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1;
   for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 40 + .5, 0); g.lineTo(i * 40 + .5, 320); g.moveTo(0, i * 40 + .5); g.lineTo(320, i * 40 + .5); g.stroke(); }
   g.strokeStyle = 'rgba(255,255,255,.5)'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(160.5, 0); g.lineTo(160.5, 320); g.stroke(); g.setLineDash([]);
+}
+function feRender() {
+  const lib = feLib(), ex = feExpr();
+  feDrawMain();
   // paleta
   const pal = $('fe-pal'); pal.innerHTML = '';
   const add = (c, col, title) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (FE.color === c ? ' on' : ''); b.title = title; if (col) b.style.background = col; else { b.textContent = '↺'; } b.addEventListener('click', () => { FE.color = c; feRender(); }); pal.appendChild(b); };
@@ -1182,7 +1292,7 @@ function feRenderImg() {
     for (const [id, label] of FACE_ART) { const o = document.createElement('option'); o.value = 'p:' + id; o.textContent = label; sel.appendChild(o); }
     const ou = document.createElement('option'); ou.value = 'data'; ou.textContent = 'Imagen subida'; sel.appendChild(ou);
   }
-  const img = e.img; sel.value = !img ? '' : img.kind === 'data' ? 'data' : 'p:' + img.id;
+  const img = e.img; sel.value = !img ? '' : (img.kind === 'data' || img.kind === 'frames') ? 'data' : 'p:' + img.id;
   $('fe-hide').checked = !img || img.hideEyes !== false; $('fe-hide').disabled = !img;
   const fit = (img && img.fit) || {}; $('fe-is').value = fit.s || 1; $('fe-ix').value = fit.ox || 0; $('fe-iy').value = fit.oy || 0;
   for (const id of ['fe-is', 'fe-ix', 'fe-iy']) $(id).disabled = !img;
@@ -1231,6 +1341,7 @@ function fePaintAt(ev) {
   set(x); if (FE.mirror) set(7 - x);
   feRender(); if (SH.fig) { SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; }
 }
+setInterval(() => { if ($('faceed').classList.contains('hidden')) return; const ex = FACE_LIB[FE.cid] && feExpr(); if (ex && ex.img) { const t = faceImageTex(ex.img, CHARS[FE.cid].color); if (faceAnimTick(t, performance.now() / 1000)) feDrawMain(); } }, 80);
 function feOpen() {
   const first = Object.keys(FACE_LIB).includes(G.charId) ? G.charId : 'javi';
   FE.cid = first; if (!feExpr()) FE.id = feLib().exprs[0].id;
@@ -1253,13 +1364,23 @@ function feInit() {
   $('fe-pngfile').addEventListener('change', e => { const f = e.target.files[0]; if (f) feImportPNG(f); e.target.value = ''; });
   $('fe-img').addEventListener('change', e => {
     const v = e.target.value, ex = feExpr();
-    if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), hideEyes: ex.img ? ex.img.hideEyes !== false : true, fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };
-    else if (v === 'data' && !(ex.img && ex.img.kind === 'data')) { $('fe-imgfile').click(); feRenderImg(); return; }
+    if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), hideEyes: ex.img ? ex.img.hideEyes !== false : (FACE_ART.find(a => a[0] === v.slice(2)) || [0, 0, 1])[2] === 1, fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };
+    else if (v === 'data' && !(ex.img && (ex.img.kind === 'data' || ex.img.kind === 'frames'))) { $('fe-imgfile').click(); feRenderImg(); return; }
     saveFaceLib(); feSelect();
   });
   $('fe-imgup').addEventListener('click', () => $('fe-imgfile').click());
   $('fe-imgfile').addEventListener('change', e => {
-    const file = e.target.files[0]; if (!file) return; const rd = new FileReader();
+    const file = e.target.files[0]; if (!file) return; e.target.value = '';
+    if (/gif/i.test(file.type)) {
+      feGifFrames(file).then(r => {
+        if (!r) { feMsg('Este navegador no puede leer GIF animados (usá Chrome o Edge); se pone solo el primer cuadro'); return gifStill(file); }
+        feExpr().img = { kind: 'frames', frames: r.frames, delays: r.delays, hideEyes: true, fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('GIF puesto (' + r.frames.length + ' cuadros)');
+      }).catch(() => gifStill(file)); return;
+    }
+    gifStill(file);
+  });
+  function gifStill(file) {
+    const rd = new FileReader();
     rd.onload = () => {
       const im = new Image();
       im.onload = () => {
@@ -1270,8 +1391,8 @@ function feInit() {
       };
       im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
     };
-    rd.readAsDataURL(file); e.target.value = '';
-  });
+    rd.readAsDataURL(file);
+  }
   $('fe-hide').addEventListener('change', e => { const ex = feExpr(); if (!ex.img) return; ex.img.hideEyes = e.target.checked; saveFaceLib(); feSelect(); });
   for (const id of ['fe-is', 'fe-ix', 'fe-iy']) { $(id).addEventListener('input', () => feImgChanged(true)); $(id).addEventListener('change', () => feImgChanged(false)); }
   $('fe-close').addEventListener('click', feClose);
@@ -5811,6 +5932,7 @@ let last = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
   const rdt = Math.min(.05, (now - last) / 1000); last = now;
+  updateFaceAnims(now / 1000);
   for (const c of CLOUDS) { c.position.x += rdt * 1.5; if (c.position.x > 160) c.position.x = -160; }
   IMPACT.cd -= rdt; if (IMPACT.t > 0) IMPACT.t -= rdt;
   if (G.state === 'menu') { updateShow(rdt); updateFx(rdt); renderView(SH.scene, SH.cam); drawLines(rdt); return; }
