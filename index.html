@@ -3482,6 +3482,7 @@ function choreBegin(f, tg, D) {
   f.choreTrack = D.bbPreview ? javiBBTrack(D.bbPreview, D.bbKey || 'javi') : D.attClip ? javiBBTrack(D.attClip, f.ch.id) : buildCineTrack(D.att, Object.assign({}, f.anim.x), D.ev); f.choreTime = 0; f.choreEyes = false;
   f.choreFrom = D.attClip ? Object.assign({}, f.anim.x) : null;
   f.iframes = Math.max(f.iframes, D.dur + .3);
+  if (tg.remote) { if (tg.action) endAction(tg); tg.sceneLock = st; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; }
   if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.grabbed = true; tg.stun = 9; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; }
   if (f.isPlayer || tg.isPlayer) G.chore = st;
   if (D.trails && f.spear) cineRibbon(st);
@@ -3490,7 +3491,7 @@ function choreBegin(f, tg, D) {
 }
 function choreRelease(st) {
   if (st.released) return; st.released = true;
-  const tg = st.tg; if (!tg.remote) { tg.cineLock = null; tg.grabbed = false; tg.choreTrack = null; tg.stun = 0; }
+  const tg = st.tg; if (tg.remote) { tg.sceneLock = null; tg.choreTrack = null; } else { tg.cineLock = null; tg.grabbed = false; tg.choreTrack = null; tg.stun = 0; }
 }
 function choreEnd(st) {
   choreRelease(st); st.f.choreTrack = null; st.f.choreEyes = false;
@@ -3736,7 +3737,7 @@ function choreTick(st, dt) {
     f.spear.scale.z = D.stake.scale + (st.spearScale - D.stake.scale) * u * u * (3 - 2 * u);
   }
   syncChorePose(f, dt, st);
-  if (!st.released && tg.alive && !tg.remote) {
+  if (!st.released && tg.alive) {
     const vp = hermArr(st.vpos, t);
     tg.pos.copy(L2W(st.origin, st.yaw, vp[0], vp[1], vp[2])); tg.yaw = st.yaw + Math.PI + vp[3]; tg.vel.set(0, 0, 0); tg.choreTime = t; tg.stun = Math.max(tg.stun, .5);
     syncChorePose(tg, dt, st, true);
@@ -3905,6 +3906,11 @@ function choreCam(st, dt) {
 }
 function runChore(f, tg, D) {
   if (f.action) endAction(f);
+  // multijugador: se avisa a los demás clientes qué escena es y a quién se agarró, así la ven todos sin depender de que su juego "atrape" por su cuenta
+  if (f.isPlayer && G.mp && !G.viewer) {
+    const id = Object.keys(CHORE).find(k => CHORE[k] === D), vid = tg.remote ? tg.peer : tg.isPlayer ? NET.myPeer : (tg.netId || null);
+    if (id && vid) netAct({ k: 'c', d: id, v: vid });
+  }
   let st = null;
   startAction(f, {
     name: 'chore', dur: D.dur + .05, noControl: true, armor: true,
@@ -5768,7 +5774,7 @@ function useSkill(f, i) {
   const s = skillsOf(f)[i]; if (!s || f.cd[i] > 0) return;
   prepWeapon(f);
   const ok = MOVES[s.k](f, Object.assign({ color: f.ch.color, slot: i }, s.o));
-  if (ok !== false && f.isPlayer && G.mp) netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0 });
+  if (ok !== false && f.isPlayer && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0 });   // las coreografías mandan su propio aviso ('c') al agarrar
   f.cd[i] = ok === false ? .4 : s.cd;
   if (ok !== false && f.isPlayer) { const el = $('skills').children[i]; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
   if (ok === false && f.isPlayer) popText(chestOf(f), 'Sin objetivo', '#aab', 15);
@@ -7423,6 +7429,10 @@ function replayAct(px, a) {
     if (a.k === 'm') { px.comboIdx = clamp(a.i | 0, 0, 3); px.comboTimer = 1; px.m1cd = 0; doM1(px, !!a.u); }
     else if (a.k === 's') { const i = clamp(a.i | 0, 0, 3); px.cd[i] = 0; px.awak = a.w ? Math.max(px.awak, 1) : 0; useSkill(px, i); }
     else if (a.k === 'u') { px.ult = 100; runUlt(px); if (involvesPlayerNear(px)) miniCut(px); }
+    else if (a.k === 'c') {
+      const D = CHORE[a.d], vid = a.v, victim = vid === NET.myPeer ? G.player : NET.proxies.get(vid) || dummies().find(d => d.netId === vid);
+      if (D && victim && victim.alive && victim !== px && !victim.cineLock && !px.cineLock && !(G.chore && (G.chore.f === victim || G.chore.tg === victim))) runChore(px, victim, D);
+    }
   } catch (e) { }
 }
 function removeProxy(peer) {
@@ -7470,6 +7480,7 @@ function proxyUpdate(px, dt) {
   // interpolación de instantáneas, como en un servidor normal: se guardan los últimos paquetes y cada jugador remoto se dibuja
   // ~100 ms en el pasado, entre dos paquetes reales, así los tirones de la red no se ven como saltos
   const nowMs = performance.now(), st = NET_OLD ? null : netInterp(px, pr, nowMs);
+  if (px.sceneLock) { px.flashT -= dt; return; }   // una escena lo está moviendo
   if (NET_OLD) {
     _tp.set(+pr.x || 0, +pr.y || 0, +pr.z || 0);
     if (px.pos.distanceTo(_tp) > 6) px.pos.copy(_tp); else px.pos.lerp(_tp, Math.min(1, dt * 14));
