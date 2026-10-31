@@ -6481,6 +6481,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keydown', e => { if (e.code === 'F3') { G.netDbg = !G.netDbg; e.preventDefault(); } });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.left = mouse.right = false; });
 addEventListener('pointerdown', () => initAudio(), { once: true });
 canvas.addEventListener('mousedown', e => {
@@ -6954,10 +6955,11 @@ function removeProxy(peer) {
   px.dispose(); const k = G.fighters.indexOf(px); if (k >= 0) G.fighters.splice(k, 1); NET.proxies.delete(peer);
 }
 // instantáneas de un jugador remoto: guarda los paquetes con la hora del emisor y devuelve el estado interpolado para dibujar
+const NET_OLD = /[?&]net=old/.test(location.search);   // ?net=old: suavizado simple de la versión anterior (para comparar)
 function netInterp(px, pr, nowMs) {
   const B = px.netBuf || (px.netBuf = []);
   if (px.netSeen !== pr) {
-    px.netSeen = pr;
+    px.netSeen = pr; px.netCnt = (px.netCnt || 0) + 1;
     const ts = isFinite(+pr.ts) ? +pr.ts : nowMs, last = B[B.length - 1];
     if (last && ts < last.ts - 2000) { B.length = 0; px.netOff = null; }          // el emisor recargó la página
     const lst = B[B.length - 1];
@@ -6992,15 +6994,22 @@ function proxyUpdate(px, dt) {
   if (was && !px.alive) burst(chestOf(px), 30, '#dddddd', 5, .3, .8, -.2);
   // interpolación de instantáneas, como en un servidor normal: se guardan los últimos paquetes y cada jugador remoto se dibuja
   // ~100 ms en el pasado, entre dos paquetes reales, así los tirones de la red no se ven como saltos
-  const nowMs = performance.now(), st = netInterp(px, pr, nowMs);
-  px.pos.set(st.x, st.y, st.z);
-  px.yaw = st.yw;
-  if (st.j) JOINTS.forEach((k, i) => { const v = st.j[i]; if (isFinite(v)) px.anim.x[k] = v; });
+  const nowMs = performance.now(), st = NET_OLD ? null : netInterp(px, pr, nowMs);
+  if (NET_OLD) {
+    _tp.set(+pr.x || 0, +pr.y || 0, +pr.z || 0);
+    if (px.pos.distanceTo(_tp) > 6) px.pos.copy(_tp); else px.pos.lerp(_tp, Math.min(1, dt * 14));
+    px.yaw = angLerp(px.yaw, +pr.yw || 0, Math.min(1, dt * 14));
+    if (Array.isArray(pr.j)) JOINTS.forEach((k, i) => { const v = +pr.j[i]; if (isFinite(v)) px.anim.x[k] += (v - px.anim.x[k]) * Math.min(1, dt * 18); });
+  } else {
+    px.pos.set(st.x, st.y, st.z);
+    px.yaw = st.yw;
+    if (st.j) JOINTS.forEach((k, i) => { const v = st.j[i]; if (isFinite(v)) px.anim.x[k] = v; });
+  }
   px.anim.apply();
   const m = px.model;
   if (m.gripRot && isFinite(+pr.tw)) m.gripRot.rotation.x += +pr.tw;
   m.root.position.copy(px.pos);
-  m.root.rotation.y = st.ry;
+  m.root.rotation.y = st ? st.ry : (isFinite(+pr.ry) ? angLerp(m.root.rotation.y, +pr.ry, Math.min(1, dt * 14)) : px.yaw);
   m.root.visible = px.alive;
   if (px.spear) { const out = !!pr.sp; if (out !== px.spearOut) setSpear(px, out); px.spear.visible = !!pr.sv; }
   px.flashT -= dt;
@@ -7011,7 +7020,22 @@ function proxyUpdate(px, dt) {
   updateAura(px, dt, performance.now() / 1000);
   updateFace(px, dt);
 }
+let _dbgT = 0;
+function netDebug(dt) {
+  let el = document.getElementById('netdbg');
+  if (!G.netDbg) { if (el) el.style.display = 'none'; return; }
+  if (!el) { el = document.createElement('pre'); el.id = 'netdbg'; el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:60;margin:0;padding:8px 10px;background:rgba(0,0,0,.72);color:#9dff9d;font:11px/1.35 ui-monospace,Consolas,monospace;border-radius:6px;pointer-events:none;max-width:60vw;white-space:pre'; document.body.appendChild(el); }
+  el.style.display = 'block'; G.fpsEst = G.fpsEst ? G.fpsEst * .95 + (1 / Math.max(dt, .001)) * .05 : 60; _dbgT -= dt; if (_dbgT > 0) return; _dbgT = .5;
+  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(G.fpsEst || 0)}`];
+  for (const px of NET.proxies.values()) {
+    const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
+    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, 90, 300))} ms`);
+  }
+  if (L.length === 1) L.push('(sin otros jugadores)');
+  el.textContent = L.join('\n');
+}
 function netTick(dt) {
+  netDebug(dt);
   if (!NET.named) return;
   const peers = NET.named.peers(), seen = new Set();
   const me = peers.find(pe => pe.sameTab); if (me) NET.myPeer = me.peer;
@@ -7050,7 +7074,7 @@ function netTick(dt) {
   for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
-  if (NET.sendT <= 0) { NET.sendT = 1 / 25; netSendPlay(); }
+  if (NET.sendT <= 0) { NET.sendT = NET_OLD && NET.room === 'relay' ? 1 / 15 : 1 / 25; netSendPlay(); }
 }
 
 // ================= Dummies de entrenamiento y panel del anfitrión =================
