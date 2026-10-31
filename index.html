@@ -6663,14 +6663,15 @@ async function netInit() {
 }
 // Sala por servidor intermedio público (MQTT sobre WebSocket): funciona detrás de cualquier router, sin anfitrión.
 // Tiene la misma forma que la sala de claude.ai: peers(), presence(), onPeers(), leave().
-const RELAYS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+// medido desde una conexión real: HiveMQ 0 % de pérdida (236 ms); EMQX perdía el 57 % de los paquetes, por eso va de respaldo
+const RELAYS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
 // ===== Canal directo entre jugadores (WebRTC) =====
 // El relay público solo se usa para presentarse y como respaldo. Si los dos navegadores logran conectarse directo, el estado del juego
 // viaja por un canal sin orden ni reintentos (como UDP): sin pasar por el servidor del relay, que suele estar en otro continente.
 const HUMAN_ID = /^u[a-z0-9]{3,}$/;
 const RTC_CFG = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
 function rtcMesh(R, myId, sigSend, onData) {
-  const M = new Map(), cool = new Map(); let closed = false;
+  const M = new Map(), cool = new Map(), early = new Map(); let closed = false;   // early: candidatos que llegan antes que la oferta (los relays no garantizan el orden entre sí)
   const noRTC = typeof RTCPeerConnection === 'undefined' || /[?&]rtc=off/.test(location.search);
   function kill(e, fail) {
     if (M.get(e.id) === e) M.delete(e.id);
@@ -6716,13 +6717,22 @@ function rtcMesh(R, myId, sigSend, onData) {
       if (m.k === 'o' && typeof m.s === 'string') {
         if (e) kill(e);
         e = start(id, false);
+        const pre = early.get(id); if (pre) { e.cand.push(...pre.list); early.delete(id); }
         e.pc.setRemoteDescription({ type: 'offer', sdp: m.s }).then(() => { e.remote = true; flush(e); return e.pc.createAnswer(); })
           .then(a => e.pc.setLocalDescription(a)).then(() => sigSend(id, { k: 'a', s: e.pc.localDescription.sdp })).catch(() => kill(e, true));
       } else if (m.k === 'a' && e && e.init && !e.remote && typeof m.s === 'string') {
         e.pc.setRemoteDescription({ type: 'answer', sdp: m.s }).then(() => { e.remote = true; flush(e); }).catch(() => kill(e, true));
-      } else if (m.k === 'c' && e && m.c) { if (e.remote) e.pc.addIceCandidate(m.c).catch(() => { }); else e.cand.push(m.c); }
+      } else if (m.k === 'c' && m.c) {
+        if (e) { if (e.remote) e.pc.addIceCandidate(m.c).catch(() => { }); else e.cand.push(m.c); }
+        else { const pe = early.get(id) || { list: [], t: Date.now() }; if (pe.list.length < 40) pe.list.push(m.c); early.set(id, pe); for (const [k, v] of early) if (Date.now() - v.t > 20000) early.delete(k); }
+      }
     },
     send(str) { let n = 0; for (const e of M.values()) if (e.open && e.dc && e.dc.readyState === 'open' && e.dc.bufferedAmount < 65536) { try { e.dc.send(str); n++; } catch (x) { } } return n; },
+    info(id) {
+      if (noRTC) return 'apagado';
+      const e = M.get(id); if (!e) { const c = cool.get(id); return c && Date.now() < c.until ? 'reintenta en ' + Math.ceil((c.until - Date.now()) / 1000) + 's' : 'sin intento'; }
+      return e.open ? 'abierto' : (e.pc.iceConnectionState || 'nuevo') + (e.remote ? '' : ' (esperando respuesta)') + ' ' + Math.round((Date.now() - e.t0) / 1000) + 's';
+    },
     isOpen(id) { const e = M.get(id); return !!(e && e.open && e.dc && e.dc.readyState === 'open'); },
     drop(id) { const e = M.get(id); if (e) kill(e); cool.delete(id); },
     closeAll() { closed = true; for (const e of [...M.values()]) kill(e); },
@@ -6732,7 +6742,7 @@ function rtcMesh(R, myId, sigSend, onData) {
 function acceptState(R, id, d, notify, mesh, src) {
   if (!d || typeof d !== 'object') return;
   const prev = R.states.get(id);
-  if (prev && isFinite(prev.ts) && isFinite(d.ts) && d.ts < prev.ts && prev.ts - d.ts < 5000) return;
+  if (prev && isFinite(prev.ts) && isFinite(d.ts) && d.ts <= prev.ts && prev.ts - d.ts < 5000) { if (d.ts === prev.ts) R.seen.set(id, Date.now()); return; }   // más viejo o repetido (llega por dos caminos)
   R.states.set(id, d); R.seen.set(id, Date.now()); R.cnt[src] = (R.cnt[src] || 0) + 1;
   if (!prev || prev.st !== d.st || prev.nm !== d.nm || prev.ch !== d.ch) notify();
   mesh.ensure(id);
@@ -6744,17 +6754,19 @@ function sendPresence(R, mesh, mqttPub) {
   if (!need) for (const [id] of R.states) if (HUMAN_ID.test(id) && now - (R.seen.get(id) || 0) < 8000 && !mesh.isOpen(id)) { need = true; break; }
   if (need || !direct) { mqttPub(); R.lastMqtt = now; R.cnt.sent = (R.cnt.sent || 0) + 1; }
 }
-function relayRoom(code, onStatus = () => { }, bi = 0) {
+function relayRoom(code, onStatus = () => { }) {
+  // Se conecta a TODOS los relays a la vez: se publica en todos y se escucha en todos (los duplicados se descartan por hora del emisor).
+  // Así nadie queda en un relay distinto al de sus amigos, y si uno pierde paquetes o se cae, el otro cubre.
   return new Promise((resolve, reject) => {
     const base = 'blockstrike/v2/' + code + '/', STALE = 8000;
     const myId = 'u' + Math.random().toString(36).slice(2, 10);
-    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, client: null, relay: bi };
-    let settled = false;
+    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), cbs: [], ping: 0, pings: {}, mySkin: null, closed: false, lastSend: 0, timer: 0, clients: [], relay: 0 };
+    let settled = false, sigN = 0; const sigSeen = new Set();
     const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
-    const pub = (t, payload, opts) => { try { if (R.client && R.client.connected) R.client.publish(base + t, payload, opts || { qos: 0 }); } catch (e) { } };
-    R.cnt = {}; const mesh = rtcMesh(R, myId, (to, o) => pub('sig/' + to, JSON.stringify(Object.assign({ f: myId }, o))), (id, d) => acceptState(R, id, d, notify, mesh, 'rtc'));
-    R.rtcOpen = id => mesh.isOpen(id);
+    const pub = (t, payload, opts) => { for (const c of R.clients) { try { if (c.connected) c.publish(base + t, payload, opts || { qos: 0 }); } catch (e) { } } };
+    R.cnt = {}; const mesh = rtcMesh(R, myId, (to, o) => pub('sig/' + to, JSON.stringify(Object.assign({ f: myId, i: myId + '.' + (++sigN) }, o)), { qos: 1 }), (id, d) => acceptState(R, id, d, notify, mesh, 'rtc'));
+    R.rtcOpen = id => mesh.isOpen(id); R.rtcInfo = id => mesh.info(id);
     R.peers = () => {
       const now = Date.now(), a = [{ peer: myId, sameTab: true, isMe: true, presence: R.my }];
       for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
@@ -6776,35 +6788,24 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
     R.leave = () => {
       R.closed = true; clearInterval(R.timer); mesh.closeAll();
       pub('x/' + myId, '1'); if (R.mySkin) pub('sk/' + myId, '', { qos: 0, retain: true });
-      try { R.client.end(false); } catch (e) { }
+      for (const c of R.clients) { try { c.end(false); } catch (e) { } }
       return Promise.resolve();
     };
-    const url = RELAYS[bi];
-    onStatus(bi ? `Probando otro servidor (${bi + 1}/${RELAYS.length})…` : 'Conectando al servidor…');
-    const client = R.client = mqtt.connect(url, { clientId: 'bs_' + myId, clean: true, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, will: { topic: base + 'x/' + myId, payload: '1', qos: 0, retain: false } });
-    const failTo = setTimeout(() => { if (!settled) next(); }, 9000);
-    function next() {
-      try { client.end(true); } catch (e) { }
-      if (bi + 1 < RELAYS.length) relayRoom(code, onStatus, bi + 1).then(r => done(true, r), e => done(false, e));
-      else done(false, { code: 'server' });
-    }
-    client.on('connect', () => {
-      client.subscribe(base + '#', { qos: 0 }, err => {
-        if (settled) return;
-        clearTimeout(failTo);
-        if (err) { next(); return; }
-        if (R.mySkin) R.setSkin(R.mySkin);
-        done(true, R);
-      });
-    });
-    client.on('error', () => { if (!settled) { clearTimeout(failTo); next(); } });
-    client.on('message', (topic, buf) => {
+    onStatus('Conectando al servidor…');
+    let failed = 0;
+    const failTo = setTimeout(() => { if (!settled) { for (const c of R.clients) { try { c.end(true); } catch (e) { } } done(false, { code: 'server' }); } }, 10000);
+    const handle = (ci, topic, buf) => {
       if (R.closed || topic.indexOf(base) !== 0) return;
       const [kind, id] = topic.slice(base.length).split('/');
       if (!id) return;
       const s = buf.toString();
-      if (kind === 'pg') { if (id === myId) R.ping = Math.max(0, Date.now() - (+s || 0)); return; }
-      if (kind === 'sig') { if (id === myId) { try { mesh.signal(JSON.parse(s)); } catch (e) { } } return; }
+      if (kind === 'pg') { if (id === myId) { R.pings[ci] = Math.max(0, Date.now() - (+s || 0)); R.ping = Math.min(...Object.values(R.pings)); } return; }
+      if (kind === 'sig') {
+        if (id !== myId) return;
+        let m; try { m = JSON.parse(s); } catch (e) { return; }
+        if (m && m.i) { if (sigSeen.has(m.i)) return; sigSeen.add(m.i); if (sigSeen.size > 400) sigSeen.clear(); }   // la misma señal llega por cada relay
+        mesh.signal(m); return;
+      }
       if (id === myId || id.indexOf(myId + '-') === 0) return;
       if (kind === 'p') {
         let d; try { d = JSON.parse(s); } catch (e) { return; }
@@ -6816,6 +6817,25 @@ function relayRoom(code, onStatus = () => { }, bi = 0) {
         const d = s && s.length < 24000 ? s : null;
         R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d);
       }
+    };
+    RELAYS.forEach((url, ci) => {
+      let client;
+      try { client = mqtt.connect(url, { clientId: 'bs_' + myId + '_' + ci, clean: true, keepalive: 15, reconnectPeriod: 2000, connectTimeout: 8000, will: { topic: base + 'x/' + myId, payload: '1', qos: 0, retain: false } }); }
+      catch (e) { if (++failed >= RELAYS.length) { clearTimeout(failTo); done(false, { code: 'server' }); } return; }
+      R.clients.push(client);
+      client.on('connect', () => {
+        client.subscribe(base + '#', { qos: 0 }, err => {
+          if (err) { if (++failed >= RELAYS.length && !settled) { clearTimeout(failTo); done(false, { code: 'server' }); } return; }
+          R.relay++;
+          if (R.mySkin) client.publish(base + 'sk/' + myId, R.mySkin || '', { qos: 0, retain: true });
+          if (Object.keys(R.my).length) client.publish(base + 'p/' + myId, JSON.stringify(R.my), { qos: 0 });
+          if (!settled) { clearTimeout(failTo); done(true, R); }
+        });
+      });
+      client.on('close', () => { if (R.relay > 0 && client.__up) { R.relay--; client.__up = false; } });
+      client.on('connect', () => { client.__up = true; });
+      client.on('error', () => { });
+      client.on('message', (topic, buf) => handle(ci, topic, buf));
     });
     // latido: reenvía el estado si estuvo quieto, mide el ping y borra a quien dejó de responder
     R.timer = setInterval(() => {
@@ -6837,7 +6857,7 @@ function localRoom(code, onStatus = () => { }) {
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
     const send = o => { try { if (R.ws && R.ws.readyState === 1) R.ws.send(JSON.stringify(o)); } catch (e) { } };
     R.cnt = {}; const mesh = rtcMesh(R, myId, (to, o) => send({ t: 'sig', to, d: o }), (id, d) => acceptState(R, id, d, notify, mesh, 'rtc'));
-    R.rtcOpen = id => mesh.isOpen(id);
+    R.rtcOpen = id => mesh.isOpen(id); R.rtcInfo = id => mesh.info(id);
     R.peers = () => {
       const now = Date.now(), a = [{ peer: myId, sameTab: true, isMe: true, presence: R.my }];
       for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
@@ -7181,7 +7201,7 @@ function netDebug(dt) {
   const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(G.fpsEst || 0)}`];
   for (const px of NET.proxies.values()) {
     const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
-    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  ${NET.named && NET.named.rtcOpen && NET.named.rtcOpen(px.peer) ? 'DIRECTO' : 'relay  '}  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
+    L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  ${NET.named && NET.named.rtcOpen && NET.named.rtcOpen(px.peer) ? 'DIRECTO' : 'relay (' + (NET.named && NET.named.rtcInfo ? NET.named.rtcInfo(px.peer) : '?') + ')'}  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
   }
   if (L.length === 1) L.push('(sin otros jugadores)');
   el.textContent = L.join('\n');
