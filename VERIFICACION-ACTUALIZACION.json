@@ -1,0 +1,120 @@
+{
+  "especial": {
+    "initial": {
+      "buildings": 37,
+      "casino": {
+        "x": 78,
+        "z": -30,
+        "w": 26,
+        "d": 22,
+        "h": 6.2,
+        "label": "CASINO AURORA"
+      },
+      "modelsReady": true
+    },
+    "flight": {
+      "flying": true,
+      "top": 2.726385369108239,
+      "moved": 26.632138429752075,
+      "descended": true,
+      "ended": true,
+      "landed": true,
+      "cooldown": 2.833333333333139,
+      "attackCooldowns": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "hp": 92
+    },
+    "gulls": {
+      "pendingOnly": true,
+      "count": 6,
+      "targets": [
+        "Rival 0",
+        "Rival 1",
+        "Rival 2",
+        "Rival 0",
+        "Rival 1",
+        "Rival 2"
+      ],
+      "victims": [
+        {
+          "name": "Rival 0",
+          "damage": 6
+        },
+        {
+          "name": "Rival 1",
+          "damage": 6
+        },
+        {
+          "name": "Rival 2",
+          "damage": 6
+        },
+        {
+          "name": "Rival 3",
+          "damage": 0
+        }
+      ],
+      "ownerDamage": 0,
+      "flightFromDouble": 0,
+      "cd": 11.0833333333335,
+      "noRepeat": true,
+      "outsideRejected": true,
+      "left": 0
+    },
+    "replay": {
+      "noDuplicateDamage": true
+    },
+    "failures": [],
+    "errors": []
+  },
+  "red": {
+    "ok": true,
+    "shared": [
+      {
+        "mode": "fog",
+        "hour": 17.5,
+        "seed": 319082918
+      },
+      {
+        "mode": "fog",
+        "hour": 17.5,
+        "seed": 319082918
+      }
+    ],
+    "nonHostRejected": true,
+    "flight": {
+      "character": "sekza",
+      "remaining": 3.1,
+      "wings": 0.6160000000000001
+    },
+    "health": [
+      {
+        "hp": 92,
+        "max": 92,
+        "flocks": 0
+      },
+      {
+        "hp": 82,
+        "max": 100,
+        "flocks": 0
+      }
+    ],
+    "sharedLightning": true,
+    "lightningDamage": 27,
+    "duplicateDamage": false,
+    "errors": []
+  },
+  "shader": {
+    "shader-antes": {
+      "clipped_percent": 20.082,
+      "mean_luminance": 228.3
+    },
+    "shader-despues": {
+      "clipped_percent": 0.0,
+      "mean_luminance": 152.2
+    }
+  }
+}

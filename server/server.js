@@ -4,7 +4,8 @@
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto'), os = require('os');
 
-const ROOT = path.resolve(__dirname, '..'), PORT = +process.env.PORT || 8080, STALE_MS = 20000, MAX_MSG = 1 << 20;
+const atmosphere = require('./ambiente.js');
+const ROOT = path.resolve(process.env.BLOCKSTRIKE_ROOT || path.join(__dirname, '..')), PORT = +process.env.PORT || 8080, STALE_MS = 20000, MAX_MSG = 1 << 20;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.ico': 'image/x-icon', '.svg': 'image/svg+xml', '.bbmodel': 'application/json', '.txt': 'text/plain; charset=utf-8' };
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
@@ -12,7 +13,7 @@ const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const rooms = new Map();
 function getRoom(name) {
   let r = rooms.get(name);
-  if (!r) { r = { clients: new Map(), states: new Map(), skins: new Map() }; rooms.set(name, r); }
+  if (!r) { r = { clients: new Map(), states: new Map(), skins: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now() }; rooms.set(name, r); }
   return r;
 }
 function lanIps() {
@@ -38,10 +39,10 @@ const server = http.createServer((req, res) => {
   if (p === '/bs-server') {
     const players = [...rooms.values()].reduce((a, r) => a + r.clients.size, 0);
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ ok: true, name: 'blockstrike-server', port: PORT, ips: lanIps(), publicUrl: publicUrl(), rooms: rooms.size, players }));
+    res.end(JSON.stringify({ ok: true, name: 'blockstrike-server', port: PORT, ips: lanIps(), publicUrl: publicUrl(), atmosphere: 3, rooms: rooms.size, players }));
     return;
   }
-  let file = path.join(ROOT, p === '/' ? 'index.html' : p);
+  let file = path.join(ROOT, p === '/' ? (fs.existsSync(path.join(ROOT,'index.html')) ? 'index.html' : 'blockstrike.html') : p);
   // nada fuera de la carpeta del juego, ni archivos ocultos (.git...), ni el código del servidor
   if (!file.startsWith(ROOT) || /(^|[\\/])\./.test(path.relative(ROOT, file)) || /^server([\\/]|$)/i.test(path.relative(ROOT, file))) { res.writeHead(403); res.end('403'); return; }
   fs.stat(file, (err, st) => {
@@ -89,6 +90,10 @@ function onMessage(c, text) {
   const room = rooms.get(c.roomName); if (!room) return;
   c.last = Date.now();
   switch (m.t) {
+    case 'wx':
+      // Solo el anfitrión configura el ambiente; la hora, los rayos y sus víctimas los calcula este servidor.
+      if(room.clients.keys().next().value===c.id && atmosphere.command(room.environment,m.d))sendEnvironment(room);
+      break;
     case 'p': if (m.d && typeof m.d === 'object') { room.states.set(c.id, { d: m.d, owner: c.id }); broadcast(room, { t: 'p', id: c.id, d: m.d }, c.id); } break;
     case 'pa': if (typeof m.id === 'string' && m.id.length < 80 && m.d && typeof m.d === 'object') { room.states.set(m.id, { d: m.d, owner: c.id }); broadcast(room, { t: 'p', id: m.id, d: m.d }, c.id); } break;
     case 'xa': if (typeof m.id === 'string' && room.states.get(m.id) && room.states.get(m.id).owner === c.id) { room.states.delete(m.id); broadcast(room, { t: 'x', id: m.id }); } break;
@@ -134,11 +139,24 @@ server.on('upgrade', (req, socket) => {
   // al entrar recibe el estado y la skin de todos los que ya están
   for (const [sid, st] of room.states) if (sid !== id) sendTo(c, { t: 'p', id: sid, d: st.d });
   for (const [sid, d] of room.skins) if (sid !== id) sendTo(c, { t: 'sk', id: sid, d });
+  sendTo(c,{t:'wx',d:atmosphere.snapshot(room.environment),host:room.clients.keys().next().value});
   console.log(`[+] ${id} entró a "${roomName}" (${getRoom(roomName).clients.size} en la sala)`);
   socket.on('data', d => { c.buf = c.buf.length ? Buffer.concat([c.buf, d]) : d; readFrames(c); });
   socket.on('close', () => drop(c));
   socket.on('error', () => drop(c));
 });
+
+// El reloj y los sucesos ambientales continúan aunque salga el anfitrión o haya pestañas minimizadas.
+function sendEnvironment(room){broadcast(room,{t:'wx',d:atmosphere.snapshot(room.environment),host:room.clients.keys().next().value});}
+setInterval(()=>{
+  const now=Date.now();
+  for(const room of rooms.values()){
+    const dt=Math.min(30,Math.max(0,(now-room.envAt)/1000));room.envAt=now;
+    const players=[];
+    for(const [id,{d}]of room.states)if(d.st==='play'&&[d.x,d.y,d.z].every(Number.isFinite))players.push({id,x:d.x,y:d.y,z:d.z,alive:!!d.al,safe:!!d.wxSafe});
+    atmosphere.advance(room.environment,dt,players,true);sendEnvironment(room);
+  }
+},100);
 
 // quita a quien dejó de responder (cierre de pestaña sin avisar, corte de wifi)
 setInterval(() => {

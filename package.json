@@ -1,0 +1,14 @@
+{
+  "name": "blockstrike",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node tests/ambiente.cjs",
+    "test:ambiente": "node tests/ambiente.cjs",
+    "test:sekza": "node tests/especial-sekza.cjs",
+    "test:multijugador": "node tests/especial-red.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}
