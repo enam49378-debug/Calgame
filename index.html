@@ -353,6 +353,7 @@ tr.me td{color:var(--hot);font-weight:700}
   </div>
   <details open><summary>Imagen sobre la cara (más resolución que la skin)</summary>
     <div class="fe-row"><select id="fe-img" aria-label="Imagen"></select><button type="button" id="fe-imgup">Subir imagen…</button><input type="file" id="fe-imgfile" accept="image/*" class="hidden"></div>
+    <label class="chk"><input id="fe-hide" type="checkbox" checked> Tapar los ojos de la skin (queda solo piel debajo de la imagen)</label>
     <div class="fe-sliders">
       <label>Tamaño <input type="range" id="fe-is" min=".4" max="1.8" step=".02" value="1"></label>
       <label>Mover ← → <input type="range" id="fe-ix" min="-4" max="4" step=".1" value="0"></label>
@@ -920,6 +921,12 @@ function refreshFaces() { for (const f of G.fighters) f.faceKey = ''; if (SH.fig
 function saveFaceLib() { try { localStorage.setItem('bsb_faces', JSON.stringify(Object.assign({ __v: FACE_VER }, FACE_LIB))); } catch (e) { } refreshFaces(); }
 const faceCharId = ch => Object.keys(CHARS).find(k => CHARS[k] === ch);
 // pinta una expresión hecha a mano encima de la cara original (en la capa base y, si hay sombrero opaco ahí, también en esa)
+// celdas que ocupan los ojos de la skin (dos filas), para taparlos con piel cuando hay una imagen encima
+function faceEyeCells(I) {
+  const cols = I.ok ? I.L.concat(I.R) : (I.visor ? [1, 2, 3, 4, 5, 6] : [1, 2, 5, 6]), cells = [];
+  for (const x of cols) { cells.push([x, I.row]); if (I.row < 7) cells.push([x, I.row + 1]); }
+  return cells;
+}
 function paintFacePreset(f, id) {
   const g = f.faceCtx, lib = FACE_LIB[f.facePreset]; g.putImageData(f.faceOrig, 8, 8); g.putImageData(f.hatOrig, 40, 8);
   const nm = lib && lib.exprs.find(e => e.id === 'normal'), ex = lib && lib.exprs.find(e => e.id === id);
@@ -932,7 +939,14 @@ function paintFacePreset(f, id) {
       if (f.hatOrig.data[(y * 8 + x) * 4 + 3] > 128) g.fillRect(40 + x, 8 + y, 1, 1);
     }
   }
-  setFaceDecal(f, (ex && ex.img) || (!ex && nm && nm.img) || null);
+  const imgx = (ex && ex.img) || (!ex && nm && nm.img) || null;
+  if (imgx && imgx.hideEyes !== false && f.faceInfo) {
+    // con una imagen de ojos encima, la piel tapa los ojos de la textura: se toma el color de la piel entre los ojos
+    const I = f.faceInfo, hat = x => f.hatOrig.data[(I.row * 8 + x) * 4 + 3] > 128, sd = (hat(3) ? g.getImageData(43, 8 + I.row, 1, 1) : g.getImageData(11, 8 + I.row, 1, 1)).data;
+    g.fillStyle = 'rgb(' + sd[0] + ',' + sd[1] + ',' + sd[2] + ')';
+    for (const [x, y] of faceEyeCells(I)) { g.fillRect(8 + x, 8 + y, 1, 1); if (f.hatOrig.data[(y * 8 + x) * 4 + 3] > 128) g.fillRect(40 + x, 8 + y, 1, 1); }
+  }
+  setFaceDecal(f, imgx);
   f.model.tex.needsUpdate = true;
 }
 // situación del juego → nombre de estado (después el editor decide qué expresión usa cada estado)
@@ -964,8 +978,8 @@ function faceState(f, dt) {
   return 'idle';
 }
 /* FACE_DATA_BEGIN */
-const FACE_VER = 3;
-const FACE_DEFAULTS = {"javi":{"pal":{"S":"#f3cbba","T":"#e0a590","K":"#3c302d","W":"#dedaf3","A":"#a3c6f8","B":"#576a95","X":"#ffffff","m":"#6b1f1f","p":"#e49a8c","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#ff4d4d","d":"#576a95","e":"#a3c6f8","f":"#a3c6f8","g":"#3c302d","h":"#3c302d","j":"#dedaf3"},"exprs":[{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".Kj..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".jK..Kj.",".ed..de.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".jW..jj.",".eK..Ke.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0}}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD"}},"gato":{"pal":{"S":"#f3bdab","T":"#d99f8e","K":"#2e2728","W":"#ece6e6","A":"#958387","B":"#403334","X":"#ffffff","m":"#6b1f1f","p":"#e5a69b","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff"},"exprs":[{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0}}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD"}}};
+const FACE_VER = 4;
+const FACE_DEFAULTS = {"javi":{"pal":{"S":"#f3cbba","T":"#e0a590","K":"#3c302d","W":"#dedaf3","A":"#a3c6f8","B":"#576a95","X":"#ffffff","m":"#6b1f1f","p":"#e49a8c","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#ff4d4d","d":"#576a95","e":"#a3c6f8","f":"#a3c6f8","g":"#3c302d","h":"#3c302d","j":"#dedaf3","i":"#50372c","k":"#9f6b48","l":"#b27a54","n":"#634131","o":"#a9734e","q":"#df9d82","s":"#875d40","t":"#f0beaa","u":"#674934","v":"#b8b5d9","w":"#eeae41","x":"#f5c749","z":"#e7b631","C":"#d4823c","D":"#f2cfad","E":"#f7d9b9","F":"#ff4d4d","H":"#dedaf3"},"exprs":[{"id":"normal","label":"Normal (cara original)","grid":["iklnklli","ollkkllo","okkqqkko","stttttts","uHhSShHu","wfdxzdfC","DxzEEzCD","DDEEEEDD"]},{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".Kj..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".jK..Kj.",".ed..de.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".jW..jj.",".eK..Ke.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0},"hideEyes":true}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD","idle":"normal"}},"gato":{"pal":{"S":"#f3bdab","T":"#d99f8e","K":"#2e2728","W":"#ece6e6","A":"#958387","B":"#403334","X":"#ffffff","m":"#6b1f1f","p":"#e5a69b","r":"#e8707a","b":"#7cc4ff","y":"#d7f0ff","c":"#84292d","d":"#e5d2d2","e":"#efefef","f":"#d0b8bc","g":"#4c3b3b","h":"#362c2e","i":"#bbb0b1","j":"#fdd6c1","k":"#584643"},"exprs":[{"id":"normal","label":"Normal (cara original)","grid":["cdeeeedc","fffddfff","fgBggBgf","BSSSBhBB","hKKSSKKh","hABSSBih","jXkppkXj","SSjjjjSS"]},{"id":"blink","label":"Parpadeo","grid":["........","........","........","........",".SS..SS.",".KK..KK.","........","........"]},{"id":"ko","label":"K.O.","grid":["........","........","........",".K....K.",".SK..KS.",".KS..SK.","........","........"]},{"id":"lookL","label":"Mira a la izquierda","grid":["........","........","........","........",".KW..KW.",".BA..BA.","........","........"]},{"id":"lookR","label":"Mira a la derecha","grid":["........","........","........","........",".WK..WK.",".AB..AB.","........","........"]},{"id":"lookU","label":"Mira arriba","grid":["........","........","........","........",".AK..KA.",".WW..WW.","........","........"]},{"id":"lookD","label":"Mira abajo","grid":["........","........","........","........",".WW..WW.",".BK..KB.","........","........"]},{"id":"spiral","label":"Ojos de remolino","grid":["........","........","........","........","........","........","........","........"],"img":{"kind":"preset","id":"spiral","fit":{"s":1,"ox":0,"oy":0},"hideEyes":true}}],"use":{"blink":"blink","ko":"ko","glanceL":"lookL","glanceR":"lookR","glanceU":"lookU","glanceD":"lookD","idle":"normal"}}};
 /* FACE_DATA_END */
 // elige la expresión según lo que esté pasando: parpadeo, enojo al atacar, dolor, K.O., alegría, despertar
 function updateFace(f, dt) {
@@ -1117,7 +1131,12 @@ function feDrawFace(cv, cid, ex, px, noImg) {
     if (!L) continue;
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const c = L.grid[y][x]; if (c === '.') continue; const col = c === 'G' ? CHARS[cid].color : lib.pal[c]; if (col) { g.fillStyle = col; g.fillRect(x * px, y * px, px, px); } }
   }
-  const img = ex && (ex.img || (ex === nm ? null : null));
+  const img = ex && ex.img;
+  if (img && img.hideEyes !== false) {
+    const I = feFaceInfo(cid), sd = g.getImageData(Math.floor(3.5 * px), Math.floor((I.row + .5) * px), 1, 1).data;
+    g.fillStyle = 'rgb(' + sd[0] + ',' + sd[1] + ',' + sd[2] + ')';
+    for (const [x, y] of faceEyeCells(I)) g.fillRect(x * px, y * px, px, px);
+  }
   if (img && !noImg) {
     const t = faceImageTex(img, CHARS[cid].color), fit = img.fit || {}, s = fit.s || 1, row = feFaceInfo(cid).row, size = 9 * px * s;
     g.drawImage(t.image, (4 + (fit.ox || 0)) * px - size / 2, (row + .5 - (fit.oy || 0)) * px - size / 2, size, size);
@@ -1163,6 +1182,7 @@ function feRenderImg() {
     const ou = document.createElement('option'); ou.value = 'data'; ou.textContent = 'Imagen subida'; sel.appendChild(ou);
   }
   const img = e.img; sel.value = !img ? '' : img.kind === 'data' ? 'data' : 'p:' + img.id;
+  $('fe-hide').checked = !img || img.hideEyes !== false; $('fe-hide').disabled = !img;
   const fit = (img && img.fit) || {}; $('fe-is').value = fit.s || 1; $('fe-ix').value = fit.ox || 0; $('fe-iy').value = fit.oy || 0;
   for (const id of ['fe-is', 'fe-ix', 'fe-iy']) $(id).disabled = !img;
 }
@@ -1199,7 +1219,7 @@ function feInit() {
   $('fe-mirror').addEventListener('change', e => { FE.mirror = e.target.checked; });
   $('fe-img').addEventListener('change', e => {
     const v = e.target.value, ex = feExpr();
-    if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };
+    if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), hideEyes: ex.img ? ex.img.hideEyes !== false : true, fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };
     else if (v === 'data' && !(ex.img && ex.img.kind === 'data')) { $('fe-imgfile').click(); feRenderImg(); return; }
     saveFaceLib(); feSelect();
   });
@@ -1212,12 +1232,13 @@ function feInit() {
         // se reduce a 128 px como máximo para que el guardado sea liviano; la imagen se pega con filtro de píxeles
         const k = Math.min(1, 128 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
         const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
-        feExpr().img = { kind: 'data', src: c.toDataURL('image/png'), fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('Imagen puesta');
+        feExpr().img = { kind: 'data', src: c.toDataURL('image/png'), hideEyes: true, fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('Imagen puesta');
       };
       im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
     };
     rd.readAsDataURL(file); e.target.value = '';
   });
+  $('fe-hide').addEventListener('change', e => { const ex = feExpr(); if (!ex.img) return; ex.img.hideEyes = e.target.checked; saveFaceLib(); feSelect(); });
   for (const id of ['fe-is', 'fe-ix', 'fe-iy']) { $(id).addEventListener('input', () => feImgChanged(true)); $(id).addEventListener('change', () => feImgChanged(false)); }
   $('fe-close').addEventListener('click', feClose);
   $('feb').addEventListener('click', () => { sfx('select'); feOpen(); });
