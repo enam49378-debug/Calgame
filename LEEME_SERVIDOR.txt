@@ -25,11 +25,26 @@ Si no pueden entrar
   - Hay que abrir el juego con el link http:// del servidor. Si abres la versión de GitHub o el archivo
     index.html directamente, el juego usa el relay público como antes.
 
-Jugar por internet (amigos fuera de tu casa)
-  - Opción fácil, sin tocar el router: un túnel. Por ejemplo con Cloudflare (gratis, sin cuenta):
-        cloudflared tunnel --url http://localhost:8080
-    Te da un link https://algo.trycloudflare.com : tus amigos lo abren y juegan igual.
-  - Opción router: reenvía el puerto TCP 8080 a la IP de tu PC y pásales  http://TU_IP_PUBLICA:8080/
+Amigos de otros países: playit.gg (gratis, sin abrir puertos en el router)
+  playit crea una dirección pública que apunta al servidor de tu PC. Se hace una sola vez:
+  1. Entra a https://playit.gg , descarga el programa para Windows (playit) y ábrelo.
+  2. La primera vez te muestra un link para "reclamar" el agente: ábrelo y crea tu cuenta gratis.
+  3. En la web de playit crea un túnel de tipo TCP (el "Custom TCP" / "TCP" normal; no UDP) cuyo destino local sea
+     el puerto 8080 de esta PC (127.0.0.1:8080).
+  4. playit te da una dirección como  abc-123.gl.at.ply.gg:45678 . Cópiala.
+  5. Pégala en el archivo  publico.txt  (en esta misma carpeta), en una línea sin el #, y guárdalo.
+  6. Deja abiertos los dos programas: Iniciar_Servidor.bat y playit.
+  7. Tú abres  http://localhost:8080/ , eliges sala y tocas Entrar. En la pestaña de amigos el link de invitación
+     ya saldrá con la dirección de playit: mándaselo a tus amigos. Ellos solo lo abren en su navegador.
+  Importante: el link empieza con http:// (no https://). Si el navegador de un amigo lo cambia a https, que lo
+  escriba a mano con http://.
+  Con amigos lejos habrá más ping (150-300 ms es normal entre países). El juego lo compensa mostrando a los
+  demás unos instantes en el pasado, pero los golpes siempre tendrán algo de retraso.
+
+Otras opciones para internet
+  - Cloudflare (gratis, sin cuenta):   cloudflared tunnel --url http://localhost:8080
+    Te da un link https://algo.trycloudflare.com : pégalo en publico.txt igual que el de playit.
+  - Router: reenvía el puerto TCP 8080 a la IP de tu PC y pásales  http://TU_IP_PUBLICA:8080/
     (puede fallar si tu proveedor usa CGNAT).
 
 Notas

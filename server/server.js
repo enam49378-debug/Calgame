@@ -21,13 +21,24 @@ function lanIps() {
   return out;
 }
 
+// Dirección pública (túnel de playit.gg, Cloudflare, tu IP...): se escribe en publico.txt, junto a Iniciar_Servidor.bat.
+// Se lee cada vez, así que se puede cambiar con el servidor encendido. Sirve para que el link de invitación del juego funcione fuera de tu red.
+function publicUrl() {
+  try {
+    let t = fs.readFileSync(path.join(ROOT, 'publico.txt'), 'utf8').split(/\r?\n/).map(l => l.trim()).find(l => l && !l.startsWith('#')) || '';
+    if (!t) return '';
+    if (!/^https?:\/\//i.test(t)) t = 'http://' + t;
+    return t.replace(/\/+$/, '');
+  } catch (e) { return ''; }
+}
+
 // ---------- HTTP: juego + estado del servidor ----------
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x'), p = decodeURIComponent(url.pathname);
   if (p === '/bs-server') {
     const players = [...rooms.values()].reduce((a, r) => a + r.clients.size, 0);
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ ok: true, name: 'blockstrike-server', port: PORT, ips: lanIps(), rooms: rooms.size, players }));
+    res.end(JSON.stringify({ ok: true, name: 'blockstrike-server', port: PORT, ips: lanIps(), publicUrl: publicUrl(), rooms: rooms.size, players }));
     return;
   }
   let file = path.join(ROOT, p === '/' ? 'index.html' : p);
@@ -144,7 +155,9 @@ server.listen(PORT, '0.0.0.0', () => {
   const ips = lanIps();
   if (ips.length) for (const ip of ips) console.log(`  Tus amigos (misma red / wifi):  http://${ip}:${PORT}/`);
   else console.log('  (no se encontró una red local: tus amigos no podrán entrar por wifi)');
+  const pub = publicUrl();
+  if (pub) console.log(`  Amigos por internet:           ${pub}/   (de publico.txt)`);
+  else console.log('  Amigos por internet: aún no configurado (mira LEEME_SERVIDOR.txt, sección playit.gg)');
   console.log('\n  Abre el juego desde esos links, elige un código de sala y toca Entrar.');
-  console.log('  Para jugar por internet hay que abrir el puerto ' + PORT + ' en el router o usar un túnel (ver LEEME_SERVIDOR.txt).');
   console.log('  Ctrl+C para cerrar.\n');
 });

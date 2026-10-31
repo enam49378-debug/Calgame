@@ -6654,7 +6654,7 @@ async function netInit() {
     try {
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1200), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
       const j = r.ok ? await r.json() : null;
-      if (j && j.ok) { NET.local = true; NET.room = 'relay'; NET.lanBase = j.ips && j.ips.length ? 'http://' + j.ips[0] + ':' + j.port : ''; }
+      if (j && j.ok) { NET.local = true; NET.room = 'relay'; NET.publicUrl = j.publicUrl || ''; NET.lanBase = j.ips && j.ips.length ? 'http://' + j.ips[0] + ':' + j.port : ''; }
     } catch (e) { }
   }
   if (!NET.room && !window.claude && window.mqtt) NET.room = 'relay';
@@ -6916,7 +6916,7 @@ function netShareSkin() {
   try { if (G.customSkin) d = G.customSkin.toDataURL('image/png'); } catch (e) { }
   NET.named.setSkin(d);
 }
-function inviteLink() { const base = NET.local && NET.lanBase && /^(localhost|127\.|\[::1\])/.test(location.hostname) ? NET.lanBase : location.origin; return base + location.pathname + '#sala-' + cleanCode($('roomcode').value); }
+function inviteLink() { const base = NET.local && NET.publicUrl ? NET.publicUrl : NET.local && NET.lanBase && /^(localhost|127\.|\[::1\])/.test(location.hostname) ? NET.lanBase : location.origin; return base + location.pathname + '#sala-' + cleanCode($('roomcode').value); }
 function cleanCode(s) { s = String(s || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 40); return s || 'amigos'; }
 // una sola conexión a la vez: tocar Entrar o PELEAR mientras conecta espera a la misma
 let joinP = null, joinCode = '';

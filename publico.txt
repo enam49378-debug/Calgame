@@ -1,0 +1,4 @@
+# Dirección pública de tu servidor para amigos de otros países.
+# Cuando playit.gg te dé la dirección de tu túnel, escríbela en la línea de abajo (sin el #). Ejemplo:
+#   abc-123.gl.at.ply.gg:45678
+# Puedes cambiarla con el servidor encendido: el link de invitación del juego la usará.
