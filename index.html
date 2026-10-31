@@ -5118,6 +5118,7 @@ function vRestart() {
   for (const fx of FX) { fx.sc.remove(fx.obj); if (fx.dispose) fx.dispose(); else { fx.obj.geometry.dispose(); fx.obj.material.dispose(); } } FX.length = 0;
   CAMFX.zoom = CAMFX.roll = CAMFX.rollV = CAMFX.ca = 0;
   PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
+  cam.yaw = 0;   // el atacante apunta con la cámara: si venías de una partida, el lanzamiento de la cadena salía hacia otro lado
   vReset(a, 0, 0, 0); vReset(v, 0, D.pull ? 9 : 2.6, Math.PI);
   VW.age = 0; VW.seen = false; VW.wait = 0; VW.started = false; VW.focus = null;
   if (document.activeElement !== $('vtime')) $('vtime').value = 0;
