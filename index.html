@@ -354,7 +354,7 @@ tr.me td{color:var(--hot);font-weight:700}
   </div>
   <details open><summary>Imagen sobre la cara (más resolución que la skin)</summary>
     <div class="fe-row"><select id="fe-img" aria-label="Imagen"></select><button type="button" id="fe-imgup">Subir imagen…</button><input type="file" id="fe-imgfile" accept="image/*" class="hidden"></div>
-    <label class="chk"><input id="fe-hide" type="checkbox" checked> Tapar los ojos de la skin (queda solo piel debajo de la imagen)</label>
+    <label class="chk"><input id="fe-hide" type="checkbox" checked> Tapar los ojos de la skin (si la apagás, se ven los ojos normales debajo de la imagen)</label>
     <div class="fe-sliders">
       <label>Tamaño <input type="range" id="fe-is" min=".4" max="1.8" step=".02" value="1"></label>
       <label>Mover ← → <input type="range" id="fe-ix" min="-4" max="4" step=".1" value="0"></label>
@@ -930,8 +930,10 @@ function faceEyeCells(I) {
 }
 function paintFacePreset(f, id) {
   const g = f.faceCtx, lib = FACE_LIB[f.facePreset]; g.putImageData(f.faceOrig, 8, 8); g.putImageData(f.hatOrig, 40, 8);
-  const nm = lib && lib.exprs.find(e => e.id === 'normal'), ex = lib && lib.exprs.find(e => e.id === id);
-  for (const L of [nm, ex !== nm ? ex : null]) {
+  const nm = lib && lib.exprs.find(e => e.id === 'normal'), ex = lib && lib.exprs.find(e => e.id === id), op = lib && lib.exprs.find(e => e.id === 'open');
+  // una imagen que NO tapa los ojos (lágrimas, rubor, vena...) va sobre los ojos normales ("Ojos abiertos"), no sobre la cara sin ojos
+  const keepEyes = !!(ex && ex.img && ex.img.hideEyes === false && op && ex !== op && ex !== nm);
+  for (const L of [nm, keepEyes ? op : null, ex !== nm ? ex : null]) {
     if (!L) continue;
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
       const c = L.grid[y][x]; if (c === '.') continue;
@@ -1233,8 +1235,9 @@ function feColor(c) { const lib = feLib(); return c === 'G' ? CHARS[FE.cid].colo
 function feDrawFace(cv, cid, ex, px, noImg) {
   const g = cv.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, cv.width, cv.height);
   g.drawImage(feFaceBase(cid), 0, 0, 8, 8, 0, 0, 8 * px, 8 * px);
-  const lib = FACE_LIB[cid], nm = lib.exprs.find(e => e.id === 'normal');
-  for (const L of [nm, ex && ex !== nm ? ex : null]) {
+  const lib = FACE_LIB[cid], nm = lib.exprs.find(e => e.id === 'normal'), op = lib.exprs.find(e => e.id === 'open');
+  const keepEyes = !!(ex && ex.img && ex.img.hideEyes === false && op && ex !== op && ex !== nm);
+  for (const L of [nm, keepEyes ? op : null, ex && ex !== nm ? ex : null]) {
     if (!L) continue;
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const c = L.grid[y][x]; if (c === '.') continue; const col = c === 'G' ? CHARS[cid].color : lib.pal[c]; if (col) { g.fillStyle = col; g.fillRect(x * px, y * px, px, px); } }
   }
