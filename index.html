@@ -533,6 +533,7 @@ const BLOCK_TEX = {
 // Sombreado por bandas y color con más saturación, también cuando se desactiva el posprocesado.
 // Corte transparente (como en los juegos de vista isométrica): lo que queda entre la cámara y el jugador se disuelve con trama,
 // así las paredes y techos de los edificios no tapan al personaje ni obligan a acercar la cámara.
+const CITY_GRAD=(()=>{const t=new THREE.DataTexture(new Uint8Array([104,156,202,232]),4,1,THREE.LuminanceFormat);t.minFilter=t.magFilter=THREE.NearestFilter;t.generateMipmaps=false;t.needsUpdate=true;return t;})();
 const CITY_CUT={cam:{value:new THREE.Vector3()},pl:{value:new THREE.Vector3()},on:{value:0}};
 const CUT_GLSL=`
   if(uCutOn>.5){
@@ -549,7 +550,7 @@ const CUT_GLSL=`
 // Sombreado de la ciudad: bandas suaves de dibujo animado + color de película (sombras frías, luces cálidas), contorno de cielo y
 // saturación; con opts.cut añade el corte transparente. Los materiales Phong reciben además luz de contorno.
 function cityAnimeMaterial(material,opts={}){
-  const cut=!!opts.cut,phong=!!material.isMeshPhongMaterial;
+  const cut=!!opts.cut,toon=!!material.isMeshToonMaterial,phong=!!material.isMeshPhongMaterial||toon;
   material.onBeforeCompile=shader=>{
     if(cut){
       shader.uniforms.uCutCam=CITY_CUT.cam;shader.uniforms.uCutPl=CITY_CUT.pl;shader.uniforms.uCutOn=CITY_CUT.on;
@@ -561,16 +562,17 @@ function cityAnimeMaterial(material,opts={}){
     shader.fragmentShader=shader.fragmentShader.replace('#include <fog_fragment>',`
       float cityLuma=max(.001,dot(gl_FragColor.rgb,vec3(.299,.587,.114)));
       float cityBand=floor(cityLuma*6.+.5)/6.;
-      gl_FragColor.rgb*=mix(1.,max(.15,cityBand)/cityLuma,.26);
-      ${phong?'float cityRim=pow(1.-clamp(dot(normalize(vNormal),normalize(vViewPosition)),0.,1.),3.);gl_FragColor.rgb+=vec3(.5,.68,1.)*cityRim*.12*cityLuma;':''}
+      gl_FragColor.rgb*=mix(1.,max(.15,cityBand)/cityLuma,${toon?'.08':'.26'});
+      gl_FragColor.rgb=max(gl_FragColor.rgb,diffuseColor.rgb*vec3(.2,.23,.34));   // las sombras nunca quedan grises: conservan el color, algo azulado
+      ${phong?'float cityRim=pow(1.-clamp(dot(normalize(vNormal),normalize(vViewPosition)),0.,1.),3.);gl_FragColor.rgb+=vec3(.5,.68,1.)*cityRim*.16*cityLuma;':''}
       gl_FragColor.rgb=mix(gl_FragColor.rgb*vec3(.93,.98,1.07),gl_FragColor.rgb*vec3(1.08,1.01,.92),smoothstep(.22,.82,cityLuma));
-      gl_FragColor.rgb=(gl_FragColor.rgb-.5)*1.1+.5+.025;
+      gl_FragColor.rgb=(gl_FragColor.rgb-.5)*1.04+.5;
       float cityGray=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
-      gl_FragColor.rgb=max(vec3(0.),mix(vec3(cityGray),gl_FragColor.rgb,1.34));
+      gl_FragColor.rgb=max(vec3(0.),mix(vec3(cityGray),gl_FragColor.rgb,1.2));
       #include <fog_fragment>
     `);
   };
-  material.customProgramCacheKey=()=> 'aurora-anime-v4'+(cut?'-cut':'')+(phong?'-p':'');return material;
+  material.customProgramCacheKey=()=> 'aurora-anime-v4'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
 }
 
 // ================= Mundo: Ciudad Aurora =================
@@ -944,7 +946,7 @@ function cityGrassAt(x,z) {
         const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
         const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);
         const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
-        const mat=cityAnimeMaterial(new THREE.MeshPhongMaterial({map,emissive:0xffffff,emissiveMap:em,shininess:24,specular:0x2c2c2c}),{cut:true});
+        const mat=cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:0xffffff,emissiveMap:em}),{cut:true});
         ok({geo:bbGeometry(data),mat});
       };
       img.onerror=fail;img.src=data.textures[0].source;
@@ -1275,7 +1277,7 @@ function updateAtmosphereStrikes(s){
     v.root.visible=visible&&age<.65;v.ground.visible=age<.55;v.center.visible=age<0;v.bolt.visible=age>=0&&age<.28;
     const scale=age<0?1+Math.sin(s.t*18)*.025:1+Math.max(0,age)*2.5;
     v.ground.scale.setScalar(scale);v.ground.material.opacity=age<0?.5+.3*Math.sin(s.t*18):Math.max(0,.8-age*1.6);
-    if(age>=0&&!v.played){v.played=true;if(visible&&age<.6){WX.flash=.4;if(WX.sound&&AC)nz(AC.currentTime+.08,1.4,180,.4,.32);}}
+    if(age>=0&&!v.played){v.played=true;if(visible&&age<.6){WX.flash=.4;if(WX.sound&&AC){if(SND.buf.thunder1)playSnd(Math.random()<.5?'thunder1':'thunder2',.9,null,.25);else nz(AC.currentTime+.08,1.4,180,.4,.32);}}}
     if(e.resolved&&!WX_ROOM.seen.has(e.id)){
       WX_ROOM.seen.add(e.id);
       for(const hit of e.victims){const f=G.fighters.find((f,i)=>!f.remote&&weatherEntityId(f,i)===hit.id);lightningDamage(f,e,hit.damage);}
@@ -1430,14 +1432,15 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
 }
 function cityWeatherAudio(dt,visible){
   if(!AC||!master)return;
+  if(WX.audio&&!WX.rainReal&&SND.buf.rain){try{WX.audio.source.stop();}catch(e){}WX.audio=null;}
   if(!WX.audio){
-    const source=AC.createBufferSource();source.buffer=NB;source.loop=true;
-    const filter=AC.createBiquadFilter();filter.type='lowpass';filter.frequency.value=1800;
+    const source=AC.createBufferSource();source.buffer=SND.buf.rain||NB;source.loop=true;WX.rainReal=!!SND.buf.rain;
+    const filter=AC.createBiquadFilter();filter.type='lowpass';filter.frequency.value=WX.rainReal?9000:1800;
     const gain=AC.createGain();gain.gain.value=0;source.connect(filter);filter.connect(gain);gain.connect(master);source.start();WX.audio={source,filter,gain};
   }
   const roof=WX.rainUniforms.uCenter.value,n=WX.roof.image.width,ix=clamp(Math.floor((roof.x+42)/84*n),0,n-1),iz=clamp(Math.floor((roof.z+42)/84*n),0,n-1);
   const underCover=WX.roof.image.data[iz*n+ix]/255*32>roof.y+1.8;
-  const volume=visible&&WX.sound?WX.rain*(underCover?.018:.075):0;
+  const volume=visible&&WX.sound?WX.rain*(underCover?.018:.075)*(WX.rainReal?2.6:1):0;
   if(WX.audio.volume==null||Math.abs(WX.audio.volume-volume)>.0005){WX.audio.gain.gain.setTargetAtTime(volume,AC.currentTime,.3);WX.audio.volume=volume;}
 }
 function syncWeatherControls(){
@@ -1450,8 +1453,8 @@ function updateCityWeather(dt,instant=false){
   const kind=WX.kind,target=WX_PRESETS[kind];
   const a=(WX.hour-6)/24*TAU,height=Math.sin(a),day=THREE.MathUtils.smoothstep(height,-.12,.26),night=1-day;
   WX.night=night;const sunset=(1-THREE.MathUtils.smoothstep(Math.abs(height),.02,.38))*(1-WX.cloud*.75);
-  WX.skyTop.set(0x111c3b).lerp(_c.set(0x4388ce),day).lerp(_c.set(0x665a86),sunset*.65);
-  WX.skyHorizon.set(0x293957).lerp(_c.set(0xa7d1e6),day).lerp(_c.set(0xf4ae7c),sunset*.8);
+  WX.skyTop.set(0x111c3b).lerp(_c.set(0x3a8ae0),day).lerp(_c.set(0x665a86),sunset*.65);
+  WX.skyHorizon.set(0x293957).lerp(_c.set(0xb4dcf6),day).lerp(_c.set(0xf4ae7c),sunset*.8);
   WX.skyTop.lerp(_c.set(night>.5?0x152137:0x526a80),WX.cloud*.83);
   WX.skyHorizon.lerp(_c.set(night>.5?0x2b3c50:0x8e9da7),WX.cloud*.8);
   WX.skyHorizon.lerp(_c.set(night>.5?0x65718b:0xc3d6db),WX.fogAmount*.28);
@@ -3739,6 +3742,7 @@ function initAudio() {
     } catch (e) { AC = null; }
   }
   if (AC && AC.state === 'suspended') AC.resume();
+  if (AC) loadSounds();
 }
 function nz(t, dur, freq, q, gain, type = 'lowpass') {
   const s = AC.createBufferSource(); s.buffer = NB;
@@ -3785,108 +3789,91 @@ function sfx(k, pos, mul = 1) {
   }
 }
 
-// ================= Ambiente sonoro: ciudad, viento, pájaros y sonido propio de cada local =================
-const AMB = { ready: false, ins: 0, kind: '', t: {}, acc: 0, arp: 0 };
+// ================= Ambiente sonoro con grabaciones reales (carpeta sonidos/, ver sonidos/CREDITOS.md) =================
+// Con servidor se decodifican con WebAudio (bucles sin cortes y apagado de la calle al entrar); abriendo el archivo sin servidor (file://)
+// se reproducen con elementos <audio> (solo volumen).
+const SND_LIST = ['city', 'birds', 'breeze', 'wind_strong', 'night', 'rain', 'thunder1', 'thunder2', 'cafe', 'clink1', 'clink2', 'sizzle', 'market', 'cash', 'arcade', 'library', 'page',
+  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open'];
+const SND = { buf: {}, state: 'idle', base: 'sonidos/', els: {} };
+function loadSounds() {
+  if (SND.state !== 'idle' || !AC) return;
+  SND.state = 'loading';
+  Promise.allSettled(SND_LIST.map(n => fetch(SND.base + n + '.mp3').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(ab => new Promise((ok, no) => AC.decodeAudioData(ab, ok, no))).then(buf => { SND.buf[n] = buf; })))
+    .then(() => { SND.state = Object.keys(SND.buf).length ? 'ready' : 'fallback'; initAmbience(); });
+}
+// sonido puntual: pos opcional (se atenúa con la distancia a la cámara)
+function playSnd(name, vol = 1, pos = null, delay = 0) {
+  if (!AC || !WX.sound || G.state !== 'play') return;
+  const v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 40, 0, 1) : 1) * vol;
+  if (v < .02) return;
+  if (SND.buf[name]) {
+    const src = AC.createBufferSource(); src.buffer = SND.buf[name]; const g = AC.createGain(); g.gain.value = v; src.connect(g); g.connect(master); src.start(AC.currentTime + delay);
+  } else if (SND.state === 'fallback') {
+    setTimeout(() => { const el = new Audio(SND.base + name + '.mp3'); el.volume = clamp(v * .5, 0, 1); el.play().catch(() => { }); }, delay * 1000);
+  }
+}
+const AMB = { ready: false, ins: 0, kind: '', t: {}, acc: 0, L: [] };
 const AMB_KIND = { cafe: 'cafe', arcade: 'arcade', mercado: 'mercado', biblioteca: 'biblioteca', ramen: 'ramen', taller: 'taller', centro_comercial: 'mall', torre_aurora: 'lobby' };
-const AMB_LAYERS = {
-  cafe: [['bandpass', 600, .8, .04]], arcade: [['bandpass', 450, .8, .045]], mercado: [['lowpass', 120, .5, .07], ['bandpass', 700, .7, .016]],
-  biblioteca: [['lowpass', 200, .5, .016]], ramen: [['highpass', 3200, .6, .022], ['bandpass', 550, .8, .035]], taller: [['lowpass', 90, .6, .08], ['bandpass', 1500, 1.5, .006]],
-  mall: [['bandpass', 700, .7, .05], ['bandpass', 1500, .6, .024]], lobby: [['lowpass', 110, .5, .04], ['bandpass', 600, .8, .013]]
-};
+// nombre, grupo ('out' = calle; o el local), volumen base
+const AMB_LAYERS = [['city', 'out', 1.5], ['breeze', 'out', 1.3], ['birds', 'out', .9], ['wind_strong', 'out', 1.6], ['night', 'out', 1.5],
+  ['cafe', 'cafe', 1.7], ['arcade', 'arcade', 1.2], ['market', 'mercado', 1.7], ['library', 'biblioteca', 1.9], ['cafe', 'ramen', 1.3], ['sizzle', 'ramen', 1.1],
+  ['workshop', 'taller', 1.6], ['mall', 'mall', 1.7], ['fountain', 'mall', 1.1], ['lobby', 'lobby', 2.2]];
 function initAmbience() {
-  if (!AC || !master || AMB.ready) return;
+  if (!AC || !master) return;
+  if (SND.state === 'idle') { loadSounds(); return; }
+  if (SND.state === 'loading' || AMB.ready) return;
   AMB.ready = true;
-  const mk = (type) => {
-    const b = AC.createBuffer(1, AC.sampleRate * 4, AC.sampleRate), d = b.getChannelData(0); let last = 0, mx = .001;
-    for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; last = type === 'brown' ? last * .97 + w * .2 : w; d[i] = last; mx = Math.max(mx, Math.abs(last)); }
-    for (let i = 0; i < d.length; i++) d[i] = d[i] / mx * .9;
-    return b;
-  };
-  AMB.brown = mk('brown'); AMB.white = mk('white');
-  const src = (buf, type, f, q, gain, bus) => {
-    const s = AC.createBufferSource(); s.buffer = buf; s.loop = true;
-    const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
-    const g = AC.createGain(); g.gain.value = gain; s.connect(fl); fl.connect(g); g.connect(bus); s.start(0, Math.random() * 3);
-    return { s, fl, g };
-  };
   AMB.bus = AC.createGain(); AMB.bus.gain.value = 0; AMB.bus.connect(master);
   AMB.out = AC.createGain(); AMB.outLP = AC.createBiquadFilter(); AMB.outLP.type = 'lowpass'; AMB.outLP.frequency.value = 18000;
   AMB.out.connect(AMB.outLP); AMB.outLP.connect(AMB.bus);
   AMB.inn = AC.createGain(); AMB.inn.connect(AMB.bus);
-  AMB.wind = src(AMB.brown, 'lowpass', 520, .6, 0, AMB.out); AMB.hum = src(AMB.brown, 'lowpass', 150, .5, 0, AMB.out); AMB.traf = src(AMB.brown, 'bandpass', 260, .7, 0, AMB.out);
-  AMB.room = src(AMB.brown, 'lowpass', 240, .5, 0, AMB.inn);
-  AMB.L = {};
-  for (const k in AMB_LAYERS) {
-    const g = AC.createGain(); g.gain.value = 0; g.connect(AMB.inn); AMB.L[k] = { g };
-    for (const [type, f, q, gain] of AMB_LAYERS[k]) src(k === 'ramen' && type === 'highpass' ? AMB.white : AMB.brown, type, f, q, gain, g);
+  for (const [name, group, gain] of AMB_LAYERS) {
+    const L = { name, group, gain, set() { } };
+    if (SND.buf[name]) {
+      const s = AC.createBufferSource(); s.buffer = SND.buf[name]; s.loop = true;
+      const g = AC.createGain(); g.gain.value = 0; s.connect(g); g.connect(group === 'out' ? AMB.out : AMB.inn); s.start(0, Math.random() * SND.buf[name].duration * .9);
+      L.set = (v, t = .5) => g.gain.setTargetAtTime(v * gain, AC.currentTime, t);
+    } else if (SND.state === 'fallback') {
+      const el = new Audio(SND.base + name + '.mp3'); el.loop = true; el.volume = 0; el.play().catch(() => { });
+      L.set = v => { el.volume = clamp(v * gain * .3, 0, 1); };
+    }
+    AMB.L.push(L);
   }
 }
 function updateAmbience(dt) {
   if (!AC) return;
   if (G.state !== 'play' || !G.player) { if (AMB.bus) AMB.bus.gain.setTargetAtTime(0, AC.currentTime, .3); return; }
-  initAmbience(); if (!AMB.ready) return;
+  if (!AMB.ready) { initAmbience(); if (!AMB.ready) return; }
   const now = AC.currentTime, p = G.player;
   let kind = '', inside = 0;
   for (const b of CITY.buildings) if (b.accessible && b.model && Math.abs(p.pos.x - b.x) < b.w / 2 - .2 && Math.abs(p.pos.z - b.z) < b.d / 2 - .2 && p.pos.y < b.base + .6) { kind = AMB_KIND[b.model] || ''; inside = 1; break; }
   AMB.ins += (inside - AMB.ins) * Math.min(1, dt * 3);
-  const on = WX.sound ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .88, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = WX.rain || 0, cloud = WX.cloud || 0;
+  const on = WX.sound ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .9, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = clamp((WX.rain || 0) * 2, 0, 1), cloud = WX.cloud || 0, night = WX.night || 0;
   AMB.acc += dt;
-  if (AMB.acc > .1) {
+  if (AMB.acc > .12) {
     AMB.acc = 0;
     AMB.bus.gain.setTargetAtTime(on, now, .3);
-    AMB.out.gain.setTargetAtTime(outs, now, .25); AMB.outLP.frequency.setTargetAtTime(18000 - ins * 17200, now, .25);
-    AMB.wind.g.gain.setTargetAtTime(.05 + high * .18 + storm * .14 + cloud * .04 + .025 * Math.sin(now * .37), now, .6);
-    AMB.hum.g.gain.setTargetAtTime(.055 * (1 - high * .6), now, .5);
-    AMB.traf.g.gain.setTargetAtTime((.012 + .016 * (.5 + .5 * Math.sin(now * .19))) * (1 - high * .5), now, 1);
-    AMB.room.g.gain.setTargetAtTime(.022 * ins, now, .3);
-    for (const k in AMB.L) AMB.L[k].g.gain.setTargetAtTime(k === kind ? ins : 0, now, .4);
+    AMB.out.gain.setTargetAtTime(1, now, .25); AMB.outLP.frequency.setTargetAtTime(18000 - ins * 17400, now, .3);
+    const day = (1 - night) * (1 - storm * .8);
+    const target = {
+      city: outs * (1 - high * .55), breeze: outs * day * (1 - high * .7) * (1 - storm), birds: outs * day * (1 - high * .8) * (1 - storm),
+      wind_strong: outs * clamp(high * 1.1 + storm * .8 + cloud * .25 - .05, 0, 1.15), night: outs * night * (1 - storm * .7)
+    };
+    for (const L of AMB.L) L.set(L.group === 'out' ? target[L.name] : (L.group === kind ? ins : 0));
   }
   if (!on) return;
   const due = (key, a, b) => { if (now < (AMB.t[key] || 0)) return false; AMB.t[key] = now + a + Math.random() * (b - a); return true; };
-  const vo = outs > .5 ? outs : 0, vi = kind ? ins : 0;
-  if (vo && WX.night < .5 && storm < .2 && due('bird', 1.8, 6)) {
-    const f = 2400 + Math.random() * 1800, n = 2 + (Math.random() * 3 | 0);
-    for (let i = 0; i < n; i++) tone(now + i * .09, .07, f * (1 + i * .05), f * (1.15 + Math.random() * .2), 'sine', .03 * vo * (1 - high * .6));
-  }
-  if (vo && WX.night > .55 && storm < .2 && due('cricket', 1.1, 2.8)) for (let i = 0; i < 6; i++) tone(now + i * .07, .035, 4300, 4300, 'sine', .011 * vo);
-  if (vo && due('car', 12, 28)) nz(now, 1.4, 320, .6, .03 * vo, 'bandpass');
+  const vi = kind ? ins : 0;
   if (!vi) return;
   switch (kind) {
-    case 'cafe':
-      if (due('clink', 1.2, 3.6)) { tone(now, .08, 3200, 2800, 'triangle', .045 * vi); tone(now + .07, .06, 4100, 3600, 'triangle', .03 * vi); }
-      if (due('hiss', 9, 18)) nz(now, .9, 3500, 1, .05 * vi, 'highpass');
-      break;
-    case 'arcade':
-      if (due('arp', .19, .19)) {
-        const sc = [262, 330, 392, 523, 392, 330, 294, 370], f = sc[AMB.arp % 8] * (Math.floor(AMB.arp / 16) % 2 ? 1.12 : 1); AMB.arp++;
-        tone(now, .15, f, f, 'square', .016 * vi); if (AMB.arp % 4 === 1) tone(now, .3, f / 2, f / 2, 'triangle', .022 * vi);
-      }
-      if (due('blip', .5, 1.8)) { if (Math.random() < .5) { tone(now, .08, 988, 988, 'square', .03 * vi); tone(now + .08, .2, 1319, 1319, 'square', .03 * vi); } else tone(now, .14, 400 + Math.random() * 600, 1200 + Math.random() * 900, 'square', .026 * vi); }
-      break;
-    case 'mercado':
-      if (due('beep', 2.5, 7)) tone(now, .07, 1900, 1900, 'square', .028 * vi);
-      if (due('rattle', 12, 25)) nz(now, .5, 900, 2, .05 * vi, 'bandpass');
-      break;
-    case 'biblioteca':
-      if (due('page', 5, 11)) nz(now, .15, 6000, 1, .035 * vi, 'highpass');
-      if (due('tick', 1, 1)) tone(now, .02, 1500, 1100, 'square', .01 * vi);
-      break;
-    case 'ramen':
-      if (due('clat', 2, 5)) { tone(now, .05, 1700, 1300, 'triangle', .045 * vi); nz(now, .12, 2500, 1.2, .05 * vi, 'bandpass'); }
-      if (due('chop', 3, 7)) nz(now, .05, 900, 2, .12 * vi);
-      break;
-    case 'taller':
-      if (due('clank', 2, 6)) { tone(now, .12, 1200, 800, 'square', .035 * vi); tone(now + .05, .15, 2400, 1900, 'triangle', .028 * vi); nz(now, .1, 3000, 2, .06 * vi, 'highpass'); }
-      if (due('air', 6, 14)) nz(now, .5, 4500, 1, .05 * vi, 'highpass');
-      if (due('drill', 12, 25)) tone(now, .6, 200, 260, 'sawtooth', .028 * vi);
-      break;
-    case 'mall':
-      if (due('chime', 14, 28)) { tone(now, .6, 880, 880, 'sine', .035 * vi); tone(now + .35, .7, 1175, 1175, 'sine', .035 * vi); }
-      if (due('splash', .4, 1.2)) tone(now, .05, 1800 + Math.random() * 900, 1500, 'sine', .02 * vi);
-      break;
-    case 'lobby':
-      if (due('ding', 9, 18)) { tone(now, .7, 1175, 1175, 'sine', .04 * vi); tone(now + .3, .8, 880, 880, 'sine', .035 * vi); }
-      break;
+    case 'cafe': if (due('clink', 2, 6)) playSnd(Math.random() < .5 ? 'clink1' : 'clink2', .55 * vi); break;
+    case 'ramen': if (due('clink', 5, 12)) playSnd('clink2', .4 * vi); break;
+    case 'mercado': if (due('cash', 8, 18)) playSnd('cash', .6 * vi); break;
+    case 'biblioteca': if (due('page', 6, 14)) playSnd('page', .6 * vi); break;
+    case 'taller': if (due('hammer', 5, 11)) playSnd('hammer', .6 * vi); if (due('drill', 16, 30)) playSnd('drill', .6 * vi); break;
+    case 'mall': if (due('chime', 20, 40)) playSnd('chime', .45 * vi); break;
+    case 'lobby': if (due('chime', 14, 26)) playSnd('chime', .35 * vi); break;
   }
 }
 
@@ -7101,7 +7088,7 @@ function updateElevatorDoors(dt) {
       if (r && r.from === s && (r.stage === 'enter' || r.stage === 'moving')) near = false;
       if (r && r.to === s) near = r.stage === 'arrive' && r.t > .35;
       s.target = near ? 1 : 0;
-      if (s.lastT !== s.target) { if (s.lastT !== undefined) sfx('slide', new V3(s.px, s.y0 + 1, s.pz)); s.lastT = s.target; }
+      if (s.lastT !== s.target) { if (s.lastT !== undefined) playSnd(s.target ? 'door_open' : 'door_close', .9, new V3(s.px, s.y0 + 1, s.pz)); s.lastT = s.target; }
       s.open += clamp(s.target - s.open, -dt * 1.3, dt * 1.3);
       const sc = Math.max(.07, 1 - s.open * .93), w = 1.4 * sc;
       s.panels[0].scale.x = s.panels[1].scale.x = sc; s.panels[0].position.x = s.dx - (1.4 - w / 2); s.panels[1].position.x = s.dx + (1.4 - w / 2);
@@ -7117,10 +7104,10 @@ function updateElevator(f, dt) {
     if (r && r.who === f) {
       r.t += dt; const pad = r.stage === 'arrive' || r.stage === 'done' ? r.to : r.from, y = pad.y0;
       f.pos.set(pad.px, y, pad.pz); f.vel.set(0, 0, 0); f.onGround = true;
-      if (r.stage === 'enter') { if (r.from.open < .05) { r.stage = 'moving'; r.t = 0; sfx('tp', f.pos); if (f.isPlayer) showBanner(r.up ? 'SUBIENDO' : 'BAJANDO', '#7ad7ff', 'Ascensor'); } }
+      if (r.stage === 'enter') { if (r.from.open < .05) { r.stage = 'moving'; r.t = 0; playSnd('elev_ride', .55, f.pos); if (f.isPlayer) showBanner(r.up ? 'SUBIENDO' : 'BAJANDO', '#7ad7ff', 'Ascensor'); } }
       else if (r.stage === 'moving') {
         if (Math.random() < dt * 25) emit(f.pos.x + rand(-.8, .8), f.pos.y + .1, f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, '#7ad7ff', .12, .5, -.1, 1);
-        if (r.t > 3) { r.stage = 'arrive'; r.t = 0; f.pos.set(r.to.px, r.to.y0, r.to.pz); sfx('ding', f.pos); }
+        if (r.t > 3) { r.stage = 'arrive'; r.t = 0; f.pos.set(r.to.px, r.to.y0, r.to.pz); playSnd('chime', .7, f.pos); }
       } else if (r.stage === 'arrive') {
         if (r.to.open > .92) { if (f.isPlayer) showBanner(r.up ? 'AZOTEA' : 'PLANTA BAJA', '#7ad7ff', r.up ? 'Cuidado con los rayos en tormenta' : 'Ascensor'); f.elevLock = e; e.ride = null; }
       }
@@ -7335,12 +7322,12 @@ function sizeLines() { LC.width = innerWidth; LC.height = innerHeight; }
 sizeLines();
 let linesDrawn = false;
 // render con brillo (bloom) y los impact frames
-let composer = null, renderPass = null, bloomPass = null, caPass = null;
+let composer = null, renderPass = null, bloomPass = null, caPass = null, gradePass = null;
 try {
   if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass) {
     composer = new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .24, .35, .95);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .3, .5, .93);
     composer.addPass(renderPass); composer.addPass(bloomPass);
     if (THREE.ShaderPass) {
       caPass = new THREE.ShaderPass({
@@ -7358,6 +7345,22 @@ try {
           }`,
       });
       caPass.enabled = false; composer.addPass(caPass);
+      // gradación final: sombras violeta-azuladas, luces cálidas, curva S, más color y una viñeta suave
+      gradePass = new THREE.ShaderPass({
+        uniforms: { tDiffuse: { value: null } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+          void main(){
+            vec3 c = texture2D(tDiffuse, vUv).rgb;
+            float l = dot(c, vec3(.299, .587, .114));
+            c = mix(c * vec3(.93, .98, 1.08), c * vec3(1.05, 1.01, .94), smoothstep(.25, .85, l));
+            c = max(c, 0.); c = (1. - exp(-1.5 * c)) / (1. - exp(-1.5)); c = c * c * (3. - 2. * c) * .18 + c * .82;
+            float g = dot(c, vec3(.299, .587, .114)); c = mix(vec3(g), c, 1.14);
+            vec2 d = (vUv - .5) * vec2(1.1, 1.); c *= 1. - smoothstep(.36, .98, length(d)) * .26;
+            gl_FragColor = vec4(c, 1.);
+          }`,
+      });
+      composer.addPass(gradePass);
     }
   }
 } catch (e) { composer = null; }
@@ -7367,6 +7370,7 @@ try {
 const GFX = { level: 0, auto: true, post: true, names: ['Alta', 'Media', 'Baja', 'Mínima'], acc: 0, frames: 0, bad: 0, cool: 6, soft: false, fps: 60 };
 function gfxSet(level, auto, save = true) {
   level = clamp(level | 0, 0, 3); GFX.level = level; GFX.auto = !!auto; GFX.post = level === 0;
+  renderer.domElement.style.filter = GFX.post && composer && gradePass ? 'none' : 'contrast(1.07) saturate(1.22) brightness(1.03)';
   renderer.setPixelRatio(Math.min(devicePixelRatio, [1.5, 1.25, 1, .75][level]));
   renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight); }
   const shadows = level < 2, wasOn = renderer.shadowMap.enabled;

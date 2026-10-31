@@ -1,0 +1,164 @@
+{
+ "arcade": {
+  "dur": 40.0,
+  "kb": 274,
+  "tipo": "loop",
+  "fuente_seg": 80.0
+ },
+ "birds": {
+  "dur": 38.0,
+  "kb": 260,
+  "tipo": "loop",
+  "fuente_seg": 49.5
+ },
+ "breeze": {
+  "dur": 28.0,
+  "kb": 192,
+  "tipo": "loop",
+  "fuente_seg": 32.5
+ },
+ "cafe": {
+  "dur": 36.0,
+  "kb": 247,
+  "tipo": "loop",
+  "fuente_seg": 76.3
+ },
+ "cash": {
+  "dur": 2.1,
+  "kb": 15,
+  "tipo": "shot",
+  "fuente_seg": 2.2
+ },
+ "chime": {
+  "dur": 2.1,
+  "kb": 15,
+  "tipo": "shot",
+  "fuente_seg": 2.9
+ },
+ "city": {
+  "dur": 34.0,
+  "kb": 233,
+  "tipo": "loop",
+  "fuente_seg": 267.3
+ },
+ "clink1": {
+  "dur": 0.3,
+  "kb": 3,
+  "tipo": "shot",
+  "fuente_seg": 0.8
+ },
+ "clink2": {
+  "dur": 0.4,
+  "kb": 3,
+  "tipo": "shot",
+  "fuente_seg": 0.9
+ },
+ "door_close": {
+  "dur": 4.0,
+  "kb": 28,
+  "tipo": "shot",
+  "fuente_seg": 8.1
+ },
+ "door_open": {
+  "dur": 2.5,
+  "kb": 18,
+  "tipo": "shot",
+  "fuente_seg": 2.5
+ },
+ "drill": {
+  "dur": 4.0,
+  "kb": 28,
+  "tipo": "shot",
+  "fuente_seg": 141.9
+ },
+ "elev_ride": {
+  "dur": 10.0,
+  "kb": 69,
+  "tipo": "shot",
+  "fuente_seg": 29.5
+ },
+ "fountain": {
+  "dur": 30.0,
+  "kb": 206,
+  "tipo": "loop",
+  "fuente_seg": 61.5
+ },
+ "hammer": {
+  "dur": 2.8,
+  "kb": 20,
+  "tipo": "shot",
+  "fuente_seg": 34.0
+ },
+ "library": {
+  "dur": 34.0,
+  "kb": 233,
+  "tipo": "loop",
+  "fuente_seg": 258.8
+ },
+ "lobby": {
+  "dur": 11.0,
+  "kb": 76,
+  "tipo": "loop",
+  "fuente_seg": 14.0
+ },
+ "mall": {
+  "dur": 28.1,
+  "kb": 193,
+  "tipo": "loop",
+  "fuente_seg": 30.1
+ },
+ "market": {
+  "dur": 25.2,
+  "kb": 173,
+  "tipo": "loop",
+  "fuente_seg": 29.2
+ },
+ "night": {
+  "dur": 30.0,
+  "kb": 206,
+  "tipo": "loop",
+  "fuente_seg": 57.0
+ },
+ "page": {
+  "dur": 1.2,
+  "kb": 9,
+  "tipo": "shot",
+  "fuente_seg": 3.4
+ },
+ "rain": {
+  "dur": 28.0,
+  "kb": 192,
+  "tipo": "loop",
+  "fuente_seg": 45.0
+ },
+ "sizzle": {
+  "dur": 28.0,
+  "kb": 192,
+  "tipo": "loop",
+  "fuente_seg": 30.0
+ },
+ "thunder1": {
+  "dur": 12.0,
+  "kb": 83,
+  "tipo": "shot",
+  "fuente_seg": 35.3
+ },
+ "thunder2": {
+  "dur": 9.0,
+  "kb": 62,
+  "tipo": "shot",
+  "fuente_seg": 9.0
+ },
+ "wind_strong": {
+  "dur": 28.0,
+  "kb": 192,
+  "tipo": "loop",
+  "fuente_seg": 60.5
+ },
+ "workshop": {
+  "dur": 26.0,
+  "kb": 178,
+  "tipo": "loop",
+  "fuente_seg": 125.5
+ }
+}
