@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blockstrike Battlegrounds</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
@@ -289,6 +294,8 @@ tr.me td{color:var(--hot);font-weight:700}
 <body>
 <div id="spear-recovery" class="hidden"></div>
 <div id="spear-marker" class="hidden">▼ Tu lanza</div>
+</head>
+<body>
 <div id="wrap"></div>
 <canvas id="lines"></canvas>
 <div id="cinedim"></div>
@@ -2029,6 +2036,178 @@ function disposeModel(m) {
   if (m.eyes) m.eyes.material.dispose();
   if (m.decal) m.decal.material.dispose();
 }
+// ===== Jesuluto: pantalla en la cabeza, ventanas de Windows, Clippy y pantalla azul =====
+const JL_TEX = {};
+function jlDialogTex(kind = 'error') {
+  if (JL_TEX[kind]) return JL_TEX[kind];
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 88; const g = cv.getContext('2d');
+  g.fillStyle = '#ece9d8'; g.fillRect(0, 0, 128, 88); g.strokeStyle = '#0a49c8'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, 125, 85);
+  const tb = g.createLinearGradient(0, 0, 128, 0); tb.addColorStop(0, '#0a246a'); tb.addColorStop(.5, '#2f6edb'); tb.addColorStop(1, '#5a9bff'); g.fillStyle = tb; g.fillRect(3, 3, 122, 16);
+  g.fillStyle = '#fff'; g.font = 'bold 11px Tahoma,Arial,sans-serif'; g.textBaseline = 'middle'; g.fillText(kind === 'warn' ? 'Advertencia' : 'Error crítico', 8, 11);
+  g.fillStyle = '#e0431e'; g.fillRect(108, 5, 15, 12); g.fillStyle = '#fff'; g.fillText('×', 112, 11);
+  g.fillStyle = kind === 'warn' ? '#f2c230' : '#e03a3a'; g.beginPath(); if (kind === 'warn') { g.moveTo(22, 26); g.lineTo(36, 52); g.lineTo(8, 52); g.closePath(); } else g.arc(22, 40, 14, 0, TAU); g.fill();
+  g.fillStyle = '#fff'; g.font = 'bold 18px Arial'; g.textAlign = 'center'; g.fillText(kind === 'warn' ? '!' : '✕', 22, kind === 'warn' ? 44 : 41); g.textAlign = 'left';
+  g.fillStyle = '#000'; g.font = '10px Tahoma,Arial,sans-serif'; g.fillText('Se ha producido un error', 44, 32); g.fillText('fatal en CLIPPY.EXE', 44, 44); g.fillText('Código 0x0000007B', 44, 56);
+  g.fillStyle = '#d8d4c2'; g.fillRect(44, 66, 40, 15); g.strokeStyle = '#fff'; g.strokeRect(44.5, 66.5, 39, 14); g.strokeStyle = '#555'; g.beginPath(); g.moveTo(84.5, 67); g.lineTo(84.5, 81); g.lineTo(44, 81); g.stroke();
+  g.fillStyle = '#000'; g.fillText('Aceptar', 50, 74);
+  const t = new THREE.CanvasTexture(cv); t.magFilter = t.minFilter = THREE.LinearFilter; return (JL_TEX[kind] = t);
+}
+const JL_WIN_GEO = new THREE.PlaneGeometry(1.7, 1.17);
+const jlWinMat = kind => new THREE.MeshBasicMaterial({ map: jlDialogTex(kind), side: THREE.DoubleSide, transparent: true, depthWrite: false });
+function jlLaunchWindow(f, yaw, o) {
+  const kind = Math.random() < .3 ? 'warn' : 'error', mat = jlWinMat(kind), mesh = new THREE.Mesh(JL_WIN_GEO, mat), start = front(f, .9, 1.7);
+  mesh.position.copy(start); scene.add(mesh);
+  const dir = new V3(Math.sin(yaw), 0, Math.cos(yaw)), nd = ndt(); let life = 0, done = false;
+  const end = () => { if (done) return; done = true; scene.remove(mesh); mat.dispose(); };
+  const tick = () => {
+    const dt = nd(); life += dt; mesh.position.addScaledVector(dir, 25 * dt); mesh.lookAt(camera.position.x, mesh.position.y, camera.position.z); mesh.rotation.z = Math.sin(life * 9) * .1;
+    emit(mesh.position.x, mesh.position.y, mesh.position.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), '#3aa0ff', .1, .25, 0, 0);
+    for (const g of enemiesOf(f)) if (chestOf(g).distanceTo(mesh.position) < 1.15) {
+      applyHit(f, g, { dmg: o.dmg || 4.5, stun: .45, kb: 5, up: 1, color: '#0078d7', hitstop: .04, shake: .18 }); popText(chestOf(g), '¡Error!', '#7ad7ff', 18); burst(mesh.position.clone(), 12, '#3aa0ff', 7, .16, .35, 0); sfx('hit', mesh.position, .6); end(); return;
+    }
+    if (life > 1.0 || groundAt(mesh.position.x, mesh.position.z) > mesh.position.y) { burst(mesh.position.clone(), 8, '#3aa0ff', 5, .14, .3, 0); end(); return; }
+    if (G.state === 'play') later(0, tick); else end();
+  };
+  later(0, tick);
+}
+function jlFallWindow(f, x, z, o) {
+  const gy = groundAt(x, z), mat = jlWinMat(Math.random() < .3 ? 'warn' : 'error'), mesh = new THREE.Mesh(JL_WIN_GEO, mat), nd = ndt(); let y = gy + 16, done = false;
+  mesh.position.set(x, y, z); scene.add(mesh);
+  const end = () => { if (done) return; done = true; scene.remove(mesh); mat.dispose(); };
+  const tick = () => {
+    const dt = nd(); y -= 26 * dt; mesh.position.y = y; mesh.lookAt(camera.position.x, y, camera.position.z); mesh.rotation.z = Math.sin(y) * .12;
+    if (y <= gy + .8) { explode(f, new V3(x, gy + .6, z), 2.1, { dmg: o.dmg || 3.6, stun: .45, kb: 5, up: 4, color: '#0078d7', hitstop: .03, shake: .15 }); burst(new V3(x, gy + .5, z), 10, '#3aa0ff', 6, .15, .4, .3); sfx('hit', new V3(x, gy, z), .4); end(); return; }
+    if (G.state === 'play') later(0, tick); else end();
+  };
+  later(0, tick);
+}
+// --- pantalla de la cabeza (canvas 64×64)
+function jlDrawScreen(sc, st) {
+  const g = sc.ctx; g.clearRect(0, 0, 64, 64); g.imageSmoothingEnabled = false;
+  const win = (x, y, w, h, title) => { g.fillStyle = '#ece9d8'; g.fillRect(x, y, w, h); g.fillStyle = '#0a49c8'; g.fillRect(x, y, w, 6); g.fillStyle = '#fff'; g.font = 'bold 6px Arial'; g.fillText(title, x + 2, y + 5); g.fillStyle = '#e0431e'; g.fillRect(x + w - 7, y + 1, 6, 4); };
+  if (st === 'desk') {
+    const sky = g.createLinearGradient(0, 0, 0, 44); sky.addColorStop(0, '#3a8ee6'); sky.addColorStop(1, '#a9d8ff'); g.fillStyle = sky; g.fillRect(0, 0, 64, 52);
+    g.fillStyle = '#4e9c2c'; g.beginPath(); g.moveTo(0, 52); g.quadraticCurveTo(24, 30, 64, 44); g.lineTo(64, 52); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.fillRect(10, 10, 14, 3); g.fillRect(14, 7, 10, 3); g.fillRect(40, 16, 12, 3);
+    g.fillStyle = '#245edb'; g.fillRect(0, 52, 64, 12); g.fillStyle = '#3c9a3a'; g.fillRect(0, 52, 20, 12); g.fillStyle = '#fff'; g.font = 'bold 7px Arial'; g.fillText('inicio', 2, 60); g.fillStyle = '#0f3fa8'; g.fillRect(46, 54, 18, 8); g.fillStyle = '#fff'; g.font = '6px Arial'; g.fillText('12:00', 47, 60);
+  } else if (st === 'error') {
+    g.fillStyle = '#008080'; g.fillRect(0, 0, 64, 64); win(6, 10, 52, 40, 'Error'); g.fillStyle = '#e03a3a'; g.beginPath(); g.arc(18, 32, 7, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 10px Arial'; g.fillText('✕', 14, 36);
+    g.fillStyle = '#000'; g.font = '5px Arial'; g.fillText('Error fatal', 28, 30); g.fillText('0x7B', 28, 37); g.fillStyle = '#d8d4c2'; g.fillRect(24, 42, 18, 6);
+  } else if (st === 'bsod') {
+    g.fillStyle = '#0078d7'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#fff'; g.font = 'bold 26px Arial'; g.fillText(':(', 6, 28); g.font = '5px Arial'; g.fillText('Tu PC tuvo un problema', 5, 38); g.fillText('y necesita reiniciarse.', 5, 45); g.fillText('JESULUTO_CLIPPY', 5, 56);
+  } else if (st === 'load') {
+    g.fillStyle = '#000'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#c0c0c0'; g.font = '6px monospace'; g.fillText('C:\\>format c:', 3, 10); g.fillText('Formateando...', 3, 20); g.strokeStyle = '#c0c0c0'; g.strokeRect(4.5, 32.5, 55, 9); g.fillStyle = '#0a8cff'; g.fillRect(6, 34, 36, 6);
+  } else if (st === 'undo') {
+    g.fillStyle = '#ece9d8'; g.fillRect(0, 0, 64, 64); win(0, 0, 64, 64, 'Deshacer'); g.fillStyle = '#0a49c8'; g.font = 'bold 22px Arial'; g.fillText('↶', 16, 42); g.font = 'bold 7px Arial'; g.fillText('Ctrl+Z', 15, 56);
+  } else if (st === 'clippy') {
+    g.fillStyle = '#ffffe1'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#000'; g.strokeRect(1.5, 1.5, 61, 61); g.fillStyle = '#000'; g.font = 'bold 6px Arial'; g.fillText('¿Necesitas', 7, 20); g.fillText('ayuda con', 7, 30); g.fillText('eso?', 7, 40);
+    g.strokeStyle = '#8a929c'; g.lineWidth = 3; g.beginPath(); g.moveTo(46, 58); g.lineTo(46, 40); g.arc(51, 40, 5, Math.PI, 0); g.lineTo(56, 56); g.stroke(); g.lineWidth = 1;
+  }
+  sc.tex.needsUpdate = true; sc.drawn = st;
+}
+function addScreen(model) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const tex = new THREE.CanvasTexture(cv); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7.6 * PX, 7.6 * PX), mat); mesh.position.set(0, 4 * PX, 5.45 * PX); mesh.renderOrder = 8; model.head.add(mesh);
+  model.screen = { mesh, ctx: cv.getContext('2d'), tex, mat, force: '', until: 0, drawn: '' }; mesh.visible = false;
+}
+function jlScreen(f, st, dur) { const sc = f.model && f.model.screen; if (sc) { sc.force = st; sc.until = G.time + dur; } }
+function jlUpdateScreen(f, m) {
+  const sc = m.screen; if (!sc) return;
+  if (m.decal) m.decal.visible = false;
+  const want = G.time < sc.until ? sc.force : f.awak > 0 ? 'bsod' : (f.alive && f.hp < f.maxHp * .3) ? 'error' : 'desk';
+  sc.mesh.visible = want !== 'desk';
+  if (want !== 'desk' && sc.drawn !== want) jlDrawScreen(sc, want);
+}
+// --- Clippy: el asistente de Office, de mascota; ataca solo y obedece sus habilidades
+function drawClippy(g, mood) {
+  g.clearRect(0, 0, 192, 256);
+  const wire = () => { g.beginPath(); g.moveTo(72, 222); g.lineTo(72, 100); g.bezierCurveTo(72, 42, 152, 42, 152, 100); g.lineTo(152, 190); g.bezierCurveTo(152, 232, 100, 232, 100, 190); g.lineTo(100, 108); g.bezierCurveTo(100, 84, 128, 84, 128, 108); g.lineTo(128, 170); };
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.strokeStyle = '#2a2f3a'; g.lineWidth = 24; wire(); g.stroke();
+  g.strokeStyle = '#b9c2cd'; g.lineWidth = 15; wire(); g.stroke();
+  g.strokeStyle = '#f4f7fb'; g.lineWidth = 4; g.save(); g.translate(-3, -2); wire(); g.stroke(); g.restore();
+  const eye = (x, y) => { g.fillStyle = '#fff'; g.strokeStyle = '#111'; g.lineWidth = 3; g.beginPath(); g.ellipse(x, y, 17, 21, 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#111'; g.beginPath(); g.ellipse(x + 3, y + 3, 6, 8, 0, 0, TAU); g.fill(); };
+  eye(94, 108); eye(132, 108);
+  g.strokeStyle = '#111'; g.lineWidth = 5;
+  g.beginPath(); if (mood === 'angry') { g.moveTo(76, 76); g.lineTo(106, 90); g.moveTo(150, 76); g.lineTo(120, 90); } else { g.moveTo(78, 82); g.quadraticCurveTo(94, 68, 108, 80); g.moveTo(118, 80); g.quadraticCurveTo(132, 68, 148, 82); } g.stroke();
+}
+function makeClippy() {
+  const g = new THREE.Group(), cv = document.createElement('canvas'); cv.width = 192; cv.height = 256; const ctx = cv.getContext('2d'); drawClippy(ctx, 'happy');
+  const tex = new THREE.CanvasTexture(cv), mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), body = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.4), mat);
+  const bc = document.createElement('canvas'); bc.width = 256; bc.height = 96; const bctx = bc.getContext('2d'), btex = new THREE.CanvasTexture(bc);
+  const bmat = new THREE.MeshBasicMaterial({ map: btex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), bub = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .9), bmat); bub.position.set(0, 1.25, 0); bub.visible = false;
+  g.add(body, bub);
+  return { g, body, bub, ctx, tex, mat, bmat, bctx, btex, mood: 'happy', pos: new V3(), ov: null, sc: 1, cd: 1.5, say(t) { this.sayT = 2.4; const c = this.bctx; c.clearRect(0, 0, 256, 96); c.fillStyle = '#ffffe1'; c.fillRect(2, 2, 252, 70); c.strokeStyle = '#000'; c.lineWidth = 3; c.strokeRect(2, 2, 252, 70); c.fillStyle = '#ffffe1'; c.beginPath(); c.moveTo(110, 70); c.lineTo(128, 94); c.lineTo(138, 70); c.fill(); c.stroke(); c.fillRect(112, 68, 24, 5); c.fillStyle = '#000'; c.font = 'bold 17px Tahoma,Arial,sans-serif'; c.textAlign = 'center'; const w = t.split(' '); let l1 = '', l2 = ''; for (const x of w) (l1.length < 17 ? l1 += (l1 ? ' ' : '') + x : l2 += (l2 ? ' ' : '') + x); c.fillText(l1, 128, l2 ? 30 : 42); if (l2) c.fillText(l2, 128, 54); this.btex.needsUpdate = true; this.bub.visible = true; }, sayT: 0 };
+}
+function disposeClippy(c) { scene.remove(c.g); c.body.geometry.dispose(); c.bub.geometry.dispose(); c.mat.dispose(); c.bmat.dispose(); c.tex.dispose(); c.btex.dispose(); }
+const JL_QUOTES = ['¿Necesitas ayuda?', '¡Parece que estás peleando!', '¿Quieres que lo haga por ti?', 'Parece que vas perdiendo…', '¿Guardo los cambios?'];
+const _jv = new V3();
+function updateJesuluto(f, m, dt, T) {
+  if (!f.ch.screenHead) return;
+  jlUpdateScreen(f, m);
+  if (!f.remote && f.alive) { f.jlHistT = (f.jlHistT || 0) - dt; if (f.jlHistT <= 0) { f.jlHistT = .1; const h = f.jlHist || (f.jlHist = []); h.push({ x: f.pos.x, y: f.pos.y, z: f.pos.z, hp: f.hp }); if (h.length > 31) h.shift(); } }
+  let c = f.clippy;
+  if (!c) { if (!f.alive) return; c = f.clippy = makeClippy(); c.pos.set(f.pos.x + 1.2, f.pos.y + 2.2, f.pos.z); scene.add(c.g); c.say('¡Hola! Soy Clippy'); }
+  c.g.visible = f.alive;
+  if (c.ov && G.time > c.ov.until) c.ov = null;
+  const R = rightOf(f.yaw), F = fwd(f.yaw), awk = f.awak > 0, fury = G.time < (f.jlFury || 0);
+  const tgt = c.ov ? c.ov.pos() : _jv.set(f.pos.x + R.x * 1.35 - F.x * .2, f.pos.y + 2.35 + Math.sin(T * 2.2) * .18, f.pos.z + R.z * 1.35 - F.z * .2);
+  c.pos.lerp(tgt, 1 - Math.exp(-dt * (c.ov ? 10 : 5)));
+  const wantSc = c.ov ? c.ov.sc : awk ? 1.5 : fury ? 1.25 : 1; c.sc += (wantSc - c.sc) * (1 - Math.exp(-dt * 6));
+  c.g.position.copy(c.pos); c.g.scale.setScalar(c.sc); c.g.quaternion.copy(camera.quaternion); c.g.rotation.z += Math.sin(T * 3) * .04;
+  const mood = c.ov ? c.ov.mood || 'angry' : (fury || c.angryT > 0) ? 'angry' : 'happy';
+  if (c.mood !== mood) { c.mood = mood; drawClippy(c.ctx, mood); c.tex.needsUpdate = true; }
+  c.angryT = (c.angryT || 0) - dt;
+  if (c.sayT > 0) { c.sayT -= dt; if (c.sayT <= 0) c.bub.visible = false; }
+  else if (f.alive && Math.random() < dt * .06) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
+  if (f.alive && !c.ov && f.ragdoll <= 0 && f.stun <= 0 && !f.choreTrack && !f.grabbed) {
+    c.cd -= dt;
+    if (c.cd <= 0) {
+      let best = null, bd = 22; for (const g of enemiesOf(f)) { const d = chestOf(g).distanceTo(c.pos); if (d < bd) { bd = d; best = g; } }
+      if (best) {
+        c.cd = fury ? .5 : awk ? 1.1 : 2.4; c.angryT = .25; const q = chestOf(best);
+        spawnProj(f, Math.atan2(q.x - c.pos.x, q.z - c.pos.z), { from: c.pos.clone(), color: '#cfd6df', speed: 34, size: .24, long: 1.5, homing: 3, range: 26, dmg: fury ? 3.4 : awk ? 3.2 : 2.6, stun: .25, kb: 2 });
+        sfx('zap', c.pos, .4); burst(c.pos.clone(), 5, '#cfd6df', 4, .12, .25, 0);
+        if (Math.random() < .2) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
+      } else c.cd = .3;
+    }
+  }
+}
+// cascada de ventanas de error de Windows y pantalla azul en la pantalla del jugador (efecto del despertar)
+const JL_CSS = document.createElement('style');
+JL_CSS.textContent = `#jlfx{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
+.jlwin{position:absolute;width:236px;background:#ece9d8;border:2px solid #0a49c8;box-shadow:4px 4px 0 #0007;font:12px Tahoma,Arial,sans-serif;color:#000;animation:jlpop .12s ease-out}
+.jlwin .t{background:linear-gradient(90deg,#0a246a,#2f6edb 55%,#5a9bff);color:#fff;font-weight:bold;padding:3px 6px;display:flex;justify-content:space-between}
+.jlwin .t b{background:#e0431e;padding:0 5px;border:1px solid #fff}
+.jlwin .b{display:flex;gap:10px;align-items:center;padding:12px}
+.jlwin .b i{font-style:normal;background:#e03a3a;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;flex:none}
+.jlwin .k{margin:0 12px 10px;text-align:center}.jlwin .k span{display:inline-block;background:#d8d4c2;border:2px outset #fff;padding:2px 18px}
+#jlbsod{position:fixed;inset:0;z-index:61;background:#0078d7;color:#fff;pointer-events:none;font-family:"Segoe UI",Tahoma,Arial,sans-serif;display:none;padding:9vh 8vw;opacity:0;transition:opacity .15s}
+#jlbsod .s{font-size:min(22vh,180px);line-height:1}#jlbsod p{font-size:min(4.2vh,34px);max-width:70vw;margin:18px 0}#jlbsod small{font-size:min(2.6vh,20px);opacity:.9}
+@keyframes jlpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}`;
+document.head.appendChild(JL_CSS);
+function jlErrorCascade(self) {
+  let fx = document.getElementById('jlfx'); if (!fx) { fx = document.createElement('div'); fx.id = 'jlfx'; document.body.appendChild(fx); }
+  const texts = ['Se ha producido un error fatal en CLIPPY.EXE', 'Windows no puede encontrar «Ganar.exe»', 'El sistema ha dejado de responder', '¿Guardar los cambios en «Tu vida»?', 'Memoria insuficiente (0x0000007B)', 'Actualizando… no apagues el equipo'];
+  const n = self ? 18 : 6;
+  for (let i = 0; i < n; i++) setTimeout(() => {
+    const w = document.createElement('div'); w.className = 'jlwin'; w.style.left = Math.random() * (innerWidth - 250) + 'px'; w.style.top = Math.random() * (innerHeight - 140) + 'px';
+    w.innerHTML = `<div class="t"><span>${i % 3 ? 'Error crítico' : 'Advertencia'}</span><b>×</b></div><div class="b"><i>✕</i><span>${texts[i % texts.length]}</span></div><div class="k"><span>Aceptar</span></div>`;
+    fx.appendChild(w); setTimeout(() => w.remove(), 2400);
+  }, i * (self ? 85 : 140));
+  if (self) setTimeout(() => {
+    let b = document.getElementById('jlbsod'); if (!b) { b = document.createElement('div'); b.id = 'jlbsod'; b.innerHTML = '<div class="s">:(</div><p>Tu PC tuvo un problema y necesita reiniciarse. Solo estamos recopilando información sobre el error y luego reiniciaremos por ti.</p><small>Código de detención: CLIPPY_IS_WATCHING<br>Qué falló: JESULUTO.SYS</small>'; document.body.appendChild(b); }
+    b.style.display = 'block'; requestAnimationFrame(() => { b.style.opacity = '1'; }); setTimeout(() => { b.style.opacity = '0'; setTimeout(() => { b.style.display = 'none'; }, 200); }, 1000);
+  }, 1500);
+}
+function jlAwaken(f) {
+  if (!f.ch.bsod) return;
+  jlScreen(f, 'bsod', 2.5); if (f.clippy) f.clippy.say('¡PANTALLA AZUL!');
+  explode(f, chestOf(f), 7, { dmg: 8, kb: 12, up: 6, ragdoll: .6, color: '#0078d7', guardBreak: true, hitstop: .1, shake: .5 });
+  popText(chestOf(f), '¡PANTALLA AZUL!', '#3aa0ff', 28);
+  if (involvesPlayerNear(f)) jlErrorCascade(f === G.player);
+}
 // ===== Alas del despertar (Sekza): plumas de voxel que se abren al despertar y aletean =====
 function addWings(model, col) {
   const mat = c => { const m = new THREE.MeshToonMaterial({ color: c, gradientMap: TOON_GRAD, side: THREE.DoubleSide, emissive: 0x000000 }); model.mats.push(m); return m; };
@@ -3388,10 +3567,10 @@ const CHARS = {
     skinData: 'data:image/png;base64,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',
     skin: { skin: '#c8a07a', hair: '#4a2f1b', eye: '#3b82f6', shirt: '#2f6fd6', pants: '#22324d', shoes: '#333333', sleeve: 12 },
     skills: [
-      { n: 'Embestida', d: 'Carga con la lanza al frente y atraviesa a todos en el camino.', k: 'lunge', cd: 7, o: { dmg: 9 }, r: [2, 13], tags: 'gap gb' },
-      { n: 'Lanza Leal', d: 'Arroja la lanza. Si elimina al rival, queda clavada: acércate al cuerpo para recuperarla.', k: 'spearThrow', cd: 6, o: { dmg: 8 }, r: [3, 22], tags: 'proj' },
-      { n: 'Torbellino', d: 'Gira la lanza a tu alrededor, atrae a los rivales y al final los expulsa.', k: 'whirl', cd: 9, o: {}, r: [0, 2.8], tags: 'close aoe' },
-      { n: 'Picado del Dragón', d: 'Salta sobre el rival y clava la lanza en el suelo.', k: 'slam', cd: 10, o: { radius: 3.8, dmg: 12, jump: 15, fwd: 4, track: true, upPose: 'spearThrowW', downPose: 'plunge', landPose: 'plunge' }, r: [2, 12], tags: 'gap aoe gb' },
+      { n: 'Embestida', d: 'Carga con la lanza al frente y atraviesa a todos en el camino.', k: 'lunge', cd: 7, o: { dmg: 12 }, r: [2, 13], tags: 'gap gb' },
+      { n: 'Lanza Leal', d: 'Arroja la lanza. Si elimina al rival, queda clavada: acércate al cuerpo para recuperarla.', k: 'spearThrow', cd: 6, o: { dmg: 11 }, r: [3, 22], tags: 'proj' },
+      { n: 'Torbellino', d: 'Gira la lanza a tu alrededor, atrae a los rivales con cortes seguidos y al final los expulsa con un golpe fuerte.', k: 'whirl', cd: 9, o: {}, r: [0, 2.8], tags: 'close aoe' },
+      { n: 'Picado del Dragón', d: 'Salta sobre el rival y clava la lanza en el suelo.', k: 'slam', cd: 10, o: { radius: 3.8, dmg: 15, jump: 15, fwd: 4, track: true, upPose: 'spearThrowW', downPose: 'plunge', landPose: 'plunge' }, r: [2, 12], tags: 'gap aoe gb' },
     ],
     ult: { n: 'Lluvia de Lanzas', d: 'Salta y hace llover lanzas sobre la zona; la última es gigante.', k: 'spearRain', o: {}, r: [0, 18] },
     intro: [[0, 'reach', 700], [.3, 'thrust_w', 800], [.45, 'thrust', 1100], [.75, 'sweep_w', 800], [.88, 'sweep', 1100], [1.25, 'lancer', 400]],
@@ -3406,12 +3585,12 @@ const CHARS = {
     skinData: 'data:image/png;base64,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',
     skin: { skin: '#e8c79c', hair: '#3e9b35', eye: '#ff2020', shirt: '#2b5fbf', pants: '#f0b400', shoes: '#1d3a8a', sleeve: 12, goggles: '#ff2020' },
     skills: [
-      { n: 'Rayo Óptico', d: 'Láser continuo desde el visor que empuja.', k: 'beam', cd: 8, o: { eyes: true, len: 22, dur: .9, dmg: 2.4, width: .5, charge: .3, push: 5 }, r: [3, 20], tags: 'proj' },
+      { n: 'Rayo Óptico', d: 'Láser continuo desde el visor que empuja.', k: 'beam', cd: 9, o: { eyes: true, len: 20, dur: .9, dmg: 1.9, width: .45, charge: .3, push: 4 }, r: [3, 18], tags: 'proj' },
       { n: 'Ráfaga Óptica', d: 'Tres disparos rápidos de los ojos que persiguen.', k: 'eyeBolts', cd: 5, o: { speed: 48, dmg: 4, stun: .45, size: .22, long: 4, homing: 2 }, r: [3, 24], tags: 'proj' },
-      { n: 'Barrido Láser', d: 'Gira la cabeza disparando y barre todo lo que tenga adelante.', k: 'beam', cd: 10, o: { eyes: true, len: 16, dur: .9, dmg: 2.6, width: .55, charge: .3, push: 3, sweep: 2.2 }, r: [0, 15], tags: 'aoe' },
+      { n: 'Pilar Láser', d: 'Marca el suelo del rival con el visor: un instante después un pilar de luz estalla y lo lanza por el aire.', k: 'pillar', cd: 9, o: { radius: 2.7, delay: .6, dmg: 7, up: 13, ragdoll: .9, color: '#ff2d55' }, r: [2, 16], tags: 'aoe' },
       { n: 'Impulso Óptico', d: 'Dispara al piso: explota y te lanza por el aire.', k: 'optoJump', cd: 8, o: {}, r: [0, 3.5], tags: 'close aoe gb' },
     ],
-    ult: { n: 'Visor Máximo', d: 'Abre el visor del todo: un rayo gigante que rompe guardias.', k: 'beam', o: { eyes: true, len: 45, width: 2.2, dur: 1.8, dmg: 3.4, gb: true, push: 11, charge: .8 }, r: [2, 32] },
+    ult: { n: 'Visor Máximo', d: 'Abre el visor del todo: un rayo gigante que rompe guardias.', k: 'beam', o: { eyes: true, len: 38, width: 1.6, dur: 1.4, dmg: 2.4, gb: true, push: 8, charge: .9 }, r: [2, 28] },
     intro: [[0, 'visorTouch', 600], [.6, 'point', 600], [1.1, 'loose', 400]],
     cine: [[0, 'redStance'], [.5, 'visorTouch'], [.78, 'lookDown'], [1.0, 'charge'], [1.35, 'point'], [1.6, 'redHero']],
     cineEyes: .5,
@@ -3497,6 +3676,22 @@ const CHARS = {
       { n: 'Yunque', d: 'Señala al cielo: un yunque cae sobre el rival (la marca lo sigue un momento) y lo aplasta.', k: 'sebAnvil', cd: 9, o: { dmg: 11 }, r: [2, 20], tags: 'aoe' },
     ],
     ult: { n: 'Verity™', d: 'Abre un paquete misterioso y aparece Verity, la esfera sonriente que lo sabe todo. Al despertar se cura del todo, y Verity lo acompaña: ataca sola y obedece sus habilidades.', k: 'serious', o: {}, r: [0, 12] },
+    intro: [[0, 'idle', 500], [.5, 'castUp', 700], [1.0, 'point', 500], [1.4, 'idle', 400]],
+    cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
+  },
+  jesuluto: {
+    name: 'Jesuluto', title: 'Computadora del Caos', role: 'ORDENADOR', color: '#0078d7', hp: 100, spd: 1, ai: 'mid', stance: 'idle', screenHead: true, bsod: true,
+    desc: 'Una computadora con vida propia. Su pantalla le cambia la cara según la pelea: lanza ventanas de error, vuelve atrás en el tiempo con Ctrl+Z, formatea el piso y siempre lo acompaña Clippy, el asistente que ataca solo. Al despertar llega la Pantalla Azul.',
+    stats: [3, 3, 4, 4, 3],
+    skin: { skin: '#f2b07a', hair: '#e8a860', eye: '#6bff3a', shirt: '#f0a84e', pants: '#f0a84e', shoes: '#f0c9a0', sleeve: 12 },
+    skinData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAExElEQVR42u1aTWgbRxT+1l6w5bUtrLAugtJCUhA9FRpoD6U9hBQSg/FF0B4LRYXGbUIDJRF1Ti24ObYkOCB6d6l6MrELCT320EOhp2YPycEY1EpEQbL1hxumh9Uos7Mz0uxfvWvpwTL7o93R++a97715MxpGCNnbJI4besX5g3+zqDVazPN/BqdmOgXt/e81RCjkwVXC/x9WtMvFof3rKp3Uc+zViw4yjyt9RQ3miykkSZQAyFg8CC+UB8BZQMdhAacCAAqC0AViIryruVw3CAAnPcIOZZgBoEqLeEa7XNRUQNA9Ke961oFpRK+8jINcBOhDppBwGRZlRkUATxwwTJIcBYR+Qs3eTBtuF2DiPOWBWqOjzgkKcfrpk00yIF3XkIlJuH4uizNni1qoUYAqv3rvJ+Hznc/eGygvzSHOZfH8jycAgOk3zwIAnv9uf3f6LTUCkZlyGBygs6MdplBgpmPuAlNm2lBS/vUfLOG5nBdSMNMpZB5XHOcZywbbTBvIWDEAoNZoDQ11QSxglHvEIhNUNf2/Ps4Jz4dZgIpUywUCAMv5UqiTpur2hoMflj/8RhP1q7OjHxYPsCPPRgk7Cjj7o0BVywVCQaBsTiOULBOU5QLV7Q3C6zIApB/FaL8ajxT/okoYlCkvBuAlZ1+SsOZ1Gq2a+/P9aTKTpIr13ig6ns8uZzUVkxYpDADmmSaCzN9d36cm7tOFEp8Kx3YucGX7Gdpv30H7nVu4Un40fgAkpiIk8ykqM39uCtNPvzG+9nSRu9NS8nHVcOqVE/Rcoey6aZXySgrmCmVYpbz0+auPvnSRnJfZZK3Rscn44nfAw2tDo43fIo0uUyzY9DgF4JlLSd8Z58NrQhBizQHtdju8j0WkfKQA3P/itfDAoBaQ1Chw//N3Y2sBOmIutUYH+PkTX/OQUwHAgNU5KwgrCghdoHKwj8rBfnxQiNIFrK11LK7eQHPnNhZXbwAAmju3YaaNAQgzc/P2xKh95PpAc+969ABEGAbtgsjcPGjbax/B/ODrPn0fxYMDAGUe8MwBvfMfAbW/AdoC6LWcivPXp0lG5svdaoV4qQdMpsMTACYATGRsZW1tjfDFE75am8/niddNUIQQQh5cdRxDfx/CmmEoAIjEKwCJ5YCVlRWhosfHx+NBgru7u9ooMBKRCJ20yPxZtnJEfx/1Bs3xSYVjYwHcbDAsCxByQLd1SLqtQzIO9YCp6vYG6bYOCW27rUMyayxos8aCRq+p0Gv2+F8AiLAoKja7vowFB/DTXa+S9Olx6PUAmvrSVaDFC+ve9hdwGzYg2eIymQ1OAJgAEI9ESLY5adRKMF0S97tiHBYn6MHL1nIFcp/eFd63ttaHvufarnfpJvDLt8rgugaFe5/diBUYxaWlpUBh1NpaHw2AAPSwLCD+HHDppn0A47k6zJrueAIg8GHPxJw0DkhUFEAkewIM5+hxruApCgjeZy1Al9UDAGDWWPCFMl1Wz778yslzwIj3p0Tzfb4eUC0XHC17VA72Ua/XUa/XBxsrZn77Cs2964Nrq5R3tOyhzAFBOUTmAqJRprUATdOYZyWudVoLX8ExYW+omJmbt7et9Nuen+Tqx1ve0lvXjvNidPWAoNL89e6JkuB/mTu8MvwY4jwAAAAASUVORK5CYII=',
+    skills: [
+      { n: 'Ventanas de Error', d: 'Lanza tres ventanas de error de Windows en abanico: cada una que acierta aturde un instante al rival.', k: 'jlError', cd: 6, o: { dmg: 4.5 }, r: [3, 20], tags: 'proj' },
+      { n: 'Asistente Clippy', d: '«¡Parece que estás atacando!» Clippy se emociona y durante 8 s dispara clips a toda velocidad.', k: 'jlClippy', cd: 12, o: { dur: 8 }, r: [0, 22], tags: '' },
+      { n: 'Ctrl + Z', d: 'Deshace los últimos 3 segundos: vuelve a donde estaba y recupera parte de la vida perdida.', k: 'jlUndo', cd: 11, o: {}, r: [0, 4], tags: 'gap' },
+      { n: 'Formatear C:', d: 'Empieza a formatear el piso a su alrededor (¡sin apagar!). Al llegar al 100 % estalla, rompe guardias y lanza a los rivales.', k: 'jlFormat', cd: 10, o: { dmg: 11, r: 6.2 }, r: [0, 6], tags: 'close aoe gb' },
+    ],
+    ult: { n: 'Pantalla Azul', d: 'Se cuelga con una Pantalla Azul de la Muerte que lanza una onda y llena todo de errores. Al despertar se cura del todo, Clippy crece y sus habilidades se vuelven puro caos de Windows.', k: 'serious', o: {}, r: [0, 12] },
     intro: [[0, 'idle', 500], [.5, 'castUp', 700], [1.0, 'point', 500], [1.4, 'idle', 400]],
     cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
   },
@@ -3637,6 +3832,12 @@ const AWK = {
     { n: 'Variantes', d: 'Presenta a Lovity y Antiverity: dos esferas orbitan 9 s a su alrededor; Lovity lo cura y Antiverity dispara sombras al rival.', k: 'sebVariants', cd: 16, o: { dur: 9 }, r: [0, 25], tags: '' },
     { n: 'Eclipse', d: 'Verity se hace enorme sobre el rival, oscurece todo y cae de golpe aplastando una zona enorme.', k: 'sebEclipse', cd: 13, o: { dmg: 14, r: 6.5 }, r: [2, 22], tags: 'aoe gb' },
   ],
+  jesuluto: [
+    { n: 'Lluvia de Errores', d: 'Marca una zona y le llueven ventanas de error del cielo: cada una explota al caer.', k: 'jlRain', cd: 11, o: { dmg: 3.6 }, r: [3, 24], tags: 'aoe' },
+    { n: 'Clippy Gigante', d: 'Clippy se hace enorme, se lanza sobre el rival y cae de golpe lanzándolo por los aires.', k: 'jlGiant', cd: 13, o: { dmg: 13 }, r: [3, 22], tags: 'gap gb' },
+    { n: 'Actualización Forzada', d: '«No apagues el equipo»: un campo eléctrico de actualización aturde y daña a quien esté adentro.', k: 'zone', cd: 10, o: { r: 6.5, dur: 5, dmg: 2.3, stun: .5, fx: 'elec' }, r: [0, 6.5], tags: 'aoe' },
+    { n: 'Virus.exe', d: 'Cinco virus orbitan a tu alrededor y salen a infectar al rival.', k: 'orbitals', cd: 9, o: { n: 5, kind: 'orb', dur: 7, rate: .55, proj: { speed: 30, dmg: 5, size: .45, explode: 2.2, homing: 2 } }, r: [0, 25], tags: 'proj' },
+  ],
   kaiza: [
     { n: 'Combo Aéreo', d: 'Gancho al cielo, salta detrás y lo estrella de vuelta.', k: 'airCombo', cd: 8, o: { dmg: 12 }, r: [0, 3], tags: 'close' },
     { n: 'Paso Sísmico', d: 'Tres embestidas que atraviesan al rival.', k: 'dashCombo', cd: 7, o: { n: 3, dmg: 4, dmg2: 11 }, r: [2, 16], tags: 'gap gb' },
@@ -3681,6 +3882,13 @@ for (const id of ['kaiza', 'nyx', 'volt', 'brasa', 'yuki', 'titan']) delete CHAR
 for (const id in CHARS) CHARS[id].id = id;
 const CHAR_IDS = Object.keys(CHARS);
 // muñeco de entrenamiento (no aparece en el selector)
+// Equilibrio: todos pegan algo menos (DMG_GLOBAL) y cada personaje ajusta su fuerza (dmgMul) para que ninguno domine
+const DMG_GLOBAL = .85;
+{
+  const DM = { javi: 1.12, redbird: .88, gato: 1, sekza: 1, rocket: 1, ukyo: .95, sebolla: .92, kaiza: 1, nyx: 1, volt: .95, brasa: .93, yuki: 1, titan: .95, jesuluto: 1 };
+  for (const k in DM) if (CHARS[k]) CHARS[k].dmgMul = DM[k];
+  if (CHARS.titan) CHARS.titan.hp = 122;
+}
 const DUMMY_CH = {
   name: 'Dummy', title: 'Entrenamiento', role: 'DUMMY', color: '#c8a165', hp: 100, spd: .7, ai: 'melee', stance: 'idle', stats: [3, 1, 1, 1, 1],
   skin: { skin: '#d9b77a', hair: '#b8935a', eye: '#3a2a1a', shirt: '#8d6e63', pants: '#5d4037', shoes: '#3e2723', sleeve: 12, belt: '#c62828' },
@@ -3725,6 +3933,7 @@ class Fighter {
     if (this.ch.eyeLaser) addEyes(this.model, this.ch.color);
     if (this.ch.wings) addWings(this.model, this.ch.color);
     if (this.ch.legs) addSpiderLegs(this.model, this.ch.color);
+    if (this.ch.screenHead) addScreen(this.model);
     this.pos = new V3(); this.vel = new V3(); this.yaw = 0; this.prevYaw = 0; this.yawVel = 0; this.walk = 0;
     this.maxHp = this.ch.hp; this.kills = 0; this.deaths = 0;
     this.ai = (this.isPlayer || this.remote) ? null : { var: o.lvlVar || 0, P: aiParams(G.botLvl), target: null, retarget: 0, think: rand(0, .5), strafe: 1, strafeT: 0, blockT: 0, jumpT: rand(1, 4), flee: 0, seen: null, react: null, reactT: 0, m1hold: 0, dodgeDir: 0 };
@@ -3742,7 +3951,7 @@ class Fighter {
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
-  dispose() { releaseOwnerSpear(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
+  dispose() { releaseOwnerSpear(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
 const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
@@ -4042,6 +4251,32 @@ function sfx(k, pos, mul = 1) {
   }
 }
 
+// ================= Música: menú y peleas (archivos en musica/) =================
+const MUS = { tracks: { menu: 'musica/menu.mp3', fight: ['musica/pelea1.mp3', 'musica/pelea2.mp3', 'musica/pelea3.mp3'] }, el: null, old: null, want: '', idx: -1, vol: .32, on: true };
+try { MUS.on = localStorage.getItem('bsb_music') !== '0'; const v = parseFloat(localStorage.getItem('bsb_music_vol')); if (v >= 0 && v <= 1) MUS.vol = v; } catch (e) { }
+function musicPlay(src, loop) {
+  const el = new Audio(src); el.loop = !!loop; el.volume = 0; el.preload = 'auto';
+  if (MUS.old) { MUS.old.pause(); MUS.old = null; }
+  MUS.old = MUS.el; MUS.el = el;
+  const pr = el.play(); if (pr && pr.catch) pr.catch(() => { });
+  if (!loop) el.addEventListener('ended', () => { if (MUS.el === el && MUS.want === 'fight') musicNextFight(); });
+}
+function musicNextFight() { const n = MUS.tracks.fight.length; let i; do { i = Math.floor(Math.random() * n); } while (i === MUS.idx && n > 1); MUS.idx = i; musicPlay(MUS.tracks.fight[i], false); }
+function updateMusic(dt) {
+  const want = G.state === 'menu' ? 'menu' : (G.state === 'play' || G.over) ? 'fight' : '';
+  if (want !== MUS.want) { MUS.want = want; if (want === 'menu') musicPlay(MUS.tracks.menu, true); else if (want === 'fight') musicNextFight(); }
+  const duck = (G.paused ? .45 : 1) * ((G.cine || STAGE.on) ? .4 : 1), target = MUS.on ? MUS.vol * duck : 0;
+  if (MUS.el) { const d = target - MUS.el.volume; MUS.el.volume = clamp(MUS.el.volume + clamp(d, -dt * .6, dt * .35), 0, 1); }
+  if (MUS.old) { MUS.old.volume = Math.max(0, MUS.old.volume - dt * .9); if (MUS.old.volume <= .01) { MUS.old.pause(); MUS.old = null; } }
+}
+function musicKick() { if (MUS.el && MUS.el.paused && MUS.on) { const pr = MUS.el.play(); if (pr && pr.catch) pr.catch(() => { }); } }
+addEventListener('pointerdown', musicKick, true); addEventListener('keydown', musicKick, true);
+function toggleMusic() {
+  MUS.on = !MUS.on; try { localStorage.setItem('bsb_music', MUS.on ? '1' : '0'); } catch (e) { }
+  if (MUS.on) musicKick();
+  if (G.state === 'play') { try { addFeedText(MUS.on ? 'Música activada' : 'Música desactivada', '#9fd3ff'); } catch (e) { } }
+}
+addEventListener('keydown', e => { if (e.code === 'KeyM' && !e.repeat && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') toggleMusic(); });
 // ================= Ambiente sonoro con grabaciones reales (carpeta sonidos/, ver sonidos/CREDITOS.md) =================
 // Con servidor se decodifican con WebAudio (bucles sin cortes y apagado de la calle al entrar); abriendo el archivo sin servidor (file://)
 // se reproducen con elementos <audio> (solo volumen).
@@ -4174,7 +4409,7 @@ function counterHit(t, att) {
 function netHit(att, t, o) {
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
-  const dmg = o.dmg * (att.awak > 0 ? 1.15 : 1), col = o.color || att.ch.color, heavy = (o.ragdoll || 0) > 0 || o.dmg >= 8;
+  const dmg = o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.ch.dmgMul || 1) * DMG_GLOBAL, col = o.color || att.ch.color, heavy = (o.ragdoll || 0) > 0 || o.dmg >= 8;
   NET.hitsOut.push({ s: ++NET.hitSeq, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col, sf: o.spearFinish || null });
   while (NET.hitsOut.length > 10) NET.hitsOut.shift();
   att.ult = Math.min(100, att.ult + dmg * ULT_GAIN); t.flashT = .12;
@@ -4216,7 +4451,7 @@ function applyHit(att, t, o) {
       }
     }
   }
-  const dmg = o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg);
+  const dmg = o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL;
   t.hp -= dmg;
   if (dmg >= .5 && t !== att && (att.fireT > 0 || (att.awak > 0 && att.ch.fireSword))) poisonOn(t, att, { dps: att.fireT > 0 ? 2.4 : 1.6, dur: 3.2, col: '#ff7a1a', label: 'ARDE' });   // Espada de Fénix y despertar de ItzUkyo: quema
   att.ult = Math.min(100, att.ult + dmg * 1.1 * ULT_GAIN); t.ult = Math.min(100, t.ult + dmg * .6 * ULT_GAIN);
@@ -6307,6 +6542,84 @@ const MOVES = {
       steps: [{ at: .3, fn: () => pulse(6.5, o.dmg || 6, 6, 0) }, { at: .65, fn: () => pulse(9, (o.dmg || 6) * 1.3, 12, .8) }],
     });
   },
+  // ---------- Jesuluto: la computadora (ventanas de error, Clippy, Ctrl+Z, formatear y pantalla azul) ----------
+  jlError(f, o) {
+    startAction(f, {
+      name: 'jlError', dur: .5, speedMul: .3, aim: true, anim: [[0, 'castUp', 400], [.2, 'point', 400]],
+      start: () => jlScreen(f, 'error', 1.2),
+      steps: [{ at: .2, fn: () => { sfx('zap', f.pos); for (let i = -1; i <= 1; i++) jlLaunchWindow(f, f.yaw + i * .24, o); } }],
+    });
+  },
+  jlClippy(f, o) {
+    startAction(f, {
+      name: 'jlClippy', dur: .55, speedMul: .3, anim: [[0, 'castUp', 500]],
+      steps: [{ at: .2, fn: () => {
+        f.jlFury = G.time + (o.dur || 8); jlScreen(f, 'clippy', 1.4);
+        if (f.clippy) { f.clippy.say('¡Parece que estás atacando!'); ringAt(f.clippy.pos.clone(), '#cfd6df', 2.6, .4); burst(f.clippy.pos.clone(), 14, '#cfd6df', 6, .14, .4, 0); }
+        sfx('tp', f.pos);
+      } }],
+    });
+  },
+  jlUndo(f, o) {
+    startAction(f, {
+      name: 'jlUndo', dur: .55, speedMul: 0, armor: true, anim: [[0, 'charge', 500]],
+      start: () => { jlScreen(f, 'undo', 1.2); popText(chestOf(f), 'Ctrl + Z', '#7ad7ff', 26); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7ad7ff', 3, .4); },
+      steps: [{ at: .3, fn: () => {
+        const h = f.jlHist, snap = h && h[0]; if (!snap) return;
+        ghost(f, '#0078d7', .6, .45);
+        const heal = Math.max(10, (snap.hp - f.hp) * .6); if (!f.remote) { f.pos.set(snap.x, snap.y, snap.z); f.vel.set(0, 0, 0); f.hp = Math.min(f.maxHp, f.hp + heal); }
+        f.jlHist = [];
+        ghost(f, '#0078d7', .6, .45); burst(chestOf(f), 24, '#7ad7ff', 8, .18, .5, 0); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7ad7ff', 4, .45); sfx('tp', f.pos);
+        popText(chestOf(f), '+' + Math.round(heal), '#7dff6a', 22);
+      } }],
+    });
+  },
+  jlFormat(f, o) {
+    const R = o.r || 6.2; let pct = 0;
+    startAction(f, {
+      name: 'jlFormat', dur: 1.9, speedMul: .12, armor: true, anim: [[0, 'charge', 500], [.5, 'vpose', 800]],
+      start: () => { jlScreen(f, 'load', 2.0); popText(chestOf(f), 'Formateando C:\\ …', '#7ad7ff', 22); warnCircle(new V3(f.pos.x, groundAt(f.pos.x, f.pos.z), f.pos.z), R, '#0078d7', 1.7); sfx('zap', f.pos); },
+      tick: (a, t) => {
+        const k = clamp(t / 1.65, 0, 1), np = Math.floor(k * 10) * 10;
+        if (np !== pct) { pct = np; popText(new V3(f.pos.x, f.pos.y + 2.4, f.pos.z), pct + ' %', '#7ad7ff', 16); sfx('select', f.pos, .5); }
+        if (Math.random() < .5) { const an = rand(0, TAU), rr = R * rand(.3, 1); emit(f.pos.x + Math.cos(an) * rr, f.pos.y + .2, f.pos.z + Math.sin(an) * rr, 0, rand(1, 3), 0, '#3aa0ff', .14, .5, 0, 1); }
+      },
+      steps: [{ at: 1.65, fn: () => {
+        const c = new V3(f.pos.x, f.pos.y + 1, f.pos.z); popText(chestOf(f), '¡100 %!', '#ffffff', 26);
+        explode(f, c, R, { dmg: o.dmg || 11, kb: 12, up: 7, ragdoll: .9, stun: .8, color: '#0078d7', guardBreak: true, hitstop: .1, shake: .5 }); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7ad7ff', R * 1.4, .5);
+        burst(c, 40, '#3aa0ff', 11, .22, .6, .3); sfx('boom', f.pos);
+      } }],
+    });
+  },
+  jlRain(f, o) {
+    const tg = findTarget(f, 24), F = fwd(f.yaw), c0 = tg ? new V3(tg.pos.x, 0, tg.pos.z) : new V3(f.pos.x + F.x * 9, 0, f.pos.z + F.z * 9);
+    clampArena(c0, 3); c0.y = groundAt(c0.x, c0.z);
+    startAction(f, {
+      name: 'jlRain', dur: .8, speedMul: .2, aim: true, anim: [[0, 'castUp', 700]],
+      start: () => { jlScreen(f, 'error', 2.6); warnCircle(c0, 6.4, '#0078d7', 2.8); sfx('zap', f.pos); popText(chestOf(f), 'Error 0x80004005', '#7ad7ff', 20); },
+      steps: [{ at: .3, fn: () => {
+        let n = 0; const spawn = () => { if (n >= 16 || G.state !== 'play') return; n++; const a = rand(0, TAU), r = Math.sqrt(Math.random()) * 6; jlFallWindow(f, c0.x + Math.cos(a) * r, c0.z + Math.sin(a) * r, o); later(.14, spawn); };
+        spawn();
+      } }],
+    });
+  },
+  jlGiant(f, o) {
+    const tg = findTarget(f, 22), F = fwd(f.yaw), dest = tg ? tg.pos.clone() : new V3(f.pos.x + F.x * 10, 0, f.pos.z + F.z * 10);
+    clampArena(dest, 1.5); dest.y = groundAt(dest.x, dest.z);
+    startAction(f, {
+      name: 'jlGiant', dur: 1.3, speedMul: .15, aim: true, anim: [[0, 'point', 500]],
+      start: () => { jlScreen(f, 'clippy', 1.6); if (f.clippy) f.clippy.say('¡Parece que vas a perder!'); warnCircle(dest, 5, '#0078d7', 1.0); },
+      steps: [
+        { at: .25, fn: () => {
+          const c = f.clippy; if (!c) return; const from = c.pos.clone(), t0 = G.time;
+          c.ov = { until: G.time + 1.1, sc: 3.4, mood: 'angry', pos: () => { const u = clamp((G.time - t0 - .1) / .55, 0, 1); return new V3(from.x + (dest.x - from.x) * u, from.y + (dest.y + 2.2 - from.y) * u + Math.sin(u * Math.PI) * 3, from.z + (dest.z - from.z) * u); } };
+        } },
+        { at: .95, fn: () => {
+          const c = new V3(dest.x, dest.y + 1, dest.z); explode(f, c, 5, { dmg: o.dmg || 13, kb: 13, up: 9, ragdoll: 1.2, color: '#0078d7', guardBreak: true, hitstop: .12, shake: .6 });
+          popText(c, '¡CLIC!', '#ffffff', 28); burst(c, 36, '#cfd6df', 10, .2, .6, .3); ringAt(new V3(dest.x, dest.y + .1, dest.z), '#7ad7ff', 6, .5); sfx('boom', dest);
+        } }],
+    });
+  },
   // ---------- Seb0lla: habilidades originales (memes de Minecraft y Verity) ----------
   // Paquete Misterioso: se lanza en arco, tiembla un instante y se abre de sorpresa
   sebPackage(f, o) {
@@ -6758,7 +7071,7 @@ const MOVES = {
         while (acc >= .11 && n < hits) {
           acc -= .11; n++; const last = n === hits, c = chestOf(f);
           arcSlash(f, o.color, { tilt: rand(-.12, .12), len: TAU * .85, r: 2.5, w: .35, dur: .16 });
-          for (const g of enemiesOf(f)) if (chestOf(g).distanceTo(c) < 2.8) applyHit(f, g, last ? { dmg: 5, kb: 15, up: 8, ragdoll: 1, color: o.color, guardBreak: true, hitstop: .07, shake: .3 } : { dmg: 1.8, stun: .45, kb: -2.5, color: o.color, hitstop: 0, shake: .05 });
+          for (const g of enemiesOf(f)) if (chestOf(g).distanceTo(c) < 2.8) applyHit(f, g, last ? { dmg: 9, kb: 17, up: 9, ragdoll: 1.1, color: o.color, guardBreak: true, hitstop: .08, shake: .35 } : { dmg: 2.7, stun: .45, kb: -2.5, color: o.color, hitstop: 0, shake: .05 });
           sfx('swing', f.pos, .5);
         }
       },
@@ -7132,6 +7445,7 @@ function runUlt(f) {
   burst(chestOf(f), 40, f.ch.color, 10, .25, .7, -.3);
   ringAt(new V3(f.pos.x, f.pos.y, f.pos.z), f.ch.color, 6, .6);
   sfx('ult', f.pos);
+  jlAwaken(f);
 }
 function startCine(f) {
   G.cine = { f, t: 0, dur: 2.6, shot: 0, drawn: !!f.spearOut };
@@ -7761,6 +8075,7 @@ function animate(f, dt) {
   else m.mats.forEach(x => x.emissive.setRGB(0, 0, 0));
   updateSwordFire(f, m, dt, T);   // después del destello de golpe: si no, este lo pisa
   updateVerity(f, m, dt, T);
+  updateJesuluto(f, m, dt, T);
 }
 
 // ================= HUD =================
@@ -8283,10 +8598,18 @@ function autoBalance(dt) {
 // ================= Input =================
 const canvas = renderer.domElement;
 let locked = false, lockFailed = false;
-function requestLock() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { lockFailed = true; }); } catch (e) { lockFailed = true; } }
+// Captura del mouse robusta: movimiento sin aceleración del sistema y reintentos (el navegador rechaza el bloqueo si se pide justo después de soltarlo)
+function requestLock(tries = 0) {
+  if (document.pointerLockElement === canvas) return;
+  const retry = () => { if (tries < 8 && G.state === 'play' && !G.paused && !G.over) setTimeout(() => requestLock(tries + 1), 180 + tries * 120); else lockFailed = true; };
+  try {
+    let r; try { r = canvas.requestPointerLock({ unadjustedMovement: true }); } catch (e) { r = canvas.requestPointerLock(); }
+    if (r && r.catch) r.catch(() => { try { const r2 = canvas.requestPointerLock(); if (r2 && r2.catch) r2.catch(retry); } catch (e) { retry(); } });
+  } catch (e) { retry(); }
+}
 function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 document.addEventListener('pointerlockchange', () => {
-  locked = document.pointerLockElement === canvas;
+  locked = document.pointerLockElement === canvas; if (locked) lockFailed = false;
   if (!locked && G.state === 'play' && !G.over && !G.panelOpen) setPause(true);
 });
 document.addEventListener('pointerlockerror', () => { lockFailed = true; });
@@ -8311,21 +8634,44 @@ addEventListener('keydown', e => {
   if (G.viewer) { if (e.code === 'Escape') closeViewer(); else if (e.code === 'Space') { vTogglePlay(); e.preventDefault(); } return; }
   if(!G.over&&e.code==='Escape'&&!locked){e.preventDefault();if(G.panelOpen)togglePanel(false);else if(G.paused){if($('pause').dataset.view==='options')setPauseView('home');else{setPause(false);requestLock();}}else setPause(true);return;}
   if (!G.over && e.code === 'KeyP') { setPause(!G.paused); if (!G.paused) requestLock(); return; }
-  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { } }
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { if (!e.repeat) { slTap = true; } } else slTap = false;
   if(e.code==='KeyR'&&!e.repeat&&!G.panelOpen&&!G.paused&&!G.over){if(G.player?.ch===CHARS.sekza){e.preventDefault();sekzaSpecialKey(G.player);}return;}
   if (e.code === 'KeyH' && !e.repeat && !G.paused && !G.over) { togglePanel(); return; }
   if (!keys[e.code]) pressed.add(e.code);
   keys[e.code] = true;
 });
-addEventListener('keyup', e => { keys[e.code] = false; });
+let slTap = false;
+function toggleShiftLock() { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { } }
+addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && slTap) { slTap = false; if (G.state === 'play' && !G.paused && !G.over && !G.panelOpen && !G.viewer) toggleShiftLock(); }
+});
 addEventListener('keydown', e => { if (e.code === 'F3') { G.netDbg = !G.netDbg; e.preventDefault(); } });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.left = mouse.right = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.left = mouse.right = false; slTap = false; });
+// Cursor propio: flecha de píxeles en los menús; durante el combate no se muestra el del sistema (la mira es el centro) y un aviso pide hacer clic si se perdió la captura
+{
+  const arrow = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 12 12' shape-rendering='crispEdges'><path d='M1 1h2v1h1v1h1v1h1v1h1v1h1v1H6v1h1v2H6V9H5V8H4v1H3V8H2V3H1z' fill='#fff' stroke='#10131c' stroke-width='1'/></svg>`;
+  const hand = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 12 12' shape-rendering='crispEdges'><path d='M4 1h2v4h1V4h1v1h1V4h1v4H9v2H5V9H4V7H3V6h1z' fill='#fff' stroke='#10131c' stroke-width='1'/></svg>`;
+  const st = document.createElement('style');
+  st.textContent = `html,body{cursor:url("data:image/svg+xml;utf8,${encodeURIComponent(arrow)}") 2 2,default}
+button,select,summary,label,input[type=range],input[type=checkbox],.card,[role=button]{cursor:url("data:image/svg+xml;utf8,${encodeURIComponent(hand)}") 8 2,pointer}
+body.inplay,body.inplay *{cursor:none!important}
+#lockhint{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:35;background:rgba(10,14,24,.82);border:2px solid #7ad7ff;color:#fff;padding:7px 16px;border-radius:6px;font:700 15px "Chakra Petch",sans-serif;display:none;pointer-events:none}`;
+  document.head.appendChild(st);
+  const hint = document.createElement('div'); hint.id = 'lockhint'; hint.textContent = 'Haz clic en el juego para recuperar el control del mouse'; document.body.appendChild(hint);
+  setInterval(() => {
+    const play = G.state === 'play' && !G.paused && !G.over && !G.viewer;
+    document.body.classList.toggle('inplay', play && locked);
+    hint.style.display = play && !locked ? 'block' : 'none';
+  }, 200);
+}
 addEventListener('pointerdown', () => initAudio(), { once: true });
 canvas.addEventListener('mousedown', e => {
   if (G.viewer) { VW.drag = true; return; }
   if (G.state !== 'play' || G.paused || G.over) return;
   initAudio();
-  if (!locked && !lockFailed) requestLock();
+  if (!locked) { lockFailed = false; requestLock(); }
+  slTap = false;
   if (e.button === 0) mouse.left = true; if (e.button === 2) mouse.right = true;
 });
 addEventListener('mouseup', e => { if (e.button === 0) mouse.left = false; if (e.button === 2) mouse.right = false; });
@@ -9044,7 +9390,7 @@ function proxyUpdate(px, dt) {
   const fl = Math.max(0, px.flashT) / .12;
   m.mats.forEach(x => { if (fl > 0) x.emissive.setRGB(fl * .9, fl * .9, fl * .9); else if (px.awak) x.emissive.set(px.ch.color).multiplyScalar(.15); else x.emissive.setRGB(0, 0, 0); });
   if (px.action) updateAction(px, dt);
-  eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000); updateWings(px, m, .016, performance.now() / 1000); updateSpiderLegs(px, m, .016, performance.now() / 1000); updateSwordFire(px, m, .016, performance.now() / 1000); updateVerity(px, m, .016, performance.now() / 1000);
+  eyeGlow(m, !!(px.action && px.action.eyes) || px.awak > 0, performance.now() / 1000); updateWings(px, m, .016, performance.now() / 1000); updateSpiderLegs(px, m, .016, performance.now() / 1000); updateSwordFire(px, m, .016, performance.now() / 1000); updateVerity(px, m, .016, performance.now() / 1000); updateJesuluto(px, m, .016, performance.now() / 1000);
   updateAura(px, dt, performance.now() / 1000);
   updateFace(px, dt);
 }
@@ -9537,7 +9883,7 @@ function loop(now) {
   updateFaceAnims(now / 1000);
   for (const c of CLOUDS) { c.position.x += rdt * 1.5; if (c.position.x > 160) c.position.x = -160; }
   IMPACT.cd -= rdt; if (IMPACT.t > 0) IMPACT.t -= rdt;
-  if (G.state === 'menu') { updateCityWeather(0); updateShow(rdt); updateFx(rdt); renderView(SH.scene, SH.cam); drawLines(rdt); return; }
+  if (G.state === 'menu') { updateMusic(rdt); updateCityWeather(0); updateShow(rdt); updateFx(rdt); renderView(SH.scene, SH.cam); drawLines(rdt); return; }
   if (G.cine && !G.paused) updateCine(rdt);
   else {
     let dt = rdt * (G.slowT > 0 ? .3 : 1);
@@ -9554,6 +9900,7 @@ function loop(now) {
   updateCamera(rdt);
   updateCityWeather(G.paused && !G.mp ? 0 : rdt);
   updateAmbience(rdt);
+  updateMusic(rawDt > .5 ? .05 : rdt);
   updateBeach(rdt);
   try { updateVolley(rdt); } catch (e) { if (VB.on) vbEnd('error'); }
   // durante el hitstop de una coreografía, el que recibe vibra (congelado pero temblando, como en el anime)
