@@ -11,8 +11,11 @@ if errorlevel 1 (
 rem 1) servidor del juego en su propia ventana
 start "Blockstrike - Servidor" cmd /k "cd /d %~dp0 && set PORT=52018 && node server\server.js"
 timeout /t 2 >nul
-rem 2) tunel gratis (localhost.run): muestra el link para tus amigos y lo guarda en publico.txt
-start "Blockstrike - Tunel" powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Tunel_Gratis.ps1"
+rem 2) tunel gratis: si dejaste cloudflared.exe en esta carpeta usa Cloudflare (mas estable); si no, localhost.run
+set "TUNEL=%~dp0Tunel_Gratis.ps1"
+if exist "%~dp0cloudflared.exe" set "TUNEL=%~dp0Tunel_Cloudflare.ps1"
+if exist "%~dp0cloudflared\cloudflared.exe" set "TUNEL=%~dp0Tunel_Cloudflare.ps1"
+start "Blockstrike - Tunel" powershell -NoProfile -ExecutionPolicy Bypass -File "%TUNEL%"
 timeout /t 12 >nul
 rem 3) abre el juego para ti
 start "" "http://localhost:52018/"
