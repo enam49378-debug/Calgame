@@ -2129,9 +2129,9 @@ const AWK = {
     { n: 'Truco Final', d: 'Reverencia burlona, lo da vuelta en el aire y una copia lo remata.', k: 'chore', cd: 14, o: { id: 'gatoTrick' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   redbird: [
-    { n: 'Sobrecarga del Visor', d: 'MANTENÉ la tecla para cargar el visor (3 niveles: más ancho, más largo, más daño) y SOLTÁ para disparar. Si te golpean se pierde la carga; si pasás de 2,5 s el visor revienta y te aturde.', k: 'rbOverload', cd: 10, o: {}, r: [4, 26], tags: 'proj gb' },
-    { n: 'Prismas Reflectantes', d: 'TOCÁ la tecla hasta 3 veces: cada toque deja un prisma alrededor del rival. Al tercero (o si te frenás) el rayo rebota prisma por prisma, cada rebote pega más fuerte, y termina estallando en el rival.', k: 'rbMirrors', cd: 11, o: {}, r: [3, 24], tags: 'proj gap' },
-    { n: 'Bombardeo Orbital', d: 'TOCÁ para enlazar el satélite: la marca persigue al rival con retraso y crece con el tiempo. TOCÁ DE NUEVO para disparar el pilar y dos ondas de columnas. Moverte te deja libre mientras tanto.', k: 'rbSatellite', cd: 14, o: {}, r: [4, 26], tags: 'aoe' },
+    { n: 'Sobrecarga del Visor', d: 'Carga el visor al máximo y suelta un rayo enorme que rompe guardias y empuja muy lejos.', k: 'rbOverload', cd: 10, o: { hold: 1.95 }, r: [4, 26], tags: 'proj gb' },
+    { n: 'Prismas Reflectantes', d: 'Deja tres prismas alrededor del rival y el rayo rebota en todos, pegando más fuerte en cada rebote.', k: 'rbMirrors', cd: 11, o: {}, r: [3, 24], tags: 'proj gap' },
+    { n: 'Bombardeo Orbital', d: 'Una marca persigue al rival con retraso y el satélite dispara un pilar con dos ondas de columnas.', k: 'rbSatellite', cd: 14, o: { at: 1.7 }, r: [4, 26], tags: 'aoe' },
     { n: 'Cadena Óptica', d: 'Se teletransporta al rival y empieza una secuencia de 4 flechas (W A S D o flechas): cada acierto lo golpea desde ese lado; si fallás se corta. Con las 4, lo lanza al aire y lo remata con un rayo del cielo.', k: 'rbChain', cd: 13, o: {}, r: [0, 12], tags: 'close gap gb' },
   ],
   kaiza: [
@@ -3882,7 +3882,7 @@ const MOVES = {
   // 1 · mantener para cargar y soltar para disparar
   rbOverload(f, o) {
     const LV = [.55, 1.2, 1.9], MAXC = 2.5, COL = ['#ff2d55', '#ff7a1a', '#ffe14d', '#ffffff'], NAME = ['CARGANDO…', 'NIVEL 1', 'NIVEL 2', '¡NIVEL MÁXIMO!'];
-    const lvl = t => (t >= LV[2] ? 3 : t >= LV[1] ? 2 : t >= LV[0] ? 1 : 0), hold = rand(.8, 2.2);
+    const lvl = t => (t >= LV[2] ? 3 : t >= LV[1] ? 2 : t >= LV[0] ? 1 : 0), hold = o.hold || rand(.8, 2.2);
     startAction(f, { name: 'rbCharge', dur: MAXC + 1, bbClip: 'despertar_carga', anim: [[0, 'visorTouch', 700]], speedMul: .12, aim: true, eyes: true });
     const fire = L => {
       seqEnd(f);
@@ -3893,7 +3893,7 @@ const MOVES = {
       if (f.isPlayer) { G.fovKick = Math.max(G.fovKick, 4 + L * 3); G.shake = Math.max(G.shake, .25 * L); }
     };
     seqStart(f, {
-      slot: o.slot, lock: true, lv: 0,
+      slot: o.slot, lock: true, lv: 0, autoOnly: true,
       auto: (s, k) => k === 'held' && s.t < hold,
       onCancel: () => { if (f.action && f.action.name === 'rbCharge') endAction(f); },
       step(f, s, i) {
@@ -3905,7 +3905,7 @@ const MOVES = {
         }
         const an = rand(0, TAU), rr = 1.2 + L * .35;
         emit(org.x + Math.cos(an) * rr, org.y + rand(-.8, .8), org.z + Math.sin(an) * rr, -Math.cos(an) * 8, rand(-1, 1), -Math.sin(an) * 8, COL[L], .12 + L * .03, .18, 0, 0);
-        s.hud = { txt: NAME[L] + (L ? '  ·  soltá para disparar' : ''), pct: s.t / MAXC, col: COL[L] };
+        s.hud = { txt: NAME[L], pct: s.t / MAXC, col: COL[L] };
         if (s.t >= MAXC) {
           seqEnd(f); endAction(f);
           explode(f, chestOf(f), 4.5, { dmg: 6, kb: 10, up: 6, ragdoll: .6, color: COL[0] });
@@ -3948,14 +3948,14 @@ const MOVES = {
       later(.12 + legs * .14 + .35, killMirrors);
     };
     const seq = seqStart(f, {
-      slot: o.slot, lock: true, last: 0,
+      slot: o.slot, lock: true, last: 0, autoOnly: true,
       auto: (s, k) => k === 'tap' && mirrors.length < 3 && s.t - s.last > .4,
       onCancel: killMirrors,
       step(f, s, i) {
         if (s.firing) return;
         if (i.down && mirrors.length < 3) { place(s); if (mirrors.length >= 3) { s.firing = true; later(.35, () => shoot(s)); } }
         else if (s.t - s.last > 3) { s.firing = true; shoot(s); return; }
-        s.hud = { txt: `PRISMAS ${mirrors.length}/3  ·  tocá [${o.slot + 1}] para otro prisma`, pct: 1 - (s.t - s.last) / 3, col: COL[Math.min(mirrors.length, 3)] };
+        s.hud = { txt: `PRISMAS ${mirrors.length}/3`, pct: 1 - (s.t - s.last) / 3, col: COL[Math.min(mirrors.length, 3)] };
       },
     });
     place(seq);
@@ -3970,16 +3970,16 @@ const MOVES = {
     ring.rotation.x = disc.rotation.x = -Math.PI / 2; pil.position.y = 20; grp.add(ring, disc, pil);
     const mk = { dead: false }; sfx('zap', pos); ringAt(pos, COL, 3, .4);
     addFx(grp, 8, g => { if (mk.dead) g.visible = false; }, () => { rg.dispose(); ring.material.dispose(); cg.dispose(); disc.material.dispose(); pg.dispose(); pil.material.dispose(); });
-    const at = rand(1.2, 2.6);
+    const at = o.at || rand(1.2, 2.6);
     seqStart(f, {
-      slot: o.slot, lock: false, tg: tg0, fired: false,
+      slot: o.slot, lock: false, tg: tg0, fired: false, autoOnly: true,
       auto: (s, k) => k === 'tap' && s.t > at,
       onCancel: () => { mk.dead = true; },
       step(f, s, i) {
         if (s.tg && s.tg.alive) { pos.x += (s.tg.pos.x - pos.x) * Math.min(1, 2.2 * i.dt); pos.z += (s.tg.pos.z - pos.z) * Math.min(1, 2.2 * i.dt); pos.y = groundAt(pos.x, pos.z); }
         const pw = clamp(s.t / 2.5, 0, 1), R = 3 + 2.2 * pw, pul = 1 + Math.sin(s.t * 12) * .05;
         grp.position.set(pos.x, pos.y + .1, pos.z); ring.scale.set(R * pul, R * pul, 1); disc.scale.set(R, R, 1); pil.scale.set(.5 + pw, 1, .5 + pw);
-        s.hud = { txt: `SATÉLITE ENLAZADO  ·  poder ${Math.round(pw * 100)}%  ·  tocá [${o.slot + 1}] para disparar`, pct: pw, col: pw >= 1 ? '#ffffff' : COL };
+        s.hud = { txt: `SATÉLITE ENLAZADO  ·  poder ${Math.round(pw * 100)}%`, pct: pw, col: pw >= 1 ? '#ffffff' : COL };
         if (s.t > 4.5 || (i.down && s.t > .45)) {
           const P = pos.clone(), dmg = 7 + 6 * pw;
           mk.dead = true; seqEnd(f);
@@ -4783,8 +4783,9 @@ function seqStart(f, s) {
 }
 function seqTick(f, c, dt) {
   const s = f.seq; s.t += dt;
-  const down = f.isPlayer ? c.skill === s.slot : !!(s.auto && s.auto(s, 'tap'));
-  const held = f.isPlayer ? !!keys['Digit' + (s.slot + 1)] : !!(s.auto && s.auto(s, 'held'));
+  const A = s.autoOnly || !f.isPlayer;
+  const down = A ? !!(s.auto && s.auto(s, 'tap')) : c.skill === s.slot;
+  const held = A ? !!(s.auto && s.auto(s, 'held')) : !!keys['Digit' + (s.slot + 1)];
   s.step(f, s, { down, held, dt });
   if (f.seq === s && f.isPlayer) seqHud(s);
 }
