@@ -4634,18 +4634,69 @@ const involvesPlayerNear = f => G.player && G.player.alive && f.pos.distanceTo(G
 
 // ================= Efectos =================
 const FX = [];
-function addFx(obj, dur, upd, dispose, sc = scene) { sc.add(obj); FX.push({ obj, t: 0, dur, upd, dispose, sc }); upd(obj, 0); }
+// Frame errors are local diagnostics; a failed cosmetic task must not block the next image.
+const FRAME_HEALTH={build:'2026-11-01-frame-recovery',errors:[],contextLost:false,rendered:0};
+function reportFrameError(stage,error){
+  const message=String(error?.message||error),key=stage+':'+message;
+  let record=FRAME_HEALTH.errors.find(r=>r.key===key);
+  if(record){record.count++;return;}
+  record={key,stage,message,stack:String(error?.stack||'').slice(0,2500),count:1,time:Math.round(G.time*100)/100,character:G.player?.ch.id||null};
+  FRAME_HEALTH.errors.push(record);if(FRAME_HEALTH.errors.length>12)FRAME_HEALTH.errors.shift();
+  console.error('[Blockstrike] '+stage,error);
+  try{localStorage.setItem('bsb_runtime_errors_v1',JSON.stringify({build:FRAME_HEALTH.build,errors:FRAME_HEALTH.errors}));}catch(_){}
+}
+function frameTask(stage,fn,recover){
+  try{fn();return true;}catch(error){reportFrameError(stage,error);if(recover)try{recover();}catch(e){reportFrameError(stage+':recuperacion',e);}return false;}
+}
+function cancelFailedAction(f){
+  try{endAction(f);}finally{f.vel.x=f.vel.z=0;f.forcePose=null;if(f.ai){f.ai.target=null;f.ai.retarget=0;}}
+}
+function removeFx(f){
+  const index=FX.indexOf(f);if(index>=0)FX.splice(index,1);
+  // Remove before disposal: a broken disposer cannot be retried forever every frame.
+  f.sc.remove(f.obj);
+  frameTask('efecto:limpieza',()=>{
+    if(f.dispose){f.dispose();return;}
+    const geometries=new Set(),materials=new Set();
+    f.obj.traverse(o=>{if(o.geometry)geometries.add(o.geometry);for(const m of(Array.isArray(o.material)?o.material:[o.material]))if(m)materials.add(m);});
+    geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());
+  });
+}
+function drawFrameSafely(){
+  if(FRAME_HEALTH.contextLost||renderer.getContext().isContextLost())return;
+  if(frameTask('imagen',()=>{if(G.state==='menu')renderView(SH.scene,SH.cam);else renderMain();})){FRAME_HEALTH.rendered++;return;}
+  // A failed postprocess/panel must not leave rendering redirected to an offscreen buffer.
+  frameTask('imagen:directa',()=>{
+    GFX.post=false;renderer.setRenderTarget(null);renderer.setScissorTest(false);renderer.setViewport(0,0,innerWidth,innerHeight);renderer.autoClear=true;
+    scene.overrideMaterial=null;renderer.render(G.state==='menu'?SH.scene:STAGE.on?STAGE.scene:scene,G.state==='menu'?SH.cam:camera);FRAME_HEALTH.rendered++;
+  });
+}
+function graphicsRecoveryStatus(show){
+  let el=$('graphics-recovery');
+  if(show&&!el){el=document.createElement('div');el.id='graphics-recovery';el.textContent='Recuperando imagen…';el.style.cssText='position:fixed;left:50%;top:20%;transform:translateX(-50%);z-index:100;background:#111d;color:#fff;padding:12px 20px;pointer-events:none;font-weight:700';document.body.appendChild(el);}
+  if(el)el.hidden=!show;
+}
+renderer.domElement.addEventListener('webglcontextlost',event=>{
+  event.preventDefault();FRAME_HEALTH.contextLost=true;graphicsRecoveryStatus(true);reportFrameError('grafica:contexto',new Error('Se perdio el contexto WebGL'));
+});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{
+  FRAME_HEALTH.contextLost=false;GFX.post=false;
+  frameTask('grafica:restaurar',()=>{renderer.resetState?.();renderer.setRenderTarget(null);if(composer)composer.reset();});graphicsRecoveryStatus(false);
+});
+window.getBlockstrikeDiagnostics=()=>({build:FRAME_HEALTH.build,contextLost:FRAME_HEALTH.contextLost,rendered:FRAME_HEALTH.rendered,errors:FRAME_HEALTH.errors});
+
+function addFx(obj, dur, upd, dispose, sc = scene) {
+  const f={obj,t:0,dur,upd,dispose,sc};sc.add(obj);FX.push(f);
+  frameTask('efecto:inicio',()=>upd(obj,0),()=>removeFx(f));
+}
 function updateFx(dt) {
-  for (let i = FX.length - 1; i >= 0; i--) {
-    const f = FX[i]; f.t += dt; const k = f.t / f.dur;
-    if (k >= 1) {
-      f.sc.remove(f.obj);
-      if (f.dispose) f.dispose(); else { f.obj.geometry.dispose(); f.obj.material.dispose(); }
-      FX.splice(i, 1); continue;
-    }
-    f.upd(f.obj, k);
+  for(let i=FX.length-1;i>=0;i--){
+    const f=FX[i];if(!f)continue;f.t+=dt;const k=f.t/f.dur;
+    if(k>=1||!Number.isFinite(k)){removeFx(f);continue;}
+    frameTask('efecto:animacion',()=>f.upd(f.obj,k),()=>removeFx(f));
   }
 }
+
 const ADD = THREE.AdditiveBlending;
 function glowMat(col, op = 1) { return new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, blending: ADD, side: THREE.DoubleSide }); }
 function ringAt(p, col, maxR, dur = .45, mode = 'flat', yaw = 0, sc = scene) {
@@ -9445,7 +9496,15 @@ function gfxWatch(rawDt) {
     try { showBanner('CALIDAD ' + GFX.names[GFX.level].toUpperCase(), '#9ba1ba', 'El juego iba lento: bajé los efectos (se puede cambiar en Pausa)'); } catch (e) { }
   }
 }
-function renderView(sc, cm) { if (composer && GFX.post) { renderPass.scene = sc; renderPass.camera = cm; composer.render(); } else renderer.render(sc, cm); }
+function renderView(sc,cm){
+  if(!composer||!GFX.post){renderer.render(sc,cm);return;}
+  const target=renderer.getRenderTarget(),autoClear=renderer.autoClear,alpha=renderer.getClearAlpha(),color=renderer.getClearColor(new THREE.Color());
+  let completed=false;
+  try{renderPass.scene=sc;renderPass.camera=cm;composer.render();completed=true;}
+  catch(error){reportFrameError('imagen:shaders',error);GFX.post=false;}
+  finally{renderer.setRenderTarget(target);renderer.autoClear=autoClear;renderer.setClearColor(color,alpha);}
+  if(!completed)renderer.render(sc,cm);
+}
 // paneles de cómic: tres cámaras a la vez (cara, cuerpo entero, detalle del arma/visor/mano)
 const PCAMS = [0, 1, 2].map(() => new THREE.PerspectiveCamera(35, 1, .05, 200));
 const PANEL_CUTS = [0, .36, .68, 1];
@@ -9459,12 +9518,12 @@ function renderPanels(c) {
     cm => { const D = fwd(f.yaw + .9); cm.fov = 30; cm.position.set(detail.x + D.x * (1.0 - k * .25), detail.y + .15, detail.z + D.z * (1.0 - k * .25)); cm.lookAt(detail); cm.rotateZ(.12); },
   ];
   renderer.setScissorTest(true);
-  for (let i = 0; i < 3; i++) {
+  try { for (let i = 0; i < 3; i++) {
     const x0 = PANEL_CUTS[i] * W, w = (PANEL_CUTS[i + 1] - PANEL_CUTS[i]) * W, cm = PCAMS[i];
     cm.up.set(0, 1, 0); set[i](cm); cm.aspect = w / H; cm.updateProjectionMatrix();
     renderer.setViewport(x0, 0, w, H); renderer.setScissor(x0, 0, w, H); renderer.render(sc, cm);
   }
-  renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H);
+  } finally { renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H); }
 }
 function drawPanelBorders() {
   const w = LC.width, h = LC.height, sl = h * .06;
@@ -10997,22 +11056,22 @@ try {
 
 // ================= Bucle principal =================
 function step(dt) {
-  destRestore(); destUpdate(dt); holesUpdate();
+  frameTask('escenario',()=>{destRestore();destUpdate(dt);holesUpdate();});
   G.time += dt;
-  for (let i = TIMERS.length - 1; i >= 0; i--) { const tm = TIMERS[i]; tm.t -= dt; if (tm.t <= 0) { TIMERS.splice(i, 1); tm.fn(); } }
+  for(let i=TIMERS.length-1;i>=0;i--){const tm=TIMERS[i];if(!tm)continue;tm.t-=dt;if(tm.t<=0){TIMERS.splice(i,1);frameTask('evento',()=>tm.fn());}}
   for (const f of G.fighters) {
     if (f.remote) continue;
-    if (f.alive) { const c = f.isPlayer ? (VB.on ? vbPlayerCtl(f, playerCtl()) : playerCtl()) : f.vbBot ? vbBotCtl(f, dt) : f.dummy ? dummyCtl(f, dt) : VB.on ? VB_NEUTRAL() : aiCtl(f, dt); applyCtl(f, c, dt); updateAction(f, dt); }
+    if(f.alive)frameTask('accion:'+f.ch.id,()=>{const c=f.isPlayer?(VB.on?vbPlayerCtl(f,playerCtl()):playerCtl()):f.vbBot?vbBotCtl(f,dt):f.dummy?dummyCtl(f,dt):VB.on?VB_NEUTRAL():aiCtl(f,dt);applyCtl(f,c,dt);updateAction(f,dt);},()=>cancelFailedAction(f));
     if (G.cine) break;
   }
-  for (const f of G.fighters) { if (f.remote) continue; physics(f, dt); tickTimers(f, dt); animate(f, dt); }
+  for(const f of G.fighters){if(f.remote)continue;frameTask('fisica:'+f.ch.id,()=>physics(f,dt));frameTask('tiempos:'+f.ch.id,()=>tickTimers(f,dt));frameTask('pose:'+f.ch.id,()=>animate(f,dt),()=>{cancelFailedAction(f);f.anim.reset();f.model.root.position.copy(f.pos);});}
   const F = G.fighters;
   for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) {
     const a = F[i], b = F[j]; if (a.remote || b.remote || !a.alive || !b.alive || a.grabbed || b.grabbed || Math.abs(a.pos.y - b.pos.y) > 1.8) continue;
     const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z, d = Math.hypot(dx, dz);
     if (d < .8 && d > 1e-4) { const push = (.8 - d) / 2; a.pos.x -= dx / d * push; a.pos.z -= dz / d * push; b.pos.x += dx / d * push; b.pos.z += dz / d * push; }
   }
-  updateProj(dt); updateZones(dt); updateFx(dt); PS.update(dt);
+  frameTask('proyectiles',()=>updateProj(dt));frameTask('zonas',()=>updateZones(dt));updateFx(dt);frameTask('particulas',()=>PS.update(dt));
   updateSekzaSpecials(dt);
   updateSpearDrops(dt);
   autoBalance(dt);
@@ -11270,45 +11329,44 @@ function fpsTick(raw) {
   FPS.el.style.display = FPS.on ? 'block' : 'none'; FPS.n++; FPS.t += raw; FPS.ms = Math.max(FPS.ms, raw * 1000);
   if (FPS.t >= .5) { const fps = FPS.n / FPS.t; FPS.el.style.color = fps >= 50 ? '#d7ff2f' : fps >= 30 ? '#ffd23f' : '#ff5a5a'; FPS.el.textContent = Math.round(fps) + ' FPS · ' + (1000 / Math.max(1, fps)).toFixed(0) + ' ms · pico ' + Math.round(FPS.ms) + ' ms'; FPS.n = 0; FPS.t = 0; FPS.ms = 0; }
 }
-function loop(now) {
+function loop(now){
   requestAnimationFrame(loop);
-  const rawDt = (now - last) / 1000, rdt = Math.min(.05, rawDt); last = now; gfxWatch(rawDt); fpsTick(rawDt);
-  updateFaceAnims(now / 1000);
-  for (const c of CLOUDS) { c.position.x += rdt * 1.5; if (c.position.x > 160) c.position.x = -160; }
-  IMPACT.cd -= rdt; if (IMPACT.t > 0) IMPACT.t -= rdt;
-  if (G.state === 'menu') { updateMusic(rdt); updateCityWeather(0); updateShow(rdt); updateFx(rdt); renderView(SH.scene, SH.cam); drawLines(rdt); return; }
-  if (G.cine && !G.paused) updateCine(rdt);
-  else {
-    let dt = rdt * (G.slowT > 0 ? .3 : 1);
-    if (G.slowT > 0) G.slowT -= rdt;
-    if ((G.paused && !G.mp) || G.over) dt = 0;
-    if (G.viewer) { dt *= VW.play ? VW.speed : 0; }
-    if (G.hitstop > 0) { G.hitstop -= rdt * (G.viewer ? (VW.play ? VW.speed : 0) : 1); dt = 0; }
-    if (dt > 0) step(dt);
-    if (G.viewer) vTick(dt); else if (G.paused) pressed.clear();
+  try{
+  const rawDt=Number.isFinite(now)&&Number.isFinite(last)?Math.max(0,(now-last)/1000):0,rdt=Math.min(.05,rawDt);last=Number.isFinite(now)?now:performance.now();
+  frameTask('contador',()=>{gfxWatch(rawDt);fpsTick(rawDt);});
+  frameTask('caras',()=>updateFaceAnims(now/1000));
+  for(const c of CLOUDS){c.position.x+=rdt*1.5;if(c.position.x>160)c.position.x=-160;}
+  IMPACT.cd-=rdt;if(IMPACT.t>0)IMPACT.t-=rdt;
+  if(G.state==='menu'){
+    frameTask('musica',()=>updateMusic(rdt));frameTask('clima',()=>updateCityWeather(0));frameTask('selector',()=>updateShow(rdt));updateFx(rdt);
+    frameTask('lineas',()=>drawLines(rdt));return;
   }
-  if (G.mp) netTick(rdt);
-  if (G.over && G.winner && G.winner.victory && G.fighters.includes(G.winner)) animate(G.winner, rdt);  // el ganador celebra aunque el juego esté en pausa
-  updateCamFx(rdt);
-  updateCamera(rdt);
-  updateCityWeather(G.paused && !G.mp ? 0 : rdt);
-  updateAmbience(rdt);
-  updateMusic(rawDt > .5 ? .05 : rdt);
-  updateBeach(rdt);
-  try { updateVolley(rdt); } catch (e) { if (VB.on) vbEnd('error'); }
-  // durante el hitstop de una coreografía, el que recibe vibra (congelado pero temblando, como en el anime)
-  if (G.hitstop > 0 && G.chore && G.chore.tg.model) { const m = G.chore.tg.model.root; m.position.copy(G.chore.tg.pos); const pulse = Math.min(1, G.hitstop / .06); m.position.x += Math.sin(now * .14) * .035 * pulse; m.position.y += Math.sin(now * .18) * .018 * pulse; }
-  updateHUD(rdt);
-  drawLines(rdt);
-  if (G.cine && G.cine.shot === 1) drawPanelBorders();
-  renderMain();
+  if(G.cine&&!G.paused)frameTask('cinematica',()=>updateCine(rdt));
+  else{
+    let dt=rdt*(G.slowT>0?.3:1);if(G.slowT>0)G.slowT-=rdt;
+    if((G.paused&&!G.mp)||G.over)dt=0;if(G.viewer)dt*=VW.play?VW.speed:0;
+    if(G.hitstop>0){G.hitstop-=rdt*(G.viewer?(VW.play?VW.speed:0):1);dt=0;}
+    if(dt>0)frameTask('simulacion',()=>step(dt),()=>pressed.clear());
+    if(G.viewer)frameTask('visor',()=>vTick(dt));else if(G.paused)pressed.clear();
+  }
+  if(G.mp)frameTask('red',()=>netTick(rdt));
+  if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
+  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>updateCamera(rdt));
+  frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
+  frameTask('playa',()=>updateBeach(rdt));frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
+  if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
+  frameTask('interfaz',()=>updateHUD(rdt));frameTask('lineas',()=>drawLines(rdt));
+  if(G.cine&&G.cine.shot===1)frameTask('paneles',()=>drawPanelBorders());
+  }catch(error){reportFrameError('cuadro',error);}
+  finally{drawFrameSafely();}
 }
+
 initWeatherControls();
 initPauseAudioControls();
 gfxInit();
 requestAnimationFrame(loop);
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás
-setInterval(() => { if (G.mp && G.state === 'play' && performance.now() - last > 250) { last = performance.now(); netTick(.1); } }, 200);
+setInterval(()=>{if(G.mp&&G.state==='play'&&performance.now()-last>250)frameTask('red:segundo-plano',()=>netTick(.1));},200);
 </script>
 
 </body>

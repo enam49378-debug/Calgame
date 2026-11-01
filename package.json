@@ -11,7 +11,9 @@
     "test:lanza": "node tests/lanza-finisher.cjs",
     "test:lanza:red": "node tests/lanza-red.cjs",
     "test:estabilidad": "node tests/estabilidad-combate.cjs",
-    "test:estabilidad:red": "node tests/estabilidad-red.cjs"
+    "test:estabilidad:red": "node tests/estabilidad-red.cjs",
+    "test:recuperacion": "node tests/recuperacion-cuadros.cjs",
+    "test:combate": "node tests/combate-prolongado.cjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"
