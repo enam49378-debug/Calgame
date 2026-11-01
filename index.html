@@ -3683,8 +3683,8 @@ const JOINTS = ['ix', 'iy', 'iz', 'by', 'bz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz'
 // Canales de actuación: desplazamientos en píxeles y escalas por parte.
 // Permiten separar hombros/caderas, desplazar la cabeza y dibujar smears a mano.
 const CINE_PARTS = { torso: 't', head: 'h', armL: 'al', armR: 'ar', legL: 'll', legR: 'lr' };
-JOINTS.push('bx', ...Object.values(CINE_PARTS).flatMap(p => ['px', 'py', 'pz'].map(axis => p + axis)), 'als', 'ars', 'lls', 'lrs', 'tscx', 'tscy', 'tscz', 'hscx', 'hscy', 'hscz');
-const JDEF = { alz: .06, arz: -.06, als: 1, ars: 1, lls: 1, lrs: 1, tscx: 1, tscy: 1, tscz: 1, hscx: 1, hscy: 1, hscz: 1 };
+JOINTS.push('bx', ...Object.values(CINE_PARTS).flatMap(p => ['px', 'py', 'pz'].map(axis => p + axis)), 'als', 'ars', 'lls', 'lrs', 'tscx', 'tscy', 'tscz', 'hscx', 'hscy', 'hscz', 'sy', 'sz', 'spx', 'spy', 'spz', 'ssc');
+const JDEF = { alz: .06, arz: -.06, als: 1, ars: 1, lls: 1, lrs: 1, tscx: 1, tscy: 1, tscz: 1, hscx: 1, hscy: 1, hscz: 1, ssc: 1 };
 function mirror(p) {
   const o = {};
   for (const k in p) {
@@ -4151,12 +4151,12 @@ class Animator {
     m.head.rotation.set(x.hx, x.hy, x.hz);
     m.armL.rotation.set(x.alx, x.aly, x.alz); m.armR.rotation.set(x.arx, x.ary, x.arz);
     m.legL.rotation.set(x.llx, 0, x.llz); m.legR.rotation.set(x.lrx, 0, x.lrz);
-    if (m.gripRot) m.gripRot.rotation.x = x.sx;
+    if (m.gripRot) { m.gripRot.rotation.set(x.sx, x.sy || 0, x.sz || 0); m.gripRot.position.set((x.spx || 0) * PX, (x.spy || 0) * PX, (x.spz || 0) * PX); }   // el arma también se anima: giro, posición y tamaño
     // smear: los miembros que se mueven rápido se estiran (como los cuadros de smear del anime)
     const v = this.v, sm = j => this.bbR6 ? 1 : 1 + Math.min(.32, Math.abs(v[j]) / 48);
     m.armR.scale.y = sm('arx') * x.ars; m.armL.scale.y = sm('alx') * x.als;
     m.legR.scale.y = sm('lrx') * x.lrs; m.legL.scale.y = sm('llx') * x.lls;
-    if (m.gripRot) m.gripRot.scale.z = this.bbR6 ? 1 : 1 + Math.min(.45, Math.abs(v.sx) / 45);
+    if (m.gripRot) { const ws = x.ssc == null ? 1 : x.ssc; m.gripRot.scale.set(ws, ws, (this.bbR6 ? 1 : 1 + Math.min(.45, Math.abs(v.sx) / 45)) * ws); }
     // aplastar y estirar el cuerpo según qué tan agachado está y qué tan rápido sube o baja
     const sq = this.bbR6 ? 0 : clamp(-x.by / 40 - v.by / 900, -.07, .11);
     m.inner.scale.set(1 + sq * .6, 1 - sq, 1 + sq * .6);
@@ -5645,7 +5645,7 @@ function choreEnd(st) {
   choreRelease(st); st.f.choreTrack = null; st.f.choreEyes = false;
   st.f.choreGripQuat = null; st.f.choreStake = false;
   if (st.spearScale != null && st.f.spear) st.f.spear.scale.z = st.spearScale;
-  if (st.f.model.gripRot) st.f.model.gripRot.rotation.set(st.f.anim.x.sx, 0, 0);
+  if (st.f.model.gripRot) st.f.model.gripRot.rotation.set(st.f.anim.x.sx, st.f.anim.x.sy || 0, st.f.anim.x.sz || 0);
   if (!st.tg.remote && st.tg.alive) st.tg.stun = Math.min(st.tg.stun, .3);
   if (G.chore === st) { G.chore = null; document.body.classList.remove('duel'); }
 }
@@ -5664,7 +5664,7 @@ function syncChorePose(f, dt, st, victim = false) {
     if (!victim) f.model.inner.position.y=(16+f.anim.x.by)*PX;
   }
   if (f.choreFrom && f.choreTime < .14) { const u = clamp(f.choreTime / .14, 0, 1), w = u * u * (3 - 2 * u); for (const j of JOINTS) f.anim.x[j] = jv(f.choreFrom, j) + (f.anim.x[j] - jv(f.choreFrom, j)) * w; f.anim.apply(); }
-  if (f.model.gripRot) { f.twA = twirlAngle(f, dt); f.model.gripRot.rotation.set(f.anim.x.sx + f.twA, 0, 0); }
+  if (f.model.gripRot) { f.twA = twirlAngle(f, dt); f.model.gripRot.rotation.set(f.anim.x.sx + f.twA, f.anim.x.sy || 0, f.anim.x.sz || 0); }
   f.model.root.position.copy(f.pos); f.model.root.rotation.y = f.yaw;
   f.model.root.updateMatrixWorld(true);
 }
@@ -9449,7 +9449,7 @@ function animate(f, dt) {
   if (m.gripRot) {
     if (!f.choreTrack || f.choreFrame !== G.time) f.twA = twirlAngle(f, dt);
     if (f.choreTrack && f.choreGripQuat) m.gripRot.quaternion.copy(f.choreGripQuat);
-    else m.gripRot.rotation.set(f.anim.x.sx + f.twA, 0, 0);
+    else m.gripRot.rotation.set(f.anim.x.sx + f.twA, f.anim.x.sy || 0, f.anim.x.sz || 0);
   }
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
   eyeGlow(m, !!(a && a.eyes) || f.awak > 0, T); updateWings(f, m, dt, T); updateSpiderLegs(f, m, dt, T);
@@ -11102,13 +11102,13 @@ const ED_BONES = [
   { id: 'armR', n: 'Brazo derecho', col: '#ff9a3d', g: { rot: ['arx', 'ary', 'arz'], pos: ['arpx', 'arpy', 'arpz'], scl: ['ars'] } },
   { id: 'legL', n: 'Pierna izquierda', col: '#b06bff', g: { rot: ['llx', 'llz'], pos: ['llpx', 'llpy', 'llpz'], scl: ['lls'] } },
   { id: 'legR', n: 'Pierna derecha', col: '#6bffd9', g: { rot: ['lrx', 'lrz'], pos: ['lrpx', 'lrpy', 'lrpz'], scl: ['lrs'] } },
-  { id: 'weapon', n: 'Arma', col: '#cfd6df', g: { rot: ['sx'] } },
+  { id: 'weapon', n: 'Arma', col: '#cfd6df', g: { rot: ['sx', 'sy', 'sz'], pos: ['spx', 'spy', 'spz'], scl: ['ssc'] } },
 ];
 const ED_KIND = { rot: 'Rotación (°)', pos: 'Posición', scl: 'Escala' };
-const ED_ROT = new Set(['ix', 'iy', 'iz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'llz', 'lrx', 'lrz', 'sx']);
+const ED_ROT = new Set(['ix', 'iy', 'iz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'llz', 'lrx', 'lrz', 'sx', 'sy', 'sz']);
 const edBoneOf = c => ED_BONES.find(b => Object.values(b.g).some(a => a.includes(c)));
-const edKindOf = c => ED_ROT.has(c) ? 'rot' : /sc[xyz]$|^(als|ars|lls|lrs)$/.test(c) ? 'scl' : 'pos';
-const edAxis = c => { const l = c.slice(-1); return 'xyz'.includes(l) && !/^(als|ars|lls|lrs)$/.test(c) ? l.toUpperCase() : 'LARGO'; };
+const edKindOf = c => ED_ROT.has(c) ? 'rot' : /sc[xyz]$|^(als|ars|lls|lrs|ssc)$/.test(c) ? 'scl' : 'pos';
+const edAxis = c => { if (c === 'ssc') return 'TAMAÑO'; const l = c.slice(-1); return 'xyz'.includes(l) && !/^(als|ars|lls|lrs)$/.test(c) ? l.toUpperCase() : 'LARGO'; };
 const edDef = c => JDEF[c] != null ? JDEF[c] : 0;
 const edDeg = v => v * 180 / Math.PI;
 const edShow = (c, v) => ED_ROT.has(c) ? edDeg(v) : v;
@@ -11321,7 +11321,7 @@ function edVicBuild() {
 const ED_ZERO = new V3(0, 0, 0), ED_DEFPATH = { apos: [[0, 0, 0, 0, 0]], vpos: [[0, 0, 0, 1.5, 0]] };
 const edPath = (k) => { const P = ED.att && ED.att.paths && ED.att.paths[k]; return P && P.length ? P : ED_DEFPATH[k]; };
 function edRebuild() {
-  ED.rows = []; for (const b of ED_BONES) { ED.rows.push({ t: 'bone', b }); if (ED.open[b.id]) for (const k of ['rot', 'pos', 'scl']) for (const c of b.g[k] || []) ED.rows.push({ t: 'chan', b, k, c }); }
+  ED.rows = []; for (const b of ED_BONES) { if (b.id === 'weapon' && !(SH.fig && SH.fig.spear)) continue; ED.rows.push({ t: 'bone', b }); if (ED.open[b.id]) for (const k of ['rot', 'pos', 'scl']) for (const c of b.g[k] || []) ED.rows.push({ t: 'chan', b, k, c }); }
   { const ta = $('ae-tg-att'), tv = $('ae-tg-vic'); if (ta) { ta.classList.toggle('on', ED.tg === 'att'); tv.classList.toggle('on', ED.tg === 'vic'); tv.disabled = !ED.vic; $('ae-vmake').style.display = ED.vic ? 'none' : ''; const vs = $('ae-vchar'); vs.innerHTML = CHAR_IDS.map(id => '<option value="' + id + '"' + (id === ED.vchar ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); } }
   edRefOptions(); const ss = $('ae-set'), sc = $('ae-clip'); if (ss) { ss.innerHTML = ED_SETS().map(id => '<option value="' + id + '"' + (id === ED.setId ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); }
   if (sc && ED.setId) { const D = bbSet(ED.setId); sc.innerHTML = Object.keys(D).map(n => '<option' + (n === ED.name ? ' selected' : '') + '>' + n + '</option>').join(''); }
@@ -11409,6 +11409,7 @@ function edKey(e) {
 function edTree() {
   const t = document.getElementById('ae-tree'); if (!t) return; t.innerHTML = '';
   for (const b of ED_BONES) {
+    if (b.id === 'weapon' && !(SH.fig && SH.fig.spear)) continue;
     const n = Object.values(b.g).flat().reduce((s, c) => s + ((ED.clip.tracks[c] || []).length), 0);
     const el = document.createElement('div'); el.className = 'ae-bone' + (ED.selBone === b.id ? ' on' : ''); el.innerHTML = '<i style="background:' + b.col + '"></i>' + b.n + '<small>' + (n ? n + ' claves' : '—') + '</small>';
     el.addEventListener('click', () => { ED.selBone = b.id; ED.selChan = null; ED.open[b.id] = !ED.open[b.id] || ED.selBone !== b.id ? true : false; edRebuild(); });
@@ -11607,6 +11608,7 @@ function edShowFrame(f, dt) {
   if (ED.playing) { ED.time += dt * ED.speed; if (ED.time >= L) { if (ED.loop) { ED.time %= L; edRefStart(); } else { ED.time = L; ED.playing = false; } } }
   const t = ED.time, ap = hermArr(edPath('apos'), t), vp = hermArr(edPath('vpos'), t), A = L2W(ED_ZERO, ED.rotY, ap[0], ap[1], ap[2]), V = L2W(ED_ZERO, ED.rotY, vp[0], vp[1], vp[2]);
   for (const j of JOINTS) f.anim.x[j] = edEvalChan(ED.att, j, t);
+  if (f.spear && !f.spearOut) { setSpear(f, true); f.spear.visible = true; }
   f.anim.bbR6 = true; f.anim.apply(); f.model.root.position.set(A.x, .1 + A.y, A.z); f.model.root.rotation.y = ED.rotY + ap[3];
   if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx;
   const vf = ED.vfig; if (vf) {
