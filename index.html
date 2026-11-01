@@ -3178,7 +3178,8 @@ function bbsEyesAttach(f) {
     const sz = c.s.map(v => Math.max(v, .02)), g = new THREE.BoxGeometry(sz[0] * PX, sz[1] * PX, sz[2] * PX), uv = g.attributes.uv;
     face.forEach((k, i) => { const r = c.uv[k] || [0, 0, 1, 1]; uv.setXY(i * 4, r[0] / 16, 1 - r[1] / 16); uv.setXY(i * 4 + 1, r[2] / 16, 1 - r[1] / 16); uv.setXY(i * 4 + 2, r[0] / 16, 1 - r[3] / 16); uv.setXY(i * 4 + 3, r[2] / 16, 1 - r[3] / 16); });
     const mesh = new THREE.Mesh(g, mat); mesh.renderOrder = 7;
-    mesh.position.set(-(c.f[0] + c.s[0] / 2) * PX, (c.f[1] + c.s[1] / 2) * PX, -(c.f[2] + c.s[2] / 2) * PX); mesh.userData.base = mesh.position.clone();
+    mesh.position.set(-(c.f[0] + c.s[0] / 2) * PX, (c.f[1] + c.s[1] / 2 - 1) * PX,   // -1 px: la transformación del form de los ojos en el BBS (t y = -0.0625)
+      -(c.f[2] + c.s[2] / 2) * PX); mesh.userData.base = mesh.position.clone();
     grp.add(mesh); (parts[c.n] = parts[c.n] || []).push(mesh);
   }
   const hm = m.head.children.find(o => o.isMesh); if (hm) { hm.material.alphaTest = .5; hm.material.needsUpdate = true; }   // la skin tendrá agujeros donde van los ojos
@@ -3203,7 +3204,7 @@ function updateFace(f, dt) {
     if (f.facePreset === 'javi' && f.model) { bbsEyesAttach(f); const neutral = f.faceForce == null && (id === lib.use.idle || ['blink', 'glanceL', 'glanceR', 'glanceU', 'glanceD'].includes(st)); bbsEyesUpdate(f, st, neutral); if (neutral) id2 = 'normal'; }
     const key = f.facePreset + ':' + id2 + ':' + (f.faceVer || 0) + ':' + (f.faceForce != null ? 'f' : ''); if (key === f.faceKey) return;
     f.faceKey = key; paintFacePreset(f, id2);
-    if (f.eyes3d && f.eyes3d.grp.visible) { const g = f.faceCtx; for (const cx of [1, 2, 5, 6]) for (const ry of [3, 4]) { g.clearRect(8 + cx, 8 + ry, 1, 1); g.clearRect(40 + cx, 8 + ry, 1, 1); } f.model.tex.needsUpdate = true; }   // agujeros en la cara y el sombrero: se ven los ojos 3D que están detrás
+    if (f.eyes3d && f.eyes3d.grp.visible) { const g = f.faceCtx; for (const cx of [1, 2, 5, 6]) for (const ry of [4, 5]) { g.clearRect(8 + cx, 8 + ry, 1, 1); g.clearRect(40 + cx, 8 + ry, 1, 1); } f.model.tex.needsUpdate = true; }   // agujeros en la cara y el sombrero: se ven los ojos 3D que están detrás
     return;
   }
   const a = f.action, attacking = a && !['flourish', 'stow', 'draw', 'awaken'].includes(a.name);
