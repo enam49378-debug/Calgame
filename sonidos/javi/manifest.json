@@ -103,5 +103,12 @@
     "original": "Javi Recibir Daño 2.mp3",
     "duracion": 1.008,
     "sha256": "7056bba9c3faabbc19c47c0114c5fb7158d6d474e24083da5bc11f187aa0017b"
+  },
+  {
+    "clip": "javi/reposo_3",
+    "archivo": "reposo_3.mp3",
+    "original": "Javi idle 1.mp3",
+    "duracion": 2.232,
+    "sha256": "6b1631dc2da83534c8bcf95f6293fcb1e0de986db72a370c858443a7b42bf590"
   }
 ]
