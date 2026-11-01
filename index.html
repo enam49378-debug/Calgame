@@ -616,11 +616,6 @@ const HOLE_U = { value: Array.from({ length: 10 }, () => new THREE.Vector4(0, 0,
 function cityAnimeMaterial(material,opts={}){
   const cut=!!opts.cut,toon=!!material.isMeshToonMaterial,phong=!!material.isMeshPhongMaterial||toon;
   material.onBeforeCompile=shader=>{
-    shader.uniforms.uHoles=HOLE_U;
-    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vHolePos;')
-      .replace('#include <project_vertex>','#include <project_vertex>\nvec4 holeW=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\nholeW=instanceMatrix*holeW;\n#endif\nholeW=modelMatrix*holeW;vHolePos=holeW.xyz;');
-    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vHolePos;\nuniform vec4 uHoles[10];')
-      .replace('void main() {','void main() {\nfor(int hi=0;hi<10;hi++){if(uHoles[hi].w>0.&&distance(vHolePos,uHoles[hi].xyz)<uHoles[hi].w)discard;}');
     if(cut){
       shader.uniforms.uCutCam=CITY_CUT.cam;shader.uniforms.uCutPl=CITY_CUT.pl;shader.uniforms.uCutOn=CITY_CUT.on;
       shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vCutPos;')
@@ -1015,7 +1010,7 @@ function cityGrassAt(x,z) {
     const emit=(el,mat)=>{
       if(el.type&&el.type!=='cube')return;
       const m=mat.clone();if(el.rotation)m.multiply(xf(el));
-      const f=el.from,t=el.to,i0=idx.length;let mnx=1e9,mny=1e9,mnz=1e9,mxx=-1e9,mxy=-1e9,mxz=-1e9,uvr=null;
+      const f=el.from,t=el.to,i0=idx.length,fcs=[];let mnx=1e9,mny=1e9,mnz=1e9,mxx=-1e9,mxy=-1e9,mxz=-1e9,uvr=null;
       for(const cx of [f[0],t[0]])for(const cy of [f[1],t[1]])for(const cz of [f[2],t[2]]){v.set(cx,cy,cz).applyMatrix4(m).multiplyScalar(1/16);mnx=Math.min(mnx,v.x);mny=Math.min(mny,v.y);mnz=Math.min(mnz,v.z);mxx=Math.max(mxx,v.x);mxy=Math.max(mxy,v.y);mxz=Math.max(mxz,v.z);}
       for(const [name,face] of Object.entries(el.faces||{})){
         if(!face.uv||face.texture==null||!BB_FACES[name])continue;
@@ -1024,9 +1019,9 @@ function cityGrassAt(x,z) {
           v.set(c[0]?t[0]:f[0],c[1]?t[1]:f[1],c[2]?t[2]:f[2]).applyMatrix4(m).multiplyScalar(1/16);
           pos.push(v.x,v.y,v.z);uvs.push(uv4[i][0]/RW,1-uv4[i][1]/RH);
         });
-        idx.push(base,base+1,base+2,base,base+2,base+3);if(!uvr)uvr=[u1,v1,u2,v2];
+        idx.push(base,base+1,base+2,base,base+2,base+3);if(!uvr)uvr=[u1,v1,u2,v2];fcs.push([name,u1,v1,u2,v2]);
       }
-      if(idx.length>i0)cubes.push({a:[mnx,mny,mnz,mxx,mxy,mxz],i0,n:idx.length-i0,uv:uvr});
+      if(idx.length>i0)cubes.push({a:[mnx,mny,mnz,mxx,mxy,mxz],i0,n:idx.length-i0,uv:uvr,fc:fcs});
     };
     const cols=[],isCol=n=>/^colisi/i.test(n.name||'');
     const walk=(nodes,mat,col)=>{for(const n of nodes){
@@ -1072,7 +1067,7 @@ function cityGrassAt(x,z) {
   for(const b of CITY_PLAN)if(b.model){
     const face=b.z<0?1:-1;
     bbLoads.push(loadBBModel(b.model).then(({geo,mat})=>{
-      const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);(window.BBM||(window.BBM=[])).push(mesh);bbRegister(mesh,geo);
+      const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;scene.add(mesh);(window.BBM||(window.BBM=[])).push(mesh);bbRegister(mesh,geo);
       for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2;COL.push({x:b.x+face*lx,z:b.z+face*lz,hx:(x1-x0)/2,hz:(z1-z0)/2,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true});}
     }).catch(()=>{
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),new THREE.MeshLambertMaterial({color:b.color}));mesh.position.set(b.x,b.h/2,b.z);scene.add(mesh);
@@ -1282,7 +1277,7 @@ function cityGrassAt(x,z) {
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
     batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
-    cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+    cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;scene.add(mesh);
   }
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
   for(let i=0;i<16;i++){
@@ -2471,8 +2466,29 @@ function bbRegister(mesh, geo) {
     const a = c.a; let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
     for (const x of [a[0], a[3]]) for (const y of [a[1], a[4]]) for (const z of [a[2], a[5]]) { v.set(x, y, z).applyMatrix4(M); mnx = Math.min(mnx, v.x); mny = Math.min(mny, v.y); mnz = Math.min(mnz, v.z); mxx = Math.max(mxx, v.x); mxy = Math.max(mxy, v.y); mxz = Math.max(mxz, v.z); }
     const w = mxx - mnx, h = mxy - mny, d = mxz - mnz; if (w * h * d > 7000 || h < .05 || mxy < .05) continue;
-    L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material });
+    L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv, fc: c.fc, a: c.a }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material });
   }
+}
+const BBF = { south: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], north: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], east: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], west: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], up: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], down: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] };
+// cara más grande del cubo y cómo se reparte su textura sobre los ejes
+function destFace(d) {
+  if (d.bb.face !== undefined) return d.bb.face;
+  const a = d.bb.a, dx = a[3] - a[0], dy = a[4] - a[1], dz = a[5] - a[2]; let best = null, ba = -1;
+  for (const f of d.bb.fc || []) { const nm = f[0], ar = (nm === 'north' || nm === 'south') ? dx * dy : (nm === 'east' || nm === 'west') ? dz * dy : dx * dz; if (ar > ba) { ba = ar; best = f; } }
+  if (!best || !BBF[best[0]]) return d.bb.face = null;
+  const c = BBF[best[0]], ax = (p, q) => { for (let i = 0; i < 3; i++) if (c[p][i] !== c[q][i]) return [i, c[p][i]]; return [0, 0]; };
+  const [ua, u0] = ax(0, 1), [va, v0] = ax(0, 3);
+  return d.bb.face = { u1: best[1], v1: best[2], u2: best[3], v2: best[4], ua, u0, va, v0 };
+}
+// color de la textura en la posición t=[x,y,z] (0..1) dentro del cubo
+function destCell(d, t) {
+  const F = destFace(d), map = d.mat && d.mat.map; if (!F || !map || !map.image) return null;
+  try {
+    const M = map.userData; if (!M.px) { const im = map.image, cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const g = cv.getContext('2d'); g.drawImage(im, 0, 0); M.w = cv.width; M.h = cv.height; M.px = g.getImageData(0, 0, cv.width, cv.height).data; }
+    const RW = d.bb.geo.userData.RW, RH = d.bb.geo.userData.RH, tu = F.u0 === 0 ? t[F.ua] : 1 - t[F.ua], tv = F.v0 === 0 ? t[F.va] : 1 - t[F.va];
+    const u = F.u1 + (F.u2 - F.u1) * tu, v = F.v2 + (F.v1 - F.v2) * tv, x = clamp(Math.floor(u * M.w / RW), 0, M.w - 1), y = clamp(Math.floor(v * M.h / RH), 0, M.h - 1), i = (y * M.w + x) * 4;
+    return M.px[i + 3] < 40 ? null : [M.px[i], M.px[i + 1], M.px[i + 2]];
+  } catch (e) { return null; }
 }
 function destColor(d) {
   if (d.col) return d.col;
@@ -2519,20 +2535,22 @@ function destHide(d) {
 }
 // parte una pieza grande en cubos: los que caen dentro de la explosión salen volando y el resto queda como bloques sueltos (que también se pueden romper)
 function carveBox(d, c, r) {
-  const q = d.p; let cs = .75, nx, ny, nz;
+  const q = d.p; let cs = d.bb ? .6 : .75, nx, ny, nz;
   do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 900);
-  const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d); let sp = 0;
+  const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d), mw = d.bb ? d.bb.mesh.matrixWorld.elements : null, flx = mw && mw[0] < 0, flz = mw && mw[10] < 0;
+  const tcol = (i, j, k) => { if (!d.bb) return base; let tx = (i + .5) / nx, tz = (k + .5) / nz; if (flx) tx = 1 - tx; if (flz) tz = 1 - tz; const g = destCell(d, [tx, (j + .5) / ny, tz]); return g ? 'rgb(' + g[0] + ',' + g[1] + ',' + g[2] + ')' : base; };
+  let sp = 0;
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
     const x = q[0] - q[3] / 2 + (i + .5) * sx, y = q[1] - q[4] / 2 + (j + .5) * sy, z = q[2] - q[5] / 2 + (k + .5) * sz, dx = x - c.x, dy = y - c.y, dz = z - c.z, dd = Math.hypot(dx, dy, dz);
-    if (dd < r * (.72 + .28 * Math.random())) { const l = dd || 1, f = 5 + 9 * (1 - dd / r), z0 = Math.max(.34, (sx + sy + sz) / 3); spawnDebris(x, y, z, Math.max(sx, .34) * .95, Math.max(sy, .34) * .95, Math.max(sz, .34) * .95, base, dx / l * f + rand(-2.5, 2.5), dy / l * f * .6 + rand(3, 10), dz / l * f + rand(-2.5, 2.5)); }
-    else keep.push([x, y, z, sx, sy, sz]);
+    if (dd < r * (.72 + .28 * Math.random())) { const l = dd || 1, f = 5 + 9 * (1 - dd / r), z0 = Math.max(.34, (sx + sy + sz) / 3); spawnDebris(x, y, z, Math.max(sx, .34) * .95, Math.max(sy, .34) * .95, Math.max(sz, .34) * .95, tcol(i, j, k), dx / l * f + rand(-2.5, 2.5), dy / l * f * .6 + rand(3, 10), dz / l * f + rand(-2.5, 2.5)); }
+    else keep.push([x, y, z, sx, sy, sz, tcol(i, j, k)]);
   }
   destHide(d);
   if (keep.length) {
     DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB_MAT = DEB_MAT || new THREE.MeshLambertMaterial({ color: 0xffffff });
     const mesh = new THREE.InstancedMesh(DEST_GEO, d.bb ? DEB_MAT : d.m.material, keep.length), cc = new THREE.Color(base); mesh.receiveShadow = true; mesh.castShadow = true;
-    keep.forEach((p, i) => { _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5])); mesh.setMatrixAt(i, _dm); if (d.bb) mesh.setColorAt(i, cc.clone().multiplyScalar(.9 + Math.random() * .2)); });
-    scene.add(mesh); d.rubble = mesh; d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: base, parent: d, cell: true, off: false }));
+    keep.forEach((p, i) => { _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5])); mesh.setMatrixAt(i, _dm); if (d.bb) mesh.setColorAt(i, new THREE.Color(p[6]).multiplyScalar(.94 + Math.random() * .12)); });
+    scene.add(mesh); d.rubble = mesh; d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: p[6] || base, parent: d, cell: true, off: false }));
     for (const x of d.cells) window.DESTR.push(x);
   }
 }
@@ -2605,8 +2623,10 @@ function bbHole(c, r) {
   }
 }
 // daño al escenario en un punto: marca en el piso, marcas en las paredes cercanas y piezas pequeñas que saltan (el ragdoll lo hace en menor medida)
-function worldDamage(c, r, power, dmg) {
-  if (r < 1.2 || G.state !== 'play') return;
+function worldDamage(c, r, power, dmg, dest) {
+  if (r < 1.2 || G.state !== 'play' || dest === 0) return;
+  if (dmg != null) dmg *= (dest != null ? dest : 1);
+  if (dmg != null && dmg < 2.5) return;
   const rr = dmg != null ? Math.min(r * .85, .9 + dmg * .15) : r * .85 * power;   // el hueco depende de la fuerza del golpe
   const gy = groundAt(c.x, c.z);
   if (c.y < gy + 2.4) scarDecal(new V3(c.x, gy, c.z), Math.min(6.5, rr * 1.25));
@@ -5091,7 +5111,7 @@ function explode(att, c, r, o) {
   sfx('boom', c); shakeFrom(c, .55);
   const gy = groundAt(c.x, c.z);
   if (r >= 3.5 && c.y < gy + 1.8) crackDecal(new V3(c.x, gy, c.z), Math.min(9, r * .85));
-  worldDamage(c, r, 1, o.dmg || 8);
+  worldDamage(c, r, 1, o.dmg || 8, o.dest != null ? o.dest : att.destPow);
 }
 function segDist(p, a, b) {
   const abx = b.x - a.x, abz = b.z - a.z, L = abx * abx + abz * abz || 1;
@@ -5215,7 +5235,8 @@ function doM1(f, upVariant) {
           ? { dmg: 6, kb: upVariant ? 2 : 17, up: upVariant ? 15 : 6, ragdoll: upVariant ? 0 : 1.0, stun: upVariant ? .9 : 0 }
           : { dmg: 3.5, stun: .45, kb: 1.4 };
         const n = hitArea(f, front(f, def.reach || 1.25, 1.1), def.r || 1.25, o);
-        if (fin) worldDamage(front(f, 1.8, 1.1), 3.1, 1, 6);
+        if (fin) worldDamage(front(f, 1.8, 1.1), 3.1, 1, 6, .9);
+        f.destPow = .5;
         if (n && !f.onGround) f.vel.y = Math.max(f.vel.y, 2.4);
         if (!f.spear || unarmed) fistFx(f, f.ch.color);
       }
@@ -5627,7 +5648,7 @@ function choreFx(name, st, P, col, e) {
     case 'clone': { const a = (e.a || 0) + st.yaw, s = new V3(Math.sin(a) * 2.6, 0, Math.cos(a) * 2.6), from = P.clone().add(s), to = P.clone().sub(s); copyAt(f, new V3(from.x, tg.pos.y, from.z), a + Math.PI, .3); copyAt(f, new V3(to.x, tg.pos.y, to.z), a + Math.PI, .4); slashLine(from, to, col, .4, .15); slashLine(from, to, '#ffffff', .28, .05); sfx('slash', P); break; }
     case 'ring': ringAt(P, col, e.r || 3, .4, e.face ? 'face' : 'flat', f.yaw); break;
     case 'boom': { const r = e.r || 2.5; sphereFlash(P, col, r, .4); ringAt(G0, col, r * 1.6, .5); ringAt(P, '#ffffff', r, .35, 'face', f.yaw); burst(P, 40, col, 13, .22, .6, .6); burst(new V3(G0.x, G0.y + .3, G0.z), 24, '#6b5a3e', 10, .25, .8, 1.2, 6); sfx('boom', P); G.shake = Math.max(G.shake, .8); break; }
-    case 'crack': crackDecal(G0, e.r || 4.5); break;
+    case 'crack': crackDecal(G0, e.r || 4.5); worldDamage(G0, e.r || 4.5, 1, 11, st.D.dest != null ? st.D.dest : 1); break;
     case 'fire': fireColumn(G0, e.r || 1.4, col, e.h || 5); sfx('fire', P); break;
     case 'ice': iceSpikes(G0, e.r || 2, col, 10); sfx('ice', P); break;
     case 'elec': for (let i = 0; i < 4; i++) { const a = P.clone().add(new V3(rand(-1.2, 1.2), rand(-1.2, 1.2), rand(-1.2, 1.2))); slashLine(P, a, i % 2 ? '#fff59d' : col, .14, .06); } burst(P, 8, '#fff59d', 6, .1, .2, 0); sfx('zap', P, .6); break;
@@ -8096,10 +8117,20 @@ function updLoyal(p, i, dt) {
 }
 
 // ================= Habilidades, ulti y cinemática =================
+// Destrucción de edificios por habilidad (0 = nada, 1 = normal, 2 = devastador). Cualquier habilidad puede fijar el suyo con `dest:`.
+const DEST_DEFAULT = {
+  serious: 0, chore: 1.2, zone: .5, shoot: .3, orbitals: .3, slam: 1.5, beam: .9, rush: .8, airCombo: .6, dashCombo: .6, pillar: 1.3, blink: 0, wave: 1.3, illusion: 0, barrage: .5,
+  slash: .7, lunge: .5, spearThrow: .6, whirl: .6, spearRain: 1.1, eyeBolts: .5, optoJump: .5, sekBoomerang: .4, sekDive: 1, sekParry: 0, sekUpdraft: .6, rkWeb: 0, rkZip: .2, rkBite: .3, rkTraps: .3,
+  ukSweep: .6, ukLunge: .5, ukKnives: .3, ukFireball: 1, sebPackage: .5, sebPearl: .4, sebCreeper: 1.8, sebAnvil: 1.4, randiPaloma: .2, randiCuyes: .7, randiNazca: 1, randiPisco: 0, capAdapt: 0,
+  jlError: .3, jlClippy: .2, jlUndo: 0, jlFormat: .4, cuts: .5, flameline: .9, nova: 1.5, iceage: 1, grab: 0, counter: 0, meteor: 2, rbOverload: 1.2, rbMirrors: .2, rbSatellite: 1, rbChain: .4,
+  sekRain: 1, sekFlight: .5, sekLock: .3, rkLegStabs: .4, rkWebField: 0, rkSwarm: .2, ukSun: 1.5, ukPhoenix: 1.4, ukRing: 1.2, sebBeam: 1.2, sebVariants: .6, sebEclipse: 1.8,
+  randiMahoraga: 0, randiCondor: 1.2, randiPerros: .3, randiTinku: 0, jlRain: .8, jlGiant: 1.6, jlWave: 1.2, pullStrike: .6, m: 0, c: 0,
+};
 function useSkill(f, i) {
   if (ownsMissingSpear(f)) { missingSpearHint(f); return; }
   const s = skillsOf(f)[i]; if (!s || f.cd[i] > 0) return;
   prepWeapon(f);
+  f.destPow = s.dest != null ? s.dest : (DEST_DEFAULT[s.k] != null ? DEST_DEFAULT[s.k] : .6);   // cuánto rompe esta habilidad en los edificios
   const ok = MOVES[s.k](f, Object.assign({ color: f.ch.color, slot: i }, s.o));
   if (ok !== false && f.isPlayer && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0 });   // las coreografías mandan su propio aviso ('c') al agarrar
   f.cd[i] = ok === false ? .4 : s.cd;
@@ -8322,18 +8353,25 @@ function pickTarget(f) {
 }
 const inRange = (r, d) => d >= r[0] && d <= r[1];
 // Segmento contra las colisiones del mapa. También sirve para acercar la cámara a una pared.
+const _sg={enter:0,exit:1};
+function _slab(a0,d,lo,hi){
+  const q=_sg;if(Math.abs(d)<1e-8){if(a0<lo||a0>hi){q.exit=-1;return false;}return true;}
+  const t0=(lo-a0)/d,t1=(hi-a0)/d;
+  if(t0<t1){if(t0>q.enter)q.enter=t0;if(t1<q.exit)q.exit=t1;}else{if(t1>q.enter)q.enter=t1;if(t0<q.exit)q.exit=t0;}
+  return q.enter<=q.exit;
+}
 function citySegment(a,b,pad=.65,cameraTest=false){
   let nearest=1;
-  for(const c of COL){
+  const sx0=Math.min(a.x,b.x),sx1=Math.max(a.x,b.x),sz0=Math.min(a.z,b.z),sz1=Math.max(a.z,b.z);
+  for(let i=0;i<COL.length;i++){
+    const c=COL[i];
     if(!cameraTest&&c.y0>1.9)continue;
     if(cameraTest&&(c.nocam||(c.hx<.6&&c.hz<.6)))continue;   // edificios (se ven a través) y postes finos: no acercan la cámara
-    let enter=0,exit=1;
-    for(const [axis,lo,hi] of [ ['x',c.x-c.hx-pad,c.x+c.hx+pad], ['z',c.z-c.hz-pad,c.z+c.hz+pad], ...(cameraTest?[['y',(c.y0||0)-pad,c.h+pad]]:[]) ]){
-      const delta=b[axis]-a[axis];
-      if(Math.abs(delta)<1e-8){if(a[axis]<lo||a[axis]>hi){exit=-1;break;}}
-      else {const t0=(lo-a[axis])/delta,t1=(hi-a[axis])/delta;enter=Math.max(enter,Math.min(t0,t1));exit=Math.min(exit,Math.max(t0,t1));if(enter>exit)break;}
+    if(c.x+c.hx+pad<sx0||c.x-c.hx-pad>sx1||c.z+c.hz+pad<sz0||c.z-c.hz-pad>sz1)continue;
+    _sg.enter=0;_sg.exit=1;
+    if(_slab(a.x,b.x-a.x,c.x-c.hx-pad,c.x+c.hx+pad)&&_slab(a.z,b.z-a.z,c.z-c.hz-pad,c.z+c.hz+pad)&&(!cameraTest||_slab(a.y,b.y-a.y,(c.y0||0)-pad,c.h+pad))){
+      if(_sg.exit>=0&&_sg.enter<=_sg.exit&&_sg.enter<nearest)nearest=Math.max(0,_sg.enter);
     }
-    if(enter<=exit&&exit>=0&&enter<nearest)nearest=Math.max(0,enter);
   }
   return nearest;
 }
@@ -8354,6 +8392,7 @@ function rebuildCityNav(){
     free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
   }
 }
+const NAVBUF={c:new Float32Array(157*157),p:new Int32Array(157*157),k:new Uint8Array(157*157)},NAV_DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
 function cityRoute(from,to){
   const {n,step,origin,free}=CITY_NAV,total=n*n;
   const nearest=p=>{
@@ -8369,7 +8408,7 @@ function cityRoute(from,to){
     return -1;
   };
   const start=nearest(from),end=nearest(to);if(start<0||end<0)return [];
-  const costs=new Float32Array(total).fill(Infinity),prev=new Int32Array(total).fill(-1),closed=new Uint8Array(total);
+  const costs=NAVBUF.c.fill(Infinity),prev=NAVBUF.p.fill(-1),closed=NAVBUF.k.fill(0);
   costs[start]=0;const ex=end%n,ez=Math.floor(end/n),heuristic=i=>Math.hypot(i%n-ex,Math.floor(i/n)-ez);
   // montículo binario por f = coste + heurística (la cuadrícula ahora es mucho más grande)
   const heap=[[heuristic(start),start]];
@@ -8378,7 +8417,7 @@ function cityRoute(from,to){
   while(heap.length){
     const id=pop()[1];if(id===end)break;if(closed[id])continue;closed[id]=1;
     const x=id%n,z=Math.floor(id/n);
-    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){
+    for(const [dx,dz] of NAV_DIRS){
       const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=n||zz>=n)continue;
       const next=zz*n+xx;if(!free[next]||closed[next]||(dx&&dz&&(!free[z*n+xx]||!free[zz*n+x])))continue;
       const cost=costs[id]+Math.hypot(dx,dz);if(cost>=costs[next])continue;
@@ -8393,7 +8432,7 @@ function citySteer(f,target,c,dt){
   const ai=f.ai;if(!ai||f.action&&f.action.noControl||f.grabbed)return;
   if(citySegment(f.pos,target.pos)>.999){ai.cityPath=null;return;}
   ai.cityThink=(ai.cityThink||0)-dt;
-  if(!ai.cityPath||ai.cityThink<=0){ai.cityPath=cityRoute(f.pos,target.pos);ai.cityThink=.7;}
+  if(!ai.cityPath||ai.cityThink<=0){const T=target.pos;if(!ai.cityPath||!ai.cityTo||ai.cityPath.length<2||Math.hypot(T.x-ai.cityTo.x,T.z-ai.cityTo.z)>2.5||(ai.cityN=(ai.cityN||0)+1)%4===0){ai.cityPath=cityRoute(f.pos,T);ai.cityTo={x:T.x,z:T.z};}ai.cityThink=.9;}
   const path=ai.cityPath;if(!path.length)return;
   while(path.length>1&&f.pos.distanceToSquared(path[0])<1.7)path.shift();
   // Se omiten esquinas solo cuando el segmento está libre para todo el cuerpo.
