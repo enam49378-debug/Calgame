@@ -61,6 +61,17 @@ chans = sorted(tr)
 rows = [[round(i / 60, 6)] + [round(at(tr[c], i / 60), 6) for c in chans] for i in range(int(LEN * 60 + 1e-6) + 1)]
 if rows[-1][0] < LEN - 1e-6: rows.append([round(LEN, 6)] + [round(at(tr[c], LEN), 6) for c in chans])
 clip = {'length': round(LEN, 4), 'loop': LOOP, 'contacts': [], 'channels': chans, 'samples': rows}
+# ojos (parte 0 del form: pupilas, cejas y párpados): [t, x, y, escala y] por hueso; lo que falta en un cuadro es 0 (pose neutra)
+eyes = {}
+ek = pr.get('0/pose', {}).get('keyframes', [])
+names = sorted({b for kf in ek for b in kf['value'].get('pose', {})})
+for b in names:
+    rows_e = []
+    for kf in ek:
+        v = kf['value']['pose'].get(b, {}); t = v.get('t', [0, 0, 0]); sc = v.get('s', [1, 1, 1])
+        rows_e.append([round(kf['tick'] / 20.0, 4), round(-t[0], 4), round(t[1], 4), round(sc[1], 4)])
+    if any(abs(r[1]) + abs(r[2]) + abs(r[3] - 1) > 1e-6 for r in rows_e): eyes[b] = rows_e
+if eyes: clip['eyes'] = eyes
 p = S + '/blockstrike.html'
 s = open(p, encoding='utf-8').read()
 a = s.index('const JAVI_BB_DATA = ') + len('const JAVI_BB_DATA = ')
