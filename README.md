@@ -18,3 +18,9 @@ Si la **Lanza Leal (2)** normal elimina al rival, queda clavada en su cuerpo con
 La lanza permanece aunque reaparezca la víctima. El cuerpo dura 15 segundos; después la lanza queda en el lugar hasta recogerla. Al reaparecer Javi recupera su arma. El impacto, el cuerpo y la recogida se comparten con la sala, incluidos quienes entran tarde.
 
 Comprobaciones: `npm run test:lanza` y `npm run test:lanza:red` (Chrome y Playwright). La segunda conecta tres clientes al servidor local y comprueba daño, reaparición, entrada tardía y recogida.
+
+## Estabilidad de combate
+
+Los impact frames usan un destello de pantalla de hasta 120 ms que termina por sí solo; el mapa sigue dibujándose y sus materiales y visibilidad permanecen intactos. Las habilidades quietas frenan la inercia de carrera o esquiva al empezar. La Paliza de Seb0lla conserva su avance inicial y se detiene al terminar, interrumpirse o perder al objetivo. Verity Gigante se elimina y libera sus recursos al reaparecer o salir de la partida.
+
+Comprobaciones: `npm run test:estabilidad` recorre 72 combinaciones de habilidades normales/despertares, prueba el frenado, la limpieza de la montura y el dibujo con/sin shaders. `npm run test:estabilidad:red` prueba el movimiento y los ataques entre dos jugadores conectados al servidor local.

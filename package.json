@@ -9,7 +9,9 @@
     "test:multijugador": "node tests/especial-red.cjs",
     "test:audio": "node tests/pausa-audio.cjs",
     "test:lanza": "node tests/lanza-finisher.cjs",
-    "test:lanza:red": "node tests/lanza-red.cjs"
+    "test:lanza:red": "node tests/lanza-red.cjs",
+    "test:estabilidad": "node tests/estabilidad-combate.cjs",
+    "test:estabilidad:red": "node tests/estabilidad-red.cjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"

@@ -3,11 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blockstrike Battlegrounds</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
@@ -124,6 +119,7 @@ body.cine #hud{opacity:0}
 #death p{margin:0;font-size:18px;font-weight:600;text-shadow:0 2px 2px #000}
 #dmgv{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 140px rgba(255,0,0,.55);opacity:0}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+#impact-flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
 #crosshair{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;background:#fff;border-radius:50%;opacity:.55;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
 #board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 32px));background:var(--panel);padding:14px;border-top:3px solid var(--hot)}
 
@@ -294,8 +290,6 @@ tr.me td{color:var(--hot);font-weight:700}
 <body>
 <div id="spear-recovery" class="hidden"></div>
 <div id="spear-marker" class="hidden">▼ Tu lanza</div>
-</head>
-<body>
 <div id="wrap"></div>
 <canvas id="lines"></canvas>
 <div id="cinedim"></div>
@@ -308,6 +302,7 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="minicut"></div>
 <div id="cinetitle"><small id="ctwho"></small><b id="ctult"></b></div>
 <div id="flash"></div>
+<div id="impact-flash" aria-hidden="true"></div>
 
 <div id="hud" class="hidden">
   <div id="crosshair"></div>
@@ -2709,6 +2704,11 @@ function makeGiantVerity() {
   const head = makeVerity('verity'); head.g.scale.setScalar(.02); verityFace(head, 'open'); scene.add(head.g);
   return { g, legs, arms, head, geos, mats };
 }
+// Remove an interrupted mount immediately; it must not outlive its fighter.
+function disposeMount(f) {
+  const M = f.mount; if (!M) return; f.mount = null;
+  scene.remove(M.g); M.geos.forEach(g => g.dispose()); M.mats.forEach(m => m.dispose()); disposeVerity(M.head);
+}
 function mountStomp(f, M) {
   const F = fwd(M.yaw), c = new V3(M.pos.x + F.x * .8, 1, M.pos.z + F.z * .8);
   hitArea(f, c, 5.2, { dmg: 7.5, kb: 9, up: 8, ragdoll: .6, rag: 1.2, stun: .3, color: '#ffd91a', hitstop: .04 });
@@ -4620,11 +4620,12 @@ class Fighter {
   }
   reset() {
     releaseOwnerSpear(this);
+    disposeMount(this);
     Object.assign(this, { hp: this.maxHp, ult: 0, awak: 0, seq: null, poison: null, fireT: 0, stun: 0, ragdoll: 0, iframes: 0, action: null, blocking: false, comboIdx: 0, comboTimer: 0, m1cd: 0, dashCd: 0, dashT: 0, airDash: true, alive: true, respawnT: 0, deathT: 0, cd: [0, 0, 0, 0], rFlightT:0,rFlightCD:0,rGullCD:0,rTapUntil:0,rFlightAltitude:0, onGround: true, hurtT: 0, hurtPose: 'hurtA', getupT: 0, landT: 0, flashT: 0, frozen: 0, grabbed: false, ghostT: 0, spearThrown: false, spearLost: null, atkT: 0, flourT: rand(3, 6), twirl: null, twA: 0, catchT: 0, blockHitT: 0, victory: false, landHard: false, gbT: -9 });
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
-  dispose() { releaseOwnerSpear(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
+  dispose() { releaseOwnerSpear(this); disposeMount(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
 const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
@@ -4713,9 +4714,18 @@ function iceBlock(f, dur) {
   const g = new THREE.BoxGeometry(1.25, 2.3, 1.25), m = new THREE.MeshBasicMaterial({ color: '#bfe3ff', transparent: true, opacity: .45, depthWrite: false }), mesh = new THREE.Mesh(g, m);
   addFx(mesh, dur, (o, k) => { o.position.set(f.pos.x, f.pos.y + 1.1, f.pos.z); m.opacity = k > .85 ? .45 * (1 - (k - .85) / .15) : .45; if (!f.alive || f.frozen <= 0) o.visible = false; });
 }
-// Impact frame anime: 2-3 cuadros con siluetas (negro sobre blanco y al revés) y rayos radiales
-const IMPACT = { t: 0, col: '#ffffff', cd: 0 };
-function impactFrame(col, dur = .11) { if (IMPACT.cd > 0) return; IMPACT.t = dur; IMPACT.col = col; IMPACT.cd = .45; }
+// Impacto anime: destello breve y rayos radiales sobre el mundo, que sigue dibujándose.
+const IMPACT = { t: 0, col: '#ffffff', cd: 0, until: 0 };
+function impactFrame(col, dur = .11) {
+  if (IMPACT.cd > 0) return;
+  const duration = clamp(Number.isFinite(dur) ? dur : .11, .04, .12);
+  IMPACT.t = duration; IMPACT.col = col; IMPACT.cd = .45; IMPACT.until = performance.now() + duration * 1000;
+  // A compositor animation expires even if the next game frame is delayed.
+  // Keep rendering the world: no hidden buildings or shared material overrides.
+  const el = $('impact-flash');
+  for (const animation of el.getAnimations()) animation.cancel();
+  el.animate([{ opacity: .45, background: '#ffffff' }, { opacity: .18, background: col, offset: .45 }, { opacity: 0, background: col }], { duration: duration * 1000, easing: 'ease-out' });
+}
 // chispas: rayas finas que salen disparadas del punto de impacto
 const SPARK_GEO = new THREE.BoxGeometry(1, 1, 1);
 function sparkLines(p, col, n = 6, len = 1.6, sc = scene) {
@@ -5059,6 +5069,8 @@ const later = (s, fn) => TIMERS.push({ t: s, fn });
 function startAction(f, a) {
   if (f.action) endAction(f);
   a.t = 0; a.steps = a.steps || []; f.action = a; f.blocking = false;
+  // A stationary cast owns movement; discard running/dash inertia before its own start/tick.
+  if (a.noControl && a.speedMul === 0) { f.vel.x = f.vel.z = 0; f.dashT = 0; }
   if (a.aim) f.yaw = aimYawFor(f);
   if (a.start) a.start(a);
 }
@@ -7578,15 +7590,23 @@ const MOVES = {
       name: 'sebBrawlA', dur: 1.5, noControl: true, aim: true, armor: true, speedMul: 0, ghost: true, anim: [[0, 'run', 600]],
       start: () => { popText(chestOf(f), '¡Verity, mira esto!', '#ffd91a', 20); sfx('dash', f.pos); },
       tick: (a, t) => {
-        if (t < .32 && !a.stopped && enemiesOf(f).some(g => dist2d(f, g) < 1.7 && g.alive)) { a.stopped = true; a.ghost = false; f.vel.x *= .1; f.vel.z *= .1; }
-        if (t < .32 && !a.stopped) { const F = fwd(f.yaw); f.vel.x = F.x * 18; f.vel.z = F.z * 18; emit(f.pos.x, f.pos.y + rand(.3, 1.6), f.pos.z, rand(-1, 1), rand(0, 1), rand(-1, 1), '#ffd91a', .2, .3, 0, 3); }
-        else if (a.ghost) { a.ghost = false; f.vel.x *= .1; f.vel.z *= .1; }
-        if (t >= .32 && !a.stopped) { a.stopped = true; f.vel.x *= .1; f.vel.z *= .1; }
-        if (t >= .32 && t < 1.3) {   // se pega al rival mientras lo golpea
-          let n = null, bd = 3.8; for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (d < bd) { bd = d; n = g; } }
-          if (n) { const dx = n.pos.x - f.pos.x, dz = n.pos.z - f.pos.z; f.yaw = Math.atan2(dx, dz); if (bd > 1.3) { f.vel.x = dx / bd * 9; f.vel.z = dz / bd * 9; } else { f.vel.x *= .4; f.vel.z *= .4; } }
+        // Only the opening rush and the short approach to a living target move the fighter.
+        f.vel.x = f.vel.z = 0;
+        if (t < .32 && !a.stopped && enemiesOf(f).some(g => dist2d(f, g) < 1.7)) a.stopped = true;
+        a.ghost = t < .32 && !a.stopped;
+        if (a.ghost) {
+          const F = fwd(f.yaw); f.vel.x = F.x * 18; f.vel.z = F.z * 18;
+          emit(f.pos.x, f.pos.y + rand(.3, 1.6), f.pos.z, rand(-1, 1), rand(0, 1), rand(-1, 1), '#ffd91a', .2, .3, 0, 3);
+        } else if (t >= .32 && t < 1.3) {
+          let n = null, bd = 3.8;
+          for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (d < bd) { bd = d; n = g; } }
+          if (n) {
+            const dx = n.pos.x - f.pos.x, dz = n.pos.z - f.pos.z; f.yaw = Math.atan2(dx, dz);
+            if (bd > 1.3) { f.vel.x = dx / bd * 9; f.vel.z = dz / bd * 9; }
+          }
         }
       },
+      onEnd: () => { f.vel.x = f.vel.z = 0; if (f.verity) f.verity.ov = null; },
       steps: [
         ...[.4, .52, .64, .76, .88].map(at => ({ at, fn: () => { hitArea(f, front(f, 1.3, 1.1), 1.5, { dmg: 1.7, stun: .45, kb: .5, color: '#ffd91a', hitstop: .03, shake: .12 }); fistFx(f, '#ffd91a'); sfx('hit', f.pos, .6); } })),
         { at: 1.0, fn: () => { verityGo(f, () => front(f, 1.7, 1.7), .35, 1.4, 'angry'); const c = front(f, 1.5, 1.1); if (hitArea(f, c, 1.7, { dmg: 3, stun: .5, kb: 1, color: '#ffd91a', hitstop: .06, shake: .25 })) { popText(c, '¡CABEZAZO!', '#ffd91a', 20); impactStar(c, '#ffd91a', 2, .2); } } },
@@ -9425,8 +9445,6 @@ function gfxWatch(rawDt) {
     try { showBanner('CALIDAD ' + GFX.names[GFX.level].toUpperCase(), '#9ba1ba', 'El juego iba lento: bajé los efectos (se puede cambiar en Pausa)'); } catch (e) { }
   }
 }
-const IMP_BLACK = new THREE.MeshBasicMaterial({ color: 0x050505 }), IMP_WHITE = new THREE.MeshBasicMaterial({ color: 0xffffff });
-const C_WHITE = new THREE.Color(0xffffff), C_BLACK = new THREE.Color(0x050505);
 function renderView(sc, cm) { if (composer && GFX.post) { renderPass.scene = sc; renderPass.camera = cm; composer.render(); } else renderer.render(sc, cm); }
 // paneles de cómic: tres cámaras a la vez (cara, cuerpo entero, detalle del arma/visor/mano)
 const PCAMS = [0, 1, 2].map(() => new THREE.PerspectiveCamera(35, 1, .05, 200));
@@ -9459,17 +9477,11 @@ function drawPanelBorders() {
 }
 function renderMain() {
   if (G.cine && G.cine.shot === 1) { renderPanels(G.cine); return; }
-  if (STAGE.on) { renderView(STAGE.scene, camera); return; }
-  if (IMPACT.t <= 0) { renderView(scene, camera); return; }
-  const inv = Math.floor(IMPACT.t / .035) % 2 === 1, bg = scene.background, fog = scene.fog;
-  const worldVisibility=WORLD.map(o=>o.visible);
-  WORLD.forEach(o => { o.visible = false; });
-  scene.overrideMaterial = inv ? IMP_WHITE : IMP_BLACK; scene.background = inv ? C_BLACK : C_WHITE; scene.fog = null;
-  renderer.render(scene, camera);
-  scene.overrideMaterial = null; scene.background = bg; scene.fog = fog;
-  WORLD.forEach((o,i) => { o.visible = worldVisibility[i]; });
+  renderView(STAGE.on ? STAGE.scene : scene, camera);
 }
+
 function drawLines(dt) {
+  if (IMPACT.t > 0 && performance.now() >= IMPACT.until) IMPACT.t = 0;
   if (IMPACT.t > 0) {
     const w = LC.width, h = LC.height, cx = w / 2, cy = h / 2, R = Math.hypot(w, h) / 2;
     LG.clearRect(0, 0, w, h); linesDrawn = true; LG.fillStyle = IMPACT.col; LG.globalAlpha = .9;
