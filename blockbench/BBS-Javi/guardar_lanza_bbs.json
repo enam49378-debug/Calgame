@@ -1,0 +1,2206 @@
+{
+ "thumbnail": "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",
+ "hp": 20.0,
+ "description": "",
+ "created_at": "2026-11-01T20:36:59.672549200Z",
+ "inventory": [],
+ "resolution": {
+  "width": 1920,
+  "height": 1080
+ },
+ "hunger": 20.0,
+ "replays": [
+  {
+   "keyframes": {
+    "item_feet": {
+     "keyframes": [],
+     "type": "item_stack"
+    },
+    "player_flags": {
+     "keyframes": [],
+     "type": "integer"
+    },
+    "player_walk_distance": {
+     "keyframes": [],
+     "type": "float"
+    },
+    "headYaw": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": 7.713960647583008
+      }
+     ],
+     "type": "double"
+    },
+    "action_swimming": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_crossbow_hold": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "item_legs": {
+     "keyframes": [],
+     "type": "item_stack"
+    },
+    "action_brush": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "item_off_hand": {
+     "keyframes": [],
+     "type": "item_stack"
+    },
+    "stick_rx": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_block": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "stick_ry": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "pitch": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": -0.1544620394706726
+      }
+     ],
+     "type": "double"
+    },
+    "item_main_hand": {
+     "keyframes": [],
+     "type": "item_stack"
+    },
+    "player_use_ticks": {
+     "keyframes": [],
+     "type": "integer"
+    },
+    "action_dying": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_pose": {
+     "keyframes": [],
+     "type": "string"
+    },
+    "action_swinging_offhand": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_elytra": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "vX": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_riptide": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "vY": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_crossbow": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "vZ": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_bow": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_eat": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "bodyYaw": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": 7.713960647583008
+      }
+     ],
+     "type": "double"
+    },
+    "action_riding": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_touching_water": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "sprinting": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_sleeping": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_drink": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_lean": {
+     "keyframes": [],
+     "type": "float"
+    },
+    "bbs:invulnerable": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_death_ticks": {
+     "keyframes": [],
+     "type": "integer"
+    },
+    "sneaking": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "extra2_y": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "extra2_x": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "damage": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_flight_ticks": {
+     "keyframes": [],
+     "type": "integer"
+    },
+    "player_swing": {
+     "keyframes": [],
+     "type": "float"
+    },
+    "action_creative_flying": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_toot_horn": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "grounded": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "stick_ly": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_age": {
+     "keyframes": [],
+     "type": "integer"
+    },
+    "action_spyglass": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "fall": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "item_head": {
+     "keyframes": [],
+     "type": "item_stack"
+    },
+    "stick_lx": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_stride_distance": {
+     "keyframes": [],
+     "type": "float"
+    },
+    "action_left_handed": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_spear": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "player_sleep_yaw": {
+     "keyframes": [],
+     "type": "float"
+    },
+    "action_attack": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "action_crawling": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "item_chest": {
+     "keyframes": [],
+     "type": "item_stack"
+    },
+    "yaw": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": 7.713960647583008
+      }
+     ],
+     "type": "double"
+    },
+    "trigger_l": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "selected_slot": {
+     "keyframes": [],
+     "type": "integer"
+    },
+    "x": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": -68.00734657592142
+      }
+     ],
+     "type": "double"
+    },
+    "y": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": -59.0
+      }
+     ],
+     "type": "double"
+    },
+    "z": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": 243.30404210874875
+      }
+     ],
+     "type": "double"
+    },
+    "extra1_y": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "extra1_x": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "bbs:hud": {
+     "keyframes": [],
+     "type": "string"
+    },
+    "action_using_offhand": {
+     "keyframes": [],
+     "type": "double"
+    },
+    "trigger_r": {
+     "keyframes": [],
+     "type": "double"
+    }
+   },
+   "stable_id": "",
+   "shadow": 1,
+   "looping": 0,
+   "shadow_size": 0.5,
+   "fp": 0,
+   "label": "",
+   "enabled": 1,
+   "faithful_inventory": 0,
+   "actor": 0,
+   "form": {
+    "hitboxHeight": 1.7999999523162842,
+    "outline_rainbow_speed": 1.0,
+    "hp": 20.0,
+    "film_invulnerable": 0,
+    "color_effects": {
+     "saturation": 1.0,
+     "brightness": 0.0,
+     "contrast": 1.0,
+     "hue": 0.0,
+     "paint": {
+      "intensity": 0.0,
+      "r": 1.0,
+      "b": 1.0,
+      "g": 1.0,
+      "radius": 0.0,
+      "mask": {
+       "shape": "box",
+       "size": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+       },
+       "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "enabled": 0,
+       "softness": 0.0
+      }
+     },
+     "version": 3,
+     "glow": {
+      "intensity": 0.0,
+      "r": 1.0,
+      "b": 1.0,
+      "g": 1.0,
+      "radius": 0.0,
+      "mask": {
+       "shape": "box",
+       "size": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+       },
+       "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+       },
+       "enabled": 0,
+       "softness": 0.0
+      }
+     },
+     "mask": {
+      "shape": "box",
+      "size": {
+       "x": 1.0,
+       "y": 1.0,
+       "z": 1.0
+      },
+      "rotation": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "position": {
+       "x": 0.0,
+       "y": 0.0,
+       "z": 0.0
+      },
+      "enabled": 0,
+      "softness": 0.0
+     }
+    },
+    "model": "Rigs/alex_A&S",
+    "bone_tracks": 1,
+    "id": "bbs:model",
+    "hitboxWidth": 0.5,
+    "visible": 1,
+    "hitboxEyeHeight": 0.8999999761581421,
+    "pose": {},
+    "hitboxSneakMultiplier": 0.8999999761581421,
+    "lighting": 1.0,
+    "hitbox": 0,
+    "outline_color": -1,
+    "uiScale": 1.0,
+    "bones": {},
+    "name": "Javi",
+    "parts": [
+     {
+      "transform": {
+       "r": [
+        0.0,
+        0.0,
+        0.0
+       ],
+       "s": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "t": [
+        0.0,
+        -0.0625,
+        0.0
+       ]
+      },
+      "form": {
+       "hitboxHeight": 1.7999999523162842,
+       "outline_rainbow_speed": 1.0,
+       "hp": 20.0,
+       "film_invulnerable": 0,
+       "color_effects": {
+        "saturation": 1.0,
+        "brightness": 0.0,
+        "contrast": 1.0,
+        "hue": 0.0,
+        "paint": {
+         "intensity": 0.0,
+         "r": 1.0,
+         "b": 1.0,
+         "g": 1.0,
+         "radius": 0.0,
+         "mask": {
+          "shape": "box",
+          "size": {
+           "x": 1.0,
+           "y": 1.0,
+           "z": 1.0
+          },
+          "rotation": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "position": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "enabled": 0,
+          "softness": 0.0
+         }
+        },
+        "version": 3,
+        "glow": {
+         "intensity": 0.0,
+         "r": 1.0,
+         "b": 1.0,
+         "g": 1.0,
+         "radius": 0.0,
+         "mask": {
+          "shape": "box",
+          "size": {
+           "x": 1.0,
+           "y": 1.0,
+           "z": 1.0
+          },
+          "rotation": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "position": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "enabled": 0,
+          "softness": 0.0
+         }
+        },
+        "mask": {
+         "shape": "box",
+         "size": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+         },
+         "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "enabled": 0,
+         "softness": 0.0
+        }
+       },
+       "model": "player/eyes",
+       "bone_tracks": 1,
+       "id": "bbs:model",
+       "hitboxWidth": 0.5,
+       "visible": 1,
+       "hitboxEyeHeight": 0.8999999761581421,
+       "pose": {},
+       "hitboxSneakMultiplier": 0.8999999761581421,
+       "lighting": 1.0,
+       "hitbox": 0,
+       "outline_color": -1,
+       "uiScale": 1.0,
+       "bones": {},
+       "name": "",
+       "parts": [],
+       "actions": {},
+       "wind": {
+        "turbulence_speed": 1.0,
+        "strength": 0.0,
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0,
+        "turbulence": 0.5,
+        "turbulence_scale": 1.0,
+        "local": 0
+       },
+       "pose_overlay": {},
+       "color": -1,
+       "pose_overlay0": {},
+       "pose_overlay1": {},
+       "noshading_opacity": 0,
+       "shaderShadow": 1,
+       "states": [],
+       "shape_keys": {
+        "keys": {}
+       },
+       "transform": {},
+       "outline": 0,
+       "step_height": 0.5,
+       "pose_overlay2": {},
+       "pose_overlay3": {},
+       "pose_overlay4": {},
+       "track_name": "",
+       "texture": "assets:Texture skin/a.fred/Ojos/Hombres/Cal/javiv.png",
+       "transform_overlay4": {},
+       "transform_overlay3": {},
+       "animatable": 1,
+       "transform_overlay2": {},
+       "transform_overlay1": {},
+       "transform_overlay0": {},
+       "movement_speed": 0.10000000149011612,
+       "armor_opacity": 0,
+       "anchor": {
+        "actor": -1,
+        "attachment": "",
+        "scale": 0,
+        "translate": 0
+       },
+       "keybind": 0,
+       "outline_thickness": 2.0,
+       "outline_rainbow": 0,
+       "transform_overlay": {},
+       "outline_rainbow_scale": 1.0
+      },
+      "bone": "head",
+      "useTarget": 0
+     },
+     {
+      "transform": {
+       "r": [
+        0.0,
+        3.1415927410125732,
+        0.0
+       ],
+       "s": [
+        1.0,
+        1.0,
+        1.0
+       ],
+       "t": [
+        0.0,
+        -0.65625,
+        -0.21875
+       ]
+      },
+      "form": {
+       "hitboxHeight": 1.7999999523162842,
+       "outline_rainbow_speed": 1.0,
+       "hp": 20.0,
+       "film_invulnerable": 0,
+       "color_effects": {
+        "saturation": 1.0,
+        "brightness": 0.0,
+        "contrast": 1.0,
+        "hue": 0.0,
+        "paint": {
+         "intensity": 0.0,
+         "r": 1.0,
+         "b": 1.0,
+         "g": 1.0,
+         "radius": 0.0,
+         "mask": {
+          "shape": "box",
+          "size": {
+           "x": 1.0,
+           "y": 1.0,
+           "z": 1.0
+          },
+          "rotation": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "position": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "enabled": 0,
+          "softness": 0.0
+         }
+        },
+        "version": 3,
+        "glow": {
+         "intensity": 0.0,
+         "r": 1.0,
+         "b": 1.0,
+         "g": 1.0,
+         "radius": 0.0,
+         "mask": {
+          "shape": "box",
+          "size": {
+           "x": 1.0,
+           "y": 1.0,
+           "z": 1.0
+          },
+          "rotation": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "position": {
+           "x": 0.0,
+           "y": 0.0,
+           "z": 0.0
+          },
+          "enabled": 0,
+          "softness": 0.0
+         }
+        },
+        "mask": {
+         "shape": "box",
+         "size": {
+          "x": 1.0,
+          "y": 1.0,
+          "z": 1.0
+         },
+         "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+         },
+         "enabled": 0,
+         "softness": 0.0
+        }
+       },
+       "model": "Calgame/Armas/Javi",
+       "bone_tracks": 0,
+       "id": "bbs:model",
+       "hitboxWidth": 0.5,
+       "visible": 1,
+       "hitboxEyeHeight": 0.8999999761581421,
+       "pose": {},
+       "hitboxSneakMultiplier": 0.8999999761581421,
+       "lighting": 1.0,
+       "hitbox": 0,
+       "outline_color": -1,
+       "uiScale": 1.0,
+       "bones": {},
+       "name": "",
+       "parts": [],
+       "actions": {},
+       "wind": {
+        "turbulence_speed": 1.0,
+        "strength": 0.0,
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0,
+        "turbulence": 0.5,
+        "turbulence_scale": 1.0,
+        "local": 0
+       },
+       "pose_overlay": {},
+       "color": -1,
+       "pose_overlay0": {},
+       "pose_overlay1": {},
+       "noshading_opacity": 0,
+       "shaderShadow": 1,
+       "states": [],
+       "shape_keys": {
+        "keys": {}
+       },
+       "transform": {},
+       "outline": 0,
+       "step_height": 0.5,
+       "pose_overlay2": {},
+       "pose_overlay3": {},
+       "pose_overlay4": {},
+       "track_name": "",
+       "transform_overlay4": {},
+       "transform_overlay3": {},
+       "animatable": 1,
+       "transform_overlay2": {},
+       "transform_overlay1": {},
+       "transform_overlay0": {},
+       "movement_speed": 0.10000000149011612,
+       "armor_opacity": 0,
+       "anchor": {
+        "actor": -1,
+        "attachment": "",
+        "scale": 0,
+        "translate": 0
+       },
+       "keybind": 0,
+       "outline_thickness": 2.0,
+       "outline_rainbow": 0,
+       "transform_overlay": {},
+       "outline_rainbow_scale": 1.0
+      },
+      "bone": "right_arm",
+      "useTarget": 0
+     }
+    ],
+    "actions": {},
+    "wind": {
+     "turbulence_speed": 1.0,
+     "strength": 0.0,
+     "x": 1.0,
+     "y": 0.0,
+     "z": 0.0,
+     "turbulence": 0.5,
+     "turbulence_scale": 1.0,
+     "local": 0
+    },
+    "pose_overlay": {},
+    "color": -1,
+    "pose_overlay0": {},
+    "pose_overlay1": {},
+    "noshading_opacity": 0,
+    "shaderShadow": 1,
+    "states": [],
+    "shape_keys": {
+     "keys": {}
+    },
+    "transform": {},
+    "outline": 0,
+    "step_height": 0.5,
+    "pose_overlay2": {},
+    "pose_overlay3": {},
+    "pose_overlay4": {},
+    "track_name": "",
+    "texture": "assets:Texture skin/a.fred/Hombres/Cal/Javi_Cubito_Ultimate 2.png",
+    "transform_overlay4": {},
+    "transform_overlay3": {},
+    "animatable": 1,
+    "transform_overlay2": {},
+    "transform_overlay1": {},
+    "transform_overlay0": {},
+    "movement_speed": 0.10000000149011612,
+    "armor_opacity": 0,
+    "anchor": {
+     "actor": -1,
+     "attachment": "",
+     "scale": 0,
+     "translate": 0
+    },
+    "keybind": 0,
+    "outline_thickness": 2.0,
+    "outline_rainbow": 0,
+    "transform_overlay": {},
+    "outline_rainbow_scale": 1.0
+   },
+   "relativeOffset": {
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   "axes_preview_bone": "",
+   "category": "",
+   "name_tag": "",
+   "faithful_items": 0,
+   "actions": [],
+   "axes_preview": 0,
+   "properties": {
+    "pose_overlay": {
+     "keyframes": [
+      {
+       "interp": "hermite",
+       "tick": 0.0,
+       "value": {
+        "pose": {
+         "low_body": {
+          "r": [
+           -0.06981317698955536,
+           0.0,
+           -0.05235988274216652
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.5625,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 12.0,
+       "value": {
+        "pose": {
+         "low_body": {
+          "r": [
+           0.12217304110527039,
+           0.0,
+           0.15707963705062866
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.5625,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 17.0,
+       "value": {
+        "pose": {
+         "low_body": {
+          "r": [
+           0.12217304110527039,
+           0.0,
+           0.03490658849477768
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.5625,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "low_anchor": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "texture_children": 1,
+          "t": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 26.0,
+       "value": {
+        "pose": {
+         "low_body": {
+          "r": [
+           0.034906577318906784,
+           0.0,
+           0.03490658849477768
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -1.09375,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "low_anchor": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "texture_children": 1,
+          "t": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 30.0,
+       "value": {
+        "pose": {
+         "low_body": {
+          "r": [
+           -0.0872664749622345,
+           0.0,
+           0.10471976548433304
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -1.09375,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "low_anchor": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "texture_children": 1,
+          "t": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 38.0,
+       "value": {
+        "pose": {
+         "low_body": {
+          "r": [
+           0.12217304110527039,
+           0.0,
+           0.15707963705062866
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.5625,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      }
+     ],
+     "type": "pose"
+    },
+    "0/pose": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": {
+        "pose": {}
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 7.0,
+       "value": {
+        "pose": {
+         "pupil_l": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -0.25,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "pupil_r": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -1.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 10.417428970336914,
+       "value": {
+        "pose": {
+         "pupil_l": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -0.25,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "pupil_r": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -1.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 15.0,
+       "value": {
+        "pose": {
+         "pupil_l": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -0.25,
+           0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "pupil_r": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -1.0,
+           0.71875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 22.0,
+       "value": {
+        "pose": {
+         "pupil_l": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -0.25,
+           0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "pupil_r": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -1.0,
+           0.71875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 27.0,
+       "value": {
+        "pose": {
+         "eyebrow_er": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           2.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyelid_lt": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.149999976158142,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.9449999928474426,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyebrow_r": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -2.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyelid_lb": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.149999976158142,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           0.9449999928474426,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyebrow_el": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           2.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyelid_rb": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.149999976158142,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           0.9449999928474426,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyelid_rt": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.149999976158142,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.9449999928474426,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "eyebrow_l": {
+          "r": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -2.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 32.0,
+       "value": {
+        "pose": {}
+       }
+      }
+     ],
+     "type": "pose"
+    },
+    "1/transform_overlay": {
+     "keyframes": [
+      {
+       "tick": 7.0,
+       "value": {
+        "r": [
+         0.0,
+         -0.2617993950843811,
+         0.0
+        ],
+        "s": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "t": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "tick": 16.0,
+       "value": {
+        "r": [
+         6.736971378326416,
+         0.0,
+         -0.33161255717277527
+        ],
+        "s": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "t": [
+         0.0,
+         0.0,
+         0.0
+        ]
+       }
+      }
+     ],
+     "type": "transform"
+    },
+    "pose": {
+     "keyframes": [
+      {
+       "interp": "hermite",
+       "tick": 0.0,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.27925270795822144,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 6.0,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.08726649731397629,
+           0.0,
+           -0.01745329424738884
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 18.0,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.08726649731397629,
+           0.0,
+           -0.0872664675116539
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           0.0,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 24.388473510742188,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.2268928438425064,
+           0.0,
+           -0.0872664675116539
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.21875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 27.570789337158203,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.36651918292045593,
+           0.0,
+           -0.01745329424738884
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.21875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 31.0,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.36651918292045593,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.21875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 35.0,
+       "value": {
+        "pose": {
+         "head": {
+          "r": [
+           -0.1745329648256302,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.21875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      }
+     ],
+     "type": "pose"
+    },
+    "pose_overlay0": {
+     "keyframes": [
+      {
+       "interp": "hermite",
+       "tick": 0.0,
+       "value": {
+        "pose": {
+         "right_arm": {
+          "r": [
+           -0.01745329424738884,
+           0.0,
+           0.06981317698955536
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.1875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "left_arm": {
+          "r": [
+           -0.03490658849477768,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 6.0,
+       "value": {
+        "pose": {
+         "right_arm": {
+          "r": [
+           0.7330383062362671,
+           0.0,
+           0.06981317698955536
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -1.5,
+           0.71875
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "left_arm": {
+          "r": [
+           -0.03490658849477768,
+           0.0,
+           -0.41887906193733215
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 12.0,
+       "value": {
+        "pose": {
+         "right_arm": {
+          "r": [
+           2.1118483543395996,
+           -0.4712389409542084,
+           0.06981317698955536
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.40625,
+           0.71875
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "left_arm": {
+          "r": [
+           -4.161189615103922e-09,
+           0.0,
+           -0.45378562808036804
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 18.0,
+       "value": {
+        "pose": {
+         "right_arm": {
+          "r": [
+           2.56563401222229,
+           -0.5235987901687622,
+           0.06981317698955536
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           2.375,
+           0.71875
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "left_arm": {
+          "r": [
+           -0.03490658849477768,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 22.0,
+       "value": {
+        "pose": {
+         "right_arm": {
+          "r": [
+           3.3095808029174805,
+           -0.8584838509559631,
+           -0.0872664675116539
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -0.25,
+           1.970703125,
+           1.875
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "left_arm": {
+          "r": [
+           -0.03490658849477768,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      },
+      {
+       "interp": "hermite",
+       "tick": 26.0,
+       "value": {
+        "pose": {
+         "right_arm": {
+          "r": [
+           3.9968042373657227,
+           -1.1868239641189575,
+           -0.24434611201286316
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           -0.5,
+           -2.46875,
+           3.03125
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "left_arm": {
+          "r": [
+           -0.03490658849477768,
+           0.0,
+           -0.1745329350233078
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.46875,
+           0.0
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      }
+     ],
+     "type": "pose"
+    },
+    "pose_overlay1": {
+     "keyframes": [
+      {
+       "interp": "hermite",
+       "tick": 0.0,
+       "value": {
+        "pose": {
+         "left_leg": {
+          "r": [
+           0.0,
+           0.20943953096866608,
+           0.0
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           0.0,
+           -2.15625
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         },
+         "right_leg": {
+          "r": [
+           0.06981317698955536,
+           0.0,
+           0.13962635397911072
+          ],
+          "s": [
+           1.0,
+           1.0,
+           1.0
+          ],
+          "visible": 1,
+          "t": [
+           0.0,
+           -0.5625,
+           -1.8125
+          ],
+          "fix": 0.0,
+          "color": -1,
+          "lighting": 0.0
+         }
+        }
+       }
+      }
+     ],
+     "type": "pose"
+    },
+    "pose_overlay2": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": {}
+      }
+     ],
+     "type": "pose"
+    },
+    "1/transform": {
+     "keyframes": [
+      {
+       "tick": 6.0,
+       "value": {}
+      },
+      {
+       "tick": 12.0,
+       "value": {
+        "r": [
+         0.3490658700466156,
+         0.0,
+         0.0
+        ],
+        "s": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "t": [
+         0.0,
+         -0.15625,
+         -0.125
+        ]
+       }
+      },
+      {
+       "tick": 16.0,
+       "value": {
+        "r": [
+         0.22689281404018402,
+         0.0,
+         0.0
+        ],
+        "s": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "t": [
+         0.125,
+         0.0,
+         -0.125
+        ]
+       }
+      }
+     ],
+     "type": "transform"
+    }
+   },
+   "relative": 0
+  }
+ ],
+ "time_spent_active": 38760,
+ "replay_categories": [],
+ "xp_level": 0,
+ "xp_progress": 0.0,
+ "contributors": [
+  {
+   "ticks": 38760,
+   "name": "Jesuluto",
+   "uuid": "dd046245-03dd-4c5a-bb0b-7b7e0a842c94"
+  }
+ ],
+ "camera": [
+  {
+   "duration": 38,
+   "envelope": {
+    "mode": 0,
+    "keyframes": 0,
+    "pre": "linear",
+    "fadeOut": 10.0,
+    "post": "linear",
+    "fadeIn": 10.0,
+    "channel": {
+     "keyframes": [
+      {
+       "tick": 0.0,
+       "value": 0.0
+      },
+      {
+       "tick": 30.0,
+       "value": 1.0
+      }
+     ],
+     "type": "double"
+    },
+    "enabled": 0
+   },
+   "tick": 0,
+   "position": {
+    "angle": {
+     "roll": 1.3428698778152466,
+     "pitch": 2.161512613296509,
+     "fov": 70.00000762939453,
+     "yaw": 367.52703857421875
+    },
+    "point": {
+     "x": -68.35956260228886,
+     "y": -57.5050415325386,
+     "z": 245.40373313438087
+    }
+   },
+   "title": "",
+   "type": "bbs:idle",
+   "enabled": 1,
+   "layer": 8
+  }
+ ]
+}

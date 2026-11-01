@@ -1,0 +1,18 @@
+VOCES DE PERSONAJES - cómo añadir audios sin tocar código
+
+1. Pon aquí los audios (mp3, wav, ogg...) con el nombre igual que los de Javi, cambiando solo el personaje:
+     Javi Consegir Ult_2.mp3   ->   Rocket Consegir Ult_2.mp3
+   Formato:  <Personaje> <Evento> [número]
+   Personajes: Javi, Redbird, Rocket, Itsukio (ItzUkyo), Sekza, Randi, Gato, Seb0lla, Capitan, Kaiza, Nyx, Volt, Brasa, Yuki, Titan...
+   Eventos:
+     Activar la Ulti             al despertar
+     Consegir Ulti               cuando la ulti está lista
+     al matar                    cuando derriba a alguien
+     Cuando esta apunto de matar cuando deja a alguien casi sin vida
+     Al morir                    cuando lo derrotan
+     idle                        de vez en cuando, fuera de combate
+     daño                        al recibir un golpe
+     Habilidad Ulti              en la habilidad del despertar (Redbird: Sobrecarga del Visor)
+   Si repites el evento sin número se guarda como el siguiente (idle 1, idle 2...) y el juego elige uno al azar.
+2. Ejecuta  Actualizar_Voces.bat  (o:  python tools/voces.py)
+   Convierte a mp3, los guarda en sonidos/<personaje>/ y actualiza index.html. Recarga el juego con Ctrl+F5.
