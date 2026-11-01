@@ -11093,7 +11093,7 @@ $('dclose').addEventListener('click', () => togglePanel(false));
 $('panelbtn').addEventListener('click', () => togglePanel(true));
 
 // ================= Editor de animaciones (estilo Blockbench): claves, interpolaciones, fórmulas y curvas =================
-const ED = { on: false, setId: null, name: null, clip: null, time: 0, playing: false, loop: true, speed: 1, zoom: 170, scroll: -.3, vscroll: 0, sel: new Set(), rows: [], undo: [], redo: [], clip0: null, curves: false, rotY: .35, camZ: 7.4, snap: true, open: {}, selBone: 'body', selChan: null, drag: null, saved: {}, orig: {}, msgT: 0 };
+const ED = { att: null, vic: null, tg: 'att', attName: null, vicName: null, vfig: null, vchar: null, vOn: true, on: false, setId: null, name: null, clip: null, time: 0, playing: false, loop: true, speed: 1, zoom: 170, scroll: -.3, vscroll: 0, sel: new Set(), rows: [], undo: [], redo: [], clip0: null, curves: false, rotY: .35, camZ: 7.4, snap: true, open: {}, selBone: 'body', selChan: null, drag: null, saved: {}, orig: {}, msgT: 0 };
 const ED_BONES = [
   { id: 'body', n: 'Cuerpo', col: '#ffd23f', g: { rot: ['ix', 'iy', 'iz'], pos: ['bx', 'by', 'bz'] } },
   { id: 'torso', n: 'Torso', col: '#7dff6a', g: { rot: ['tx', 'ty', 'tz'], pos: ['tpx', 'tpy', 'tpz'], scl: ['tscx', 'tscy', 'tscz'] } },
@@ -11207,10 +11207,12 @@ function edCompileClip(clip) {
   for (const t of [...times].sort((a, b) => a - b)) rows.push([t, ...ch.map(c => +edEvalChan(clip, c, t).toFixed(6))]);
   return { length: +L.toFixed(4), loop: !!clip.loop, contacts: clip.contacts.slice(), channels: ch, samples: rows };
 }
-function edSnap(c) { return JSON.stringify(c); }
-function edPush() { ED.undo.push(edSnap(ED.clip)); if (ED.undo.length > 100) ED.undo.shift(); ED.redo.length = 0; }
-function edUndo() { if (!ED.undo.length) return; ED.redo.push(edSnap(ED.clip)); ED.clip = JSON.parse(ED.undo.pop()); ED.sel.clear(); edProps(); }
-function edRedo() { if (!ED.redo.length) return; ED.undo.push(edSnap(ED.clip)); ED.clip = JSON.parse(ED.redo.pop()); ED.sel.clear(); edProps(); }
+function edSnap() { return JSON.stringify({ a: ED.att, v: ED.vic, tg: ED.tg }); }
+function edPush() { ED.undo.push(edSnap()); if (ED.undo.length > 100) ED.undo.shift(); ED.redo.length = 0; }
+function edPoint() { ED.clip = ED.tg === 'vic' && ED.vic ? ED.vic : ED.att; if (ED.clip === ED.att) ED.tg = 'att'; }
+function edRestoreSnap(j) { const o = JSON.parse(j); ED.att = o.a; ED.vic = o.v; ED.tg = o.tg; edPoint(); ED.sel.clear(); edRebuild(); }
+function edUndo() { if (!ED.undo.length) return; ED.redo.push(edSnap()); edRestoreSnap(ED.undo.pop()); }
+function edRedo() { if (!ED.redo.length) return; ED.undo.push(edSnap()); edRestoreSnap(ED.redo.pop()); }
 function edMsg(t, bad) { const e = $('ae-msg'); if (!e) return; e.textContent = t; e.style.color = bad ? '#ff7a7a' : '#9fe8a8'; e.style.opacity = 1; ED.msgT = 3; }
 // ----- guardado
 function edLoadSaved() {
@@ -11218,20 +11220,26 @@ function edLoadSaved() {
   for (const sid of Object.keys(ED.saved)) { const D = bbSet(sid); if (!D) continue; for (const nm of Object.keys(ED.saved[sid])) { try { D[nm] = edCompileClip(ED.saved[sid][nm]); for (const k of Object.keys(JAVI_BB_CACHE)) if (k === sid + ':' + nm) delete JAVI_BB_CACHE[k]; } catch (e) { } } }
 }
 function edSaveGame() {
-  const D = bbSet(ED.setId); if (!D) return; const key = ED.setId + ':' + ED.name; if (!ED.orig[key] && D[ED.name]) ED.orig[key] = D[ED.name];
-  D[ED.name] = edCompileClip(ED.clip); delete JAVI_BB_CACHE[key];
-  (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[ED.name] = JSON.parse(edSnap(ED.clip));
-  try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); edMsg('Guardada en el juego: ' + ED.name); } catch (e) { edMsg('No se pudo guardar (espacio lleno). Exporta el JSON.', true); }
+  const D = bbSet(ED.setId); if (!D) return; const names = [];
+  for (const [nm, c] of [[ED.attName, ED.att], [ED.vicName, ED.vic]]) {
+    if (!nm || !c) continue; const key = ED.setId + ':' + nm; if (!ED.orig[key] && D[nm]) ED.orig[key] = D[nm];
+    D[nm] = edCompileClip(c); delete JAVI_BB_CACHE[key]; (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = JSON.parse(JSON.stringify(c)); names.push(nm);
+  }
+  try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); edMsg('Guardado en el juego: ' + names.join(' + ')); } catch (e) { edMsg('No se pudo guardar (espacio lleno). Exporta el JSON.', true); }
 }
 function edStore() { try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); } catch (e) { edMsg('No se pudo guardar (espacio lleno). Exporta el JSON.', true); } }
 function edDup() {
-  const base = ED.name.replace(/_copia\d*$/, ''); let nm = prompt('Nombre del clip nuevo (copia de ' + ED.name + ')', base + '_copia'); if (!nm) return; nm = nm.trim().replace(/\s+/g, '_');
+  let nm = prompt('Nombre del clip nuevo (copia de ' + ED.attName + ')', ED.attName.replace(/_copia\d*$/, '') + '_copia'); if (!nm) return; nm = nm.trim().replace(/\s+/g, '_');
   const D = bbSet(ED.setId); if (!nm || D[nm]) return edMsg('Ya existe un clip con ese nombre', true);
-  const c = JSON.parse(JSON.stringify(ED.clip)); c.name = nm; c.user = true; D[nm] = edCompileClip(c); (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = c; edStore(); edOpenClip(ED.setId, nm); edMsg('Duplicado como ' + nm);
+  const vn = ED.vic ? (/^cine_/.test(nm) ? 'cine_vic_' + nm.slice(5) : nm + '_vic') : null; if (vn && D[vn]) return edMsg('Ya existe ' + vn, true);
+  const mk = (src, name) => { const c = JSON.parse(JSON.stringify(src)); c.name = name; c.user = true; D[name] = edCompileClip(c); (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[name] = c; };
+  mk(ED.att, nm); if (vn) mk(ED.vic, vn); edStore(); edOpenClip(ED.setId, nm); edMsg('Duplicado como ' + nm + (vn ? ' + ' + vn : ''));
 }
 function edDelClip() {
-  if (!ED.clip.user) return edMsg('Solo puedes borrar clips que creaste tú (usa Restaurar para deshacer cambios)', true);
-  if (!confirm('¿Borrar el clip ' + ED.name + '?')) return; const D = bbSet(ED.setId); delete D[ED.name]; if (ED.saved[ED.setId]) delete ED.saved[ED.setId][ED.name]; edStore(); edOpenClip(ED.setId, D.idle ? 'idle' : Object.keys(D)[0]); edMsg('Clip borrado');
+  const names = [ED.att && ED.att.user ? ED.attName : null, ED.vic && ED.vic.user ? ED.vicName : null].filter(Boolean);
+  if (!names.length) return edMsg('Solo puedes borrar clips que creaste tú (usa Restaurar para deshacer cambios)', true);
+  if (!confirm('¿Borrar ' + names.join(' y ') + '?')) return; const D = bbSet(ED.setId);
+  for (const n of names) { delete D[n]; if (ED.saved[ED.setId]) delete ED.saved[ED.setId][n]; } edStore(); edOpenClip(ED.setId, D.idle ? 'idle' : Object.keys(D)[0]); edMsg('Clip borrado');
 }
 // ----- audio de referencia: onda en la línea de tiempo y sonido al reproducir
 function edRefOptions() {
@@ -11256,35 +11264,76 @@ function edRefUse(key, name, buf) {
 function edRefStart() { if (!ED.ref || !AC) return; edRefStop(); const t = ED.time - ED.ref.off, src = AC.createBufferSource(); src.buffer = ED.ref.buf; src.connect(AC.destination); if (t >= 0) { if (t < ED.ref.buf.duration) src.start(0, t); else return; } else src.start(AC.currentTime - t); ED.refSrc = src; src.onended = () => { if (ED.refSrc === src) ED.refSrc = null; }; }
 function edRefStop() { if (ED.refSrc) { try { ED.refSrc.stop(); } catch (e) { } ED.refSrc = null; } }
 function edRestore() {
-  const sid = ED.setId, nm = ED.name; if (ED.saved[sid]) { delete ED.saved[sid][nm]; try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); } catch (e) { } }
-  const o = ED.orig[sid + ':' + nm]; if (o) { bbSet(sid)[nm] = o; delete JAVI_BB_CACHE[sid + ':' + nm]; }
-  edOpenClip(sid, nm, true); edMsg(o ? 'Clip original restaurado' : 'Override borrado (recarga para ver el original)');
+  const sid = ED.setId; let got = false;
+  for (const nm of [ED.attName, ED.vicName]) { if (!nm) continue; if (ED.saved[sid]) delete ED.saved[sid][nm]; const o = ED.orig[sid + ':' + nm]; if (o) { bbSet(sid)[nm] = o; delete JAVI_BB_CACHE[sid + ':' + nm]; got = true; } }
+  try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); } catch (e) { }
+  edOpenClip(sid, ED.name, true); edMsg(got ? 'Clips originales restaurados' : 'Cambios borrados (recarga para ver el original)');
 }
-function edExport() { const blob = new Blob([JSON.stringify({ v: 1, set: ED.setId, clip: ED.clip }, null, 1)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ED.setId + '-' + ED.name + '.anim.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
-function edImportFile(file) { const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); if (!j.clip || !j.clip.tracks) throw 0; edPush(); ED.clip = j.clip; ED.clip.contacts = ED.clip.contacts || []; ED.name = ED.clip.name || ED.name; ED.sel.clear(); edRebuild(); edMsg('JSON importado'); } catch (e) { edMsg('Archivo no válido', true); } }; r.readAsText(file); }
+function edExport() { const blob = new Blob([JSON.stringify({ v: 2, set: ED.setId, attName: ED.attName, vicName: ED.vicName, att: ED.att, vic: ED.vic }, null, 1)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ED.setId + '-' + ED.attName + '.anim.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function edImportFile(file) {
+  const r = new FileReader(); r.onload = () => {
+    try {
+      const j = JSON.parse(r.result); edPush();
+      if (j.v === 2 && j.att) { ED.att = j.att; ED.vic = j.vic || null; ED.attName = j.attName || ED.attName; ED.vicName = j.vicName || ED.vicName; ED.tg = 'att'; }
+      else if (j.clip && j.clip.tracks) { ED.clip.tracks = j.clip.tracks; ED.clip.length = j.clip.length || ED.clip.length; ED.clip.loop = !!j.clip.loop; ED.clip.contacts = j.clip.contacts || []; }
+      else throw 0;
+      edPoint(); ED.sel.clear(); edRebuild(); edMsg('JSON importado');
+    } catch (e) { edMsg('Archivo no válido', true); }
+  }; r.readAsText(file);
+}
 // ----- abrir / cerrar
 const ED_SETS = () => CHAR_IDS.filter(id => bbSet(id));
+function edPair(sid, name) {
+  const D = bbSet(sid), m = /^cine_vic_(.+)$/.exec(name);
+  if (m) return { att: D['cine_' + m[1]] ? 'cine_' + m[1] : null, vic: name, tg: 'vic' };
+  const v = /^cine_(.+)$/.test(name) ? 'cine_vic_' + name.slice(5) : null;
+  return { att: name, vic: v && D[v] ? v : null, tg: 'att' };
+}
+function edLoadObj(sid, name) { const c = ED.saved[sid] && ED.saved[sid][name] ? JSON.parse(JSON.stringify(ED.saved[sid][name])) : edFromGame(sid, name); c.contacts = c.contacts || []; c.name = name; return c; }
 function edOpenClip(sid, name, keepUndo) {
-  const D = bbSet(sid); if (!D || !D[name]) return; ED.setId = sid; ED.name = name;
-  ED.clip = ED.saved[sid] && ED.saved[sid][name] ? JSON.parse(JSON.stringify(ED.saved[sid][name])) : edFromGame(sid, name); ED.clip.contacts = ED.clip.contacts || [];
+  const D = bbSet(sid); if (!D || !D[name]) return; const pr = edPair(sid, name);
+  ED.setId = sid; ED.name = name; ED.attName = pr.att || (D.idle ? 'idle' : name); ED.vicName = pr.vic;
+  ED.att = edLoadObj(sid, ED.attName); ED.vic = ED.vicName ? edLoadObj(sid, ED.vicName) : null; ED.tg = pr.tg; edPoint();
   if (!keepUndo) { ED.undo.length = 0; ED.redo.length = 0; } ED.sel.clear(); ED.time = 0; ED.playing = false;
   ED.open = {}; for (const c of Object.keys(ED.clip.tracks)) { const b = edBoneOf(c); if (b) ED.open[b.id] = true; }
-  ED.selBone = Object.keys(ED.open)[0] || 'body'; edRebuild();
+  ED.selBone = Object.keys(ED.open)[0] || 'body'; ED.selChan = null; edRebuild(); edVicBuild();
   const mv = /^idle_voz_(\d)$/.exec(name); if (mv && sid === 'javi') edRefSet('javi/reposo_' + mv[1]);
 }
+function edSetTarget(t) {
+  if (t === 'vic' && !ED.vic) return edMsg('Este clip no tiene víctima: pulsa "Crear víctima"', true);
+  ED.tg = t; edPoint(); ED.sel.clear(); ED.open = {}; for (const c of Object.keys(ED.clip.tracks)) { const b = edBoneOf(c); if (b) ED.open[b.id] = true; } ED.selChan = null; edRebuild();
+}
+function edMakeVic() {
+  if (ED.vic) return; const D = bbSet(ED.setId), nm = /^cine_/.test(ED.attName) ? 'cine_vic_' + ED.attName.slice(5) : ED.attName + '_vic';
+  if (D[nm] && ED.saved[ED.setId] && ED.saved[ED.setId][nm]) { ED.vic = edLoadObj(ED.setId, nm); } else if (D[nm]) { ED.vic = edLoadObj(ED.setId, nm); }
+  else { const c = { name: nm, length: ED.att.length, loop: false, contacts: [], tracks: {}, user: true }; D[nm] = edCompileClip(c); (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = c; edStore(); ED.vic = c; }
+  ED.vicName = nm; edPush(); edSetTarget('vic'); edMsg('Víctima creada: ' + nm + ' (edita su pose con los deslizadores)');
+}
+function edLen() { return Math.max(.05, ED.att ? ED.att.length : 1, ED.vic ? ED.vic.length : 0); }
+// ----- atacante y víctima juntos en la vista
+function edVicDispose() { if (ED.vfig) { try { disposeModel(ED.vfig.model); } catch (e) { } ED.vfig = null; } }
+function edVicBuild() {
+  edVicDispose(); if (!ED.vOn || !SH.scene) return;
+  const id = ED.vchar && CHARS[ED.vchar] ? ED.vchar : (CHAR_IDS.find(c => c !== ED.setId) || ED.setId); ED.vchar = id;
+  const skin = charSkin(id), faceC = copyCanvas(skin), model = buildModel(faceC, !!CHARS[id].slim, SH.scene);
+  ED.vfig = { model, anim: new Animator(model) }; ED.vfig.anim.bbR6 = true; const vs = document.getElementById('ae-vchar'); if (vs) vs.value = id;
+}
+const ED_ZERO = new V3(0, 0, 0), ED_DEFPATH = { apos: [[0, 0, 0, 0, 0]], vpos: [[0, 0, 0, 1.5, 0]] };
+const edPath = (k) => { const P = ED.att && ED.att.paths && ED.att.paths[k]; return P && P.length ? P : ED_DEFPATH[k]; };
 function edRebuild() {
   ED.rows = []; for (const b of ED_BONES) { ED.rows.push({ t: 'bone', b }); if (ED.open[b.id]) for (const k of ['rot', 'pos', 'scl']) for (const c of b.g[k] || []) ED.rows.push({ t: 'chan', b, k, c }); }
+  { const ta = $('ae-tg-att'), tv = $('ae-tg-vic'); if (ta) { ta.classList.toggle('on', ED.tg === 'att'); tv.classList.toggle('on', ED.tg === 'vic'); tv.disabled = !ED.vic; $('ae-vmake').style.display = ED.vic ? 'none' : ''; const vs = $('ae-vchar'); vs.innerHTML = CHAR_IDS.map(id => '<option value="' + id + '"' + (id === ED.vchar ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); } }
   edRefOptions(); const ss = $('ae-set'), sc = $('ae-clip'); if (ss) { ss.innerHTML = ED_SETS().map(id => '<option value="' + id + '"' + (id === ED.setId ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); }
   if (sc && ED.setId) { const D = bbSet(ED.setId); sc.innerHTML = Object.keys(D).map(n => '<option' + (n === ED.name ? ' selected' : '') + '>' + n + '</option>').join(''); }
   edProps(); edTree();
 }
 function edOpen() {
   if (G.state !== 'menu') return; edBuild(); const id = ED_SETS().includes(G.charId) ? G.charId : ED_SETS()[0];
-  ED.on = true; $('menu').style.display = 'none'; $('animed').classList.remove('hidden'); SH.landed = true; SH.kf = null;
-  edOpenClip(id, bbSet(id).idle ? 'idle' : Object.keys(bbSet(id))[0]); if (G.charId !== id) { G.charId = id; showSelect(id, true); }
+  ED.on = true; $('menu').style.display = 'none'; $('animed').classList.remove('hidden'); SH.landed = true; SH.kf = null; ED.camZ = Math.max(ED.camZ, 9.8);
+  if (G.charId !== id) { G.charId = id; showSelect(id, true); } edOpenClip(id, bbSet(id).idle ? 'idle' : Object.keys(bbSet(id))[0]);
   requestAnimationFrame(edLoop);
 }
-function edClose() { ED.on = false; ED.playing = false; $('animed').classList.add('hidden'); $('menu').style.display = ''; showSelect(G.charId, true); }
+function edClose() { ED.on = false; ED.playing = false; edRefStop(); edVicDispose(); $('animed').classList.add('hidden'); $('menu').style.display = ''; showSelect(G.charId, true); }
 // ----- interfaz
 function edBuild() {
   if ($('animed')) return;
@@ -11311,14 +11360,14 @@ function edBuild() {
 #animed .ae-sl{display:grid;grid-template-columns:34px 1fr 74px;gap:6px;align-items:center}#animed .ae-sl input[type=range]{width:100%;accent-color:#3e8bff}
 #animed .ae-card{background:#20242d;border:1px solid #2f3543;border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:7px}
 #animed .ae-help{font-size:11.5px;color:#9aa4b8;line-height:1.5}#animed .ae-help code{background:#14161c;padding:1px 5px;border-radius:3px;color:#ffd23f}#animed .ae-err{color:#ff7a7a;font-size:12px;min-height:16px}
-#animed .ae-btns{display:flex;gap:6px;flex-wrap:wrap}`;
+#animed .ae-btns{display:flex;gap:6px;flex-wrap:wrap}#animed .ae-seg{display:inline-flex;border:1px solid #394050;border-radius:5px;overflow:hidden}#animed .ae-seg button{border:0;border-radius:0}#animed .ae-seg button.on{background:#ffd400;color:#000}#animed .ae-tag{font-weight:700;letter-spacing:.1em}`;
   document.head.appendChild(st);
   const d = document.createElement('div'); d.id = 'animed'; d.className = 'hidden';
-  d.innerHTML = `<div class="ae-top"><b>EDITOR DE ANIMACIONES</b><select id="ae-set" title="Personaje"></select><select id="ae-clip" title="Animación"></select>
+  d.innerHTML = `<div class="ae-top"><b>EDITOR DE ANIMACIONES</b><select id="ae-set" title="Personaje"></select><select id="ae-clip" title="Animación"></select><span class="ae-seg"><button id="ae-tg-att" class="on" title="Editar la animación del atacante">Atacante</button><button id="ae-tg-vic" title="Editar la animación de la víctima">Víctima</button></span><select id="ae-vchar" title="Personaje que hace de víctima"></select><button id="ae-vtoggle" class="on" title="Mostrar u ocultar a la víctima">👁 Víctima</button><button id="ae-vmake" style="display:none" title="Crea la animación de la víctima de este clip">+ Crear víctima</button>
 <button id="ae-new" title="Clip nuevo vacío">Nuevo</button><button id="ae-dup" title="Copia este clip con otro nombre para hacer una animación nueva a partir de él">Duplicar</button><button id="ae-delclip" class="warn" title="Borra este clip (solo los que creaste tú)">Borrar clip</button><button id="ae-undo" title="Deshacer (Ctrl+Z)">↶</button><button id="ae-redo" title="Rehacer (Ctrl+Y)">↷</button><span class="sp"></span>
 <button id="ae-save" class="on" title="Aplica la animación al juego y la guarda en este navegador">Guardar en el juego</button><button id="ae-restore" title="Quita los cambios de este clip">Restaurar</button><button id="ae-exp">Exportar JSON</button><button id="ae-imp">Importar JSON</button><input id="ae-file" type="file" accept=".json,application/json" style="display:none"><button id="ae-close" class="warn">Cerrar ✕</button></div>
 <aside class="ae-left"><h4>ESQUELETO</h4><div id="ae-tree"></div></aside>
-<div class="ae-view" id="ae-view"></div><div class="ae-hint">Arrastra para girar · rueda: zoom · clic en un hueso y mueve los deslizadores para crear claves</div><div id="ae-msg"></div>
+<div class="ae-view" id="ae-view"></div><div class="ae-hint">Arrastra para girar · rueda: zoom · atacante y víctima juntos · en la línea de tiempo arrastra un recuadro para seleccionar claves</div><div id="ae-msg"></div>
 <aside class="ae-right"><h4>PROPIEDADES</h4><div id="ae-props"></div></aside>
 <section class="ae-bottom"><div class="ae-tools"><button id="ae-first">⏮</button><button id="ae-play">▶</button><button id="ae-last">⏭</button><button id="ae-loop" class="on" title="Repetir">⟲</button><span id="ae-time">0:00:00 / 0</span>
 <label>FPS <input id="ae-fps" type="number" min="1" max="240" value="60"></label><label>Duración <input id="ae-len" type="number" min=".05" step=".05" value="1"></label><label>Vel. <input id="ae-speed" type="number" min=".05" max="4" step=".05" value="1"></label>
@@ -11330,6 +11379,8 @@ function edBuild() {
   on('ae-close', 'click', edClose); on('ae-save', 'click', edSaveGame); on('ae-restore', 'click', edRestore); on('ae-exp', 'click', edExport); on('ae-imp', 'click', () => $e('ae-file').click()); on('ae-file', 'change', e => { if (e.target.files[0]) edImportFile(e.target.files[0]); e.target.value = ''; });
   on('ae-set', 'change', e => { const id = e.target.value; G.charId = id; showSelect(id, true); SH.landed = true; SH.kf = null; const D = bbSet(id); edOpenClip(id, D.idle ? 'idle' : Object.keys(D)[0]); });
   on('ae-clip', 'change', e => edOpenClip(ED.setId, e.target.value));
+  on('ae-tg-att', 'click', () => edSetTarget('att')); on('ae-tg-vic', 'click', () => edSetTarget('vic')); on('ae-vmake', 'click', edMakeVic);
+  on('ae-vtoggle', 'click', () => { ED.vOn = !ED.vOn; $e('ae-vtoggle').classList.toggle('on', ED.vOn); edVicBuild(); }); on('ae-vchar', 'change', e => { ED.vchar = e.target.value; edVicBuild(); });
   on('ae-new', 'click', () => { const nm = (prompt('Nombre del clip nuevo', 'mi_animacion') || '').trim().replace(/\s+/g, '_'); if (!nm) return; const D = bbSet(ED.setId); if (D[nm]) return edMsg('Ya existe un clip con ese nombre', true); D[nm] = { length: 1, loop: false, contacts: [], channels: [], samples: [[0], [1]] }; (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = { name: nm, length: 1, loop: false, contacts: [], tracks: {}, user: true }; edStore(); edOpenClip(ED.setId, nm); edMsg('Clip creado: ' + nm); });
   on('ae-undo', 'click', edUndo); on('ae-redo', 'click', edRedo); on('ae-dup', 'click', edDup); on('ae-delclip', 'click', edDelClip);
   on('ae-ref', 'change', e => edRefSet(e.target.value)); on('ae-refup', 'click', () => $e('ae-reffile').click()); on('ae-reffile', 'change', e => { if (e.target.files[0]) edRefFile(e.target.files[0]); e.target.value = ''; });
@@ -11350,7 +11401,7 @@ function edBuild() {
 function edKey(e) {
   if (!ED.on || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
   const k = e.code, ctrl = e.ctrlKey || e.metaKey;
-  if (ctrl && k === 'KeyZ') { e.preventDefault(); e.shiftKey ? edRedo() : edUndo(); } else if (ctrl && k === 'KeyY') { e.preventDefault(); edRedo(); } else if (ctrl && k === 'KeyC') { edCopy(); } else if (ctrl && k === 'KeyV') { edPaste(); } else if (ctrl && k === 'KeyS') { e.preventDefault(); edSaveGame(); }
+  if (ctrl && k === 'KeyZ') { e.preventDefault(); e.shiftKey ? edRedo() : edUndo(); } else if (ctrl && k === 'KeyY') { e.preventDefault(); edRedo(); } else if (ctrl && k === 'KeyC') { edCopy(); } else if (ctrl && k === 'KeyV') { edPaste(); } else if (ctrl && k === 'KeyS') { e.preventDefault(); edSaveGame(); } else if (ctrl && k === 'KeyA') { e.preventDefault(); edSelAll(); }
   else if (k === 'Space') { e.preventDefault(); document.getElementById('ae-play').click(); } else if (k === 'Delete' || k === 'Backspace') { edDelSel(); } else if (k === 'KeyK') { edAddKeys(e.shiftKey); }
   else if (k === 'ArrowLeft') { ED.time = Math.max(0, ED.time - 1 / (+document.getElementById('ae-fps').value || 60)); ED.playing = false; } else if (k === 'ArrowRight') { ED.time = Math.min(ED.clip.length, ED.time + 1 / (+document.getElementById('ae-fps').value || 60)); ED.playing = false; }
   else if (k === 'Home') ED.time = 0; else if (k === 'End') ED.time = ED.clip.length; else if (k === 'Escape') edClose();
@@ -11396,7 +11447,7 @@ function edProps() {
       '<div class="ae-field" id="ae-kbz" style="display:none"><label>Bézier</label><input id="ae-kb" type="text" value="' + (k0.b || [.25, .1, .25, 1]).join(', ') + '"></div>' +
       '<div class="ae-btns"><button id="ae-kdup">Duplicar</button><button id="ae-kdel" class="warn">Borrar</button></div></div>';
   } else {
-    h += '<div class="ae-card"><h4>CLIP · ' + clip.name + '</h4><div class="ae-field"><label>Contactos (s)</label><input id="ae-contacts" type="text" value="' + clip.contacts.join(', ') + '" placeholder="0.2, 0.55"></div><label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="ae-cloop" ' + (clip.loop ? 'checked' : '') + '> Animación en bucle</label>' +
+    h += '<div class="ae-card"><h4>' + (ED.tg === 'vic' ? 'VÍCTIMA' : 'ATACANTE') + ' · ' + clip.name + '</h4><div class="ae-field"><label>Contactos (s)</label><input id="ae-contacts" type="text" value="' + clip.contacts.join(', ') + '" placeholder="0.2, 0.55"></div><label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="ae-cloop" ' + (clip.loop ? 'checked' : '') + '> Animación en bucle</label>' +
       '<div class="ae-help">Los <b>contactos</b> son los instantes del golpe: el juego sincroniza el cuerpo con ellos.</div></div>';
   }
   h += '<div class="ae-card"><h4>POSE · ' + b.n.toUpperCase() + ' <small style="color:#6f7a90">en t=' + ED.time.toFixed(2) + ' s</small></h4>';
@@ -11405,6 +11456,11 @@ function edProps() {
     h += '<div class="ae-sl"><span style="color:' + b.col + '">' + edAxis(c) + '</span><input type="range" data-c="' + c + '" min="' + mn + '" max="' + rg + '" step="' + (kind === 'rot' ? 1 : .05) + '" value="' + v.toFixed(3) + '"><input type="number" data-n="' + c + '" step="' + (kind === 'rot' ? 1 : .05) + '" value="' + (+v.toFixed(3)) + '"></div>';
   }
   h += '<div class="ae-help">Mover un deslizador crea o cambia la clave en el cursor.</div></div>';
+  { const P = ED.att.paths || {}, fmt = a => JSON.stringify(a && a.length ? a : null) || '';
+    h += '<div class="ae-card"><h4>TRAYECTORIAS (APOS / VPOS)</h4><div class="ae-help"><code>apos</code> mueve al atacante y <code>vpos</code> a la víctima, como en el código: <code>[tiempo, x, y, z, giro]</code> en metros (z = hacia adelante).</div>' +
+      '<div class="ae-field"><label>apos</label><textarea id="ae-apos" rows="2" style="width:100%;background:#14161c;color:#e6e9f0;border:1px solid #394050;border-radius:4px">' + (P.apos ? JSON.stringify(P.apos) : '') + '</textarea></div>' +
+      '<div class="ae-field"><label>vpos</label><textarea id="ae-vpos" rows="2" style="width:100%;background:#14161c;color:#e6e9f0;border:1px solid #394050;border-radius:4px">' + (P.vpos ? JSON.stringify(P.vpos) : '') + '</textarea></div><div class="ae-err" id="ae-perr"></div>' +
+      '<div class="ae-btns"><button id="ae-ppos">+ Posición víctima en el cursor</button><button id="ae-pcopy">Copiar código</button></div></div>'; }
   h += '<details class="ae-card" open><summary style="cursor:pointer;color:#8791a6;font-size:11px;letter-spacing:.14em;font-weight:700">FÓRMULAS (MATEMÁTICAS)</summary><div class="ae-help">Escribe una fórmula en <b>Valor</b> y la clave se calcula en cada instante. En rotaciones, el resultado son grados.<br>' +
     'Variables: <code>time</code> <code>life</code> (0→1) <code>length</code> <code>pi</code><br>Funciones (trig. en grados): <code>sin cos tan atan2 abs min max clamp lerp floor ceil round sqrt pow mod noise saw tri step smoothstep bounce random</code><br>Operadores: <code>+ - * / % ^ ? : &lt; &gt; == &amp;&amp; ||</code><br>' +
     'Ejemplos:<br><code>sin(time*360)*20</code> balanceo de 1 Hz<br><code>abs(sin(time*180))*30</code> rebote<br><code>noise(time*4)*8</code> temblor<br><code>time&gt;0.5 ? 40 : 0</code> salto brusco</div></details>';
@@ -11424,6 +11480,10 @@ function edBindProps() {
   if (g('ae-kb')) g('ae-kb').addEventListener('change', e => { const a = e.target.value.split(',').map(x => parseFloat(x)); if (a.length === 4 && a.every(Number.isFinite)) { edPush(); for (const k of sel) k.b = [clamp(a[0], 0, 1), a[1], clamp(a[2], 0, 1), a[3]]; } });
   if (g('ae-kdup')) g('ae-kdup').addEventListener('click', () => { edPush(); const nk = []; for (const c of Object.keys(clip.tracks)) for (const k of clip.tracks[c].slice()) if (ED.sel.has(k)) { const d = JSON.parse(JSON.stringify(k)); d.t = +(d.t + .2).toFixed(4); clip.tracks[c].push(d); nk.push(d); clip.tracks[c].sort((a, b) => a.t - b.t); } ED.sel = new Set(nk); edProps(); });
   if (g('ae-kdel')) g('ae-kdel').addEventListener('click', edDelSel);
+  const parsePath = txt => { const s2 = (txt || '').trim(); if (!s2) return null; const a = (new Function('return ' + s2.replace(/(^|[^\d])\.(\d)/g, '$10.$2')))(); if (!Array.isArray(a) || !a.length || !a.every(k => Array.isArray(k) && k.length >= 4)) throw new Error('Formato: [[t,x,y,z,giro],...]'); return a; };
+  for (const k of ['apos', 'vpos']) if (g('ae-' + k)) g('ae-' + k).addEventListener('change', e => { try { const a = parsePath(e.target.value); g('ae-perr').textContent = ''; edPush(); ED.att.paths = Object.assign({}, ED.att.paths); if (a) ED.att.paths[k] = a; else delete ED.att.paths[k]; } catch (er) { g('ae-perr').textContent = er.message; } });
+  if (g('ae-ppos')) g('ae-ppos').addEventListener('click', () => { edPush(); const t = +edTimeSnap(ED.time).toFixed(3), cur = hermArr(edPath('vpos'), ED.time), ks = (ED.att.paths && ED.att.paths.vpos ? ED.att.paths.vpos.slice() : edPath('vpos').map(x => x.slice())).filter(k => Math.abs(k[0] - t) > 1e-3); ks.push([t, +cur[0].toFixed(3), +cur[1].toFixed(3), +cur[2].toFixed(3), +cur[3].toFixed(3)]); ks.sort((a, b) => a[0] - b[0]); ED.att.paths = Object.assign({}, ED.att.paths, { vpos: ks }); edProps(); });
+  if (g('ae-pcopy')) g('ae-pcopy').addEventListener('click', () => { const txt = 'apos: ' + JSON.stringify(edPath('apos')) + ',\nvpos: ' + JSON.stringify(edPath('vpos')) + ','; try { navigator.clipboard.writeText(txt); edMsg('Código copiado (apos y vpos)'); } catch (er) { prompt('Copia este código', txt); } });
   if (g('ae-contacts')) g('ae-contacts').addEventListener('change', e => { edPush(); clip.contacts = e.target.value.split(',').map(x => parseFloat(x)).filter(Number.isFinite); });
   if (g('ae-cloop')) g('ae-cloop').addEventListener('change', e => { edPush(); clip.loop = e.target.checked; });
   const setV = (c, val) => { const t = edTimeSnap(ED.time); if (!ED.slPush) { edPush(); ED.slPush = true; setTimeout(() => { ED.slPush = false; }, 600); } const k = edSetKey(c, t, edUnshow(c, val)); if (typeof k.v !== 'number') k.v = edUnshow(c, val); edTree(); };
@@ -11434,27 +11494,58 @@ function edBindProps() {
 let ED_RH = 20; const ED_LW = 190, ED_ROW = 22;
 function edBindTimeline() {
   const cv = ED.cv, x2t = x => (x - ED_LW) / ED.zoom + ED.scroll, t2x = t => (t - ED.scroll) * ED.zoom + ED_LW;
-  const rowAt = y => Math.floor((y - ED_RH + ED.vscroll) / ED_ROW);
-  const hit = (x, y) => { const r = ED.rows[rowAt(y)]; if (!r) return null; const cs = r.t === 'chan' ? [r.c] : Object.values(r.b.g).flat(); let best = null, bd = 8; for (const c of cs) for (const k of ED.clip.tracks[c] || []) { const d = Math.abs(t2x(k.t) - x); if (d < bd) { bd = d; best = k; } } return best; };
+  const rowAt = y => Math.floor((y - ED_RH + ED.vscroll) / ED_ROW), rowKeys = r => r.t === 'chan' ? [r.c] : Object.values(r.b.g).flat();
+  const hitKeys = (x, y) => {
+    const r = ED.rows[rowAt(y)]; if (!r) return null; let best = null, bd = 10;
+    for (const c of rowKeys(r)) for (const k of ED.clip.tracks[c] || []) { const d = Math.abs(t2x(k.t) - x); if (d < bd) { bd = d; best = k; } }
+    if (!best) return null; if (r.t === 'chan') return [best];
+    const out = []; for (const c of rowKeys(r)) for (const k of ED.clip.tracks[c] || []) if (Math.abs(k.t - best.t) < 5e-4) out.push(k); return out;
+  };
+  const inBox = b => {
+    const x0 = Math.min(b.x0, b.x1), x1 = Math.max(b.x0, b.x1), y0 = Math.min(b.y0, b.y1), y1 = Math.max(b.y0, b.y1), found = [];
+    if (ED.curves) { for (const p of ED.curvePts || []) if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1) found.push(p.k); return found; }
+    for (let i = Math.max(0, rowAt(y0)); i <= Math.min(ED.rows.length - 1, rowAt(y1)); i++) for (const c of rowKeys(ED.rows[i])) for (const k of ED.clip.tracks[c] || []) { const x = t2x(k.t); if (x >= x0 && x <= x1) found.push(k); }
+    return found;
+  };
+  const scrubTo = x => { ED.time = clamp(edTimeSnap(x2t(x)), 0, edLen()); ED.playing = false; };
   cv.addEventListener('pointerdown', e => {
     const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; cv.setPointerCapture(e.pointerId);
-    if (y < ED_RH) { ED.drag = { m: 'scrub' }; ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); ED.playing = false; return; }
+    if (y < ED_RH) { ED.drag = { m: 'scrub' }; scrubTo(x); return; }
     if (x < ED_LW) { const row = ED.rows[rowAt(y)]; if (row) { if (row.t === 'bone') { ED.selBone = row.b.id; ED.open[row.b.id] = !ED.open[row.b.id]; ED.selChan = null; } else { ED.selBone = row.b.id; ED.selChan = row.c; } edRebuild(); } return; }
-    if (ED.curves) { const k = ED.curvePts && ED.curvePts.find(p => Math.hypot(p.x - x, p.y - y) < 9); if (k) { if (!e.shiftKey && !ED.sel.has(k.k)) ED.sel.clear(); ED.sel.add(k.k); edPush(); ED.drag = { m: 'curve', k: k.k, c: k.c, x0: x, y0: y, v0: k.k.v, t0: k.k.t }; edProps(); return; } ED.drag = { m: 'scrub' }; ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); return; }
-    const k = hit(x, y), row = ED.rows[rowAt(y)];
-    if (k) { if (!ED.sel.has(k)) { if (!e.shiftKey) ED.sel.clear(); ED.sel.add(k); } else if (e.shiftKey) ED.sel.delete(k); edPush(); ED.drag = { m: 'move', x0: x, t0: new Map([...ED.sel].map(q => [q, q.t])) }; if (row) { ED.selBone = row.b.id; if (row.t === 'chan') ED.selChan = row.c; } edProps(); return; }
-    if (row) { ED.selBone = row.b.id; ED.selChan = row.t === 'chan' ? row.c : null; if (!e.shiftKey) ED.sel.clear(); ED.drag = { m: 'scrub' }; ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); edProps(); edTree(); }
+    if (ED.curves) {
+      const pt = (ED.curvePts || []).find(p => Math.hypot(p.x - x, p.y - y) < 10);
+      if (pt) { if (!e.shiftKey && !ED.sel.has(pt.k)) ED.sel.clear(); ED.sel.add(pt.k); edPush(); ED.drag = { m: 'curve', k: pt.k, c: pt.c, x0: x, y0: y, v0: pt.k.v, t0: pt.k.t }; edProps(); return; }
+      ED.drag = { m: 'box', x0: x, y0: y, x1: x, y1: y, add: e.shiftKey, moved: false, click: x }; return;
+    }
+    const ks = hitKeys(x, y), row = ED.rows[rowAt(y)];
+    if (ks) {
+      const all = ks.every(k => ED.sel.has(k)); if (!all) { if (!e.shiftKey) ED.sel.clear(); ks.forEach(k => ED.sel.add(k)); } else if (e.shiftKey) ks.forEach(k => ED.sel.delete(k));
+      edPush(); ED.drag = { m: 'move', x0: x, t0: new Map([...ED.sel].map(q => [q, q.t])) }; if (row) { ED.selBone = row.b.id; if (row.t === 'chan') ED.selChan = row.c; } edProps(); return;
+    }
+    ED.drag = { m: 'box', x0: x, y0: y, x1: x, y1: y, add: e.shiftKey, moved: false, click: x, row };
   });
   cv.addEventListener('pointermove', e => {
     const d = ED.drag; if (!d) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    if (d.m === 'scrub') { ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); }
+    if (d.m === 'scrub') scrubTo(x);
+    else if (d.m === 'box') { d.x1 = x; d.y1 = y; if (Math.hypot(x - d.x0, y - d.y0) > 4) d.moved = true; }
     else if (d.m === 'move') { const dt = (x - d.x0) / ED.zoom; for (const [k, t0] of d.t0) k.t = +Math.max(0, edTimeSnap(t0 + dt)).toFixed(4); for (const c of Object.keys(ED.clip.tracks)) ED.clip.tracks[c].sort((a, b) => a.t - b.t); }
     else if (d.m === 'curve') { const k = d.k; k.t = +Math.max(0, edTimeSnap(d.t0 + (x - d.x0) / ED.zoom)).toFixed(4); if (typeof d.v0 === 'number' && ED.curveScale) { k.v = d.v0 + edUnshow(d.c, -(y - d.y0) / ED.curveScale); } ED.clip.tracks[d.c].sort((a, b) => a.t - b.t); }
   });
-  cv.addEventListener('pointerup', () => { if (ED.drag && ED.drag.m !== 'scrub') edProps(); ED.drag = null; });
-  cv.addEventListener('dblclick', e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; if (x < ED_LW || y < ED_RH) return; const row = ED.rows[rowAt(y)]; if (!row || row.t !== 'chan') return; edPush(); const t = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length), k = edSetKey(row.c, t, edEvalChan(ED.clip, row.c, t)); ED.sel.clear(); ED.sel.add(k); ED.selChan = row.c; ED.selBone = row.b.id; edProps(); edTree(); });
+  cv.addEventListener('pointerup', () => {
+    const d = ED.drag; ED.drag = null; if (!d) return;
+    if (d.m === 'box') {
+      if (d.moved) { const f = inBox(d); if (!d.add) ED.sel.clear(); f.forEach(k => ED.sel.add(k)); if (f.length) { const c = Object.keys(ED.clip.tracks).find(cc => ED.clip.tracks[cc].includes(f[0])), b = c && edBoneOf(c); if (b) ED.selBone = b.id; } edProps(); edTree(); }
+      else { const row = d.row; if (row) { ED.selBone = row.b.id; ED.selChan = row.t === 'chan' ? row.c : null; } if (!d.add) ED.sel.clear(); scrubTo(d.click); edProps(); edTree(); }
+    } else if (d.m !== 'scrub') edProps();
+  });
+  cv.addEventListener('dblclick', e => {
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; if (y < ED_RH) return; const row = ED.rows[rowAt(y)]; if (!row) return;
+    if (x < ED_LW) { ED.sel.clear(); for (const c of rowKeys(row)) for (const k of ED.clip.tracks[c] || []) ED.sel.add(k); edProps(); return; }
+    if (row.t !== 'chan' || ED.curves) return; edPush(); const t = clamp(edTimeSnap(x2t(x)), 0, edLen()), k = edSetKey(row.c, t, edEvalChan(ED.clip, row.c, t)); ED.sel.clear(); ED.sel.add(k); ED.selChan = row.c; ED.selBone = row.b.id; edProps(); edTree();
+  });
   cv.addEventListener('wheel', e => { e.preventDefault(); if (e.ctrlKey) { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, t = x2t(x); ED.zoom = clamp(ED.zoom * (e.deltaY < 0 ? 1.15 : .87), 30, 1400); ED.scroll = t - (x - ED_LW) / ED.zoom; } else if (e.shiftKey) ED.scroll += e.deltaY / ED.zoom * .6; else ED.vscroll = clamp(ED.vscroll + e.deltaY * .6, 0, Math.max(0, ED.rows.length * ED_ROW - 150)); }, { passive: false });
 }
+function edSelAll() { ED.sel.clear(); for (const c of Object.keys(ED.clip.tracks)) for (const k of ED.clip.tracks[c]) ED.sel.add(k); edProps(); edMsg(ED.sel.size + ' claves seleccionadas'); }
 function edDraw() {
   const cv = ED.cv; if (!cv || !ED.clip) return; const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.fillStyle = '#14161c'; g.fillRect(0, 0, W, H);
@@ -11496,6 +11587,7 @@ function edDraw() {
     cs.forEach((c, ci) => { g.strokeStyle = cols[ci % 3]; g.lineWidth = 1.6; g.beginPath(); for (let i = 0; i <= N * 2; i++) { const t = tot * i / (N * 2), x = t2x(t), y = vy(edShow(c, edEvalChan(clip, c, t))); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.lineWidth = 1; for (const k of clip.tracks[c] || []) { const kx = t2x(k.t), ky = vy(edShow(c, edKeyVal(clip, c, k, k.t))); drawKey(kx, ky, k); ED.curvePts.push({ x: kx, y: ky, k, c }); } });
     g.fillStyle = '#9aa4b8'; g.fillText(cs.map(c => edAxis(c)).join(' · ') + ' (' + ED_KIND[kind] + ')', ED_LW + 6, H - 6);
   }
+  if (ED.drag && ED.drag.m === 'box' && ED.drag.moved) { const d = ED.drag; g.fillStyle = 'rgba(62,139,255,.18)'; g.strokeStyle = '#6aa6ff'; g.lineWidth = 1; g.fillRect(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0)); g.strokeRect(Math.min(d.x0, d.x1) + .5, Math.min(d.y0, d.y1) + .5, Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0)); }
   // cabezal
   const px = t2x(ED.time); g.strokeStyle = '#3e8bff'; g.lineWidth = 2; g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H); g.stroke(); g.fillStyle = '#3e8bff'; g.beginPath(); g.moveTo(px - 6, 0); g.lineTo(px + 6, 0); g.lineTo(px, 11); g.closePath(); g.fill();
   g.restore(); g.strokeStyle = '#2b303b'; g.beginPath(); g.moveTo(ED_LW, 0); g.lineTo(ED_LW, H); g.stroke();
@@ -11511,11 +11603,18 @@ function edLoop() {
 // pose en el modelo de la vista previa (la llama updateShow)
 function edShowFrame(f, dt) {
   if (ED.playing && !ED.audPlaying) edRefStart(); if (!ED.playing && ED.audPlaying) edRefStop(); ED.audPlaying = ED.playing;
-  if (ED.playing) { ED.time += dt * ED.speed; if (ED.time >= ED.clip.length) { if (ED.loop) { ED.time %= Math.max(.05, ED.clip.length); edRefStart(); } else { ED.time = ED.clip.length; ED.playing = false; } } }
-  for (const j of JOINTS) f.anim.x[j] = edEvalChan(ED.clip, j, ED.time);
-  f.anim.bbR6 = true; f.anim.apply(); f.model.root.position.y = .1; f.model.root.rotation.y = ED.rotY;
+  const L = edLen();
+  if (ED.playing) { ED.time += dt * ED.speed; if (ED.time >= L) { if (ED.loop) { ED.time %= L; edRefStart(); } else { ED.time = L; ED.playing = false; } } }
+  const t = ED.time, ap = hermArr(edPath('apos'), t), vp = hermArr(edPath('vpos'), t), A = L2W(ED_ZERO, ED.rotY, ap[0], ap[1], ap[2]), V = L2W(ED_ZERO, ED.rotY, vp[0], vp[1], vp[2]);
+  for (const j of JOINTS) f.anim.x[j] = edEvalChan(ED.att, j, t);
+  f.anim.bbR6 = true; f.anim.apply(); f.model.root.position.set(A.x, .1 + A.y, A.z); f.model.root.rotation.y = ED.rotY + ap[3];
   if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx;
-  SH.parts.update(dt); SH.camZ += (ED.camZ - SH.camZ) * Math.min(1, dt * 6); SH.cam.position.set(0, 1.4, SH.camZ); SH.cam.lookAt(0, 1.05, 0);
+  const vf = ED.vfig; if (vf) {
+    for (const j of JOINTS) vf.anim.x[j] = ED.vic ? edEvalChan(ED.vic, j, t) : edDef(j);
+    vf.anim.bbR6 = true; vf.anim.apply(); vf.model.root.position.set(V.x, .1 + V.y, V.z); vf.model.root.rotation.y = ED.rotY + Math.PI + vp[3]; vf.model.root.visible = true;
+  }
+  const mx = vf ? (A.x + V.x) / 2 : A.x, mz = vf ? (A.z + V.z) / 2 : A.z;
+  SH.parts.update(dt); SH.camZ += (ED.camZ - SH.camZ) * Math.min(1, dt * 6); SH.cam.position.set(mx, 1.7, mz + SH.camZ); SH.cam.lookAt(mx, 0.85, mz);
   SH.key.intensity += (.95 - SH.key.intensity) * Math.min(1, dt * 4);
 }
 
