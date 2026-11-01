@@ -1,6 +1,6 @@
 # Créditos de los sonidos
 
-Los sonidos de esta carpeta son grabaciones reales de Wikimedia Commons con licencia libre. Se recortaron, normalizaron y convirtieron a MP3 mono (los bucles se cerraron con un fundido).
+Los sonidos ambientales y efectos de la tabla siguiente son grabaciones reales de Wikimedia Commons con licencia libre. Se recortaron, normalizaron y convirtieron a MP3 mono (los bucles se cerraron con un fundido).
 
 | Archivo | Original | Autor | Licencia | Fuente |
 |---|---|---|---|---|
@@ -46,3 +46,7 @@ Las licencias CC BY / CC BY-SA piden atribución (esta lista) y que las versione
 - randi_voz1.mp3 / randi_voz2.mp3: voces de ElRandi aportadas por el usuario (a punto de matar / al matar).
 
 - randi_waaa.mp3: sonido que ElRandi suelta al azar fuera de combate (aportado por el usuario).
+
+## Voces de personajes
+
+Las 15 grabaciones de `javi/` y las 9 de `clippy/` fueron facilitadas por el usuario para incorporarlas al juego. Se conservan los MP3 originales sin recodificar. Los archivos `javi/manifest.json` y `clippy/manifest.json` relacionan cada clip con el nombre original, su duración y su huella SHA-256.

@@ -1,0 +1,107 @@
+[
+  {
+    "clip": "javi/muerte_1",
+    "archivo": "muerte_1.mp3",
+    "original": "Javi Al morir.mp3",
+    "duracion": 2.136,
+    "sha256": "4d504431b03f45a68f152de535ffd08f18029a331cd6077e6401ecab9ffbbf7a"
+  },
+  {
+    "clip": "javi/muerte_2",
+    "archivo": "muerte_2.mp3",
+    "original": "Javi Al morir 2.mp3",
+    "duracion": 1.44,
+    "sha256": "63ddf326ce3dd340547e6e106041e7600331122af77e4e9b04d70c6d15841ec6"
+  },
+  {
+    "clip": "javi/muerte_3",
+    "archivo": "muerte_3.mp3",
+    "original": "Javi Al morir 3.mp3",
+    "duracion": 1.752,
+    "sha256": "842e8469dfa0e70a99b746fda6e2754310a6d8da235a8f7f53dacb92499f5a0f"
+  },
+  {
+    "clip": "javi/muerte_4",
+    "archivo": "muerte_4.mp3",
+    "original": "Javi Al morir 4.mp3",
+    "duracion": 2.472,
+    "sha256": "ce3ecb55be6ddad1fab00577364b0f166f1277028d3f1053e39f008db0afc17b"
+  },
+  {
+    "clip": "javi/ulti_lista_1",
+    "archivo": "ulti_lista_1.mp3",
+    "original": "Javi Consegir Ulti.mp3",
+    "duracion": 2.472,
+    "sha256": "91acde441940479bb0159ed85c1846c919af64dd9d591a42eda9674fe6a76774"
+  },
+  {
+    "clip": "javi/ulti_lista_2",
+    "archivo": "ulti_lista_2.mp3",
+    "original": "Javi Consegir Ulti 2.mp3",
+    "duracion": 1.224,
+    "sha256": "0b08f0db73bda97db38c1b1286a3f131f5847e34b32484cd4f90065a09b9b0c5"
+  },
+  {
+    "clip": "javi/casi_baja_1",
+    "archivo": "casi_baja_1.mp3",
+    "original": "Javi Cuando esta apunto de matar.mp3",
+    "duracion": 1.224,
+    "sha256": "7e8be97fc12a6bc371d37aea6b350da8da6cc714f934afa89b916747ebaf22ff"
+  },
+  {
+    "clip": "javi/casi_baja_2",
+    "archivo": "casi_baja_2.mp3",
+    "original": "Javi Cuando esta apunto de matar 2.mp3",
+    "duracion": 1.248,
+    "sha256": "8e04e8916722b9096c68642837f19bae04d92b8d337ace2042a19c4aced1c53b"
+  },
+  {
+    "clip": "javi/baja_1",
+    "archivo": "baja_1.mp3",
+    "original": "Javi al matar.mp3",
+    "duracion": 1.8,
+    "sha256": "02e35eb2c7582815cd9d0b01048ec0320b7f877c6e60b8225ecaa12af53dc031"
+  },
+  {
+    "clip": "javi/baja_2",
+    "archivo": "baja_2.mp3",
+    "original": "Javi al matar 2.mp3",
+    "duracion": 2.352,
+    "sha256": "55f72f88b80caa9acd8e52ffa65d58f796e440c313c8edc78a7e5d7192cf9064"
+  },
+  {
+    "clip": "javi/reposo_1",
+    "archivo": "reposo_1.mp3",
+    "original": "Javi idle 2.mp3",
+    "duracion": 2.952,
+    "sha256": "b103f85844f20c3698d8d56f695fe0e247a80c1e5c29965acf741dd1a34bdfba"
+  },
+  {
+    "clip": "javi/reposo_2",
+    "archivo": "reposo_2.mp3",
+    "original": "Javi idle 3.mp3",
+    "duracion": 1.8,
+    "sha256": "abb7115639b9229a24778c3bd2d384ab253561b5872cc11908306ca38850b071"
+  },
+  {
+    "clip": "javi/activar_ulti",
+    "archivo": "activar_ulti.mp3",
+    "original": "Javi Activar la Ulti.mp3",
+    "duracion": 3.408,
+    "sha256": "ca9fa8b69a0a0ddfea8f970c2fcde4ef553587030c0df279b8017a3c5c630400"
+  },
+  {
+    "clip": "javi/dano_1",
+    "archivo": "dano_1.mp3",
+    "original": "Javi Recibir Daño 1.mp3",
+    "duracion": 1.464,
+    "sha256": "8fd17f683bc73a06f804b336f2043be02b7fcc1e7a398b182b5c3c32a08ff019"
+  },
+  {
+    "clip": "javi/dano_2",
+    "archivo": "dano_2.mp3",
+    "original": "Javi Recibir Daño 2.mp3",
+    "duracion": 1.008,
+    "sha256": "7056bba9c3faabbc19c47c0114c5fb7158d6d474e24083da5bc11f187aa0017b"
+  }
+]

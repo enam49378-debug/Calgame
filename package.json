@@ -13,7 +13,9 @@
     "test:estabilidad": "node tests/estabilidad-combate.cjs",
     "test:estabilidad:red": "node tests/estabilidad-red.cjs",
     "test:recuperacion": "node tests/recuperacion-cuadros.cjs",
-    "test:combate": "node tests/combate-prolongado.cjs"
+    "test:combate": "node tests/combate-prolongado.cjs",
+    "test:voces:javi": "node tests/voces-javi.cjs",
+    "test:voces:clippy": "node tests/voces-clippy.cjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"

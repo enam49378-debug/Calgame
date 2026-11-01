@@ -1,0 +1,65 @@
+[
+  {
+    "clip": "clippy/hola",
+    "archivo": "hola.mp3",
+    "original": "Clippy-2026-11-01-02-29-[joyful]-¡Hola!-[short-pause]-Soy-[emphasis]-Cli.mp3",
+    "duracion": 1.697875,
+    "sha256": "297241bc042401618a735bb9eca8123a8646ef0cfb32de68f6abacc61f2e89c9"
+  },
+  {
+    "clip": "clippy/ayuda",
+    "archivo": "ayuda.mp3",
+    "original": "Clippy-2026-11-01-02-31-[short-pause]-¿Necesitas-[emphasis]-ayuda.mp3",
+    "duracion": 1.645625,
+    "sha256": "f6e4860167dfcac3ad9a776782564734c2a86754c8b26dd4afb0561bd0743dc9"
+  },
+  {
+    "clip": "clippy/peleando",
+    "archivo": "peleando.mp3",
+    "original": "Clippy-2026-11-01-02-31-¡Parece-que-estás-[emphasis]-peleando!-[short-pa.mp3",
+    "duracion": 2.559938,
+    "sha256": "e079271ec6c3942b0b96d79e160bb05c81de384be75051dad2d4830cd81f7de8"
+  },
+  {
+    "clip": "clippy/por_ti",
+    "archivo": "por_ti.mp3",
+    "original": "Clippy-2026-11-01-02-33-[short-pause]-¿Quieres-que-lo-haga-[emphasis]-po.mp3",
+    "duracion": 1.593375,
+    "sha256": "16dba0d6d74fd4b01813e23663cd64579e0696a03152d5f8f501f17b21b55a8f"
+  },
+  {
+    "clip": "clippy/perdiendo",
+    "archivo": "perdiendo.mp3",
+    "original": "Clippy-2026-11-01-02-37-Parece-que-vas-[emphasis]-perdiendo…-[pause].mp3",
+    "duracion": 1.959125,
+    "sha256": "49bd5441a5894a697cb5d42269b39b4b858bc700e221a893e1fd01e99acdf5f2"
+  },
+  {
+    "clip": "clippy/guardar",
+    "archivo": "guardar.mp3",
+    "original": "Clippy-2026-11-01-02-38-¿Guardo-[emphasis]los-cambios-[short-pause].mp3",
+    "duracion": 1.541125,
+    "sha256": "3f1890ade69d8776eff5723450da4a946c32f748fa223135ccd461dded9186f8"
+  },
+  {
+    "clip": "clippy/atacando",
+    "archivo": "atacando.mp3",
+    "original": "Clippy-2026-11-01-02-38-¡Parece-que-estás-atacando!.mp3",
+    "duracion": 1.8285,
+    "sha256": "466f43358e25e296d30f5e341326708076e8a58efed476d5d8da2143009a52a5"
+  },
+  {
+    "clip": "clippy/pantalla_azul",
+    "archivo": "pantalla_azul.mp3",
+    "original": "Clippy-2026-11-01-02-39-[shouting]-¡[emphasis]PANTALLA-AZUL!-[short-paus.mp3",
+    "duracion": 1.541125,
+    "sha256": "dcdfaa62e455c8f8c9a8bab3f2518e478eaae3cc2f8f0a99f74d52761cf058d0"
+  },
+  {
+    "clip": "clippy/vas_a_perder",
+    "archivo": "vas_a_perder.mp3",
+    "original": "Clippy-2026-11-01-02-39-[sarcastic]-¡Parece-que-vas-a-[emphasis]-perder!.mp3",
+    "duracion": 1.697875,
+    "sha256": "2958f49cb71bfb6e25be932b2123255ba18b6b0c25cc952358006d433f1101f9"
+  }
+]

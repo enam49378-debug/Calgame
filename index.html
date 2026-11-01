@@ -2141,13 +2141,13 @@ function drawClippy(g, mood) {
   g.strokeStyle = '#111'; g.lineWidth = 5;
   g.beginPath(); if (mood === 'angry') { g.moveTo(76, 76); g.lineTo(106, 90); g.moveTo(150, 76); g.lineTo(120, 90); } else { g.moveTo(78, 82); g.quadraticCurveTo(94, 68, 108, 80); g.moveTo(118, 80); g.quadraticCurveTo(132, 68, 148, 82); } g.stroke();
 }
-function makeClippy() {
+function makeClippy(owner) {
   const g = new THREE.Group(), cv = document.createElement('canvas'); cv.width = 192; cv.height = 256; const ctx = cv.getContext('2d'); drawClippy(ctx, 'happy');
   const tex = new THREE.CanvasTexture(cv), mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), body = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.4), mat);
   const bc = document.createElement('canvas'); bc.width = 256; bc.height = 96; const bctx = bc.getContext('2d'), btex = new THREE.CanvasTexture(bc);
   const bmat = new THREE.MeshBasicMaterial({ map: btex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), bub = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .9), bmat); bub.position.set(0, 1.25, 0); bub.visible = false;
   g.add(body, bub);
-  return { g, body, bub, ctx, tex, mat, bmat, bctx, btex, mood: 'happy', pos: new V3(), ov: null, sc: 1, cd: 1.5, say(t) { this.sayT = 2.4; const c = this.bctx; c.clearRect(0, 0, 256, 96); c.fillStyle = '#ffffe1'; c.fillRect(2, 2, 252, 70); c.strokeStyle = '#000'; c.lineWidth = 3; c.strokeRect(2, 2, 252, 70); c.fillStyle = '#ffffe1'; c.beginPath(); c.moveTo(110, 70); c.lineTo(128, 94); c.lineTo(138, 70); c.fill(); c.stroke(); c.fillRect(112, 68, 24, 5); c.fillStyle = '#000'; c.font = 'bold 17px Tahoma,Arial,sans-serif'; c.textAlign = 'center'; const w = t.split(' '); let l1 = '', l2 = ''; for (const x of w) (l1.length < 17 ? l1 += (l1 ? ' ' : '') + x : l2 += (l2 ? ' ' : '') + x); c.fillText(l1, 128, l2 ? 30 : 42); if (l2) c.fillText(l2, 128, 54); this.btex.needsUpdate = true; this.bub.visible = true; }, sayT: 0 };
+  return { owner, g, body, bub, ctx, tex, mat, bmat, bctx, btex, mood: 'happy', pos: new V3(), ov: null, sc: 1, cd: 1.5, say(t,fromNet=false) { if(!fromNet&&!clippySpeak(this.owner,t))return false;this.sayT=Math.max(2.4,CHARACTER_VOICE_DURATION[CLIPPY_VOICES[t]?.clip]||0); const c = this.bctx; c.clearRect(0, 0, 256, 96); c.fillStyle = '#ffffe1'; c.fillRect(2, 2, 252, 70); c.strokeStyle = '#000'; c.lineWidth = 3; c.strokeRect(2, 2, 252, 70); c.fillStyle = '#ffffe1'; c.beginPath(); c.moveTo(110, 70); c.lineTo(128, 94); c.lineTo(138, 70); c.fill(); c.stroke(); c.fillRect(112, 68, 24, 5); c.fillStyle = '#000'; c.font = 'bold 17px Tahoma,Arial,sans-serif'; c.textAlign = 'center'; const w = t.split(' '); let l1 = '', l2 = ''; for (const x of w) (l1.length < 17 ? l1 += (l1 ? ' ' : '') + x : l2 += (l2 ? ' ' : '') + x); c.fillText(l1, 128, l2 ? 30 : 42); if (l2) c.fillText(l2, 128, 54); this.btex.needsUpdate = true; this.bub.visible = true; }, sayT: 0 };
 }
 function disposeClippy(c) { scene.remove(c.g); c.body.geometry.dispose(); c.bub.geometry.dispose(); c.mat.dispose(); c.bmat.dispose(); c.tex.dispose(); c.btex.dispose(); }
 const JL_QUOTES = ['¿Necesitas ayuda?', '¡Parece que estás peleando!', '¿Quieres que lo haga por ti?', 'Parece que vas perdiendo…', '¿Guardo los cambios?'];
@@ -2157,7 +2157,8 @@ function updateJesuluto(f, m, dt, T) {
   jlUpdateScreen(f, m);
   if (!f.remote && f.alive) { f.jlHistT = (f.jlHistT || 0) - dt; if (f.jlHistT <= 0) { f.jlHistT = .1; const h = f.jlHist || (f.jlHist = []); h.push({ x: f.pos.x, y: f.pos.y, z: f.pos.z, hp: f.hp }); if (h.length > 31) h.shift(); } }
   let c = f.clippy;
-  if (!c) { if (!f.alive) return; c = f.clippy = makeClippy(); c.pos.set(f.pos.x + 1.2, f.pos.y + 2.2, f.pos.z); scene.add(c.g); c.say('¡Hola! Soy Clippy'); }
+  if (!c) { if (!f.alive) return; c = f.clippy = makeClippy(f); c.pos.set(f.pos.x + 1.2, f.pos.y + 2.2, f.pos.z); scene.add(c.g); if(!f.remote)c.say('¡Hola! Soy Clippy'); }
+  if(f.pendingClippyVoice){if(f.pendingClippyVoice.until>performance.now())c.say(f.pendingClippyVoice.text,true);f.pendingClippyVoice=null;}
   c.g.visible = f.alive;
   if (c.ov && G.time > c.ov.until) c.ov = null;
   const R = rightOf(f.yaw), F = fwd(f.yaw), awk = f.awak > 0, fury = G.time < (f.jlFury || 0);
@@ -2169,7 +2170,7 @@ function updateJesuluto(f, m, dt, T) {
   if (c.mood !== mood) { c.mood = mood; drawClippy(c.ctx, mood); c.tex.needsUpdate = true; }
   c.angryT = (c.angryT || 0) - dt;
   if (c.sayT > 0) { c.sayT -= dt; if (c.sayT <= 0) c.bub.visible = false; }
-  else if (f.alive && Math.random() < dt * .06) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
+  else if (!f.remote && f.alive && Math.random() < dt * .06) c.say(JL_QUOTES[Math.random() * JL_QUOTES.length | 0]);
   jlGlitch(f, m, dt, T);
 }
 // Clippy solo ayuda: cuando Jesuluto conecta un golpe, Clippy dispara un clip al mismo rival (nunca ataca por su cuenta)
@@ -4620,12 +4621,13 @@ class Fighter {
   }
   reset() {
     releaseOwnerSpear(this);
+    resetCharacterVoice(this);
     disposeMount(this);
     Object.assign(this, { hp: this.maxHp, ult: 0, awak: 0, seq: null, poison: null, fireT: 0, stun: 0, ragdoll: 0, iframes: 0, action: null, blocking: false, comboIdx: 0, comboTimer: 0, m1cd: 0, dashCd: 0, dashT: 0, airDash: true, alive: true, respawnT: 0, deathT: 0, cd: [0, 0, 0, 0], rFlightT:0,rFlightCD:0,rGullCD:0,rTapUntil:0,rFlightAltitude:0, onGround: true, hurtT: 0, hurtPose: 'hurtA', getupT: 0, landT: 0, flashT: 0, frozen: 0, grabbed: false, ghostT: 0, spearThrown: false, spearLost: null, atkT: 0, flourT: rand(3, 6), twirl: null, twA: 0, catchT: 0, blockHitT: 0, victory: false, landHard: false, gbT: -9 });
     this.vel.set(0, 0, 0); this.model.root.visible = true; this.anim.reset();
     if (this.spear) { setSpear(this, false); this.spear.visible = true; }
   }
-  dispose() { releaseOwnerSpear(this); disposeMount(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
+  dispose() { stopCharacterVoice(this); releaseOwnerSpear(this); disposeMount(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
 const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
@@ -4875,7 +4877,124 @@ try{
 }catch(e){}
 let gameAudioBus=null,ambientAudioBus=null;
 const HTML_AUDIO_LEVELS=new Set();
-const GAME_RECORDINGS=new Set(['randi_waaa','randi_voz1','randi_voz2','vhit','vland','whistle','applause','elev_ride','door_close','door_open']);
+// Original voice recordings, one channel per fighter, with priority and cooldowns.
+const JAVI_VOICES={
+  death:{clips:['javi/muerte_1','javi/muerte_2','javi/muerte_3','javi/muerte_4'],priority:5,cd:0},
+  ready:{clips:['javi/ulti_lista_1','javi/ulti_lista_2'],priority:3,cd:0},
+  near:{clips:['javi/casi_baja_1','javi/casi_baja_2'],priority:2,cd:8},
+  kill:{clips:['javi/baja_1','javi/baja_2'],priority:3,cd:3},
+  idle:{clips:['javi/reposo_1','javi/reposo_2'],priority:0,cd:20},
+  activate:{clips:['javi/activar_ulti'],priority:4,cd:0},
+  hurt:{clips:['javi/dano_1','javi/dano_2'],priority:1,cd:2.8}
+};
+const CLIPPY_VOICES={
+  '¡Hola! Soy Clippy':{clip:'clippy/hola',priority:1},
+  '¿Necesitas ayuda?':{clip:'clippy/ayuda',priority:0},
+  '¡Parece que estás peleando!':{clip:'clippy/peleando',priority:0},
+  '¿Quieres que lo haga por ti?':{clip:'clippy/por_ti',priority:0},
+  'Parece que vas perdiendo…':{clip:'clippy/perdiendo',priority:0},
+  '¿Guardo los cambios?':{clip:'clippy/guardar',priority:0},
+  '¡Parece que estás atacando!':{clip:'clippy/atacando',priority:2},
+  '¡PANTALLA AZUL!':{clip:'clippy/pantalla_azul',priority:4},
+  '¡Parece que vas a perder!':{clip:'clippy/vas_a_perder',priority:3}
+};
+const CLIPPY_VOICE_FILES=Object.values(CLIPPY_VOICES).map(v=>v.clip);
+const JAVI_VOICE_FILES=Object.values(JAVI_VOICES).flatMap(v=>v.clips),JAVI_VOICE_KEYS=new Set(JAVI_VOICE_FILES);
+const CHARACTER_VOICE_FILES=[...JAVI_VOICE_FILES,...CLIPPY_VOICE_FILES],CHARACTER_VOICE_KEYS=new Set(CHARACTER_VOICE_FILES);
+const CHARACTER_VOICE_META=Object.fromEntries([
+  ...Object.values(JAVI_VOICES).flatMap(d=>d.clips.map(key=>[key,{character:'javi',priority:d.priority}])),
+  ...Object.entries(CLIPPY_VOICES).map(([text,d])=>[d.clip,{character:'jesuluto',priority:d.priority,text}])
+]);
+const CHARACTER_VOICE_DURATION={"javi/muerte_1":2.136,"javi/muerte_2":1.44,"javi/muerte_3":1.752,"javi/muerte_4":2.472,"javi/ulti_lista_1":2.472,"javi/ulti_lista_2":1.224,"javi/casi_baja_1":1.224,"javi/casi_baja_2":1.248,"javi/baja_1":1.8,"javi/baja_2":2.352,"javi/reposo_1":2.952,"javi/reposo_2":1.8,"javi/activar_ulti":3.408,"javi/dano_1":1.464,"javi/dano_2":1.008,"clippy/hola":1.697875,"clippy/ayuda":1.645625,"clippy/peleando":2.559938,"clippy/por_ti":1.593375,"clippy/perdiendo":1.959125,"clippy/guardar":1.541125,"clippy/atacando":1.8285,"clippy/pantalla_azul":1.541125,"clippy/vas_a_perder":1.697875};
+let characterVoiceSequence=0;
+function characterVoiceVolume(f){return 1.1*(f.isPlayer?1:clamp(1-camera.position.distanceTo(f.pos)/40,0,1));}
+function characterVoiceState(f){return f.voicePlayback||(f.voicePlayback={audio:null,cooldowns:{},lastChoice:{},ready:false,pendingReady:0,idleAfter:G.time+rand(12,20),cine:false,clippyNextAt:0});}
+function stopCharacterVoice(f){
+  const s=f.voicePlayback,h=s?.audio;if(!h)return;s.audio=null;
+  if(h.source){try{h.source.stop();}catch(_){}h.source.disconnect();h.gain.disconnect();}
+  if(h.el){h.el.pause();if(h.htmlRecord)HTML_AUDIO_LEVELS.delete(h.htmlRecord);}
+}
+function resetCharacterVoice(f){
+  if(!f.voicePlayback&&f.ch.id!=='javi'&&f.ch.id!=='jesuluto')return;
+  const choices=f.voicePlayback?.lastChoice||{};stopCharacterVoice(f);f.voicePlayback=null;
+  if(f.ch.id==='javi'||f.ch.id==='jesuluto')characterVoiceState(f).lastChoice=choices;
+  f.characterVoiceCue=null;
+}
+function playCharacterClip(f,key,priority){
+  if(!AC||AC.state==='closed'||G.state!=='play'||!CHARACTER_VOICE_KEYS.has(key)||CHARACTER_VOICE_META[key].character!==f.ch.id)return null;
+  const s=characterVoiceState(f);stopCharacterVoice(f);
+  const duration=SND.buf[key]?.duration||CHARACTER_VOICE_DURATION[key],h={key,priority,until:performance.now()+duration*1000};
+  const volume=characterVoiceVolume(f);
+  s.audio=h;
+  const finish=()=>{if(h.source){h.source.disconnect();h.gain.disconnect();}if(h.htmlRecord)HTML_AUDIO_LEVELS.delete(h.htmlRecord);if(s.audio===h)s.audio=null;};
+  try{
+    if(SND.buf[key]){
+      h.source=AC.createBufferSource();h.source.buffer=SND.buf[key];h.gain=AC.createGain();h.gain.gain.value=volume;
+      h.source.connect(h.gain);h.gain.connect(soundChannel('game'));h.source.onended=finish;h.source.start();
+    }else{
+      h.el=new Audio(SND.base+key+'.mp3');h.htmlRecord=trackHtmlAudio(h.el,volume*.5,'game');h.el.addEventListener('ended',finish,{once:true});h.el.addEventListener('error',finish,{once:true});h.el.play().catch(finish);
+    }
+  }catch(error){finish();reportFrameError('voz:javi',error);return null;}
+  return h;
+}
+function javiSpeak(f,event){
+  const def=JAVI_VOICES[event];
+  if(f?.ch.id!=='javi'||f.remote||!def||!AC||G.state!=='play'||G.viewer||(!f.alive&&event!=='death'))return false;
+  const s=characterVoiceState(f),now=performance.now();
+  if(s.audio&&s.audio.until<=now)stopCharacterVoice(f);
+  if((s.cooldowns[event]??-Infinity)>G.time)return false;
+  if(s.audio&&s.audio.priority>=def.priority){if(event==='ready')s.pendingReady=now+6000;return false;}
+  const choices=def.clips.filter(k=>k!==s.lastChoice[event]),key=choices[Math.floor(Math.random()*choices.length)]||def.clips[0];
+  if(!playCharacterClip(f,key,def.priority))return false;
+  s.lastChoice[event]=key;s.cooldowns[event]=G.time+def.cd;s.idleAfter=G.time+rand(20,32);
+  if(event==='activate'||event==='death')s.pendingReady=0;
+  f.characterVoiceCue={s:++characterVoiceSequence,k:key,at:Math.round(now)};NET.sendT=0;return true;
+}
+function javiActivateVoice(f,cinematic=false){
+  if(f.ch.id!=='javi'||f.remote)return;
+  const s=characterVoiceState(f);s.pendingReady=0;
+  if(cinematic){s.cine=true;javiSpeak(f,'activate');}
+  else if(s.cine)s.cine=false;else javiSpeak(f,'activate');
+}
+function updateCharacterVoices(){
+  for(const f of G.fighters){
+    const s=f.voicePlayback;
+    if(s?.audio){
+      const h=s.audio;if(h.until<=performance.now())stopCharacterVoice(f);
+      else{const volume=characterVoiceVolume(f);if(h.gain)h.gain.gain.setTargetAtTime(volume,AC.currentTime,.08);if(h.htmlRecord){h.htmlRecord.base=volume*.5;refreshHtmlAudio(h.htmlRecord);}}
+    }
+    if(f.ch.id!=='javi'||f.remote||!f.alive||G.viewer||(G.paused&&!G.mp))continue;
+    const state=characterVoiceState(f),full=f.ult>=100&&f.awak<=0;
+    if(!full){state.ready=false;state.pendingReady=0;}
+    else if(!state.ready){state.ready=true;if(!javiSpeak(f,'ready'))state.pendingReady=performance.now()+6000;}
+    if(state.pendingReady&&full&&!state.audio){if(state.pendingReady>performance.now())javiSpeak(f,'ready');state.pendingReady=0;}
+    const busy=G.cine||f.action||f.stun>0||f.ragdoll>0||f.grabbed||Math.hypot(f.vel.x,f.vel.z)>.5||G.time-(f.lastHurtT??-99)<6||G.time-(f.lastAtkT??-99)<6;
+    if(busy)state.idleAfter=Math.max(state.idleAfter,G.time+12);
+    else if(G.time>=state.idleAfter)javiSpeak(f,'idle');
+  }
+}
+function characterVoicePresence(f){return f.characterVoiceCue&&performance.now()-f.characterVoiceCue.at<6000?f.characterVoiceCue:null;}
+function receiveCharacterVoice(f,pr){
+  const cue=pr.vc,meta=cue&&CHARACTER_VOICE_META[cue.k];
+  if(!meta||meta.character!==f.ch.id||!Number.isSafeInteger(cue.s)||cue.s<=0||cue.s<=(f.characterVoiceSeen||0)||!Number.isFinite(cue.at)||!Number.isFinite(pr.ts))return;
+  f.characterVoiceSeen=cue.s;
+  const age=pr.ts-cue.at;if(age<-.1||age>2000)return;
+  playCharacterClip(f,cue.k,meta.priority);
+  if(meta.text){if(f.clippy)f.clippy.say(meta.text,true);else f.pendingClippyVoice={text:meta.text,until:performance.now()+2000};}
+}
+function clippySpeak(f,text){
+  if(f?.ch.id!=='jesuluto'||f.remote||!f.alive||G.state!=='play'||G.viewer)return false;
+  const def=CLIPPY_VOICES[text];if(!def)return true;
+  const s=characterVoiceState(f),now=performance.now();if(s.audio&&s.audio.until<=now)stopCharacterVoice(f);
+  if(s.audio&&s.audio.priority>=def.priority)return false;
+  if((s.cooldowns[def.clip]||0)>now||(def.priority<=1&&s.clippyNextAt>now))return false;
+  const duration=SND.buf[def.clip]?.duration||CHARACTER_VOICE_DURATION[def.clip];
+  if(AC)playCharacterClip(f,def.clip,def.priority);
+  s.cooldowns[def.clip]=now+(def.priority>1?4500:(duration+4)*1000);s.clippyNextAt=now+(duration+2)*1000;
+  f.characterVoiceCue={s:++characterVoiceSequence,k:def.clip,at:Math.round(now)};NET.sendT=0;return true;
+}
+
+const GAME_RECORDINGS=new Set([...CHARACTER_VOICE_FILES,'randi_waaa','randi_voz1','randi_voz2','vhit','vland','whistle','applause','elev_ride','door_close','door_open']);
 function soundCategory(name){return GAME_RECORDINGS.has(name)?'game':'ambient';}
 function soundChannel(category='game'){return (category==='ambient'?ambientAudioBus:gameAudioBus)||master;}
 function syncAudioControls(){
@@ -5015,7 +5134,7 @@ addEventListener('keydown', e => { if (e.code === 'KeyM' && !e.repeat && e.targe
 // Con servidor se decodifican con WebAudio (bucles sin cortes y apagado de la calle al entrar); abriendo el archivo sin servidor (file://)
 // se reproducen con elementos <audio> (solo volumen).
 const SND_LIST = ['city', 'birds', 'breeze', 'wind_strong', 'night', 'rain', 'thunder1', 'thunder2', 'cafe', 'clink1', 'clink2', 'sizzle', 'market', 'cash', 'arcade', 'library', 'page',
-  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open', 'waves', 'gull1', 'gull2', 'vhit', 'vland', 'whistle', 'applause', 'randi_voz1', 'randi_voz2', 'randi_waaa'];
+  'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open', 'waves', 'gull1', 'gull2', 'vhit', 'vland', 'whistle', 'applause', 'randi_voz1', 'randi_voz2', 'randi_waaa', ...CHARACTER_VOICE_FILES];
 const SND = { buf: {}, state: 'idle', base: 'sonidos/', els: {} };
 function loadSounds() {
   if (SND.state !== 'idle' || !AC) return;
@@ -5149,6 +5268,7 @@ function netHit(att, t, o) {
   NET.hitsOut.push({ s: ++NET.hitSeq, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col, sf: o.spearFinish || null });
   while (NET.hitsOut.length > 10) NET.hitsOut.shift();
   att.ult = Math.min(100, att.ult + dmg * ULT_GAIN); t.flashT = .12;
+  if(t.hp>dmg&&t.hp<t.maxHp*.22&&!t.net?.wxSafe)javiSpeak(att,'near');
   const chest = chestOf(t);
   burst(chest, heavy ? 18 : 8, col, heavy ? 10 : 6, heavy ? .2 : .14, .4, .5);
   impactStar(chest, heavy ? col : '#ffffff', heavy ? 2.2 : 1.2, heavy ? .26 : .16);
@@ -5197,6 +5317,7 @@ function applyHit(att, t, o) {
     if (t.sebShield <= 0) sebWallRelease(t);
   }
   t.hp -= dmg;
+  if(dmg>0){if(t.hp>0)javiSpeak(t,'hurt');if(t.hp>0&&t.hp<t.maxHp*.22)javiSpeak(att,'near');}
   if (att.clippy && t !== att && !o.noAssist && dmg >= .4) clippyAssist(att, t);
   if (att.ch && att.ch.id === 'randi' && t !== att && t.hp > 0 && t.hp < t.maxHp * .22 && G.time - (att.voiceT || -9) > 7) { att.voiceT = G.time; playSnd('randi_voz1', 1.5, att.pos); }   // a punto de matar
   if (att.pisco > 0 && t !== att && dmg >= .4) att.hp = Math.min(att.maxHp, att.hp + dmg * .3);   // el pisco sour cura un poco con cada golpe
@@ -5299,6 +5420,7 @@ function kill(v, k) {
   if (k && k !== v && k.capRandi) k.capT = Math.min(45, k.capT + 10);   // matar le suma tiempo a Capitán Perú
   v.alive = false; v.hp = 0; v.respawnT = v.dummy ? 2 : 4; v.deathT = 0; v.blocking = false; v.frozen = 0; v.grabbed = false;
   endAction(v); v.ragdoll = 3; v.deaths++;
+  javiSpeak(v,'death');if(k&&k!==v)javiSpeak(k,'kill');
   sfx('ko', v.pos);
   if (v.dummy) { if (k && k.isPlayer) popText(chestOf(v), 'K.O.', '#d7ff2f', 26); return; }
   if (k && k !== v) { k.kills++; k.ult = Math.min(100, k.ult + 20 * ULT_GAIN); k.hp = Math.min(k.maxHp, k.hp + 15); }
@@ -8648,6 +8770,7 @@ function useUlt(f) {
 }
 // el despertar no es un ataque: termina la animación y las habilidades cambian por un tiempo
 function runUlt(f) {
+  javiActivateVoice(f);
   if (f.isPlayer && G.mp) netAct({ k: 'u' });
   f.awak = AWAKE_DUR; f.ult = 0; f.cd = [0, 0, 0, 0]; f.iframes = Math.max(f.iframes, .6);
   if (f.hp < f.maxHp) { f.hp = f.maxHp; popText(chestOf(f), '¡VIDA AL MÁXIMO!', '#7dff6a', 22); burst(chestOf(f), 24, '#7dff6a', 6, .2, .6, .4); }   // despertar: se cura del todo
@@ -8660,6 +8783,7 @@ function runUlt(f) {
   jlAwaken(f);
 }
 function startCine(f) {
+  javiActivateVoice(f,true);
   G.cine = { f, t: 0, dur: 2.6, shot: 0, drawn: !!f.spearOut };
   cineGrade(true, f);
   const tt = $('cinetitle'); tt.style.setProperty('--cc', f.ch.color); tt.classList.remove('show');
@@ -10659,7 +10783,7 @@ function presenceOf(f, ch) {
   return {
     v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
-    jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
+    vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0,
   };
 }
@@ -10801,9 +10925,11 @@ function netTick(dt) {
       NET.lastHit[pe.peer] = Math.max(0, ...(Array.isArray(pr.hits) ? pr.hits.map(h => +h.s || 0) : [0]));
       NET.lastAct[pe.peer] = pr.act ? pr.act.s : 0;
       NET.lastKo[pe.peer] = pr.ko ? pr.ko.n : 0;
+      px.characterVoiceSeen=pr.vc?.k!=="clippy/hola"&&Number.isSafeInteger(pr.vc?.s)?pr.vc.s:0;
       if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
+    receiveCharacterVoice(px,pr);
     synchronizeSpearDrops(px,pr);
     if (Array.isArray(pr.hits)) {
       // golpes dirigidos a mí o a uno de mis dummies
@@ -10816,7 +10942,7 @@ function netTick(dt) {
       NET.lastKo[pe.peer] = pr.ko.n;
       const killer = pr.ko.by && pr.ko.by === NET.myPeer ? G.player : NET.proxies.get(pr.ko.by) || null;
       addFeed(killer, px);
-      if (killer && killer === G.player) { G.player.kills++; G.player.ult = Math.min(100, G.player.ult + 20 * ULT_GAIN); showBanner('K.O.', '#d7ff2f', `${px.name} fuera`); G.slowT = .3; sfx('ko', px.pos); }
+      if (killer && killer === G.player) { javiSpeak(killer,'kill'); G.player.kills++; G.player.ult = Math.min(100, G.player.ult + 20 * ULT_GAIN); showBanner('K.O.', '#d7ff2f', `${px.name} fuera`); G.slowT = .3; sfx('ko', px.pos); }
     }
   }
   for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
@@ -11355,6 +11481,7 @@ function loop(now){
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
   frameTask('playa',()=>updateBeach(rdt));frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
+  frameTask('voces',()=>updateCharacterVoices());
   frameTask('interfaz',()=>updateHUD(rdt));frameTask('lineas',()=>drawLines(rdt));
   if(G.cine&&G.cine.shot===1)frameTask('paneles',()=>drawPanelBorders());
   }catch(error){reportFrameError('cuadro',error);}

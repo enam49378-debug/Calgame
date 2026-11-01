@@ -6,7 +6,7 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 
 const atmosphere = require('./ambiente.js');
 const ROOT = path.resolve(process.env.BLOCKSTRIKE_ROOT || path.join(__dirname, '..')), PORT = +process.env.PORT || 8080, STALE_MS = 20000, MAX_MSG = 1 << 20;
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.ico': 'image/x-icon', '.svg': 'image/svg+xml', '.bbmodel': 'application/json', '.txt': 'text/plain; charset=utf-8' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.svg': 'image/svg+xml', '.bbmodel': 'application/json', '.txt': 'text/plain; charset=utf-8' };
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 // salas: nombre -> { clients: Map(id -> cliente), states: Map(id -> { d, owner }), skins: Map(id -> string) }

@@ -32,3 +32,13 @@ El dibujo se ejecuta al final de cada cuadro aunque falle una actualización. Ca
 Los últimos errores se guardan solo en este navegador (`bsb_runtime_errors_v1`) y se pueden consultar con `getBlockstrikeDiagnostics()` en la consola; no se envían a ningún servidor.
 
 `npm run test:recuperacion` reproduce el bloqueo de un efecto agrupado, introduce fallos de limpieza, animación, eventos, audio, acciones y postprocesado, y pierde/restaura el contexto gráfico. `npm run test:combate` simula combates prolongados de varios personajes con audio y verifica que no haya errores registrados.
+
+## Voces de Javi y Clippy
+
+Javi utiliza 15 grabaciones: muerte (4), ulti disponible (2), rival con poca vida (2), baja (2), reposo (2), activación de ulti (1) y daño (2). Alterna variantes, limita los comentarios durante combos y da prioridad a muerte y activación. La voz de activación empieza con la cinemática y se reproduce una sola vez.
+
+Clippy tiene voz para sus nueve bocadillos de Jesuluto: saludo, cinco comentarios, Clipazo, Pantalla Azul y Clippy Gigante. Las intervenciones respetan pausas y prioridades; los demás jugadores reciben la misma frase, voz y bocadillo.
+
+Las voces obedecen **Sonidos del juego** y **Volumen general**, son independientes del ambiente y se limpian al salir/reaparecer. La voz propia se mantiene clara durante las cinemáticas; las ajenas se atenúan por distancia.
+
+Comprobaciones: `npm run test:voces:javi` y `npm run test:voces:clippy` verifican las grabaciones, eventos, prioridades, volumen y sincronización con dos clientes locales.
