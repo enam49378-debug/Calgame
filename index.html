@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blockstrike Battlegrounds</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
@@ -221,8 +226,8 @@ tr.me td{color:var(--hot);font-weight:700}
 #viewer .vinfo span{background:rgba(0,0,0,.35);padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #viewer .vinfo b{color:var(--hot);font-weight:600}
 #viewer small{color:var(--muted)}
-#feb{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:var(--hot);border:1px solid var(--hot);padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
-#feb:hover{background:var(--hot);color:#000}
+#feb,#animedbtn{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:var(--hot);border:1px solid var(--hot);padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+#feb:hover,#animedbtn:hover{background:var(--hot);color:#000}
 #faceed{position:fixed;right:12px;top:64px;bottom:64px;width:min(460px,calc(100vw - 24px));overflow:auto;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--hot);padding:12px 14px;display:flex;flex-direction:column;gap:10px;z-index:40;font-size:14px;backdrop-filter:blur(6px)}
 #faceed.hidden{display:none}
 #faceed button,#faceed select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);padding:6px 10px;font:inherit;font-weight:600;cursor:pointer}
@@ -290,6 +295,8 @@ tr.me td{color:var(--hot);font-weight:700}
 <body>
 <div id="spear-recovery" class="hidden"></div>
 <div id="spear-marker" class="hidden">▼ Tu lanza</div>
+</head>
+<body>
 <div id="wrap"></div>
 <canvas id="lines"></canvas>
 <div id="cinedim"></div>
@@ -339,6 +346,7 @@ tr.me td{color:var(--hot);font-weight:700}
     <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg">PARTIDA</button></nav>
     <button type="button" id="viewbtn">SALA DE CINEMÁTICAS ▸</button>
     <button type="button" id="feb">EDITOR DE EXPRESIONES ▸</button>
+    <button type="button" id="animedbtn">EDITOR DE ANIMACIONES ▸</button>
   </header>
   <section class="mpanel" id="tab-sel">
     <div id="cinfo" style="display:flex;flex-direction:column;gap:10px">
@@ -3572,6 +3580,7 @@ function feInit() {
   for (const id of ['fe-is', 'fe-ix', 'fe-iy']) { $(id).addEventListener('input', () => feImgChanged(true)); $(id).addEventListener('change', () => feImgChanged(false)); }
   $('fe-close').addEventListener('click', feClose);
   $('feb').addEventListener('click', () => { sfx('select'); feOpen(); });
+  $('animedbtn').addEventListener('click', () => { sfx('select'); edOpen(); });
   $('fe-clear').addEventListener('click', () => { feExpr().grid = Array(8).fill('........'); saveFaceLib(); feSelect(); });
   $('fe-reset').addEventListener('click', () => {
     if (FE.id === 'normal') { const n = makeNormal(FE.cid), e = feExpr(); e.grid = n.grid; delete e.img; saveFaceLib(); feSelect(); feMsg('Cara original restaurada'); return; }
@@ -9852,6 +9861,7 @@ function showSelect(id, quiet) {
 function updateShow(dt) {
   SH.t += dt; const f = SH.fig; if (!f) return;
   const ch = f.ch;
+  if (ED.on) { edShowFrame(f, dt); return; }
   if (!SH.landed) {
     SH.drop += dt; const k = Math.min(1, SH.drop / .3);
     f.model.root.position.y = 4 - 3.9 * k * k;
@@ -11080,19 +11090,453 @@ $('dclear').addEventListener('click', () => { if (canUsePanel()) clearDummies();
 $('dclose').addEventListener('click', () => togglePanel(false));
 $('panelbtn').addEventListener('click', () => togglePanel(true));
 
-// ================= Menú =================
+// ================= Editor de animaciones (estilo Blockbench): claves, interpolaciones, fórmulas y curvas =================
+const ED = { on: false, setId: null, name: null, clip: null, time: 0, playing: false, loop: true, speed: 1, zoom: 170, scroll: -.3, vscroll: 0, sel: new Set(), rows: [], undo: [], redo: [], clip0: null, curves: false, rotY: .35, camZ: 7.4, snap: true, open: {}, selBone: 'body', selChan: null, drag: null, saved: {}, orig: {}, msgT: 0 };
+const ED_BONES = [
+  { id: 'body', n: 'Cuerpo', col: '#ffd23f', g: { rot: ['ix', 'iy', 'iz'], pos: ['bx', 'by', 'bz'] } },
+  { id: 'torso', n: 'Torso', col: '#7dff6a', g: { rot: ['tx', 'ty', 'tz'], pos: ['tpx', 'tpy', 'tpz'], scl: ['tscx', 'tscy', 'tscz'] } },
+  { id: 'head', n: 'Cabeza', col: '#4dd2ff', g: { rot: ['hx', 'hy', 'hz'], pos: ['hpx', 'hpy', 'hpz'], scl: ['hscx', 'hscy', 'hscz'] } },
+  { id: 'armL', n: 'Brazo izquierdo', col: '#ff7ab8', g: { rot: ['alx', 'aly', 'alz'], pos: ['alpx', 'alpy', 'alpz'], scl: ['als'] } },
+  { id: 'armR', n: 'Brazo derecho', col: '#ff9a3d', g: { rot: ['arx', 'ary', 'arz'], pos: ['arpx', 'arpy', 'arpz'], scl: ['ars'] } },
+  { id: 'legL', n: 'Pierna izquierda', col: '#b06bff', g: { rot: ['llx', 'llz'], pos: ['llpx', 'llpy', 'llpz'], scl: ['lls'] } },
+  { id: 'legR', n: 'Pierna derecha', col: '#6bffd9', g: { rot: ['lrx', 'lrz'], pos: ['lrpx', 'lrpy', 'lrpz'], scl: ['lrs'] } },
+  { id: 'weapon', n: 'Arma', col: '#cfd6df', g: { rot: ['sx'] } },
+];
+const ED_KIND = { rot: 'Rotación (°)', pos: 'Posición', scl: 'Escala' };
+const ED_ROT = new Set(['ix', 'iy', 'iz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'llz', 'lrx', 'lrz', 'sx']);
+const edBoneOf = c => ED_BONES.find(b => Object.values(b.g).some(a => a.includes(c)));
+const edKindOf = c => ED_ROT.has(c) ? 'rot' : /sc[xyz]$|^(als|ars|lls|lrs)$/.test(c) ? 'scl' : 'pos';
+const edAxis = c => { const l = c.slice(-1); return 'xyz'.includes(l) && !/^(als|ars|lls|lrs)$/.test(c) ? l.toUpperCase() : 'LARGO'; };
+const edDef = c => JDEF[c] != null ? JDEF[c] : 0;
+const edDeg = v => v * 180 / Math.PI;
+const edShow = (c, v) => ED_ROT.has(c) ? edDeg(v) : v;
+const edUnshow = (c, v) => ED_ROT.has(c) ? v * Math.PI / 180 : v;
+// ----- interpolaciones
+const edBack = u => 2.70158 * u * u * u - 1.70158 * u * u;
+const edElastic = u => u === 0 ? 0 : u === 1 ? 1 : -Math.pow(2, 10 * u - 10) * Math.sin((u * 10 - 10.75) * (2 * Math.PI / 3));
+const edBounceOut = u => { const n = 7.5625, d = 2.75; if (u < 1 / d) return n * u * u; if (u < 2 / d) return n * (u -= 1.5 / d) * u + .75; if (u < 2.5 / d) return n * (u -= 2.25 / d) * u + .9375; return n * (u -= 2.625 / d) * u + .984375; };
+const ED_EASE = {
+  sine: u => 1 - Math.cos(u * Math.PI / 2), quad: u => u * u, cubic: u => u * u * u, quart: u => u ** 4, quint: u => u ** 5,
+  expo: u => u === 0 ? 0 : Math.pow(2, 10 * u - 10), circ: u => 1 - Math.sqrt(1 - u * u), back: edBack, elastic: edElastic, bounce: u => 1 - edBounceOut(1 - u),
+};
+const ED_EASE_ES = { sine: 'Seno', quad: 'Cuadrática', cubic: 'Cúbica', quart: 'Cuártica', quint: 'Quíntica', expo: 'Exponencial', circ: 'Circular', back: 'Atrás', elastic: 'Elástica', bounce: 'Rebote' };
+function edEase(name, mode, u) {
+  const f = ED_EASE[name]; if (!f) return u;
+  if (mode === 'in') return f(u); if (mode === 'out') return 1 - f(1 - u);
+  return u < .5 ? f(2 * u) / 2 : 1 - f(2 * (1 - u)) / 2;
+}
+function edBezier(x1, y1, x2, y2, x) {
+  if (x <= 0) return 0; if (x >= 1) return 1;
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by; let t = x;
+  for (let i = 0; i < 8; i++) { const e = ((ax * t + bx) * t + cx) * t - x, d = (3 * ax * t + 2 * bx) * t + cx; if (Math.abs(e) < 1e-5 || Math.abs(d) < 1e-6) break; t -= e / d; }
+  t = clamp(t, 0, 1); return ((ay * t + by) * t + cy) * t;
+}
+// ----- fórmulas seguras (sin eval): sin/cos/tan en grados como en Blockbench, variables time, life, length, pi
+const edDR = Math.PI / 180, edNoise = x => { const i = Math.floor(x), f = x - i, h = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }, u = f * f * (3 - 2 * f); return (h(i) + (h(i + 1) - h(i)) * u) * 2 - 1; };
+const ED_FN = {
+  sin: a => Math.sin(a * edDR), cos: a => Math.cos(a * edDR), tan: a => Math.tan(a * edDR), asin: a => Math.asin(a) / edDR, acos: a => Math.acos(a) / edDR, atan: a => Math.atan(a) / edDR, atan2: (a, b) => Math.atan2(a, b) / edDR,
+  abs: Math.abs, min: Math.min, max: Math.max, clamp: (a, lo, hi) => Math.min(hi, Math.max(lo, a)), lerp: (a, b, t) => a + (b - a) * t, floor: Math.floor, ceil: Math.ceil, round: Math.round, trunc: Math.trunc,
+  sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, ln: Math.log, mod: (a, b) => a - b * Math.floor(a / b), sign: Math.sign, random: (a = 0, b = 1) => a + Math.random() * (b - a), noise: edNoise,
+  saw: a => a - Math.floor(a), tri: a => Math.abs(((a % 1) + 1) % 1 * 2 - 1), step: (e, x) => x < e ? 0 : 1, smoothstep: (a, b, x) => { const u = clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); }, bounce: a => edBounceOut(clamp(a, 0, 1)), hypot: Math.hypot,
+};
+const ED_CACHE = new Map();
+function edCompile(src) {
+  if (ED_CACHE.has(src)) return ED_CACHE.get(src);
+  const rx = /\s*(?:(\d+\.?\d*(?:e[-+]?\d+)?|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|(\|\||&&|==|!=|<=|>=|[-+*\/%^(),?:<>!]))/gy, tk = []; let m, pos = 0;
+  while (pos < src.length && (m = rx.exec(src))) { pos = rx.lastIndex; if (m[1] != null) tk.push({ n: parseFloat(m[1]) }); else if (m[2] != null) tk.push({ id: m[2].replace(/^(math|query|variable|v|q)\./i, '').toLowerCase() }); else tk.push({ op: m[3] }); }
+  if (/\S/.test(src.slice(pos))) throw new Error('Carácter no válido en la fórmula');
+  let i = 0; const peek = () => tk[i], eat = o => { const t = tk[i]; if (t && t.op === o) { i++; return true; } return false; };
+  const need = o => { if (!eat(o)) throw new Error('Falta "' + o + '"'); };
+  const prim = () => {
+    const t = tk[i++]; if (!t) throw new Error('Fórmula incompleta');
+    if (t.n != null) return () => t.n;
+    if (t.op === '(') { const e = tern(); need(')'); return e; }
+    if (t.op === '-') { const e = unary(); return c => -e(c); }
+    if (t.op === '+') return unary();
+    if (t.op === '!') { const e = unary(); return c => e(c) ? 0 : 1; }
+    if (t.id) {
+      if (eat('(')) { const f = ED_FN[t.id]; if (!f) throw new Error('Función desconocida: ' + t.id); const a = []; if (!eat(')')) { do a.push(tern()); while (eat(',')); need(')'); } return c => f(...a.map(x => x(c))); }
+      const id = t.id; return c => { switch (id) { case 'time': case 'anim_time': case 't': return c.time; case 'life': return c.length ? c.time / c.length : 0; case 'length': return c.length; case 'pi': return Math.PI; case 'kt': return c.kt || 0; default: throw new Error('Variable desconocida: ' + id); } };
+    }
+    throw new Error('Símbolo inesperado');
+  };
+  const unary = () => prim();
+  const pw = () => { let a = prim(); if (eat('^')) { const b = unaryPow(); const l = a; a = c => Math.pow(l(c), b(c)); } return a; };
+  const unaryPow = () => { if (eat('-')) { const e = unaryPow(); return c => -e(c); } return pw(); };
+  const mul = () => { let a = pw(); for (;;) { if (eat('*')) { const b = pw(), l = a; a = c => l(c) * b(c); } else if (eat('/')) { const b = pw(), l = a; a = c => l(c) / (b(c) || 1e-9); } else if (eat('%')) { const b = pw(), l = a; a = c => ED_FN.mod(l(c), b(c)); } else return a; } };
+  const add = () => { let a = mul(); for (;;) { if (eat('+')) { const b = mul(), l = a; a = c => l(c) + b(c); } else if (eat('-')) { const b = mul(), l = a; a = c => l(c) - b(c); } else return a; } };
+  const cmp = () => { let a = add(); for (;;) { const o = peek() && peek().op; if (['<', '>', '<=', '>=', '==', '!='].includes(o)) { i++; const b = add(), l = a; a = c => { const x = l(c), y = b(c); return (o === '<' ? x < y : o === '>' ? x > y : o === '<=' ? x <= y : o === '>=' ? x >= y : o === '==' ? x === y : x !== y) ? 1 : 0; }; } else return a; } };
+  const and = () => { let a = cmp(); while (eat('&&')) { const b = cmp(), l = a; a = c => l(c) && b(c) ? 1 : 0; } return a; };
+  const or = () => { let a = and(); while (eat('||')) { const b = and(), l = a; a = c => l(c) || b(c) ? 1 : 0; } return a; };
+  const tern = () => { const c0 = or(); if (eat('?')) { const a = tern(); need(':'); const b = tern(); return c => c0(c) ? a(c) : b(c); } return c0; };
+  const fn = tern(); if (i < tk.length) throw new Error('Sobra "' + (tk[i].op || tk[i].id || tk[i].n) + '"');
+  ED_CACHE.set(src, fn); return fn;
+}
+function edRun(src, ctx) { try { const v = edCompile(src)(ctx); return Number.isFinite(v) ? v : 0; } catch (e) { return 0; } }
+// ----- evaluación de claves
+const edKeyVal = (clip, c, k, t) => typeof k.v === 'string' ? edUnshow(c, edRun(k.v, { time: t, length: clip.length, kt: k.t })) : k.v;
+function edEvalChan(clip, c, t) {
+  const ks = clip.tracks[c]; if (!ks || !ks.length) return edDef(c);
+  const n = ks.length; if (t <= ks[0].t) return edKeyVal(clip, c, ks[0], t); if (t >= ks[n - 1].t) return edKeyVal(clip, c, ks[n - 1], t);
+  let i = 0; while (i < n - 2 && t >= ks[i + 1].t) i++;
+  const a = ks[i], b = ks[i + 1], u = (t - a.t) / (b.t - a.t), va = edKeyVal(clip, c, a, t), vb = edKeyVal(clip, c, b, t), mode = a.i || 'catmull';
+  if (mode === 'step') return va; if (mode === 'linear') return va + (vb - va) * u;
+  if (mode === 'bezier') { const q = a.b || [.25, .1, .25, 1]; return va + (vb - va) * edBezier(q[0], q[1], q[2], q[3], u); }
+  if (mode.includes(':')) { const [nm, md] = mode.split(':'); return va + (vb - va) * edEase(nm, md, u); }
+  const p0 = i > 0 ? edKeyVal(clip, c, ks[i - 1], t) : va, p3 = i + 2 < n ? edKeyVal(clip, c, ks[i + 2], t) : vb, h = b.t - a.t, t0 = i > 0 ? ks[i - 1].t : a.t, t3 = i + 2 < n ? ks[i + 2].t : b.t;
+  const m1 = i > 0 ? (vb - p0) / (b.t - t0) * h * .5 : 0, m2 = i + 2 < n ? (p3 - va) / (t3 - a.t) * h * .5 : 0, s2 = u * u, s3 = s2 * u;
+  return (2 * s3 - 3 * s2 + 1) * va + (s3 - 2 * s2 + u) * m1 + (-2 * s3 + 3 * s2) * vb + (s3 - s2) * m2;
+}
+// ----- clip <-> datos del juego
+function edFromGame(setId, name) {
+  const D = bbSet(setId)[name], clip = { name, length: D.length, loop: !!D.loop, contacts: (D.contacts || []).slice(), tracks: {} };
+  D.channels.forEach((c, ci) => {
+    const pts = D.samples.map(r => [r[0], r[ci + 1]]), tol = ED_ROT.has(c) ? .012 : /^(als|ars|lls|lrs|tsc|hsc)/.test(c) ? .006 : .06, keep = new Set([0, pts.length - 1]);
+    const rdp = (a, b) => { let md = 0, mi = -1; for (let i = a + 1; i < b; i++) { const u = (pts[i][0] - pts[a][0]) / ((pts[b][0] - pts[a][0]) || 1), d = Math.abs(pts[i][1] - (pts[a][1] + (pts[b][1] - pts[a][1]) * u)); if (d > md) { md = d; mi = i; } } if (md > tol && mi > 0) { keep.add(mi); rdp(a, mi); rdp(mi, b); } };
+    rdp(0, pts.length - 1);
+    const ks = [...keep].sort((x, y) => x - y).map(i => ({ t: +pts[i][0].toFixed(4), v: +pts[i][1].toFixed(5), i: 'catmull' }));
+    if (ks.length > 1 || Math.abs(ks[0].v - edDef(c)) > 1e-4) clip.tracks[c] = ks;
+  });
+  return clip;
+}
+function edCompileClip(clip) {
+  const ch = Object.keys(clip.tracks).filter(c => clip.tracks[c].length).sort(), rows = [], L = Math.max(.05, clip.length), n = Math.ceil(L * 60);
+  const times = new Set(); for (let i = 0; i <= n; i++) times.add(+(Math.min(L, i / 60)).toFixed(6)); times.add(+L.toFixed(6));
+  for (const t of [...times].sort((a, b) => a - b)) rows.push([t, ...ch.map(c => +edEvalChan(clip, c, t).toFixed(6))]);
+  return { length: +L.toFixed(4), loop: !!clip.loop, contacts: clip.contacts.slice(), channels: ch, samples: rows };
+}
+function edSnap(c) { return JSON.stringify(c); }
+function edPush() { ED.undo.push(edSnap(ED.clip)); if (ED.undo.length > 100) ED.undo.shift(); ED.redo.length = 0; }
+function edUndo() { if (!ED.undo.length) return; ED.redo.push(edSnap(ED.clip)); ED.clip = JSON.parse(ED.undo.pop()); ED.sel.clear(); edProps(); }
+function edRedo() { if (!ED.redo.length) return; ED.undo.push(edSnap(ED.clip)); ED.clip = JSON.parse(ED.redo.pop()); ED.sel.clear(); edProps(); }
+function edMsg(t, bad) { const e = $('ae-msg'); if (!e) return; e.textContent = t; e.style.color = bad ? '#ff7a7a' : '#9fe8a8'; e.style.opacity = 1; ED.msgT = 3; }
+// ----- guardado
+function edLoadSaved() {
+  try { ED.saved = JSON.parse(localStorage.getItem('bsb_anim_edits') || '{}') || {}; } catch (e) { ED.saved = {}; }
+  for (const sid of Object.keys(ED.saved)) { const D = bbSet(sid); if (!D) continue; for (const nm of Object.keys(ED.saved[sid])) { try { D[nm] = edCompileClip(ED.saved[sid][nm]); for (const k of Object.keys(JAVI_BB_CACHE)) if (k === sid + ':' + nm) delete JAVI_BB_CACHE[k]; } catch (e) { } } }
+}
+function edSaveGame() {
+  const D = bbSet(ED.setId); if (!D) return; const key = ED.setId + ':' + ED.name; if (!ED.orig[key] && D[ED.name]) ED.orig[key] = D[ED.name];
+  D[ED.name] = edCompileClip(ED.clip); delete JAVI_BB_CACHE[key];
+  (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[ED.name] = JSON.parse(edSnap(ED.clip));
+  try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); edMsg('Guardada en el juego: ' + ED.name); } catch (e) { edMsg('No se pudo guardar (espacio lleno). Exporta el JSON.', true); }
+}
+function edRestore() {
+  const sid = ED.setId, nm = ED.name; if (ED.saved[sid]) { delete ED.saved[sid][nm]; try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); } catch (e) { } }
+  const o = ED.orig[sid + ':' + nm]; if (o) { bbSet(sid)[nm] = o; delete JAVI_BB_CACHE[sid + ':' + nm]; }
+  edOpenClip(sid, nm, true); edMsg(o ? 'Clip original restaurado' : 'Override borrado (recarga para ver el original)');
+}
+function edExport() { const blob = new Blob([JSON.stringify({ v: 1, set: ED.setId, clip: ED.clip }, null, 1)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ED.setId + '-' + ED.name + '.anim.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function edImportFile(file) { const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); if (!j.clip || !j.clip.tracks) throw 0; edPush(); ED.clip = j.clip; ED.clip.contacts = ED.clip.contacts || []; ED.name = ED.clip.name || ED.name; ED.sel.clear(); edRebuild(); edMsg('JSON importado'); } catch (e) { edMsg('Archivo no válido', true); } }; r.readAsText(file); }
+// ----- abrir / cerrar
+const ED_SETS = () => CHAR_IDS.filter(id => bbSet(id));
+function edOpenClip(sid, name, keepUndo) {
+  const D = bbSet(sid); if (!D || !D[name]) return; ED.setId = sid; ED.name = name;
+  ED.clip = ED.saved[sid] && ED.saved[sid][name] ? JSON.parse(JSON.stringify(ED.saved[sid][name])) : edFromGame(sid, name); ED.clip.contacts = ED.clip.contacts || [];
+  if (!keepUndo) { ED.undo.length = 0; ED.redo.length = 0; } ED.sel.clear(); ED.time = 0; ED.playing = false;
+  ED.open = {}; for (const c of Object.keys(ED.clip.tracks)) { const b = edBoneOf(c); if (b) ED.open[b.id] = true; }
+  ED.selBone = Object.keys(ED.open)[0] || 'body'; edRebuild();
+}
+function edRebuild() {
+  ED.rows = []; for (const b of ED_BONES) { ED.rows.push({ t: 'bone', b }); if (ED.open[b.id]) for (const k of ['rot', 'pos', 'scl']) for (const c of b.g[k] || []) ED.rows.push({ t: 'chan', b, k, c }); }
+  const ss = $('ae-set'), sc = $('ae-clip'); if (ss) { ss.innerHTML = ED_SETS().map(id => '<option value="' + id + '"' + (id === ED.setId ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); }
+  if (sc && ED.setId) { const D = bbSet(ED.setId); sc.innerHTML = Object.keys(D).map(n => '<option' + (n === ED.name ? ' selected' : '') + '>' + n + '</option>').join(''); }
+  edProps(); edTree();
+}
+function edOpen() {
+  if (G.state !== 'menu') return; edBuild(); const id = ED_SETS().includes(G.charId) ? G.charId : ED_SETS()[0];
+  ED.on = true; $('menu').style.display = 'none'; $('animed').classList.remove('hidden'); SH.landed = true; SH.kf = null;
+  edOpenClip(id, bbSet(id).idle ? 'idle' : Object.keys(bbSet(id))[0]); if (G.charId !== id) { G.charId = id; showSelect(id, true); }
+  requestAnimationFrame(edLoop);
+}
+function edClose() { ED.on = false; ED.playing = false; $('animed').classList.add('hidden'); $('menu').style.display = ''; showSelect(G.charId, true); }
+// ----- interfaz
+function edBuild() {
+  if ($('animed')) return;
+  const st = document.createElement('style');
+  st.textContent = `#animed{position:fixed;inset:0;z-index:70;pointer-events:none;font:13px/1.35 "Chakra Petch",system-ui,sans-serif;color:#d6dae3}#animed.hidden{display:none}#animed *{box-sizing:border-box}
+#animed .ae-top,#animed .ae-left,#animed .ae-right,#animed .ae-bottom{pointer-events:auto;background:#1a1d24;border:1px solid #2b303b}
+#animed .ae-top{position:absolute;left:0;right:0;top:0;height:42px;display:flex;align-items:center;gap:8px;padding:0 10px;border-width:0 0 1px}
+#animed .ae-top b{font-family:var(--display);font-size:18px;letter-spacing:.08em;color:#ffd400;margin-right:8px}
+#animed button,#animed select,#animed input[type=text],#animed input[type=number]{font:inherit;color:#e6e9f0;background:#252a35;border:1px solid #394050;border-radius:4px;padding:4px 9px;min-width:0}
+#animed button{cursor:pointer}#animed button:hover:not(:disabled){background:#313848;border-color:#5a6a8a}#animed button.on{background:#3e8bff;border-color:#3e8bff;color:#fff}#animed button.warn:hover{background:#6b2a2a}
+#animed .sp{flex:1}#animed .ae-left{position:absolute;left:0;top:42px;bottom:310px;width:230px;overflow:auto;border-width:0 1px 0 0;padding:8px}
+#animed .ae-right{position:absolute;right:0;top:42px;bottom:310px;width:300px;overflow:auto;border-width:0 0 0 1px;padding:10px;display:flex;flex-direction:column;gap:9px}
+#animed h4{margin:0 0 6px;font-size:11px;letter-spacing:.14em;color:#8791a6;font-weight:700}
+#animed .ae-bone{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:4px;cursor:pointer;user-select:none}#animed .ae-bone:hover{background:#252a35}#animed .ae-bone.on{background:#2c3a55}
+#animed .ae-bone i{width:10px;height:10px;border-radius:2px;display:inline-block}#animed .ae-bone small{margin-left:auto;color:#6f7a90}
+#animed .ae-bottom{position:absolute;left:0;right:0;bottom:0;height:310px;display:flex;flex-direction:column;border-width:1px 0 0}
+#animed .ae-tools{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid #2b303b;flex-wrap:wrap}#animed .ae-tools label{display:flex;align-items:center;gap:5px;color:#9aa4b8}
+#animed .ae-tools input[type=number]{width:62px}#animed #ae-time{font-family:ui-monospace,Consolas,monospace;color:#ffd400;min-width:132px;text-align:center}
+#animed #ae-wrap{flex:1;position:relative;min-height:0}#animed canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#animed .ae-view{position:absolute;left:230px;right:300px;top:42px;bottom:310px;pointer-events:auto;cursor:grab}#animed .ae-view:active{cursor:grabbing}
+#animed .ae-hint{position:absolute;left:240px;top:50px;color:#8f99ae;font-size:12px;pointer-events:none;text-shadow:0 1px 3px #000}
+#animed #ae-msg{position:absolute;left:50%;transform:translateX(-50%);top:52px;font-weight:700;opacity:0;transition:opacity .4s;pointer-events:none;text-shadow:0 1px 4px #000}
+#animed .ae-field{display:grid;grid-template-columns:78px 1fr;gap:6px;align-items:center}#animed .ae-field input,#animed .ae-field select{width:100%}
+#animed .ae-sl{display:grid;grid-template-columns:34px 1fr 74px;gap:6px;align-items:center}#animed .ae-sl input[type=range]{width:100%;accent-color:#3e8bff}
+#animed .ae-card{background:#20242d;border:1px solid #2f3543;border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:7px}
+#animed .ae-help{font-size:11.5px;color:#9aa4b8;line-height:1.5}#animed .ae-help code{background:#14161c;padding:1px 5px;border-radius:3px;color:#ffd23f}#animed .ae-err{color:#ff7a7a;font-size:12px;min-height:16px}
+#animed .ae-btns{display:flex;gap:6px;flex-wrap:wrap}`;
+  document.head.appendChild(st);
+  const d = document.createElement('div'); d.id = 'animed'; d.className = 'hidden';
+  d.innerHTML = `<div class="ae-top"><b>EDITOR DE ANIMACIONES</b><select id="ae-set" title="Personaje"></select><select id="ae-clip" title="Animación"></select>
+<button id="ae-new" title="Clip nuevo vacío">Nuevo</button><button id="ae-undo" title="Deshacer (Ctrl+Z)">↶</button><button id="ae-redo" title="Rehacer (Ctrl+Y)">↷</button><span class="sp"></span>
+<button id="ae-save" class="on" title="Aplica la animación al juego y la guarda en este navegador">Guardar en el juego</button><button id="ae-restore" title="Quita los cambios de este clip">Restaurar</button><button id="ae-exp">Exportar JSON</button><button id="ae-imp">Importar JSON</button><input id="ae-file" type="file" accept=".json,application/json" style="display:none"><button id="ae-close" class="warn">Cerrar ✕</button></div>
+<aside class="ae-left"><h4>ESQUELETO</h4><div id="ae-tree"></div></aside>
+<div class="ae-view" id="ae-view"></div><div class="ae-hint">Arrastra para girar · rueda: zoom · clic en un hueso y mueve los deslizadores para crear claves</div><div id="ae-msg"></div>
+<aside class="ae-right"><h4>PROPIEDADES</h4><div id="ae-props"></div></aside>
+<section class="ae-bottom"><div class="ae-tools"><button id="ae-first">⏮</button><button id="ae-play">▶</button><button id="ae-last">⏭</button><button id="ae-loop" class="on" title="Repetir">⟲</button><span id="ae-time">0:00:00 / 0</span>
+<label>FPS <input id="ae-fps" type="number" min="1" max="240" value="60"></label><label>Duración <input id="ae-len" type="number" min=".05" step=".05" value="1"></label><label>Vel. <input id="ae-speed" type="number" min=".05" max="4" step=".05" value="1"></label>
+<button id="ae-snap" class="on" title="Ajustar al cuadro">Imán</button><button id="ae-curves" title="Alternar entre claves y curvas">Curvas</button><span class="sp"></span>
+<button id="ae-add" title="Clave en el cursor (K) para el canal o hueso elegido">◆ Clave</button><button id="ae-addxyz" title="Claves X,Y,Z del hueso en el cursor">◆ XYZ</button><button id="ae-del" title="Borrar claves (Supr)">Borrar</button><button id="ae-copy">Copiar</button><button id="ae-paste">Pegar</button></div>
+<div id="ae-wrap"><canvas id="ae-cv"></canvas></div></section>`;
+  document.body.appendChild(d);
+  const $e = id => document.getElementById(id), on = (id, ev, fn) => $e(id).addEventListener(ev, fn);
+  on('ae-close', 'click', edClose); on('ae-save', 'click', edSaveGame); on('ae-restore', 'click', edRestore); on('ae-exp', 'click', edExport); on('ae-imp', 'click', () => $e('ae-file').click()); on('ae-file', 'change', e => { if (e.target.files[0]) edImportFile(e.target.files[0]); e.target.value = ''; });
+  on('ae-set', 'change', e => { const id = e.target.value; G.charId = id; showSelect(id, true); SH.landed = true; SH.kf = null; const D = bbSet(id); edOpenClip(id, D.idle ? 'idle' : Object.keys(D)[0]); });
+  on('ae-clip', 'change', e => edOpenClip(ED.setId, e.target.value));
+  on('ae-new', 'click', () => { const nm = (prompt('Nombre del clip nuevo', 'mi_animacion') || '').trim().replace(/\s+/g, '_'); if (!nm) return; const D = bbSet(ED.setId); if (D[nm]) return edMsg('Ya existe un clip con ese nombre', true); D[nm] = { length: 1, loop: false, contacts: [], channels: [], samples: [[0], [1]] }; edOpenClip(ED.setId, nm); edMsg('Clip creado: ' + nm); });
+  on('ae-undo', 'click', edUndo); on('ae-redo', 'click', edRedo);
+  on('ae-first', 'click', () => { ED.time = 0; }); on('ae-last', 'click', () => { ED.time = ED.clip.length; });
+  on('ae-play', 'click', () => { ED.playing = !ED.playing; if (ED.playing && ED.time >= ED.clip.length) ED.time = 0; });
+  on('ae-loop', 'click', () => { ED.loop = !ED.loop; $e('ae-loop').classList.toggle('on', ED.loop); });
+  on('ae-snap', 'click', () => { ED.snap = !ED.snap; $e('ae-snap').classList.toggle('on', ED.snap); });
+  on('ae-curves', 'click', () => { ED.curves = !ED.curves; $e('ae-curves').classList.toggle('on', ED.curves); });
+  on('ae-speed', 'change', e => { ED.speed = clamp(+e.target.value || 1, .05, 4); });
+  on('ae-len', 'change', e => { edPush(); ED.clip.length = Math.max(.05, +e.target.value || 1); edProps(); });
+  on('ae-add', 'click', () => edAddKeys(false)); on('ae-addxyz', 'click', () => edAddKeys(true)); on('ae-del', 'click', edDelSel); on('ae-copy', 'click', edCopy); on('ae-paste', 'click', edPaste);
+  const view = $e('ae-view'); let dr = null; view.addEventListener('pointerdown', e => { dr = { x: e.clientX, r: ED.rotY }; view.setPointerCapture(e.pointerId); }); view.addEventListener('pointermove', e => { if (dr) ED.rotY = dr.r + (e.clientX - dr.x) * .01; }); view.addEventListener('pointerup', () => { dr = null; });
+  view.addEventListener('wheel', e => { e.preventDefault(); ED.camZ = clamp(ED.camZ + e.deltaY * .004, 2.2, 10); }, { passive: false });
+  ED.cv = $e('ae-cv'); edBindTimeline();
+  addEventListener('keydown', edKey);
+}
+function edKey(e) {
+  if (!ED.on || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k = e.code, ctrl = e.ctrlKey || e.metaKey;
+  if (ctrl && k === 'KeyZ') { e.preventDefault(); e.shiftKey ? edRedo() : edUndo(); } else if (ctrl && k === 'KeyY') { e.preventDefault(); edRedo(); } else if (ctrl && k === 'KeyC') { edCopy(); } else if (ctrl && k === 'KeyV') { edPaste(); } else if (ctrl && k === 'KeyS') { e.preventDefault(); edSaveGame(); }
+  else if (k === 'Space') { e.preventDefault(); document.getElementById('ae-play').click(); } else if (k === 'Delete' || k === 'Backspace') { edDelSel(); } else if (k === 'KeyK') { edAddKeys(e.shiftKey); }
+  else if (k === 'ArrowLeft') { ED.time = Math.max(0, ED.time - 1 / (+document.getElementById('ae-fps').value || 60)); ED.playing = false; } else if (k === 'ArrowRight') { ED.time = Math.min(ED.clip.length, ED.time + 1 / (+document.getElementById('ae-fps').value || 60)); ED.playing = false; }
+  else if (k === 'Home') ED.time = 0; else if (k === 'End') ED.time = ED.clip.length; else if (k === 'Escape') edClose();
+}
+function edTree() {
+  const t = document.getElementById('ae-tree'); if (!t) return; t.innerHTML = '';
+  for (const b of ED_BONES) {
+    const n = Object.values(b.g).flat().reduce((s, c) => s + ((ED.clip.tracks[c] || []).length), 0);
+    const el = document.createElement('div'); el.className = 'ae-bone' + (ED.selBone === b.id ? ' on' : ''); el.innerHTML = '<i style="background:' + b.col + '"></i>' + b.n + '<small>' + (n ? n + ' claves' : '—') + '</small>';
+    el.addEventListener('click', () => { ED.selBone = b.id; ED.selChan = null; ED.open[b.id] = !ED.open[b.id] || ED.selBone !== b.id ? true : false; edRebuild(); });
+    t.appendChild(el);
+  }
+}
+// ----- claves
+const edTimeSnap = t => { const f = +document.getElementById('ae-fps').value || 60; return ED.snap ? Math.round(t * f) / f : t; };
+function edKeysOf(c) { return ED.clip.tracks[c] || (ED.clip.tracks[c] = []); }
+function edSetKey(c, t, v, interp) {
+  const ks = edKeysOf(c), f = 1 / (+document.getElementById('ae-fps').value || 60);
+  let k = ks.find(x => Math.abs(x.t - t) < f * .5); if (!k) { k = { t: +t.toFixed(4), v, i: interp || (ks.length ? ks[ks.length - 1].i : 'catmull') || 'catmull' }; ks.push(k); ks.sort((a, b) => a.t - b.t); } else k.v = v;
+  return k;
+}
+function edAddKeys(xyz) {
+  const t = edTimeSnap(ED.time); let chans = [];
+  const row = ED.selChan ? { c: ED.selChan } : null, b = ED_BONES.find(x => x.id === ED.selBone);
+  if (xyz || !row) { const kind = row ? edKindOf(row.c) : 'rot'; chans = (b.g[kind] || b.g.rot || []).slice(); } else chans = [row.c];
+  edPush(); for (const c of chans) { const k = edSetKey(c, t, edEvalChan(ED.clip, c, t)); ED.sel.add(k); } edRebuildPartial();
+}
+function edRebuildPartial() { edTree(); edProps(); }
+function edDelSel() { if (!ED.sel.size) return; edPush(); for (const c of Object.keys(ED.clip.tracks)) ED.clip.tracks[c] = ED.clip.tracks[c].filter(k => !ED.sel.has(k)); ED.sel.clear(); edRebuildPartial(); }
+function edCopy() { if (!ED.sel.size) return; let t0 = 1e9; const items = []; for (const c of Object.keys(ED.clip.tracks)) for (const k of ED.clip.tracks[c]) if (ED.sel.has(k)) { items.push({ c, k: JSON.parse(JSON.stringify(k)) }); t0 = Math.min(t0, k.t); } ED.clipboard = items.map(i => ({ c: i.c, k: Object.assign(i.k, { t: i.k.t - t0 }) })); edMsg(items.length + ' claves copiadas'); }
+function edPaste() { if (!ED.clipboard || !ED.clipboard.length) return; edPush(); ED.sel.clear(); const t0 = edTimeSnap(ED.time); for (const it of ED.clipboard) { const k = edSetKey(it.c, t0 + it.k.t, it.k.v, it.k.i); if (it.k.b) k.b = it.k.b.slice(); k.i = it.k.i; ED.sel.add(k); } edRebuildPartial(); }
+// ----- panel de propiedades
+const ED_INTERPS = () => '<option value="catmull">Suave (Catmull-Rom)</option><option value="linear">Lineal</option><option value="step">Escalón</option><option value="bezier">Bézier cúbica</option>' + Object.keys(ED_EASE).map(n => '<optgroup label="' + ED_EASE_ES[n] + '"><option value="' + n + ':in">' + ED_EASE_ES[n] + ' · entrada</option><option value="' + n + ':out">' + ED_EASE_ES[n] + ' · salida</option><option value="' + n + ':inout">' + ED_EASE_ES[n] + ' · entrada y salida</option></optgroup>').join('');
+function edProps() {
+  const p = document.getElementById('ae-props'); if (!p || !ED.clip) return; const clip = ED.clip, b = ED_BONES.find(x => x.id === ED.selBone), sel = [...ED.sel], k0 = sel[0];
+  let h = '';
+  if (k0) {
+    const c0 = Object.keys(clip.tracks).find(c => clip.tracks[c].includes(k0)), many = sel.length > 1, cur = typeof k0.v === 'string' ? k0.v : String(+edShow(c0, k0.v).toFixed(4));
+    h += '<div class="ae-card"><h4>KEYFRAME' + (many ? ' (' + sel.length + ')' : '') + ' · ' + (edBoneOf(c0) || {}).n + ' ' + edAxis(c0) + '</h4>' +
+      '<div class="ae-field"><label>Tiempo (s)</label><input id="ae-kt" type="number" step=".01" value="' + k0.t + '"></div>' +
+      '<div class="ae-field"><label>Valor / fórmula</label><input id="ae-kv" type="text" value="' + cur.replace(/"/g, '&quot;') + '" ' + (many ? 'placeholder="(varios)"' : '') + '></div><div class="ae-err" id="ae-kerr"></div>' +
+      '<div class="ae-field"><label>Interpolación</label><select id="ae-ki">' + ED_INTERPS() + '</select></div>' +
+      '<div class="ae-field" id="ae-kbz" style="display:none"><label>Bézier</label><input id="ae-kb" type="text" value="' + (k0.b || [.25, .1, .25, 1]).join(', ') + '"></div>' +
+      '<div class="ae-btns"><button id="ae-kdup">Duplicar</button><button id="ae-kdel" class="warn">Borrar</button></div></div>';
+  } else {
+    h += '<div class="ae-card"><h4>CLIP · ' + clip.name + '</h4><div class="ae-field"><label>Contactos (s)</label><input id="ae-contacts" type="text" value="' + clip.contacts.join(', ') + '" placeholder="0.2, 0.55"></div><label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="ae-cloop" ' + (clip.loop ? 'checked' : '') + '> Animación en bucle</label>' +
+      '<div class="ae-help">Los <b>contactos</b> son los instantes del golpe: el juego sincroniza el cuerpo con ellos.</div></div>';
+  }
+  h += '<div class="ae-card"><h4>POSE · ' + b.n.toUpperCase() + ' <small style="color:#6f7a90">en t=' + ED.time.toFixed(2) + ' s</small></h4>';
+  for (const kind of ['rot', 'pos', 'scl']) for (const c of b.g[kind] || []) {
+    const v = edShow(c, edEvalChan(clip, c, ED.time)), rg = kind === 'rot' ? 180 : kind === 'pos' ? 12 : 2, mn = kind === 'scl' ? 0 : -rg;
+    h += '<div class="ae-sl"><span style="color:' + b.col + '">' + edAxis(c) + '</span><input type="range" data-c="' + c + '" min="' + mn + '" max="' + rg + '" step="' + (kind === 'rot' ? 1 : .05) + '" value="' + v.toFixed(3) + '"><input type="number" data-n="' + c + '" step="' + (kind === 'rot' ? 1 : .05) + '" value="' + (+v.toFixed(3)) + '"></div>';
+  }
+  h += '<div class="ae-help">Mover un deslizador crea o cambia la clave en el cursor.</div></div>';
+  h += '<details class="ae-card" open><summary style="cursor:pointer;color:#8791a6;font-size:11px;letter-spacing:.14em;font-weight:700">FÓRMULAS (MATEMÁTICAS)</summary><div class="ae-help">Escribe una fórmula en <b>Valor</b> y la clave se calcula en cada instante. En rotaciones, el resultado son grados.<br>' +
+    'Variables: <code>time</code> <code>life</code> (0→1) <code>length</code> <code>pi</code><br>Funciones (trig. en grados): <code>sin cos tan atan2 abs min max clamp lerp floor ceil round sqrt pow mod noise saw tri step smoothstep bounce random</code><br>Operadores: <code>+ - * / % ^ ? : &lt; &gt; == &amp;&amp; ||</code><br>' +
+    'Ejemplos:<br><code>sin(time*360)*20</code> balanceo de 1 Hz<br><code>abs(sin(time*180))*30</code> rebote<br><code>noise(time*4)*8</code> temblor<br><code>time&gt;0.5 ? 40 : 0</code> salto brusco</div></details>';
+  p.innerHTML = h; edBindProps();
+  const li = document.getElementById('ae-len'); if (li) li.value = clip.length; const ki = document.getElementById('ae-ki'); if (ki && k0) { ki.value = k0.i || 'catmull'; document.getElementById('ae-kbz').style.display = ki.value === 'bezier' ? 'grid' : 'none'; }
+}
+function edBindProps() {
+  const g = id => document.getElementById(id), sel = [...ED.sel], clip = ED.clip;
+  const kerr = g('ae-kerr');
+  if (g('ae-kt')) g('ae-kt').addEventListener('change', e => { edPush(); const dt = edTimeSnap(Math.max(0, +e.target.value || 0)) - sel[0].t; for (const k of sel) k.t = Math.max(0, +(k.t + dt).toFixed(4)); for (const c of Object.keys(clip.tracks)) clip.tracks[c].sort((a, b) => a.t - b.t); edProps(); });
+  if (g('ae-kv')) g('ae-kv').addEventListener('change', e => {
+    const s = e.target.value.trim(); if (!s) return; const num = /^[-+]?(\d+\.?\d*|\.\d+)$/.test(s);
+    try { if (!num) edCompile(s); } catch (er) { kerr.textContent = er.message; return; } kerr.textContent = ''; edPush();
+    for (const k of sel) { const c = Object.keys(clip.tracks).find(cc => clip.tracks[cc].includes(k)); k.v = num ? edUnshow(c, parseFloat(s)) : s; } edProps();
+  });
+  if (g('ae-ki')) g('ae-ki').addEventListener('change', e => { edPush(); for (const k of sel) { k.i = e.target.value; if (k.i === 'bezier' && !k.b) k.b = [.25, .1, .25, 1]; } g('ae-kbz').style.display = e.target.value === 'bezier' ? 'grid' : 'none'; });
+  if (g('ae-kb')) g('ae-kb').addEventListener('change', e => { const a = e.target.value.split(',').map(x => parseFloat(x)); if (a.length === 4 && a.every(Number.isFinite)) { edPush(); for (const k of sel) k.b = [clamp(a[0], 0, 1), a[1], clamp(a[2], 0, 1), a[3]]; } });
+  if (g('ae-kdup')) g('ae-kdup').addEventListener('click', () => { edPush(); const nk = []; for (const c of Object.keys(clip.tracks)) for (const k of clip.tracks[c].slice()) if (ED.sel.has(k)) { const d = JSON.parse(JSON.stringify(k)); d.t = +(d.t + .2).toFixed(4); clip.tracks[c].push(d); nk.push(d); clip.tracks[c].sort((a, b) => a.t - b.t); } ED.sel = new Set(nk); edProps(); });
+  if (g('ae-kdel')) g('ae-kdel').addEventListener('click', edDelSel);
+  if (g('ae-contacts')) g('ae-contacts').addEventListener('change', e => { edPush(); clip.contacts = e.target.value.split(',').map(x => parseFloat(x)).filter(Number.isFinite); });
+  if (g('ae-cloop')) g('ae-cloop').addEventListener('change', e => { edPush(); clip.loop = e.target.checked; });
+  const setV = (c, val) => { const t = edTimeSnap(ED.time); if (!ED.slPush) { edPush(); ED.slPush = true; setTimeout(() => { ED.slPush = false; }, 600); } const k = edSetKey(c, t, edUnshow(c, val)); if (typeof k.v !== 'number') k.v = edUnshow(c, val); edTree(); };
+  document.querySelectorAll('#ae-props input[data-c]').forEach(r => r.addEventListener('input', e => { setV(r.dataset.c, +e.target.value); const n = document.querySelector('#ae-props input[data-n="' + r.dataset.c + '"]'); if (n) n.value = e.target.value; }));
+  document.querySelectorAll('#ae-props input[data-n]').forEach(r => r.addEventListener('change', e => { setV(r.dataset.n, +e.target.value || 0); const s = document.querySelector('#ae-props input[data-c="' + r.dataset.n + '"]'); if (s) s.value = e.target.value; }));
+}
+// ----- línea de tiempo (lienzo)
+const ED_LW = 190, ED_RH = 20, ED_ROW = 22;
+function edBindTimeline() {
+  const cv = ED.cv, x2t = x => (x - ED_LW) / ED.zoom + ED.scroll, t2x = t => (t - ED.scroll) * ED.zoom + ED_LW;
+  const rowAt = y => Math.floor((y - ED_RH + ED.vscroll) / ED_ROW);
+  const hit = (x, y) => { const r = ED.rows[rowAt(y)]; if (!r) return null; const cs = r.t === 'chan' ? [r.c] : Object.values(r.b.g).flat(); let best = null, bd = 8; for (const c of cs) for (const k of ED.clip.tracks[c] || []) { const d = Math.abs(t2x(k.t) - x); if (d < bd) { bd = d; best = k; } } return best; };
+  cv.addEventListener('pointerdown', e => {
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; cv.setPointerCapture(e.pointerId);
+    if (y < ED_RH) { ED.drag = { m: 'scrub' }; ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); ED.playing = false; return; }
+    if (x < ED_LW) { const row = ED.rows[rowAt(y)]; if (row) { if (row.t === 'bone') { ED.selBone = row.b.id; ED.open[row.b.id] = !ED.open[row.b.id]; ED.selChan = null; } else { ED.selBone = row.b.id; ED.selChan = row.c; } edRebuild(); } return; }
+    if (ED.curves) { const k = ED.curvePts && ED.curvePts.find(p => Math.hypot(p.x - x, p.y - y) < 9); if (k) { if (!e.shiftKey && !ED.sel.has(k.k)) ED.sel.clear(); ED.sel.add(k.k); edPush(); ED.drag = { m: 'curve', k: k.k, c: k.c, x0: x, y0: y, v0: k.k.v, t0: k.k.t }; edProps(); return; } ED.drag = { m: 'scrub' }; ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); return; }
+    const k = hit(x, y), row = ED.rows[rowAt(y)];
+    if (k) { if (!ED.sel.has(k)) { if (!e.shiftKey) ED.sel.clear(); ED.sel.add(k); } else if (e.shiftKey) ED.sel.delete(k); edPush(); ED.drag = { m: 'move', x0: x, t0: new Map([...ED.sel].map(q => [q, q.t])) }; if (row) { ED.selBone = row.b.id; if (row.t === 'chan') ED.selChan = row.c; } edProps(); return; }
+    if (row) { ED.selBone = row.b.id; ED.selChan = row.t === 'chan' ? row.c : null; if (!e.shiftKey) ED.sel.clear(); ED.drag = { m: 'scrub' }; ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); edProps(); edTree(); }
+  });
+  cv.addEventListener('pointermove', e => {
+    const d = ED.drag; if (!d) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (d.m === 'scrub') { ED.time = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length); }
+    else if (d.m === 'move') { const dt = (x - d.x0) / ED.zoom; for (const [k, t0] of d.t0) k.t = +Math.max(0, edTimeSnap(t0 + dt)).toFixed(4); for (const c of Object.keys(ED.clip.tracks)) ED.clip.tracks[c].sort((a, b) => a.t - b.t); }
+    else if (d.m === 'curve') { const k = d.k; k.t = +Math.max(0, edTimeSnap(d.t0 + (x - d.x0) / ED.zoom)).toFixed(4); if (typeof d.v0 === 'number' && ED.curveScale) { k.v = d.v0 + edUnshow(d.c, -(y - d.y0) / ED.curveScale); } ED.clip.tracks[d.c].sort((a, b) => a.t - b.t); }
+  });
+  cv.addEventListener('pointerup', () => { if (ED.drag && ED.drag.m !== 'scrub') edProps(); ED.drag = null; });
+  cv.addEventListener('dblclick', e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; if (x < ED_LW || y < ED_RH) return; const row = ED.rows[rowAt(y)]; if (!row || row.t !== 'chan') return; edPush(); const t = clamp(edTimeSnap(x2t(x)), 0, ED.clip.length), k = edSetKey(row.c, t, edEvalChan(ED.clip, row.c, t)); ED.sel.clear(); ED.sel.add(k); ED.selChan = row.c; ED.selBone = row.b.id; edProps(); edTree(); });
+  cv.addEventListener('wheel', e => { e.preventDefault(); if (e.ctrlKey) { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, t = x2t(x); ED.zoom = clamp(ED.zoom * (e.deltaY < 0 ? 1.15 : .87), 30, 1400); ED.scroll = t - (x - ED_LW) / ED.zoom; } else if (e.shiftKey) ED.scroll += e.deltaY / ED.zoom * .6; else ED.vscroll = clamp(ED.vscroll + e.deltaY * .6, 0, Math.max(0, ED.rows.length * ED_ROW - 150)); }, { passive: false });
+}
+function edDraw() {
+  const cv = ED.cv; if (!cv || !ED.clip) return; const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.fillStyle = '#14161c'; g.fillRect(0, 0, W, H);
+  const t2x = t => (t - ED.scroll) * ED.zoom + ED_LW, clip = ED.clip;
+  g.font = '11px ui-monospace,Consolas,monospace'; g.textBaseline = 'middle';
+  // filas
+  ED.rows.forEach((r, i) => {
+    const y = ED_RH + i * ED_ROW - ED.vscroll; if (y + ED_ROW < ED_RH || y > H) return;
+    const selRow = r.t === 'chan' ? ED.selChan === r.c : ED.selBone === r.b.id && !ED.selChan;
+    g.fillStyle = selRow ? '#243049' : i % 2 ? '#171a21' : '#191c24'; g.fillRect(0, y, W, ED_ROW);
+    g.fillStyle = r.b.col; if (r.t === 'bone') { g.fillRect(8, y + 7, 8, 8); g.fillStyle = '#e6e9f0'; g.font = 'bold 12px "Chakra Petch",system-ui'; g.fillText((ED.open[r.b.id] ? '▾ ' : '▸ ') + r.b.n, 22, y + 11); } else { g.font = '11px "Chakra Petch",system-ui'; g.fillStyle = '#9aa4b8'; g.fillText((r.k === 'rot' ? 'Rot ' : r.k === 'pos' ? 'Pos ' : 'Esc ') + edAxis(r.c), 30, y + 11); g.fillStyle = r.b.col; g.fillRect(20, y + 9, 4, 4); }
+  });
+  // fondo de la pista y reglas
+  g.save(); g.beginPath(); g.rect(ED_LW, 0, W - ED_LW, H); g.clip();
+  g.fillStyle = '#1b1e26'; g.fillRect(ED_LW, 0, W - ED_LW, ED_RH); g.strokeStyle = '#262b36'; g.fillStyle = '#7e889c'; g.font = '10px ui-monospace,Consolas,monospace';
+  const step = ED.zoom > 400 ? .05 : ED.zoom > 200 ? .1 : ED.zoom > 90 ? .25 : .5, t0 = Math.floor(ED.scroll / step) * step;
+  for (let t = t0; t2x(t) < W; t += step) { const x = t2x(t); if (x < ED_LW) continue; g.beginPath(); g.moveTo(x, ED_RH); g.lineTo(x, H); g.stroke(); g.fillText(t.toFixed(step < .1 ? 2 : 2), x + 3, 10); }
+  g.fillStyle = 'rgba(255,255,255,.04)'; g.fillRect(t2x(clip.length), ED_RH, W, H);
+  g.strokeStyle = '#3a4560'; g.beginPath(); g.moveTo(t2x(0), ED_RH); g.lineTo(t2x(0), H); g.moveTo(t2x(clip.length), ED_RH); g.lineTo(t2x(clip.length), H); g.stroke();
+  for (const c of clip.contacts) { const x = t2x(c); g.fillStyle = '#ff5a5a'; g.fillRect(x - 1, ED_RH, 2, 6); }
+  // claves o curvas
+  const KC = k => typeof k.v === 'string' ? '#ff8bf0' : !k.i || k.i === 'catmull' ? '#ffd23f' : k.i === 'linear' ? '#7dff6a' : k.i === 'step' ? '#ff6a6a' : k.i === 'bezier' ? '#b06bff' : '#4dd2ff';
+  const drawKey = (x, y, k) => { g.save(); g.translate(x, y); const s = ED.sel.has(k); g.fillStyle = KC(k); g.strokeStyle = s ? '#fff' : '#0008'; g.lineWidth = s ? 2 : 1; g.beginPath(); if (k.i === 'step') g.rect(-4, -4, 8, 8); else { g.moveTo(0, -6); g.lineTo(5, 0); g.lineTo(0, 6); g.lineTo(-5, 0); g.closePath(); } g.fill(); g.stroke(); g.restore(); };
+  if (!ED.curves) {
+    ED.curvePts = null;
+    ED.rows.forEach((r, i) => { const y = ED_RH + i * ED_ROW - ED.vscroll + ED_ROW / 2; if (y < ED_RH - 8 || y > H + 8) return; const cs = r.t === 'chan' ? [r.c] : Object.values(r.b.g).flat(), seen = new Set(); for (const c of cs) for (const k of clip.tracks[c] || []) { const key = r.t === 'bone' ? k.t.toFixed(3) : null; if (key) { if (seen.has(key) && !ED.sel.has(k)) continue; seen.add(key); } drawKey(t2x(k.t), y, k); } });
+  } else {
+    const b = ED_BONES.find(x => x.id === ED.selBone), kind = ED.selChan ? edKindOf(ED.selChan) : 'rot', cs = ED.selChan ? [ED.selChan] : (b.g[kind] || []);
+    let mn = 1e9, mx = -1e9; const N = 140, tot = Math.max(.05, clip.length); for (const c of cs) for (let i = 0; i <= N; i++) { const v = edShow(c, edEvalChan(clip, c, tot * i / N)); mn = Math.min(mn, v); mx = Math.max(mx, v); } if (mn === 1e9) { mn = -1; mx = 1; } if (mx - mn < .01) { mn -= .5; mx += .5; }
+    const top = ED_RH + 14, bot = H - 14, sc = (bot - top) / (mx - mn); ED.curveScale = sc; const vy = v => bot - (v - mn) * sc;
+    g.strokeStyle = '#2a3040'; g.fillStyle = '#6f7a90'; for (let i = 0; i <= 4; i++) { const v = mn + (mx - mn) * i / 4, y = vy(v); g.beginPath(); g.moveTo(ED_LW, y); g.lineTo(W, y); g.stroke(); g.fillText(v.toFixed(2), ED_LW + 4, y - 6); }
+    ED.curvePts = []; const cols = ['#ff6a6a', '#7dff6a', '#4dd2ff'];
+    cs.forEach((c, ci) => { g.strokeStyle = cols[ci % 3]; g.lineWidth = 1.6; g.beginPath(); for (let i = 0; i <= N * 2; i++) { const t = tot * i / (N * 2), x = t2x(t), y = vy(edShow(c, edEvalChan(clip, c, t))); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.lineWidth = 1; for (const k of clip.tracks[c] || []) { const kx = t2x(k.t), ky = vy(edShow(c, edKeyVal(clip, c, k, k.t))); drawKey(kx, ky, k); ED.curvePts.push({ x: kx, y: ky, k, c }); } });
+    g.fillStyle = '#9aa4b8'; g.fillText(cs.map(c => edAxis(c)).join(' · ') + ' (' + ED_KIND[kind] + ')', ED_LW + 6, H - 6);
+  }
+  // cabezal
+  const px = t2x(ED.time); g.strokeStyle = '#3e8bff'; g.lineWidth = 2; g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H); g.stroke(); g.fillStyle = '#3e8bff'; g.beginPath(); g.moveTo(px - 6, 0); g.lineTo(px + 6, 0); g.lineTo(px, 11); g.closePath(); g.fill();
+  g.restore(); g.strokeStyle = '#2b303b'; g.beginPath(); g.moveTo(ED_LW, 0); g.lineTo(ED_LW, H); g.stroke();
+  g.fillStyle = '#1b1e26'; g.fillRect(0, 0, ED_LW, ED_RH); g.fillStyle = '#7e889c'; g.font = '10px "Chakra Petch",system-ui'; g.fillText('CANALES · ' + (ED.curves ? 'CURVAS' : 'CLAVES'), 8, 10);
+}
+function edLoop() {
+  if (!ED.on) return; requestAnimationFrame(edLoop); edDraw();
+  const fps = +document.getElementById('ae-fps').value || 60, f = Math.round(ED.time * fps), tot = Math.round(ED.clip.length * fps), m = Math.floor(ED.time / 60), s = Math.floor(ED.time % 60);
+  document.getElementById('ae-time').textContent = m + ':' + String(s).padStart(2, '0') + ':' + String(f % fps).padStart(2, '0') + ' / ' + tot; document.getElementById('ae-play').textContent = ED.playing ? '❚❚' : '▶';
+  const me = document.getElementById('ae-msg'); if (ED.msgT > 0) { ED.msgT -= 1 / 60; if (ED.msgT <= 0) me.style.opacity = 0; }
+  if (!ED.sliderBusy && ED.playing) { document.querySelectorAll('#ae-props input[data-c]').forEach(r => { const v = edShow(r.dataset.c, edEvalChan(ED.clip, r.dataset.c, ED.time)); r.value = v.toFixed(3); const n = document.querySelector('#ae-props input[data-n="' + r.dataset.c + '"]'); if (n && document.activeElement !== n) n.value = +v.toFixed(3); }); }
+}
+// pose en el modelo de la vista previa (la llama updateShow)
+function edShowFrame(f, dt) {
+  if (ED.playing) { ED.time += dt * ED.speed; if (ED.time >= ED.clip.length) { if (ED.loop) ED.time %= Math.max(.05, ED.clip.length); else { ED.time = ED.clip.length; ED.playing = false; } } }
+  for (const j of JOINTS) f.anim.x[j] = edEvalChan(ED.clip, j, ED.time);
+  f.anim.bbR6 = true; f.anim.apply(); f.model.root.position.y = .1; f.model.root.rotation.y = ED.rotY;
+  if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx;
+  SH.parts.update(dt); SH.camZ += (ED.camZ - SH.camZ) * Math.min(1, dt * 6); SH.cam.position.set(0, 1.4, SH.camZ); SH.cam.lookAt(0, 1.05, 0);
+  SH.key.intensity += (.95 - SH.key.intensity) * Math.min(1, dt * 4);
+}
+
+edLoadSaved();
+
+// ===== Selector de personajes (estilo Zenless Zone Zero): tarjetas inclinadas, pastillas Base / Habilidades / Skin y botón vertical =====
+(function selStyle() { const st = document.createElement('style'); st.id = 'selstyle'; st.textContent = `
+#menu{grid-template-columns:minmax(260px,1fr) minmax(340px,470px) 76px;grid-template-rows:auto minmax(0,1fr);gap:10px 18px;padding-right:0}
+#menu::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(ellipse 55% 75% at 40% 52%,rgba(0,0,0,0) 0,rgba(0,0,0,.4) 62%,rgba(0,0,0,.86) 100%),repeating-linear-gradient(118deg,rgba(255,255,255,.04) 0 2px,transparent 2px 28px),linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,0) 46%)}
+.mtop{padding-right:max(18px,env(safe-area-inset-right,0px))}
+#tab-sel{grid-column:1;grid-row:2;align-self:stretch;justify-content:flex-start;background:none;clip-path:none;padding:2px 0 14px 6px;gap:12px;max-width:540px;overflow:visible}
+.selmodes{display:flex;flex-direction:column;gap:11px;align-items:flex-start;margin:4vh 0 auto}
+.selmodes button{font:italic 700 clamp(18px,2.2vw,26px)/1 var(--display);letter-spacing:.03em;color:#fff;background:#08080a;border:2px solid #34343c;border-radius:30px;padding:10px 40px 10px 24px;min-width:200px;text-align:left;transform:skewX(-8deg);transition:.14s;box-shadow:0 0 0 2px #000}
+.selmodes button:hover{border-color:#fff;transform:skewX(-8deg) translateX(6px)}
+.selmodes button.on{background:#ffd400;color:#000;border-color:#ffd400}
+#cinfo{margin-top:auto}
+#tab-sel[data-mode=base] #cskills{display:none}
+#tab-sel[data-mode=skills] #cstats,#tab-sel[data-mode=skills] #cdesc{display:none}
+#tab-sel #cskills{max-height:34vh;overflow:auto;padding-right:6px}
+#tab-sel #cstats,#tab-sel #cskills{background:rgba(0,0,0,.55);padding:10px 12px;border-left:3px solid var(--c)}
+#roster{grid-column:2;grid-row:2;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;align-content:start;overflow-y:auto;overflow-x:hidden;padding:10px 18px 34px 12px;min-width:0;max-height:100%;scrollbar-width:thin}
+#roster .rc{position:relative;width:auto;height:clamp(104px,16vh,142px);padding:0;border:3px solid #000;background:linear-gradient(160deg,var(--rcc),#0a0b12 78%);overflow:hidden;clip-path:none;border-radius:7px;display:block;transform:skewX(-8deg);transition:transform .15s,box-shadow .15s,filter .15s;filter:brightness(.78) saturate(.9)}
+#roster .rc:nth-child(even){margin-top:26px}
+#roster .rc canvas{position:absolute;left:-12%;top:0;width:124%;height:100%;border:0;background:none;object-fit:cover;object-position:50% 12%;image-rendering:pixelated;transform:skewX(8deg)}
+#roster .rc .rk{position:absolute;left:5px;bottom:4px;width:34px;height:34px;display:grid;place-items:center;background:#ffd400;color:#000;font:900 17px/1 var(--display);font-style:italic;clip-path:polygon(50% 0,63% 17%,83% 11%,81% 33%,100% 42%,83% 58%,91% 80%,68% 76%,50% 100%,32% 76%,9% 80%,17% 58%,0 42%,19% 33%,17% 11%,37% 17%);transform:skewX(8deg);z-index:2}
+#roster .rc .rn{position:absolute;left:40px;right:30px;bottom:5px;font:italic 700 15px/1 var(--display);letter-spacing:.04em;color:#fff;text-shadow:2px 2px 0 #000,0 0 6px #000;transform:skewX(8deg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:none;z-index:2}
+#roster .rc .re{position:absolute;right:6px;bottom:6px;width:18px;height:18px;border:2px solid #000;border-radius:50%;box-shadow:0 0 8px var(--rcc);z-index:2}
+#roster .rc::after{content:'';position:absolute;inset:auto 0 0 0;height:46%;background:linear-gradient(0deg,rgba(0,0,0,.85),rgba(0,0,0,0));pointer-events:none}
+#roster .rc:hover{filter:brightness(1.05);transform:skewX(-8deg) translateY(-3px)}
+#roster .rc.sel{border-color:#ffd400;filter:none;transform:skewX(-8deg) scale(1.05);box-shadow:0 0 0 2px #000,0 0 22px rgba(255,212,0,.55);z-index:3}
+#play{grid-column:3;grid-row:2;align-self:stretch;writing-mode:vertical-rl;text-orientation:mixed;font:italic 700 clamp(30px,4vh,44px)/1 var(--display);letter-spacing:.14em;padding:24px 14px;margin:6px 0 14px;background:linear-gradient(90deg,#d8d8de,#9a9aa4);color:#0a0a0c;clip-path:polygon(0 8%,100% 0,100% 100%,0 92%);border-radius:0;transition:filter .12s,transform .12s}
+#play:hover{background:#ffd400;filter:none}
+#menu[data-tab=cfg] #roster{display:none}
+#menu[data-tab=cfg] #tab-cfg{grid-column:1/3;justify-self:center;width:min(520px,100%)}
+@media(max-width:900px){#menu{grid-template-columns:1fr}#tab-sel{grid-column:1;grid-row:2;max-width:none}#roster{grid-column:1;grid-row:3;max-height:42vh}#play{grid-column:1;grid-row:4;writing-mode:horizontal-tb;clip-path:none;padding:12px 24px;margin:0}}
+`; document.head.appendChild(st); })();
+function bustPortrait(skin) {
+  const c = document.createElement('canvas'); c.width = 16; c.height = 12; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  g.drawImage(skin, 20, 20, 8, 4, 4, 8, 8, 4); g.drawImage(skin, 44, 20, 4, 4, 0, 8, 4, 4); g.drawImage(skin, 36, Math.min(52, skin.height - 12), 4, 4, 12, 8, 4, 4);
+  g.drawImage(skin, 8, 8, 8, 8, 4, 0, 8, 8); g.drawImage(skin, 40, 8, 8, 8, 4, 0, 8, 8); c.classList.add('px'); return c;
+}
 function renderRoster() {
   const r = $('roster'); r.innerHTML = '';
   for (const id of CHAR_IDS) {
-    const ch = CHARS[id];
+    const ch = CHARS[id], sum = (ch.stats || []).reduce((a, b) => a + b, 0), rank = sum >= 17 ? 'S' : 'A';
     const b = document.createElement('button'); b.type = 'button'; b.className = 'rc'; b.dataset.id = id; b.style.setProperty('--rcc', ch.color);
     b.setAttribute('aria-label', `${ch.name}, ${ch.title}`);
-    const cv = headPortrait(charSkin(id)); const s = document.createElement('span'); s.textContent = ch.name.toUpperCase(); s.style.color = ch.color;
-    b.append(cv, s);
+    let cv; try { cv = bustPortrait(charSkin(id)); } catch (e) { cv = headPortrait(charSkin(id)); }
+    const rk = document.createElement('i'); rk.className = 'rk'; rk.textContent = rank; const nm = document.createElement('span'); nm.className = 'rn'; nm.textContent = ch.name.toUpperCase(); const el = document.createElement('em'); el.className = 're'; el.style.background = ch.color;
+    b.append(cv, rk, nm, el);
     b.addEventListener('click', () => { initAudio(); if (G.charId !== id) { G.charId = id; showSelect(id); } });
     r.appendChild(b);
   }
 }
+(function selModes() {
+  const nav = document.createElement('nav'); nav.className = 'selmodes'; nav.innerHTML = '<button type="button" data-m="base" class="on">Base</button><button type="button" data-m="skills">Habilidades</button><button type="button" data-m="skin">Skin</button>';
+  const sec = $('tab-sel'); sec.prepend(nav); sec.dataset.mode = 'base';
+  nav.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    sfx('select'); if (b.dataset.m === 'skin') { openTab('cfg'); return; }
+    sec.dataset.mode = b.dataset.m; nav.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  }));
+  $('menu').dataset.tab = 'sel';
+})();
+
+// ================= Menú =================
 function setCustomSkin(c, msg) {
   G.customSkin = c; G.customSlim = c ? detectSlim(c) : false;
   $('skinreset').classList.toggle('hidden', !c);
@@ -11102,7 +11546,7 @@ function setCustomSkin(c, msg) {
 }
 function openTab(name) {
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === name));
-  $('tab-sel').classList.toggle('hidden', name !== 'sel'); $('tab-cfg').classList.toggle('hidden', name !== 'cfg');
+  $('tab-sel').classList.toggle('hidden', name !== 'sel'); $('tab-cfg').classList.toggle('hidden', name !== 'cfg'); $('menu').dataset.tab = name;
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { openTab(b.dataset.tab); sfx('select'); }));
 document.querySelectorAll('#modesel button').forEach(b => b.addEventListener('click', () => {
