@@ -2489,7 +2489,7 @@ function destColor(d) {
   } catch (e) { }
   return d.col = col;
 }
-const DEB = { m: null, a: [], max: 800 };
+const DEB = { m: null, a: [], max: 2600 };
 // cubos de escombro con física propia (gravedad, rebote en el piso, giro); se encogen y desaparecen
 function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
   if (!DEB.m) { DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB.m = new THREE.InstancedMesh(DEST_GEO, new THREE.MeshLambertMaterial({ color: 0xffffff }), DEB.max); DEB.m.count = 0; DEB.m.frustumCulled = false; DEB.m.castShadow = true; scene.add(DEB.m); }
@@ -2524,7 +2524,7 @@ function carveBox(d, c, r) {
   const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d); let sp = 0;
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
     const x = q[0] - q[3] / 2 + (i + .5) * sx, y = q[1] - q[4] / 2 + (j + .5) * sy, z = q[2] - q[5] / 2 + (k + .5) * sz, dx = x - c.x, dy = y - c.y, dz = z - c.z, dd = Math.hypot(dx, dy, dz);
-    if (dd < r) { if (sp < 90 && Math.random() < .7) { sp++; const l = dd || 1, f = 6 + 9 * (1 - dd / r); spawnDebris(x, y, z, sx * .95, sy * .95, sz * .95, base, dx / l * f + rand(-2, 2), dy / l * f * .6 + rand(3, 9), dz / l * f + rand(-2, 2)); } }
+    if (dd < r * (.72 + .28 * Math.random())) { const l = dd || 1, f = 5 + 9 * (1 - dd / r), z0 = Math.max(.34, (sx + sy + sz) / 3); spawnDebris(x, y, z, Math.max(sx, .34) * .95, Math.max(sy, .34) * .95, Math.max(sz, .34) * .95, base, dx / l * f + rand(-2.5, 2.5), dy / l * f * .6 + rand(3, 10), dz / l * f + rand(-2.5, 2.5)); }
     else keep.push([x, y, z, sx, sy, sz]);
   }
   destHide(d);
@@ -2545,7 +2545,7 @@ function worldBreak(c, r, maxVol, carve) {
     const vol = q[3] * q[4] * q[5], small = Math.max(q[3], q[4], q[5]) <= 1.2;
     if (small || (!carve && vol <= maxVol)) {
       destHide(d); n++;
-      if (n <= 16) { const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1; spawnDebris(q[0], q[1], q[2], Math.min(q[3], .8), Math.min(q[4], .8), Math.min(q[5], .8), destColor(d), ex / l * 9 + rand(-2, 2), ey / l * 5 + rand(2, 7), ez / l * 9 + rand(-2, 2)); }
+      { const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1; spawnDebris(q[0], q[1], q[2], clamp(q[3], .3, .8), clamp(q[4], .3, .8), clamp(q[5], .3, .8), destColor(d), ex / l * 9 + rand(-2, 2), ey / l * 5 + rand(2, 7), ez / l * 9 + rand(-2, 2)); }
     } else if (carve && carved < 14) { carveBox(d, c, r); carved++; n++; }
   }
   return n;
@@ -2605,10 +2605,11 @@ function bbHole(c, r) {
   }
 }
 // daño al escenario en un punto: marca en el piso, marcas en las paredes cercanas y piezas pequeñas que saltan (el ragdoll lo hace en menor medida)
-function worldDamage(c, r, power) {
+function worldDamage(c, r, power, dmg) {
   if (r < 1.2 || G.state !== 'play') return;
+  const rr = dmg != null ? Math.min(r * .85, .9 + dmg * .15) : r * .85 * power;   // el hueco depende de la fuerza del golpe
   const gy = groundAt(c.x, c.z);
-  if (c.y < gy + 2.4) scarDecal(new V3(c.x, gy, c.z), Math.min(6.5, r * 1.1));
+  if (c.y < gy + 2.4) scarDecal(new V3(c.x, gy, c.z), Math.min(6.5, rr * 1.25));
   let k = 0;
   for (const b of COL) {
     if (k >= 2) break; if (b.ceiling || b.nocam || b.h < 2.5 || (b.y0 && c.y < b.y0 - .5) || c.y > b.h + .5) continue;
@@ -2616,7 +2617,7 @@ function worldDamage(c, r, power) {
     if (d < .05 || d > r + .6) continue;
     scarDecal(new V3(qx, clamp(c.y, .9, b.h - .7), qz), Math.min(3.4, r * .8), new V3(dx / d, 0, dz / d)); k++;
   }
-  if (r >= 1.5) { const big = r >= 2.8 && power >= 1; worldBreak(c, r * .85 * power, (.45 + r * .3) * power, big); if (big) colCarve(c, r * .85); }
+  if (r >= 1.5) { const big = (dmg != null ? rr >= 1.5 : r >= 2.8 && power >= 1); worldBreak(c, rr, (.45 + r * .3) * power, big); if (big) colCarve(c, rr); }
 }
 
 // ===== Expansión de dominio de ElRandi (cinemática 3D): llevan a la víctima y a ElRandi a un lugar oscuro, aparecen los animales del Perú, se juntan, sale la bandera y el domo se rompe como cristal =====
@@ -5090,7 +5091,7 @@ function explode(att, c, r, o) {
   sfx('boom', c); shakeFrom(c, .55);
   const gy = groundAt(c.x, c.z);
   if (r >= 3.5 && c.y < gy + 1.8) crackDecal(new V3(c.x, gy, c.z), Math.min(9, r * .85));
-  worldDamage(c, r, 1);
+  worldDamage(c, r, 1, o.dmg || 8);
 }
 function segDist(p, a, b) {
   const abx = b.x - a.x, abz = b.z - a.z, L = abx * abx + abz * abz || 1;
@@ -5214,7 +5215,7 @@ function doM1(f, upVariant) {
           ? { dmg: 6, kb: upVariant ? 2 : 17, up: upVariant ? 15 : 6, ragdoll: upVariant ? 0 : 1.0, stun: upVariant ? .9 : 0 }
           : { dmg: 3.5, stun: .45, kb: 1.4 };
         const n = hitArea(f, front(f, def.reach || 1.25, 1.1), def.r || 1.25, o);
-        if (fin) worldDamage(front(f, 1.8, 1.1), 3.1, 1);
+        if (fin) worldDamage(front(f, 1.8, 1.1), 3.1, 1, 6);
         if (n && !f.onGround) f.vel.y = Math.max(f.vel.y, 2.4);
         if (!f.spear || unarmed) fistFx(f, f.ch.color);
       }
