@@ -1008,14 +1008,15 @@ function cityGrassAt(x,z) {
     up:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]], down:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]
   };
   function bbGeometry(data){
-    const RW=data.resolution.width,RH=data.resolution.height,pos=[],uvs=[],idx=[],els=new Map(data.elements.map(e=>[e.uuid,e]));
+    const RW=data.resolution.width,RH=data.resolution.height,pos=[],uvs=[],idx=[],cubes=[],els=new Map(data.elements.map(e=>[e.uuid,e]));
     const T=(o)=>new THREE.Matrix4().makeTranslation(o[0],o[1],o[2]),R=(r)=>new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(r[0]*Math.PI/180,r[1]*Math.PI/180,r[2]*Math.PI/180,'ZYX'));
     const xf=(node)=>{const o=node.origin||[0,0,0],r=node.rotation||[0,0,0];return T(o).multiply(R(r)).multiply(T([-o[0],-o[1],-o[2]]));};
     const v=new V3();
     const emit=(el,mat)=>{
       if(el.type&&el.type!=='cube')return;
       const m=mat.clone();if(el.rotation)m.multiply(xf(el));
-      const f=el.from,t=el.to;
+      const f=el.from,t=el.to,i0=idx.length;let mnx=1e9,mny=1e9,mnz=1e9,mxx=-1e9,mxy=-1e9,mxz=-1e9,uvr=null;
+      for(const cx of [f[0],t[0]])for(const cy of [f[1],t[1]])for(const cz of [f[2],t[2]]){v.set(cx,cy,cz).applyMatrix4(m).multiplyScalar(1/16);mnx=Math.min(mnx,v.x);mny=Math.min(mny,v.y);mnz=Math.min(mnz,v.z);mxx=Math.max(mxx,v.x);mxy=Math.max(mxy,v.y);mxz=Math.max(mxz,v.z);}
       for(const [name,face] of Object.entries(el.faces||{})){
         if(!face.uv||face.texture==null||!BB_FACES[name])continue;
         const base=pos.length/3,[u1,v1,u2,v2]=face.uv,uv4=[[u1,v2],[u2,v2],[u2,v1],[u1,v1]];
@@ -1023,8 +1024,9 @@ function cityGrassAt(x,z) {
           v.set(c[0]?t[0]:f[0],c[1]?t[1]:f[1],c[2]?t[2]:f[2]).applyMatrix4(m).multiplyScalar(1/16);
           pos.push(v.x,v.y,v.z);uvs.push(uv4[i][0]/RW,1-uv4[i][1]/RH);
         });
-        idx.push(base,base+1,base+2,base,base+2,base+3);
+        idx.push(base,base+1,base+2,base,base+2,base+3);if(!uvr)uvr=[u1,v1,u2,v2];
       }
+      if(idx.length>i0)cubes.push({a:[mnx,mny,mnz,mxx,mxy,mxz],i0,n:idx.length-i0,uv:uvr});
     };
     const cols=[],isCol=n=>/^colisi/i.test(n.name||'');
     const walk=(nodes,mat,col)=>{for(const n of nodes){
@@ -1034,7 +1036,7 @@ function cityGrassAt(x,z) {
     walk(data.outliner||[],new THREE.Matrix4(),false);
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
-    g.setIndex(idx);g.computeVertexNormals();g.userData.cols=cols;return g;
+    g.setIndex(idx);g.computeVertexNormals();g.userData.cols=cols;g.userData.cubes=cubes;g.userData.RW=RW;g.userData.RH=RH;return g;
   }
   const bbCache=new Map(),bbMats=new Map();
   function loadBBModel(name){
@@ -1070,7 +1072,7 @@ function cityGrassAt(x,z) {
   for(const b of CITY_PLAN)if(b.model){
     const face=b.z<0?1:-1;
     bbLoads.push(loadBBModel(b.model).then(({geo,mat})=>{
-      const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);(window.BBM||(window.BBM=[])).push(mesh);
+      const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);(window.BBM||(window.BBM=[])).push(mesh);bbRegister(mesh,geo);
       for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2;COL.push({x:b.x+face*lx,z:b.z+face*lz,hx:(x1-x0)/2,hz:(z1-z0)/2,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true});}
     }).catch(()=>{
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),new THREE.MeshLambertMaterial({color:b.color}));mesh.position.set(b.x,b.h/2,b.z);scene.add(mesh);
@@ -2460,7 +2462,33 @@ function scarDecal(p, r, n) {
   addFx(m, 40, (o, k) => { mat.opacity = k < .8 ? .95 : .95 * (1 - (k - .8) / .2); }, () => { SCAR_N--; geo.dispose(); mat.dispose(); });
 }
 const DEST_OFF = [], COL_OFF = [], _dm = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _dv = new V3(), _ds = new V3(), _de = new THREE.Euler();
-let DEST_GEO = null;
+let DEST_GEO = null, DEB_MAT = null;
+function bbRegister(mesh, geo) {
+  const cubes = geo.userData.cubes; if (!cubes || !geo.index) return;
+  mesh.updateMatrixWorld(true); mesh.userData.idx0 = geo.index.array.slice();
+  const L = window.DESTR || (window.DESTR = []), M = mesh.matrixWorld, v = new V3();
+  for (const c of cubes) {
+    const a = c.a; let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
+    for (const x of [a[0], a[3]]) for (const y of [a[1], a[4]]) for (const z of [a[2], a[5]]) { v.set(x, y, z).applyMatrix4(M); mnx = Math.min(mnx, v.x); mny = Math.min(mny, v.y); mnz = Math.min(mnz, v.z); mxx = Math.max(mxx, v.x); mxy = Math.max(mxy, v.y); mxz = Math.max(mxz, v.z); }
+    const w = mxx - mnx, h = mxy - mny, d = mxz - mnz; if (w * h * d > 7000 || h < .05 || mxy < .05) continue;
+    L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material });
+  }
+}
+function destColor(d) {
+  if (d.col) return d.col;
+  let col = '#b9b19c';
+  try {
+    const map = d.mat && d.mat.map, im = map && map.image, uv = d.bb && d.bb.uv, RW = d.bb.geo.userData.RW, RH = d.bb.geo.userData.RH;
+    if (im && uv) {
+      if (!map.userData.cv) { const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; cv.getContext('2d').drawImage(im, 0, 0); map.userData.cv = cv; }
+      const cv = map.userData.cv, sx = cv.width / RW, sy = cv.height / RH, x = Math.floor(Math.min(uv[0], uv[2]) * sx), y = Math.floor(Math.min(uv[1], uv[3]) * sy), w = Math.max(1, Math.min(8, Math.floor(Math.abs(uv[2] - uv[0]) * sx))), h = Math.max(1, Math.min(8, Math.floor(Math.abs(uv[3] - uv[1]) * sy)));
+      const dd = cv.getContext('2d').getImageData(clamp(x, 0, cv.width - 1), clamp(y, 0, cv.height - 1), w, h).data; let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < dd.length; i += 4) if (dd[i + 3] > 40) { r += dd[i]; g += dd[i + 1]; b += dd[i + 2]; n++; }
+      if (n) col = 'rgb(' + Math.round(r / n) + ',' + Math.round(g / n) + ',' + Math.round(b / n) + ')';
+    }
+  } catch (e) { }
+  return d.col = col;
+}
 const DEB = { m: null, a: [], max: 800 };
 // cubos de escombro con física propia (gravedad, rebote en el piso, giro); se encogen y desaparecen
 function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
@@ -2484,25 +2512,27 @@ function destUpdate(dt) {
   M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
 }
 function destHide(d) {
-  _dm.compose(_dv.set(d.p[0], -60, d.p[2]), _dq, _ds.set(.001, .001, .001)); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; d.off = true;
+  if (d.bb) { d.bb.geo.index.array.fill(0, d.bb.i0, d.bb.i0 + d.bb.n); d.bb.geo.index.needsUpdate = true; }
+  else { _dm.compose(_dv.set(d.p[0], -60, d.p[2]), _dq, _ds.set(.001, .001, .001)); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; }
+  d.off = true;
   if (d.parent) d.parent.back = Math.max(d.parent.back, G.time + 18); else { d.back = G.time + 26 + Math.random() * 14; DEST_OFF.push(d); }
 }
 // parte una pieza grande en cubos: los que caen dentro de la explosión salen volando y el resto queda como bloques sueltos (que también se pueden romper)
 function carveBox(d, c, r) {
   const q = d.p; let cs = .75, nx, ny, nz;
-  do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 1500);
-  const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = []; let sp = 0;
+  do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 900);
+  const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d); let sp = 0;
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
     const x = q[0] - q[3] / 2 + (i + .5) * sx, y = q[1] - q[4] / 2 + (j + .5) * sy, z = q[2] - q[5] / 2 + (k + .5) * sz, dx = x - c.x, dy = y - c.y, dz = z - c.z, dd = Math.hypot(dx, dy, dz);
-    if (dd < r) { if (sp < 40 && Math.random() < .4) { sp++; const l = dd || 1, f = 6 + 9 * (1 - dd / r); spawnDebris(x, y, z, sx * .95, sy * .95, sz * .95, d.col, dx / l * f + rand(-2, 2), dy / l * f * .6 + rand(3, 9), dz / l * f + rand(-2, 2)); } }
+    if (dd < r) { if (sp < 90 && Math.random() < .7) { sp++; const l = dd || 1, f = 6 + 9 * (1 - dd / r); spawnDebris(x, y, z, sx * .95, sy * .95, sz * .95, base, dx / l * f + rand(-2, 2), dy / l * f * .6 + rand(3, 9), dz / l * f + rand(-2, 2)); } }
     else keep.push([x, y, z, sx, sy, sz]);
   }
   destHide(d);
   if (keep.length) {
-    DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1);
-    const mesh = new THREE.InstancedMesh(DEST_GEO, d.m.material, keep.length); mesh.receiveShadow = true; mesh.castShadow = true;
-    keep.forEach((p, i) => { _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5])); mesh.setMatrixAt(i, _dm); });
-    scene.add(mesh); d.rubble = mesh; d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: d.col, parent: d, cell: true, off: false }));
+    DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB_MAT = DEB_MAT || new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const mesh = new THREE.InstancedMesh(DEST_GEO, d.bb ? DEB_MAT : d.m.material, keep.length), cc = new THREE.Color(base); mesh.receiveShadow = true; mesh.castShadow = true;
+    keep.forEach((p, i) => { _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5])); mesh.setMatrixAt(i, _dm); if (d.bb) mesh.setColorAt(i, cc.clone().multiplyScalar(.9 + Math.random() * .2)); });
+    scene.add(mesh); d.rubble = mesh; d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: base, parent: d, cell: true, off: false }));
     for (const x of d.cells) window.DESTR.push(x);
   }
 }
@@ -2512,11 +2542,11 @@ function worldBreak(c, r, maxVol, carve) {
     const d = L[k]; if (d.off || d.dead) continue; const q = d.p;
     const dx = Math.max(Math.abs(c.x - q[0]) - q[3] / 2, 0), dy = Math.max(Math.abs(c.y - q[1]) - q[4] / 2, 0), dz = Math.max(Math.abs(c.z - q[2]) - q[5] / 2, 0);
     if (dx * dx + dy * dy + dz * dz > r * r) continue;
-    const vol = q[3] * q[4] * q[5];
-    if (vol <= maxVol) {
+    const vol = q[3] * q[4] * q[5], small = Math.max(q[3], q[4], q[5]) <= 1.2;
+    if (small || (!carve && vol <= maxVol)) {
       destHide(d); n++;
-      if (n <= 16) { const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1; spawnDebris(q[0], q[1], q[2], Math.min(q[3], .8), Math.min(q[4], .8), Math.min(q[5], .8), d.col, ex / l * 9 + rand(-2, 2), ey / l * 5 + rand(2, 7), ez / l * 9 + rand(-2, 2)); }
-    } else if (carve && carved < 6) { carveBox(d, c, r); carved++; n++; }
+      if (n <= 16) { const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1; spawnDebris(q[0], q[1], q[2], Math.min(q[3], .8), Math.min(q[4], .8), Math.min(q[5], .8), destColor(d), ex / l * 9 + rand(-2, 2), ey / l * 5 + rand(2, 7), ez / l * 9 + rand(-2, 2)); }
+    } else if (carve && carved < 14) { carveBox(d, c, r); carved++; n++; }
   }
   return n;
 }
@@ -2533,7 +2563,7 @@ function destRestore(all) {
   let comp = false;
   for (let i = DEST_OFF.length - 1; i >= 0; i--) {
     const d = DEST_OFF[i]; if (!all && G.time < d.back) continue;
-    const q = d.p; _dm.compose(_dv.set(q[0], q[1], q[2]), _dq, _ds.set(q[3], q[4], q[5])); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; d.off = false; DEST_OFF.splice(i, 1);
+    const q = d.p; if (d.bb) { d.bb.geo.index.array.set(d.bb.mesh.userData.idx0.subarray(d.bb.i0, d.bb.i0 + d.bb.n), d.bb.i0); d.bb.geo.index.needsUpdate = true; } else { _dm.compose(_dv.set(q[0], q[1], q[2]), _dq, _ds.set(q[3], q[4], q[5])); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; } d.off = false; DEST_OFF.splice(i, 1);
     if (d.rubble) { scene.remove(d.rubble); d.rubble.dispose(); for (const x of d.cells) x.dead = true; d.rubble = null; d.cells = null; comp = true; if (!all) burst(new V3(q[0], q[1], q[2]), 6, '#ffffff', 3, .1, .5, 0); }
     else if (!all && Math.random() < .35) burst(new V3(q[0], q[1], q[2]), 2, '#ffffff', 2, .08, .4, 0);
   }
@@ -2586,7 +2616,7 @@ function worldDamage(c, r, power) {
     if (d < .05 || d > r + .6) continue;
     scarDecal(new V3(qx, clamp(c.y, .9, b.h - .7), qz), Math.min(3.4, r * .8), new V3(dx / d, 0, dz / d)); k++;
   }
-  if (r >= 1.5) { const big = r >= 2.8 && power >= 1; worldBreak(c, r * .85 * power, (.45 + r * .3) * power, big); if (big) colCarve(c, r * .85); bbHole(c, r * .8 * power); }
+  if (r >= 1.5) { const big = r >= 2.8 && power >= 1; worldBreak(c, r * .85 * power, (.45 + r * .3) * power, big); if (big) colCarve(c, r * .85); }
 }
 
 // ===== Expansión de dominio de ElRandi (cinemática 3D): llevan a la víctima y a ElRandi a un lugar oscuro, aparecen los animales del Perú, se juntan, sale la bandera y el domo se rompe como cristal =====
