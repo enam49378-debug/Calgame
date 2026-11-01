@@ -2624,8 +2624,8 @@ function bbHole(c, r) {
 }
 // daño al escenario en un punto: marca en el piso, marcas en las paredes cercanas y piezas pequeñas que saltan (el ragdoll lo hace en menor medida)
 function worldDamage(c, r, power, dmg, dest) {
-  if (r < 1.2 || G.state !== 'play' || dest === 0) return;
-  if (dmg != null) dmg *= (dest != null ? dest : 1);
+  if (r < 1.2 || G.state !== 'play' || dest === 0 || G.rules.dest === 0) return;
+  if (dmg != null) dmg *= (dest != null ? dest : 1) * G.rules.dest; else power *= G.rules.dest;
   if (dmg != null && dmg < 2.5) return;
   const rr = dmg != null ? Math.min(r * .85, .9 + dmg * .15) : r * .85 * power;   // el hueco depende de la fuerza del golpe
   const gy = groundAt(c.x, c.z);
@@ -5075,7 +5075,7 @@ function counterHit(t, att) {
 function netHit(att, t, o) {
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
-  const dmg = o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.ch.dmgMul || 1) * DMG_GLOBAL, col = o.color || att.ch.color, heavy = (o.ragdoll || 0) > 0 || o.dmg >= 8;
+  const dmg = o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.ch.dmgMul || 1) * DMG_GLOBAL * (att.isPlayer ? G.rules.dmg : 1), col = o.color || att.ch.color, heavy = (o.ragdoll || 0) > 0 || o.dmg >= 8;
   NET.hitsOut.push({ s: ++NET.hitSeq, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col, sf: o.spearFinish || null });
   while (NET.hitsOut.length > 10) NET.hitsOut.shift();
   att.ult = Math.min(100, att.ult + dmg * ULT_GAIN); t.flashT = .12;
@@ -5118,7 +5118,8 @@ function applyHit(att, t, o) {
       }
     }
   }
-  let dmg = (o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL) * adaptMul(t, att) * picoMul(t, att, o) * (att.pisco > 0 ? 1.2 : 1) * (att.tinku > 0 ? 1.2 : 1) * (t.seen > 0 && t.seenBy === att ? 1.3 : 1);
+  let dmg = (o.fromNet ? o.dmg : o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.isPlayer || !att.ai ? 1 : att.ai.P.dmg) * (att.ch.dmgMul || 1) * DMG_GLOBAL * (att.isPlayer ? G.rules.dmg : 1)) * adaptMul(t, att) * picoMul(t, att, o) * (att.pisco > 0 ? 1.2 : 1) * (att.tinku > 0 ? 1.2 : 1) * (t.seen > 0 && t.seenBy === att ? 1.3 : 1);
+  if (G.rules.god && t.isPlayer) dmg = 0;
   if (att.sebBomb && !t.sebBomb && t !== att && dmg > 0) { t.sebBomb = att.sebBomb; att.sebBomb = null; t.sebBomb.t = Math.max(t.sebBomb.t, 1.8); popText(chestOf(t), '¡CONTAGIO!', '#ffd91a', 22); burst(chestOf(t), 10, '#ffd91a', 6, .18, .4, .2); }
   if (t.sebShield > 0 && dmg > 0) {   // Muro de Risa: absorbe el daño y el empuje
     const ab = Math.min(t.sebShield, dmg); t.sebShield -= ab; t.sebAbs += ab; dmg -= ab; kb = up = ragdoll = stun = 0;
@@ -5132,6 +5133,7 @@ function applyHit(att, t, o) {
   if (att.capRandi && t !== att && dmg >= .4) att.capT = Math.min(45, att.capT + .7);   // cada golpe de Capitán Perú le suma tiempo
   if (dmg >= .5 && t !== att && (att.fireT > 0 || (att.awak > 0 && att.ch.fireSword))) poisonOn(t, att, { dps: att.fireT > 0 ? 2.4 : 1.6, dur: 3.2, col: '#ff7a1a', label: 'ARDE' });   // Espada de Fénix y despertar de ItzUkyo: quema
   att.ult = Math.min(100, att.ult + dmg * 1.1 * ULT_GAIN); t.ult = Math.min(100, t.ult + dmg * .6 * ULT_GAIN);
+  if (G.rules.ultHit && att.isPlayer && att.awak <= 0) att.ult = 100;   // regla: la ulti se carga con un solo golpe
   t.flashT = .12; t.lastHurtT = G.time;
   const armored = t.action && t.action.armor;
   // acumulación: muchos golpes seguidos tiran al rival en ragdoll (los golpes chicos de ráfagas y rayos cuentan menos)
@@ -5143,7 +5145,7 @@ function applyHit(att, t, o) {
   if (ragdoll) t.hitCount = 0;
   // potencia de ragdoll (rag): cuánto lo manda para atrás y para arriba. Sin valor explícito crece con el daño del golpe.
   if (ragdoll) {
-    const rg = o.rag != null ? o.rag : clamp(1 + ((o.dmg || 0) - 10) * .04, 1, 1.6);
+    const rg = (o.rag != null ? o.rag : clamp(1 + ((o.dmg || 0) - 10) * .04, 1, 1.6)) * G.rules.rag;
     if (o.kb !== 0) kb = Math.max(kb, 7 * rg); kb *= rg; up = Math.max(up, 4) * Math.min(rg, 1.5);
     ragdoll *= .85 + .15 * rg; t.ragPow = rg;
   }
@@ -7308,7 +7310,7 @@ const MOVES = {
   randiMahoraga(f, o) {
     const tg = enemiesOf(f).filter(g => dist2d(f, g) < 9).sort((a, b) => dist2d(f, a) - dist2d(f, b))[0];
     if (!tg || f.awak < 4 || f.capRandi) { if (f.isPlayer) popText(chestOf(f), f.capRandi ? 'Ya está invocado' : f.awak < 4 ? 'Poco despertar' : 'Acércate a un rival', '#ffb3b8', 18); return false; }
-    f.awak = Math.max(.5, f.awak - 12); randiSummon(f, tg);
+    if (!(G.rules.ultInf && f.isPlayer)) f.awak = Math.max(.5, f.awak - 12); randiSummon(f, tg);
   },
   // Rueda de Adaptación (como el modo defensa de Mahoraga): el próximo golpe que reciba lo cura y lo adapta a ese rival
   capAdapt(f, o) {
@@ -8802,6 +8804,7 @@ function citySteer(f,target,c,dt){
 
 function aiCtl(f, dt) {
   const c = { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
+  if (G.rules.botsOff) return c;   // regla: bots quietos
   const ai = f.ai, P = ai.P;
   if(ownsMissingSpear(f)){
     const pos=spearDropPoint(f.spearLost),dx=pos.x-f.pos.x,dz=pos.z-f.pos.z,d=Math.hypot(dx,dz)||1;
@@ -8908,7 +8911,7 @@ function applyCtl(f, c, dt) {
   if (f.action && f.action.name === 'flourish' && (c.mx || c.mz || c.jump || c.block || c.dash)) endAction(f);
   const a = f.action;
   f.blocking = can && !a && c.block;
-  let sp = 9 * f.ch.spd * (f.awak > 0 ? 1.15 : 1) * (f.fireT > 0 ? 1.2 : 1) * (f.pisco > 0 ? 1.3 : 1) * (f.turbo > 0 ? 1.35 : 1) * (f.buf > 0 ? .3 : 1);
+  let sp = 9 * f.ch.spd * (f.awak > 0 ? 1.15 : 1) * (f.fireT > 0 ? 1.2 : 1) * (f.pisco > 0 ? 1.3 : 1) * (f.turbo > 0 ? 1.35 : 1) * (f.buf > 0 ? .3 : 1) * (f.isPlayer ? G.rules.spd : 1);
   if (f.blocking) sp *= .3; if (a) sp *= (a.speedMul != null ? a.speedMul : .4); if (!can) sp = 0;
   const moving = c.mx || c.mz;
   if (can && f.dashT <= 0 && !(a && a.noControl)) {
@@ -8950,7 +8953,7 @@ function physics(f, dt) {
   if (f.choreTrack) { f.onGround = f.pos.y <= groundAt(f.pos.x, f.pos.z) + .02; return; }
   const a = f.action;
   if (f.frozen > 0) { f.vel.x = f.vel.z = 0; }
-  if(!(f.rFlightT>0&&canSekzaSpecial(f)))f.vel.y -= 32 * dt;
+  if(!(f.rFlightT>0&&canSekzaSpecial(f)))f.vel.y -= 32 * G.rules.grav * dt;
   const free = f.dashT > 0 || (a && a.noControl);
   if (!free && (f.stun > 0 || f.ragdoll > 0 || !f.alive)) { const fr = f.onGround ? Math.exp(-(f.ragdoll > 0 ? 2.3 : 5) * dt) : Math.exp(-.5 * dt); f.vel.x *= fr; f.vel.z *= fr; }
   f.pos.addScaledVector(f.vel, dt);
@@ -9087,8 +9090,9 @@ function tickTimers(f, dt) {
   f.hurtT -= dt; f.getupT -= dt; f.landT -= dt; f.flashT -= dt; f.frozen = Math.max(0, f.frozen - dt);
   f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; f.dashT -= dt;
   for (let i = 0; i < 4; i++) f.cd[i] = Math.max(0, f.cd[i] - dt);
+  if (f.isPlayer) { if (G.rules.noCd) f.cd[0] = f.cd[1] = f.cd[2] = f.cd[3] = 0; if (G.rules.god && f.alive) f.hp = f.maxHp; }
   if (f.awak > 0) {
-    f.awak -= dt; f.ult = 0;
+    if (!(G.rules.ultInf && f.isPlayer)) f.awak -= dt; f.ult = 0;   // regla: ulti infinita
     if (f.awak <= 0) { f.cd = [0, 0, 0, 0]; if (f.isPlayer) showBanner('DESPERTAR TERMINADO', '#9ba1ba', 'Cargá la barra de nuevo'); }
     if (Math.random() < dt * 30) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(0, 2), f.pos.z + rand(-.5, .5), 0, rand(2, 4), 0, Math.random() < .3 ? '#ffffff' : f.ch.color, rand(.1, .2), .5, -.1, 1);
   }
@@ -9656,7 +9660,7 @@ async function startMatch() {
   if (G.mode === 'mp' && !(await joinRoom())) { unlock(); openTab('cfg'); return; }
   G.mp = G.mode === 'mp';
   NET.ko = null; NET.act = null; NET.hitsOut = [];
-  stageExit(); clearFighters(); destRestore(true); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
+  stageExit(); clearFighters(); destRestore(true); rulesStart(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
   G.bots = +$('nbots').value; G.goal = +$('goalsel').value;
   G.baseLvl = +$('lvl').value; G.botLvl = G.baseLvl; G.auto = $('auto').checked; G.balT = 12; G.winPK = 0; G.winPD = 0;
   G.pname = ($('pname-in').value || 'Jugador').trim().slice(0, 16) || 'Jugador';
@@ -10403,7 +10407,7 @@ function netSendPlay() {
   if (!NET.named || !G.player) return;
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
-  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
+  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
   if (NET.named.pubAs) for (const d of dummies()) if (d.netId) NET.named.pubAs(d.netId, Object.assign(presenceOf(d, 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: [] }));
 }
 function presenceOf(f, ch) {
@@ -10532,6 +10536,7 @@ function netDebug(dt) {
   el.textContent = L.join('\n');
 }
 function netTick(dt) {
+  netRulesSync();
   netDebug(dt);
   if (!NET.named) return;
   const peers = NET.named.peers(), seen = new Set();
@@ -10575,6 +10580,76 @@ function netTick(dt) {
   if (NET.sendT <= 0) { NET.sendT = NET_OLD && NET.room === 'relay' ? 1 / 15 : 1 / 25; netSendPlay(); }
 }
 
+// ================= Reglas de la partida (panel del anfitrión) =================
+// Las fija el anfitrión (o tú solo, contra bots) y viajan en su presencia: todos los jugadores de la sala las aplican.
+const RULES_DEF = { noCd: false, ultHit: false, ultInf: false, god: false, botsOff: false, dmg: 1, spd: 1, grav: 1, dest: 1, rag: 1, p: { u: 0, a: 0, h: 0, r: 0 } };
+G.rules = JSON.parse(JSON.stringify(RULES_DEF)); G.rulesSeen = null;
+function rulesClean(r) {
+  const o = JSON.parse(JSON.stringify(RULES_DEF)); if (!r || typeof r !== 'object') return o;
+  for (const k of ['noCd', 'ultHit', 'ultInf', 'god', 'botsOff']) o[k] = !!r[k];
+  o.dmg = clamp(+r.dmg || 1, 1, 999); o.spd = clamp(+r.spd || 1, 1, 3); o.grav = clamp(+r.grav || 1, .1, 1.5); o.dest = clamp(r.dest == null ? 1 : +r.dest, 0, 3); o.rag = clamp(+r.rag || 1, .5, 4);
+  const q = r.p || {}; for (const k of ['u', 'a', 'h', 'r']) o.p[k] = clamp(q[k] | 0, 0, 1e9);
+  return o;
+}
+function rulesSave() { try { localStorage.setItem('bsb_rules', JSON.stringify(G.rules)); } catch (e) { } }
+function rulesStart() {
+  let saved = null; if (!G.mp) { try { saved = JSON.parse(localStorage.getItem('bsb_rules') || 'null'); } catch (e) { } }
+  G.rules = rulesClean(saved); G.rulesSeen = Object.assign({}, G.rules.p); rulesUISync();
+}
+// acciones de un solo uso (botones): cada cliente las ejecuta en su propio jugador
+function rulesPulse(k) {
+  const pl = G.player; if (!pl || !pl.alive || G.state !== 'play') return;
+  if (k === 'u') { pl.ult = 100; popText(chestOf(pl), '¡ULTI LISTA!', '#d7ff2f', 24); sfx('tp', pl.pos); }
+  else if (k === 'a') { if (pl.awak <= 0 && !pl.capRandi && !pl.mount) { pl.ult = 100; runUlt(pl); } }
+  else if (k === 'h') { for (const g of G.fighters) if (!g.remote && g.alive && !g.dummy) { g.hp = g.maxHp; burst(chestOf(g), 12, '#7dff6a', 5, .16, .5, .3); } popText(chestOf(pl), '¡VIDA AL MÁXIMO!', '#7dff6a', 22); }
+  else if (k === 'r') { destRestore(true); popText(chestOf(pl), 'Escenario reparado', '#9fd3ff', 18); }
+}
+function rulesApply(r) {
+  const n = rulesClean(r);
+  if (G.rulesSeen) for (const k of ['u', 'a', 'h', 'r']) if (n.p[k] > (G.rulesSeen[k] || 0)) rulesPulse(k);
+  G.rulesSeen = Object.assign({}, n.p); G.rules = n; rulesUISync();
+}
+function netRulesSync() {
+  if (!G.mp || !NET.named || amHost()) return;
+  let best = null, bj = Infinity; for (const pe of NET.named.peers()) { const pr = pe.presence; if (!pr || !pr.rl) continue; const jt = +pr.jt || Infinity; if (jt <= bj) { bj = jt; best = pr.rl; } }
+  if (best) { const sig = JSON.stringify(best); if (sig !== G.rulesSig) { G.rulesSig = sig; rulesApply(best); } }
+}
+function rulesHostPulse(k) { G.rules.p[k]++; G.rulesSeen[k] = G.rules.p[k]; rulesPulse(k); rulesSave(); }
+(function rulesBuild() {
+  const box = document.querySelector('#dpanel .obox'); if (!box) return;
+  const st = document.createElement('style');
+  st.textContent = '#rules-controls{align-self:stretch;text-align:left;border-top:1px solid var(--line);padding-top:14px;display:grid;gap:10px}#rules-controls h3{font-family:var(--display);font-size:23px;letter-spacing:.06em;margin:0}'
+    + '#rules-controls button,#rules-controls select{font:inherit;border:1px solid #446271;border-radius:3px;background:#172637;color:#eff5f7;padding:8px 10px;cursor:pointer}#rules-controls button:hover:not(:disabled){background:#29445b;border-color:#a2e8ec}'
+    + '#rules-controls .rl-check{display:flex;align-items:center;gap:8px;font-size:14px}#rules-controls .rl-check small{margin-left:auto;color:var(--muted);font-size:12px;text-align:right}#rules-controls input[type=checkbox]{accent-color:#d7ff2f;width:16px;height:16px}'
+    + '#rules-controls .rl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}#rules-controls .rl-grid label{display:grid;gap:5px;font-size:13px;color:#b7c8d5}#rules-controls .rl-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}#rules-controls p{font-size:12px;line-height:1.5;color:var(--muted);margin:0}#rules-controls :disabled{opacity:.45;cursor:not-allowed}';
+  document.head.appendChild(st);
+  const chk = (id, t, sm) => '<label class="rl-check"><input type="checkbox" id="rl-' + id + '"> ' + t + (sm ? ' <small>' + sm + '</small>' : '') + '</label>';
+  const sel = (id, t, o) => '<label>' + t + '<select id="rl-' + id + '">' + o.map(x => '<option value="' + x[0] + '">' + x[1] + '</option>').join('') + '</select></label>';
+  const sec = document.createElement('section'); sec.id = 'rules-controls'; sec.setAttribute('aria-labelledby', 'rl-title');
+  sec.innerHTML = '<h3 id="rl-title">REGLAS DE LA SALA</h3><p id="rl-msg">Solo el anfitrión las cambia; se aplican a todos los jugadores de la sala.</p>'
+    + chk('noCd', 'Sin enfriamientos', 'las habilidades siempre listas') + chk('ultHit', 'Ulti con un solo golpe', 'un golpe llena la barra') + chk('ultInf', 'Ulti infinita', 'el despertar nunca se acaba')
+    + chk('god', 'Vida infinita', 'no pierdes vida') + chk('botsOff', 'Bots quietos', 'no atacan ni se mueven')
+    + '<div class="rl-grid">' + sel('dmg', 'Daño que haces', [[1, 'Normal'], [2, '×2'], [5, '×5'], [20, '×20'], [999, 'Mata de un golpe']]) + sel('spd', 'Velocidad', [[1, 'Normal'], [1.5, '×1.5'], [2, '×2'], [3, '×3']])
+    + sel('grav', 'Gravedad', [[1, 'Normal'], [.5, 'Baja'], [.25, 'Muy baja']]) + sel('dest', 'Destrucción', [[0, 'Apagada'], [1, 'Normal'], [2, 'Fuerte'], [3, 'Total']]) + sel('rag', 'Fuerza del ragdoll', [[1, 'Normal'], [1.5, 'Más'], [2.5, 'Mucha'], [4, 'Extrema']]) + '</div>'
+    + '<div class="rl-btns"><button type="button" id="rl-u">Dar ulti</button><button type="button" id="rl-a">Despertar ya</button><button type="button" id="rl-h">Curar a todos</button><button type="button" id="rl-r">Reparar el escenario</button></div>'
+    + '<button type="button" id="rl-reset">Restablecer reglas</button>';
+  const bt = box.querySelector('.btns'); if (bt) bt.after(sec); else box.appendChild(sec);
+  const hostOk = () => canUsePanel();
+  for (const id of ['noCd', 'ultHit', 'ultInf', 'god', 'botsOff']) $('rl-' + id).addEventListener('change', e => { if (!hostOk()) return rulesUISync(); G.rules[id] = e.target.checked; rulesSave(); });
+  for (const id of ['dmg', 'spd', 'grav', 'dest', 'rag']) $('rl-' + id).addEventListener('change', e => { if (!hostOk()) return rulesUISync(); G.rules[id] = rulesClean(Object.assign({}, G.rules, { [id]: +e.target.value }))[id]; rulesSave(); rulesUISync(); });
+  for (const k of ['u', 'a', 'h', 'r']) $('rl-' + k).addEventListener('click', () => { if (hostOk()) rulesHostPulse(k); });
+  $('rl-reset').addEventListener('click', () => { if (!hostOk()) return; const p0 = G.rules.p; G.rules = rulesClean(null); G.rules.p = p0; rulesSave(); rulesUISync(); });
+})();
+function rulesUISync() {
+  if (!$('rl-noCd')) return; const R = G.rules;
+  for (const id of ['noCd', 'ultHit', 'ultInf', 'god', 'botsOff']) $('rl-' + id).checked = !!R[id];
+  for (const id of ['dmg', 'spd', 'grav', 'dest', 'rag']) $('rl-' + id).value = String(R[id]);
+}
+function rulesUI(ok) {
+  if (!$('rl-noCd')) return; rulesUISync();
+  $('rules-controls').querySelectorAll('input,select,button').forEach(b => { b.disabled = !ok; });
+  $('rl-msg').textContent = ok ? 'Se aplican a todos los jugadores de la sala y se guardan para tus partidas contra bots.' : 'Solo el anfitrión de la sala (el que entró primero) puede cambiar las reglas. Las que ves son las suyas.';
+}
 // ================= Dummies de entrenamiento y panel del anfitrión =================
 // En la sala con amigos solo el anfitrión (el que entró primero) los crea; los demás los ven y les pegan.
 const DUMMY_NAMES = { idle: 'Dummy quieto', attack: 'Dummy que pega', block: 'Dummy que bloquea' };
@@ -10621,7 +10696,7 @@ function togglePanel(force) {
   if (open) {
     if (G.state !== 'play') return;
     G.panelOpen = true; unlock();
-    const ok = canUsePanel();
+    const ok = canUsePanel(); rulesUI(ok);
     $('dpanel').querySelectorAll('[data-dummy],#dclear').forEach(b => { b.disabled = !ok; b.style.opacity = ok ? 1 : .4; });
     $('dpmsg').textContent = ok ? 'Dummies de entrenamiento: aparecen adelante tuyo. Si les ganás, reaparecen en el mismo lugar.'
       : (G.mp && NET.room !== 'relay') ? 'En esta versión la sala no puede compartir dummies. Usá la versión de GitHub para crearlos con amigos.'
