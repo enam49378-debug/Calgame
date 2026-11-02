@@ -8,7 +8,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Blockstrike Battlegrounds</title>
+<title>CalFight</title>
+<link rel="icon" type="image/png" href="assets/calfight_icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
 <style>
@@ -306,6 +307,23 @@ tr.me td{color:var(--hot);font-weight:700}
 @keyframes tPulse{0%,100%{opacity:.55}50%{opacity:1}}
 #tscene{position:absolute;right:5vw;top:12vh;z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg)}
 #tscene:hover{background:#ffd400;color:#000}
+
+#menu .logo{display:flex;align-items:center}#menu .logo img{height:54px;width:auto;image-rendering:pixelated;filter:drop-shadow(2px 2px 0 #000)}
+#title .tlogo{left:4vw;bottom:12vh}#title .tlogo img{display:block;height:min(24vh,240px);width:auto;image-rendering:pixelated;filter:drop-shadow(4px 4px 0 #000)}
+#tsun{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;background:linear-gradient(180deg,rgba(255,120,50,.38),rgba(255,165,80,.2) 50%,rgba(150,50,110,.32))}
+#title::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at 28% 52%,rgba(255,150,60,.34),transparent 62%),linear-gradient(180deg,rgba(255,120,50,.14),rgba(110,40,100,.22))}
+#title.leaving .tlogo,#title.leaving .thint,#title.leaving #tscene{opacity:0;transition:opacity .45s}
+#tfall{position:fixed;inset:0;z-index:80;background:#000;opacity:0;pointer-events:none;transition:opacity .05s}
+#tfall.black{opacity:1}#tfall.fade{opacity:0;transition:opacity 2.2s ease .35s}
+#menu.menufall .mtop{animation:mfTop .85s cubic-bezier(.3,1.5,.5,1) .55s backwards}
+#menu.menufall #cinfo{animation:mfDrop .9s cubic-bezier(.3,1.5,.5,1) .9s backwards}
+#menu.menufall #cstats{animation:mfDrop .9s cubic-bezier(.3,1.5,.5,1) 1.15s backwards}
+#menu.menufall #cskills{animation:mfDrop .9s cubic-bezier(.3,1.5,.5,1) 1.35s backwards}
+#menu.menufall #roster .rc{animation:mfDrop .8s cubic-bezier(.3,1.5,.5,1) calc(.8s + var(--i,0) * 85ms) backwards !important}
+#menu.menufall #play{animation:mfDrop 1s cubic-bezier(.3,1.6,.5,1) 1.9s backwards !important}
+#menu.menufall .selmodes{animation:mfDrop .8s cubic-bezier(.3,1.5,.5,1) 1.05s backwards !important}
+@keyframes mfTop{from{transform:translateY(-140vh) rotate(-3deg)}}
+@keyframes mfDrop{from{transform:translateY(-130vh) rotate(5deg);opacity:1}}
 </style>
 
 </head>
@@ -357,16 +375,17 @@ tr.me td{color:var(--hot);font-weight:700}
   <div id="board" class="hidden"></div>
 </div>
 
+<div id="tfall"></div>
 <div id="title" class="hidden">
   <div class="tbar t1"></div><div class="tbar t2"></div>
-  <div class="tlogo"><h1>BLOCKSTRIKE<span>BATTLEGROUNDS</span></h1><p id="tchar"></p></div>
+  <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
   <div class="thint"><b>PRESIONA CUALQUIER TECLA</b> para elegir tu peleador</div>
   <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button>
 </div>
 
 <div id="menu">
   <header class="mtop">
-    <h1 class="logo">BLOCKSTRIKE<span>BATTLEGROUNDS</span></h1>
+    <h1 class="logo"><img src="assets/calfight_logo.png" alt="CalFight"></h1>
     <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg">PARTIDA</button></nav>
     <button type="button" id="viewbtn">SALA DE CINEMÁTICAS ▸</button>
     <button type="button" id="feb">EDITOR DE EXPRESIONES ▸</button>
@@ -5277,7 +5296,7 @@ function musicPlay(src, loop) {
 }
 function musicNextFight() { const n = MUS.tracks.fight.length; let i; do { i = Math.floor(Math.random() * n); } while (i === MUS.idx && n > 1); MUS.idx = i; musicPlay(MUS.tracks.fight[i], false); }
 function updateMusic(dt) {
-  const want = (G.state === 'menu' || G.state === 'title') ? 'menu' : (G.state === 'play' || G.over) ? 'fight' : '';
+  const want = G.state === 'menu' ? 'menu' : (G.state === 'play' || G.over) ? 'fight' : '';
   if (want !== MUS.want) { MUS.want = want; if (want === 'menu') musicPlay(MUS.tracks.menu, true); else if (want === 'fight') musicNextFight(); }
   const duck = (G.paused ? .45 : 1) * ((G.cine || STAGE.on) ? .4 : 1), target = MUS.on ? MUS.vol * duck * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100 : 0;
   if (MUS.el) { const d = target - MUS.el.volume; MUS.el.volume = clamp(MUS.el.volume + clamp(d, -dt * .6, dt * .35), 0, 1); }
@@ -10196,7 +10215,7 @@ function drawBackdrop(ch) {
   g.globalAlpha = .08; g.fillStyle = ch.color; g.fillText(ch.name.toUpperCase(), 0, 0);
   g.restore();
   g.globalAlpha = .1; g.fillStyle = '#ffffff'; g.font = '700 22px "Chakra Petch", sans-serif';
-  for (let y = 40; y < h; y += 70) g.fillText('BLOCKSTRIKE // ' + ch.role + ' // ' + ch.title.toUpperCase() + ' // ', (y * 3) % 200 - 200, y);
+  for (let y = 40; y < h; y += 70) g.fillText('CALFIGHT // ' + ch.role + ' // ' + ch.title.toUpperCase() + ' // ', (y * 3) % 200 - 200, y);
   g.globalAlpha = .25; g.fillStyle = ch.color;
   for (let i = 0; i < 14; i++) for (let j = 0; j < 8; j++) { g.beginPath(); g.arc(w - 40 - i * 18, 30 + j * 18, Math.max(.5, 6 - i * .45), 0, TAU); g.fill(); }
   g.globalAlpha = 1; SH.bgTex.needsUpdate = true;
@@ -12212,57 +12231,94 @@ $('pname-in').addEventListener('change', e => { try { localStorage.setItem('bsb_
 if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) $('touchnote').classList.remove('hidden');
 
 // ================= Pantalla de inicio =================
-// El último peleador que usaste, en una de dos escenas con el atardecer: apoyado en la barandilla del muelle o sentado en la arena.
-const TITLE = { on: false, t: 0, idx: 0, fig: null, hour0: 0, cyc0: true };
+// El último peleador que usaste, de espaldas, en una de dos escenas con el atardecer (apoyado en la barandilla del muelle o sentado en la arena).
+// Cámara fija con un leve temblor. Al pulsar algo: el personaje nota que estamos detrás, gira, la cámara se cae, todo negro y el menú cae poco a poco.
+const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4 };
+const titleVol = k => k * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100;
+function titleAudio(on) {
+  if (on) {
+    try {
+      const m = new Audio('musica/calfight_intro.mp3'); m.loop = true; m.volume = titleVol(.55); m.play().catch(() => { }); TITLE.mus = m;
+      for (const [n, v] of [['waves', .3], ['breeze', .14]]) { const e = new Audio('sonidos/' + n + '.mp3'); e.loop = true; trackHtmlAudio(e, v, 'ambient'); e.play().catch(() => { }); TITLE.amb.push(e); }
+    } catch (e) { }
+    return;
+  }
+  const m = TITLE.mus, amb = TITLE.amb; TITLE.mus = null; TITLE.amb = [];
+  let k = 1; const iv = setInterval(() => { k -= .05; if (m) m.volume = Math.max(0, titleVol(.55) * k); for (const e of amb) e.volume = Math.max(0, e.volume * .93); if (k <= 0) { clearInterval(iv); if (m) m.pause(); for (const e of amb) e.pause(); } }, 70);
+}
 function titleStart() {
   if (TITLE.on || /[#?](sala|room|j=|join)|notitle/i.test(location.hash + location.search)) return;
   if (!CHARS[G.charId]) G.charId = 'javi';
   let idx = 0; try { idx = (parseInt(localStorage.getItem('bsb_title_idx') || '-1') + 1) % 2; localStorage.setItem('bsb_title_idx', String(idx)); } catch (e) { }
-  TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; G.state = 'title';
-  $('menu').classList.add('hidden'); $('title').classList.remove('hidden'); $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
-  TITLE.hour0 = WX.hour; TITLE.cyc0 = WX.cycle; WX.cycle = false; WX.hour = 17.8;
-  titleBuild();
+  TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; G.state = 'title';
+  $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
+  TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode };
+  WX.mode = 'clear'; WX.hour = 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado
+  titleBuild(); titleAudio(true);
 }
 function titleBuild() {
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
   const id = G.charId, ch = CHARS[id], skin = G.customSkin || charSkin(id), faceC = copyCanvas(skin);
   const model = buildModel(faceC, G.customSkin ? G.customSlim : !!ch.slim, scene);
+  model.root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });   // sin sombras propias: con el sol bajo se veían manchas
   const fig = { model, anim: new Animator(model), ch, alive: true, hp: 1, maxHp: 1, blinkT: rand(1, 3) }; fig.anim.bbR6 = true;
   setupFace(fig, faceC, !G.customSkin);
   if (WEAPONS[ch.weapon]) { fig.spear = WEAPONS[ch.weapon](); model.mats.push(fig.spear.material); setSpear(fig, false); }   // el arma, guardada en la espalda
-  TITLE.fig = fig; for (const j of JOINTS) fig.anim.x[j] = JDEF[j] || 0;
+  TITLE.fig = fig; for (const j of JOINTS) fig.anim.x[j] = JDEF[j] || 0; TITLE.baseIdx = -1;
 }
-function titleEnd() {
-  if (!TITLE.on) return; TITLE.on = false; WX.hour = TITLE.hour0; WX.cycle = TITLE.cyc0;
+function titleFinish() {
+  if (!TITLE.on) return; TITLE.on = false;
+  WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
-  $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); menuVoice(G.charId); showSelect(G.charId);
-  camera.fov = 70; camera.updateProjectionMatrix();
+  titleAudio(false);
+  $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); showSelect(G.charId);
+  camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix();
+  const mn = $('menu'); mn.classList.add('menufall'); const fl = $('tfall'); fl.className = 'black'; void fl.offsetWidth; fl.className = 'fade'; setTimeout(() => { fl.className = ''; }, 3200);
+  setTimeout(() => menuVoice(G.charId), 1500); setTimeout(() => mn.classList.remove('menufall'), 3800);
+}
+function titleLeave() {
+  if (!TITLE.on || TITLE.lt != null) return; TITLE.lt = 0; $('title').classList.add('leaving'); initAudio();
 }
 function titleUpdate(dt) {
   if (!TITLE.on || !TITLE.fig) return;
-  TITLE.t += dt; WX.hour = 17.8 + Math.sin(TITLE.t * .05) * .05;   // el sol casi tocando el mar
-  const t = TITLE.t, f = TITLE.fig, x = f.anim.x, m = f.model, sd = CITY.sunDisc.position, br = Math.sin(t * 1.5);
+  TITLE.t += dt; const t = TITLE.t, f = TITLE.fig, x = f.anim.x, m = f.model, sd = CITY.sunDisc.position, br = Math.sin(t * 1.5), L = TITLE.lt;
+  if (L != null) TITLE.lt += dt;
   let px, pz, back, side, ch0, lh0, fov;
   if (TITLE.idx === 0) {   // apoyado en la barandilla oeste del muelle
     px = -1.55; pz = 108.4;
     x.ix = 0; x.tx = .5 + br * .012; x.hx = -.32 + Math.sin(t * .4) * .03; x.hy = Math.sin(t * .27) * .12; x.alx = -1.18; x.arx = -1.22; x.alz = .02; x.arz = -.02; x.llx = .1; x.lrx = -.06; x.llz = .03; x.lrz = -.03; x.by = -.4 + br * .06; x.bz = 0; x.tz = 0;
-    back = 4.6 + Math.sin(t * .13) * .4; side = 1.4; ch0 = 1.6; lh0 = 2.1; fov = 46;
+    back = 4.6; side = 1.4; ch0 = 1.6; lh0 = 2.1; fov = 46;
   } else {   // sentado en la arena mirando el atardecer
     px = -10; pz = 91.5;
     x.ix = 0; x.tx = -.1 + br * .01; x.hx = -.18 + Math.sin(t * .35) * .03; x.hy = Math.sin(t * .23) * .1; x.alx = -.95; x.arx = -.75; x.alz = -.08; x.arz = .06; x.llx = -1.5; x.lrx = -1.42; x.llz = .12; x.lrz = -.1; x.by = -10 + br * .05; x.bz = 0; x.tz = 0;
-    back = 4.8 + Math.sin(t * .13) * .4; side = 1.5; ch0 = .85; lh0 = 1.35; fov = 44;
+    back = 4.8; side = 1.5; ch0 = .85; lh0 = 1.35; fov = 44;
   }
-  const gy = groundAt(px, pz, 4);
-  m.root.position.set(px, gy + .02, pz); const yaw = Math.atan2(sd.x - px, sd.z - pz); m.root.rotation.y = yaw;
+  const gy = groundAt(px, pz, 4), yaw = Math.atan2(sd.x - px, sd.z - pz);
+  // al pulsar: primero la cabeza y luego el cuerpo giran hacia la cámara
+  let turn = 0; if (L != null) { const k = clamp((L - .2) / 1.0, 0, 1); turn = k * k * (3 - 2 * k); x.hy = Math.sin(clamp(L / .45, 0, 1) * 1.57) * 1.0 * (1 - turn) + (x.hy || 0) * (1 - clamp(L / .45, 0, 1)); x.hx = x.hx * (1 - clamp(L / .5, 0, 1) * .6); if (TITLE.idx === 0) x.tx *= 1 - turn * .8; }
+  m.root.position.set(px, gy + .02, pz); m.root.rotation.y = yaw + turn * Math.PI;
   f.anim.apply(); f.blinkT -= dt; if (f.blinkT < -.13) f.blinkT = rand(2, 4.5); try { updateFace(f, dt); } catch (e) { }
-  // la cámara queda detrás y a un lado del personaje, mirando hacia el sol (el personaje, en el tercio izquierdo)
-  const F = fwd(yaw), Rv = rightOf(yaw), cam = new V3(px - F.x * back + Rv.x * side, gy + ch0, pz - F.z * back + Rv.z * side), a10 = .17;
-  const look = new V3(cam.x + (F.x * Math.cos(a10) - Rv.x * Math.sin(a10)) * 20, gy + lh0, cam.z + (F.z * Math.cos(a10) - Rv.z * Math.sin(a10)) * 20);
-  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.fov = fov; camera.updateProjectionMatrix();
+  // cámara fija (se calcula una vez) con un temblor muy leve
+  if (TITLE.baseIdx !== TITLE.idx) {
+    const F = fwd(yaw), Rv = rightOf(yaw), a10 = .17;
+    TITLE.base = { cam: new V3(px - F.x * back + Rv.x * side, gy + ch0, pz - F.z * back + Rv.z * side), fov, gy };
+    const c = TITLE.base.cam; TITLE.base.look = new V3(c.x + (F.x * Math.cos(a10) - Rv.x * Math.sin(a10)) * 20, gy + lh0, c.z + (F.z * Math.cos(a10) - Rv.z * Math.sin(a10)) * 20); TITLE.baseIdx = TITLE.idx;
+  }
+  const B = TITLE.base, tr = (a, b) => (Math.sin(t * a) + Math.sin(t * b + 1.3)) * .5;
+  const cam = B.cam.clone(), look = B.look.clone(); let roll = tr(31, 19) * .0016, drop = 0;
+  cam.x += tr(37, 23) * .0035; cam.y += tr(41, 27) * .0035; look.y += tr(29, 17) * .004;
+  if (L != null && L > .85) {   // la cámara se cae justo cuando está por terminar de girar
+    const fl = L - .85; drop = .5 * 9.8 * fl * fl * 1.6; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 2.6; look.y -= fl * 4 * (1 + fl * 2);
+    if (fl > .02 && !TITLE.thud && cam.y <= B.gy + .09) { TITLE.thud = true; sfx('break', cam, 1); $('tfall').classList.add('black'); }
+  }
+  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = B.fov; camera.updateProjectionMatrix();
+  if (TITLE.mus) TITLE.mus.volume = titleVol(.55);
+  TITLE.gullT -= dt; if (TITLE.gullT <= 0 && AC) { TITLE.gullT = rand(7, 14); try { const e = new Audio('sonidos/gull' + (1 + (Math.random() * 2 | 0)) + '.mp3'); trackHtmlAudio(e, .22, 'ambient'); e.play().catch(() => { }); } catch (x2) { } }
+  if (L != null && L > 1.75) { TITLE.thud = false; titleFinish(); }
 }
-addEventListener('keydown', e => { if (TITLE.on && !e.repeat && !['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'F5', 'F11', 'F12'].includes(e.code)) { e.preventDefault(); titleEnd(); } }, true);
-$('title').addEventListener('pointerdown', e => { if (e.target.id === 'tscene') return; titleEnd(); });
-$('tscene').addEventListener('click', e => { e.stopPropagation(); TITLE.idx = 1 - TITLE.idx; try { localStorage.setItem('bsb_title_idx', String(TITLE.idx)); } catch (x) { } });
+addEventListener('keydown', e => { if (TITLE.on && !e.repeat && !['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'F5', 'F11', 'F12'].includes(e.code)) { e.preventDefault(); titleLeave(); } }, true);
+$('title').addEventListener('pointerdown', e => { if (e.target.id === 'tscene') return; titleLeave(); });
+$('tscene').addEventListener('click', e => { e.stopPropagation(); if (TITLE.lt != null) return; TITLE.idx = 1 - TITLE.idx; try { localStorage.setItem('bsb_title_idx', String(TITLE.idx)); } catch (x) { } });
 loadCharSkins().then(() => { ensureNormalAll(); renderRoster(); showSelect(G.charId, true); titleStart(); });
 netInit();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (SH.fig) drawBackdrop(SH.fig.ch); });
