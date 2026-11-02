@@ -9,6 +9,8 @@ Los audios se nombran como los de Javi:  <Personaje> <Evento> [número]
     Javi Consegir Ult_2.mp3     Rocket al matar.mp3     itsukio idle 1.mp3     Redbird Activar la Ulti.wav
 Para otro personaje solo se cambia el nombre ("Javi" -> "Rocket"). Si no pones número, se agrega como el siguiente.
 Eventos:  Activar la Ulti | Consegir Ulti | al matar | Cuando esta apunto de matar | Al morir | idle | daño | Habilidad Ulti
+          Al golpear | Cuando llama las gaviotas | Cuando vuela | Variantes Menu (al elegir el personaje en el selector)
+Si los archivos no llevan el nombre del personaje:  python tools/voces.py "carpeta" --personaje Sekza
 Cada audio se pasa a mp3 en sonidos/<id>/<evento>_<n>.mp3 y se actualiza el bloque VOCES de index.html.
 """
 import json, os, re, shutil, subprocess, sys, unicodedata
@@ -26,7 +28,11 @@ CHARS = {'javi': 'javi', 'javicubito': 'javi', 'redbird': 'redbird', 'sobrecarga
 EVENTS = {'activar la ulti': 'activar_ulti', 'activar ulti': 'activar_ulti', 'activar la ult': 'activar_ulti', 'activar ult': 'activar_ulti', 'consegir ult': 'ulti_lista', 'conseguir ult': 'ulti_lista', 'consegir ulti': 'ulti_lista', 'conseguir ulti': 'ulti_lista', 'ulti lista': 'ulti_lista',
           'al matar': 'baja', 'matar': 'baja', 'cuando esta apunto de matar': 'casi_baja', 'cuando esta a punto de matar': 'casi_baja', 'apunto de matar': 'casi_baja',
           'al morir': 'muerte', 'morir': 'muerte', 'idle': 'reposo', 'reposo': 'reposo', 'dano': 'dano', 'al recibir dano': 'dano', 'recibir dano': 'dano',
-          'habilidad ulti': 'habilidad_ulti'}
+          'habilidad ulti': 'habilidad_ulti',
+          'al golpiar': 'golpe', 'al golpear': 'golpe', 'golpear': 'golpe', 'golpiar': 'golpe', 'cuandoactivoulti': 'activar_ulti', 'cuandoconsigoulti': 'ulti_lista',
+          'matando a alguien': 'baja', 'apunto de matar a alguien': 'casi_baja', 'apunto de matar un jugador': 'casi_baja', 'variantes menu': 'menu', 'menu': 'menu'}
+# eventos cuyo texto empieza así (nombres largos)
+PREFIX_EVENTS = [('cuando llama las gaviotas', 'gaviotas'), ('cuando vuela', 'vuelo')]
 
 
 def norm(t):
@@ -34,7 +40,14 @@ def norm(t):
     return re.sub(r'[^a-z0-9 ]', ' ', ''.join(c for c in t if unicodedata.category(c) != 'Mn'))
 
 
-def classify(fname):
+def match_event(text):
+    ev = EVENTS.get(text)
+    if ev: return ev
+    for pre, e in PREFIX_EVENTS:
+        if text.startswith(pre): return e
+
+
+def classify(fname, default=None):
     base = os.path.splitext(fname)[0]
     m = re.search(r'[ _]*(\d+)\s*$', base)
     num = int(m.group(1)) if m else None
@@ -43,8 +56,11 @@ def classify(fname):
     for k in range(min(2, len(words) - 1), 0, -1):   # prefijo de 1 o 2 palabras = personaje
         cid = CHARS.get(''.join(words[:k]))
         if cid:
-            ev = EVENTS.get(' '.join(words[k:]))
+            ev = match_event(' '.join(words[k:]))
             if ev: return cid, ev, num
+    if default:   # el archivo no lleva el nombre del personaje: se usa el de --personaje
+        ev = match_event(text)
+        if ev: return default, ev, num
     return None
 
 
@@ -56,12 +72,12 @@ def duration(path):
         return None
 
 
-def ingest(folder):
+def ingest(folder, default=None):
     n = 0
     for fn in sorted(os.listdir(folder)):
         full = os.path.join(folder, fn)
         if not os.path.isfile(full) or not fn.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.flac')): continue
-        c = classify(fn)
+        c = classify(fn, default)
         if not c: print('  ? no entendí el nombre:', fn); continue
         cid, ev, num = c
         dest = os.path.join(SND, cid); os.makedirs(dest, exist_ok=True)
@@ -88,7 +104,7 @@ def scan():
             dur = duration(os.path.join(d, f))
             if dur: durs[cid + '/' + f[:-4]] = dur
     # el juego usa nombres de evento en inglés interno
-    ev = {'muerte': 'death', 'ulti_lista': 'ready', 'casi_baja': 'near', 'baja': 'kill', 'reposo': 'idle', 'activar_ulti': 'activate', 'dano': 'hurt', 'habilidad_ulti': 'skill'}
+    ev = {'golpe': 'hit', 'gaviotas': 'gulls', 'vuelo': 'fly', 'menu': 'menu', 'muerte': 'death', 'ulti_lista': 'ready', 'casi_baja': 'near', 'baja': 'kill', 'reposo': 'idle', 'activar_ulti': 'activate', 'dano': 'hurt', 'habilidad_ulti': 'skill'}
     return {c: {ev[k]: sorted(v, key=lambda x: int((re.search(r'(\d+)$', x) or [0, 0])[1])) for k, v in e.items()} for c, e in packs.items()}, durs
 
 
@@ -103,9 +119,11 @@ def write(packs, durs):
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     if '--html' in sys.argv: HTML = sys.argv[sys.argv.index('--html') + 1]; args = [a for a in args if a != HTML]
+    DEFAULT = None
+    if '--personaje' in sys.argv: DEFAULT = CHARS.get(norm(sys.argv[sys.argv.index('--personaje') + 1]).replace(' ', '')); args = [a for a in args if norm(a).replace(' ', '') != norm(sys.argv[sys.argv.index('--personaje') + 1]).replace(' ', '')]
     if '--solo-actualizar' not in sys.argv:
         folder = args[0] if args else os.path.join(SND, 'entrada')
-        if os.path.isdir(folder): print('Leyendo', folder); print(ingest(folder), 'audio(s) añadidos')
+        if os.path.isdir(folder): print('Leyendo', folder); print(ingest(folder, DEFAULT), 'audio(s) añadidos')
         else: print('No hay carpeta', folder)
     packs, durs = scan(); write(packs, durs)
     print('Listo:', {c: sum(len(v) for v in e.values()) for c, e in packs.items()})
