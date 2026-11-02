@@ -340,6 +340,12 @@ tr.me td{color:var(--hot);font-weight:700}
 #tspeed{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(255,255,255,.95) 0 .8deg,transparent .8deg 4.2deg);-webkit-mask:radial-gradient(circle at 50% 52%,transparent 22%,#000 78%);mask:radial-gradient(circle at 50% 52%,transparent 22%,#000 78%)}
 #setbtn{margin-left:auto}
 #pause.ext{z-index:95}
+
+#uw{position:fixed;inset:0;z-index:6;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 50%,rgba(40,170,190,.12),rgba(8,70,110,.55) 85%);mix-blend-mode:normal}
+#airbar{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:7;width:220px;height:16px;background:#0008;border:3px solid #000;box-shadow:3px 3px 0 #000;display:flex;align-items:center}
+#airbar span{position:absolute;left:8px;top:-20px;font:900 12px/1 var(--display,'Chakra Petch',sans-serif);color:#bfeaff;text-shadow:1px 1px 0 #000;letter-spacing:.14em}
+#airbar i{display:block;height:100%;width:100%;background:linear-gradient(180deg,#9fe8ff,#2aa7e0);transition:width .1s}
+#airbar.low i{background:linear-gradient(180deg,#ff9a9a,#e03a3a)}
 </style>
 
 </head>
@@ -392,6 +398,8 @@ tr.me td{color:var(--hot);font-weight:700}
 </div>
 
 <div id="tfall"></div>
+<div id="uw"></div>
+<div id="airbar" class="hidden"><span>AIRE</span><i></i></div>
 <div id="title" class="hidden">
   <div class="tbar t1"></div><div class="tbar t2"></div>
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
@@ -770,7 +778,7 @@ function cityGrassAt(x,z) {
   const facadeColors=['#f0bf7b','#e49aab','#77beaa','#e9cd83','#b9a0db','#eda777','#88b8dc','#dda19b','#deca8b','#a9cd86','#87c8d0','#dcc080'];
   const batches = new Map(), matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), xyz = new V3(), size = new V3();
   const box = (x,y,z,w,h,d,color,tex=null) => {
-    const key = color + ':' + (tex || '');
+    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44);   // un lote por color y por zona de 44 m
     if (!batches.has(key)) batches.set(key, { color, tex, items: [] });
     batches.get(key).items.push([x,y,z,w,h,d]);
   };
@@ -1241,7 +1249,6 @@ function cityGrassAt(x,z) {
   };
   strip(-150,150,3,()=>67.4,x=>SHORE(x),-.004,cityAnimeMaterial(new THREE.MeshLambertMaterial({map:sandTex})),4);
   strip(-150,150,3,x=>SHORE(x)-3,x=>SHORE(x),-.003,cityAnimeMaterial(new THREE.MeshLambertMaterial({map:wetTex})),4);
-  strip(-150,150,3,x=>SHORE(x),x=>SHORE(x)+24,-.09,new THREE.MeshLambertMaterial({color:0xdcc58e}),4);
   {
     const sea=new THREE.MeshPhongMaterial({color:0xffffff,shininess:70,specular:0x667b8e,transparent:true});
     sea.onBeforeCompile=sh=>{
@@ -1262,10 +1269,10 @@ function cityGrassAt(x,z) {
         .replace('#include <fog_fragment>','{vec3 vd=normalize(vViewPosition);float fr=pow(1.-clamp(dot(vd,normal),0.,1.),3.);gl_FragColor.rgb=mix(gl_FragColor.rgb,uSky,fr*.55);vec3 rv=reflect(-vd,normal);float gl=pow(max(dot(rv,uSunV),0.),90.);gl_FragColor.rgb+=uSunC*(gl*.9+pow(max(dot(rv,uSunV),0.),12.)*.12)*uSunK;}\n#include <fog_fragment>');
     };
     sea.customProgramCacheKey=()=>'aurora-sea-v2';
-    const water=new THREE.Mesh(new THREE.PlaneGeometry(1200,700),sea);water.rotation.x=-Math.PI/2;water.position.set(0,-.04,67+350);scene.add(water);BEACH.water=water;
+    sea.side=THREE.DoubleSide;const water=new THREE.Mesh(new THREE.PlaneGeometry(1200,700),sea);water.frustumCulled=false;water.renderOrder=-4;water.rotation.x=-Math.PI/2;water.position.set(0,-.04,67+350);scene.add(water);BEACH.water=water;
   }
-  // el mar es un muro invisible desde la orilla (con hueco para el muelle)
-  for(let xi=-120;xi<=120;xi+=4){if(Math.abs(xi)<3.4)continue;COL.push({x:xi,z:SHORE(xi)+2.5,hx:2.3,hz:2.5,h:30,y0:0,ceiling:false,nocam:true});}
+  // el mar ya se puede nadar: sin muro. La cubierta del muelle es suelo propio (sobre el agua)
+  solid(0,98,4.7,40.4,.06);solid(0,115,9.4,6,.06);
   // bosque alrededor de la ciudad
   for(let gx=-112;gx<=112;gx+=8)for(let gz=-112;gz<=60;gz+=8){
     const x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,r=Math.hypot(x,z);
@@ -1354,7 +1361,9 @@ function cityGrassAt(x,z) {
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
     batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
-    cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;scene.add(mesh);
+    cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;scene.add(mesh);
+    {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
+    mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
   }
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
   for(let i=0;i<16;i++){
@@ -1930,7 +1939,13 @@ function cineGrade(on, f) {
     SKY_OBJS.forEach(o => { o.visible = true; }); CINE_RIM.intensity = 0; CINE_KEY.intensity = 0; G.grade = null;
   }
 }
-function groundAt(x,z,footY=0){let g=0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
+const SEA_Y = -.04;
+// profundidad del fondo: baja suave desde la orilla hasta unos -9 m, con lomas
+function seaFloor(x, z) {
+  const d = Math.max(0, z - SHORE(x)), k = 1 - Math.exp(-d / 24);
+  return -(.09 + 9.2 * k) + Math.sin(x * .13 + z * .09) * .45 * k + Math.sin(x * .31 - z * .23) * .18 * k;
+}
+function groundAt(x,z,footY=0){let g=(z>SHORE(x)+.2&&z<290&&Math.abs(x)<190)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
 // ================= Partículas (bloquecitos) =================
 class Parts {
@@ -5244,12 +5259,12 @@ function initPauseAudioControls(){
   for(const el of document.querySelectorAll('[data-volume]'))el.addEventListener('input',()=>setAudioLevel(el.dataset.volume,el.value));
 }
 
-let AC = null, master = null, NB = null;
+let AC = null, master = null, NB = null, uwFilter = null;
 function initAudio() {
   if (!AC) {
     try {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      master = AC.createGain(); master.gain.value = .5*AUDIO_LEVELS.general/100; master.connect(AC.destination);
+      master = AC.createGain(); master.gain.value = .5*AUDIO_LEVELS.general/100; uwFilter = AC.createBiquadFilter(); uwFilter.type = 'lowpass'; uwFilter.frequency.value = 22000; master.connect(uwFilter); uwFilter.connect(AC.destination);
       gameAudioBus=AC.createGain();gameAudioBus.gain.value=AUDIO_LEVELS.game/100;gameAudioBus.connect(master);
       ambientAudioBus=AC.createGain();ambientAudioBus.gain.value=AUDIO_LEVELS.ambient/100;ambientAudioBus.connect(master);
       voicesAudioBus=AC.createGain();voicesAudioBus.gain.value=AUDIO_LEVELS.voices/100;voicesAudioBus.connect(master);
@@ -9572,6 +9587,7 @@ function laserLeg(a, b, col, w = .2, dur = .25) {
 }
 function clampArena(v, m = 2) { const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
 function applyCtl(f, c, dt) {
+  f.ctlJump = !!c.jump; f.ctlDown = !!c.down;
   if (f.mount) { mountUpdate(f, c, dt); return; }
   if (f.sebRem) { sebRemoteCtl(f, c, dt); c = { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false }; }
   const can = f.alive && f.stun <= 0 && f.ragdoll <= 0 && f.frozen <= 0 && !f.grabbed;
@@ -9579,7 +9595,7 @@ function applyCtl(f, c, dt) {
   const a = f.action;
   f.blocking = can && !a && c.block;
   let sp = 9 * f.ch.spd * (f.awak > 0 ? 1.15 : 1) * (f.fireT > 0 ? 1.2 : 1) * (f.pisco > 0 ? 1.3 : 1) * (f.turbo > 0 ? 1.35 : 1) * (f.buf > 0 ? .3 : 1) * (f.isPlayer ? G.rules.spd : 1);
-  if (f.blocking) sp *= .3; if (a) sp *= (a.speedMul != null ? a.speedMul : .4); if (!can) sp = 0;
+  if (f.blocking) sp *= .3; if (a) sp *= (a.speedMul != null ? a.speedMul : .4); if (f.swim) sp *= .55; else if (f.wade) sp *= .8; if (!can) sp = 0;
   const moving = c.mx || c.mz;
   if (can && f.dashT <= 0 && !(a && a.noControl)) {
     const k = Math.min(1, (f.onGround ? 14 : 4) * dt);
@@ -9614,13 +9630,148 @@ function applyCtl(f, c, dt) {
 }
 
 // ================= Física, tiempos y animación =================
+function splashFx(f) {
+  const p = new V3(f.pos.x, SEA_Y + .05, f.pos.z); burst(p, 18, '#bfe8ff', 6, .16, .6, .8, 3); ringAt(p, '#ffffff', 2.2, .5); sfx('whoosh', f.pos, .6);
+}
+const UW = { k: 0, bub: 0 };
+function updateUnderwater(dt) {
+  const cp = camera.position, p = G.player;
+  const under = G.state === 'play' && !G.cine && cp.y < SEA_Y - .02 && cp.z > SHORE(cp.x) - 1;
+  UW.k += ((under ? 1 : 0) - UW.k) * Math.min(1, dt * 9);
+  $('uw').style.opacity = UW.k.toFixed(3);
+  if (UW.k > .01) {
+    const depth = clamp((SEA_Y - cp.y) / 9, 0, 1), c = new THREE.Color(0x2fa6b4).lerp(new THREE.Color(0x0a3b66), depth);
+    scene.fog.color.lerp(c, UW.k); scene.background.lerp(c, UW.k);
+    scene.fog.near = scene.fog.near * (1 - UW.k) + .6 * UW.k; scene.fog.far = scene.fog.far * (1 - UW.k) + (46 - depth * 16) * UW.k;
+    UW.bub -= dt; if (UW.bub <= 0 && under) { UW.bub = .12; emit(cp.x + rand(-5, 5), cp.y + rand(-3, 2), cp.z + rand(-5, 5), 0, rand(.6, 1.4), 0, '#cfeeff', .07, 3, -.3, 1); }
+  }
+  if (uwFilter && AC) uwFilter.frequency.setTargetAtTime(under ? 650 : 22000, AC.currentTime, .06);
+  const bar = $('airbar'), show = p && p.alive && G.state === 'play' && p.air != null && p.air < 19.8;
+  bar.classList.toggle('hidden', !show); if (show) { bar.firstElementChild; bar.querySelector('i').style.width = (p.air / 20 * 100).toFixed(0) + '%'; bar.classList.toggle('low', p.air < 6); }
+}
+const CULL = { fr: new THREE.Frustum(), m: new THREE.Matrix4(), sp: new THREE.Sphere() };
+// no se dibuja lo que queda fuera de la cámara (con margen para que las sombras largas no se corten)
+function cityCull() {
+  if (!CITY.cull) return;
+  camera.updateMatrixWorld(); CULL.m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); CULL.fr.setFromProjectionMatrix(CULL.m);
+  const cp = camera.position;
+  for (const mesh of CITY.cull) {
+    const c = mesh.userData.cull; CULL.sp.center.copy(c.center); CULL.sp.radius = c.radius + 40;
+    mesh.visible = CULL.fr.intersectsSphere(CULL.sp) || cp.distanceToSquared(c.center) < (c.radius + 45) ** 2;
+  }
+  if (SEA.root) SEA.root.visible = cp.z > 70;
+}
+// ---- fondo marino, corales, algas, naufragios, peces y boyas (determinista: igual para todos)
+const SEA = { root: null, kelp: null, kelpD: [], fish: null, fishD: [], t: 0 };
+function buildSeaWorld() {
+  const rnd = (() => { let q = 77031; return () => (q = (q * 1664525 + 1013904223) >>> 0) / 4294967296; })();
+  const root = new THREE.Group(); SEA.root = root; scene.add(root);
+  // fondo con vértices de color según la profundidad
+  const seg = [96, 56], geo = new THREE.PlaneGeometry(380, 190, seg[0], seg[1]); geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3), c0 = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = 80 + pos.getZ(i) + 95; pos.setZ(i, z);
+    const d = Math.max(0, z - SHORE(x)), under = z > SHORE(x) - 2; pos.setY(i, under ? seaFloor(x, Math.max(z, SHORE(x))) : -.5);
+    const k = clamp(d / 70, 0, 1); c0.set('#e6d6a4').lerp(new THREE.Color('#8fb0a4'), clamp(d / 30, 0, 1)).lerp(new THREE.Color('#3f6f80'), k * k);
+    c0.multiplyScalar(.9 + .1 * Math.sin(x * .7) * Math.cos(z * .6)); col[i * 3] = c0.r; col[i * 3 + 1] = c0.g; col[i * 3 + 2] = c0.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
+  const bed = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true })); bed.position.x = 0; root.add(bed);
+  // instancias de cubos de colores: corales, rocas, naufragios, conchas
+  const items = [], E = new THREE.Euler(), Q = new THREE.Quaternion(), M = new THREE.Matrix4(), P = new V3(), Sc = new V3();
+  const B = (x, y, z, w, h, d, color, ry = 0, rx = 0, rz = 0) => items.push([x, y, z, w, h, d, color, ry, rx, rz]);
+  const fl = (x, z) => seaFloor(x, z);
+  const pick = a => a[(rnd() * a.length) | 0];
+  const CORAL = ['#ff5f8a', '#ff9a3c', '#c46bff', '#ffd23f', '#4fd0c9', '#ff7a5c', '#7ee081'];
+  for (let n = 0; n < 150; n++) {   // corales: ramas y cerebros
+    const x = (rnd() - .5) * 300, z = SHORE(x) + 8 + rnd() * 140; if (z > 255) continue; const y = fl(x, z), c = pick(CORAL), kind = rnd();
+    if (kind < .45) { for (let b = 0; b < 3 + rnd() * 5; b++) { const bx = x + (rnd() - .5) * 1.6, bz = z + (rnd() - .5) * 1.6, h = .5 + rnd() * 1.6; B(bx, fl(bx, bz) + h / 2, bz, .22, h, .22, c, rnd() * 3, (rnd() - .5) * .4, (rnd() - .5) * .4); if (h > 1) B(bx + .18, fl(bx, bz) + h * .7, bz, .5, .16, .16, c, rnd() * 3); } }
+    else if (kind < .75) { const r = .5 + rnd() * .9; B(x, y + r * .45, z, r * 2, r * .9, r * 2, c, rnd() * 3); B(x, y + r * .95, z, r * 1.4, r * .5, r * 1.4, c, rnd() * 3); }
+    else { for (let b = 0; b < 4; b++) { const a = b / 4 * 6.28, bx = x + Math.cos(a) * .5, bz = z + Math.sin(a) * .5; B(bx, fl(bx, bz) + .55, bz, .5, 1.1 + rnd() * .5, .12, c, a, 0, (rnd() - .5) * .3); } }
+  }
+  for (let n = 0; n < 90; n++) {   // rocas
+    const x = (rnd() - .5) * 320, z = SHORE(x) + 6 + rnd() * 160; if (z > 255) continue; const r = .6 + rnd() * 2.2, g = 100 + (rnd() * 50 | 0), cc = 'rgb(' + g + ',' + (g + 8) + ',' + (g + 14) + ')';
+    B(x, fl(x, z) + r * .4, z, r * 1.6, r * .9, r * 1.3, cc, rnd() * 3, (rnd() - .5) * .3, (rnd() - .5) * .3); if (r > 1.4) B(x + r * .5, fl(x, z) + r * .9, z, r, r * .7, r, cc, rnd() * 3);
+  }
+  for (let n = 0; n < 160; n++) { const x = (rnd() - .5) * 300, z = SHORE(x) + 3 + rnd() * 150; if (z > 255) continue; const y = fl(x, z); if (rnd() < .5) { for (let a = 0; a < 5; a++) B(x + Math.cos(a * 1.25) * .26, y + .04, z + Math.sin(a * 1.25) * .26, .38, .06, .1, '#ff8a3c', a * 1.25); } else B(x, y + .06, z, .26, .12, .2, '#f6e9d0', rnd() * 3); }
+  // naufragios
+  function wreck(x, z, ry, sc, tilt) {
+    const y = fl(x, z), c = (o, ...r) => o;
+    const L = (u, v, w, h, d, col, rr = 0, rx = 0, rz = 0) => { const co = Math.cos(ry), si = Math.sin(ry); B(x + (u * co + w * 0 + v * 0) * 0 + u * co - 0 * si, y + h / 2 + (u * 0), z + u * si, 0, 0, 0, col); items.pop(); };
+    const place = (u, vy, w, h, d, col, extraRy = 0, rx = 0, rz = 0) => { const co = Math.cos(ry), si = Math.sin(ry), px = x + (u * si + w * co) * sc, pz = z + (u * co - w * si) * sc; B(px, y + vy * sc, pz, (Math.abs(w) > 0 && false ? 0 : 1) * 0 + 1, 1, 1, col); items.pop(); items.push([px, y + vy * sc, pz, 0, 0, 0, col, ry + extraRy, rx + tilt * 0, rz + tilt]); return items[items.length - 1]; };
+    const W = '#6b4a2e', D = '#4d331f', G = '#8a6a43';
+    const add = (u, vy, w, sx, sy, sz, col, eRy = 0, rx = 0, rz = 0) => { const it = place(u, vy, w, 0, 0, col, eRy, rx, rz); it[3] = sx * sc; it[4] = sy * sc; it[5] = sz * sc; };
+    add(0, .25, 0, .9, .5, 15, D);                                 // quilla
+    for (let i = -6; i <= 6; i++) { if (rnd() < .22) continue; add(i * 1.1, 1.6, 1.9, .22, 2.8, .26, W, 0, 0, -.5); add(i * 1.1, 1.6, -1.9, .22, 2.8, .26, W, 0, 0, .5); }   // costillas (algunas rotas)
+    for (let i = -6; i <= 6; i++) { if (rnd() < .35) continue; add(i * 1.1, .55, 0, 3.0, .12, .95, G); }   // tablones de la cubierta que quedan
+    add(1.5, 3.4, .4, .32, 6.2, .32, D, 0, .25, .12);                // mástil roto
+    add(-3.5, 2.0, -.3, .26, 4.6, .26, D, 0, -.5, .2); add(1.5, 5.6, .9, 3.4, .14, .14, W, 0, 0, .2);
+    add(5.5, 1.1, 1.2, .7, .7, .7, '#3a3d44'); add(5.9, 1.1, -1.2, .7, .7, .7, '#3a3d44');   // cañones
+    add(-1.5, .75, .4, 1.2, .7, .8, '#9b6a2a'); add(-1.5, 1.14, .4, 1.25, .12, .85, '#e6b73c');   // cofre con tapa dorada
+    for (let i = 0; i < 9; i++) add(-1.5 + (rnd() - .5) * 2.6, .15, .4 + (rnd() - .5) * 2.4, .3, .06, .3, '#ffd23f');   // monedas
+    add(-6.8, .5, -1.4, .15, 1.5, .15, '#555a60', 0, 0, .8); add(-6.8, .2, -1.4, 1.1, .12, .15, '#555a60');   // ancla
+  }
+  wreck(-58, SHORE(-58) + 44, .5, 1, .1); wreck(46, SHORE(46) + 70, 2.4, 1.15, -.18); wreck(-12, SHORE(-12) + 118, 1.2, 1.7, .22); wreck(98, SHORE(98) + 38, 4, .8, .06); wreck(-110, SHORE(-110) + 96, 3.3, 1.3, -.12);
+  // arco de roca y círculo de piedras antiguas
+  for (let i = -3; i <= 3; i++) { const x = 20 + i * 2.2, z = SHORE(x) + 56, h = 6 - Math.abs(i) * 1.1; B(x, fl(x, z) + h / 2, z, 2.2, h, 2.4, '#7d848c', 0, 0, i * .03); }
+  for (let a = 0; a < 8; a++) { const x = 112 + Math.cos(a * .785) * 6, z = SHORE(112) + 80 + Math.sin(a * .785) * 6; B(x, fl(x, z) + 1.2, z, .9, 2.4 + (a % 3) * .5, .9, '#8c8f86'); }
+  const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xffffff }), items.length); inst.frustumCulled = false;
+  const cc = new THREE.Color();
+  items.forEach((it, i) => { E.set(it[8], it[7], it[9], 'YXZ'); Q.setFromEuler(E); M.compose(P.set(it[0], it[1], it[2]), Q, Sc.set(it[3], it[4], it[5])); inst.setMatrixAt(i, M); inst.setColorAt(i, cc.set(it[6])); });
+  inst.instanceColor.needsUpdate = true; root.add(inst);
+  // algas que se mecen
+  const KN = 260, kg = new THREE.BoxGeometry(1, 1, 1); kg.translate(0, .5, 0);
+  SEA.kelp = new THREE.InstancedMesh(kg, new THREE.MeshLambertMaterial({ color: 0xffffff }), KN); SEA.kelp.frustumCulled = false;
+  for (let n = 0; n < KN; n++) { const cx = (rnd() - .5) * 300, cz = SHORE(cx) + 10 + rnd() * 150; const z = Math.min(cz, 250); SEA.kelpD.push({ x: cx, z, y: fl(cx, z) - .1, h: 2.2 + rnd() * 6, w: .16 + rnd() * .12, ph: rnd() * 6 }); SEA.kelp.setColorAt(n, cc.setHSL(.27 + rnd() * .1, .6, .28 + rnd() * .14)); }
+  SEA.kelp.instanceColor.needsUpdate = true; root.add(SEA.kelp);
+  // peces en cardúmenes
+  const FN = 130, fgm = new THREE.BoxGeometry(1, 1, 1); SEA.fish = new THREE.InstancedMesh(fgm, new THREE.MeshLambertMaterial({ color: 0xffffff }), FN); SEA.fish.frustumCulled = false;
+  const schools = []; for (let n = 0; n < 9; n++) { const x = (rnd() - .5) * 240, z = SHORE(x) + 20 + rnd() * 140; schools.push({ x, z, y: fl(x, z) + 2 + rnd() * 3.5, r: 3 + rnd() * 5, sp: .25 + rnd() * .3, c: pick(['#ffb347', '#59c3ff', '#ff6f91', '#f9f871', '#9be564']) }); }
+  for (let n = 0; n < FN; n++) { const sc = schools[n % schools.length]; SEA.fishD.push({ s: sc, a: rnd() * 6.28, o: rnd() * 1.4 - .7, dy: (rnd() - .5) * 1.6, sz: .3 + rnd() * .22 }); SEA.fish.setColorAt(n, cc.set(sc.c).offsetHSL(0, 0, (rnd() - .5) * .1)); }
+  SEA.fish.instanceColor.needsUpdate = true; root.add(SEA.fish);
+  // boyas en el borde del mar
+  for (let x = -160; x <= 160; x += 20) { const bz = 258; const b = new THREE.Mesh(new THREE.BoxGeometry(.7, 1.1, .7), new THREE.MeshLambertMaterial({ color: (x / 20) % 2 ? 0xe84a4a : 0xffffff })); b.position.set(x, SEA_Y + .2, bz); b.userData.buoy = x; scene.add(b); (SEA.buoys || (SEA.buoys = [])).push(b); }
+}
+function updateSea(dt) {
+  if (!SEA.root || !SEA.root.visible) return; SEA.t += dt; const t = SEA.t, cp = camera.position;
+  if (cp.z < 80) return;
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), P = new V3(), S = new V3();
+  SEA.kelpD.forEach((k, i) => { const dx = k.x - cp.x, dz = k.z - cp.z; if (dx * dx + dz * dz > 6400) { if (!k.hid) { S.set(0, 0, 0); M.compose(P.set(k.x, k.y, k.z), Q.identity(), S); SEA.kelp.setMatrixAt(i, M); k.hid = true; SEA.kelpDirty = true; } return; } k.hid = false; E.set(Math.sin(t * 1.3 + k.ph) * .13, 0, Math.cos(t * 1.1 + k.ph * 1.7) * .13); Q.setFromEuler(E); M.compose(P.set(k.x, k.y, k.z), Q, S.set(k.w, k.h, k.w)); SEA.kelp.setMatrixAt(i, M); });
+  SEA.kelp.instanceMatrix.needsUpdate = true;
+  SEA.fishD.forEach((f, i) => { const s = f.s, a = f.a + t * s.sp, r = s.r + f.o; const x = s.x + Math.cos(a) * r, z = s.z + Math.sin(a) * r, y = s.y + f.dy + Math.sin(t * 2 + i) * .15; E.set(0, -a, 0); Q.setFromEuler(E); M.compose(P.set(x, y, z), Q, S.set(.14, f.sz * .75, f.sz * 1.6)); SEA.fish.setMatrixAt(i, M); });
+  SEA.fish.instanceMatrix.needsUpdate = true;
+  if (SEA.buoys) for (const b of SEA.buoys) { b.position.y = SEA_Y + .2 + Math.sin(t * 1.2 + b.userData.buoy) * .08; b.rotation.z = Math.sin(t + b.userData.buoy) * .08; }
+}
+function seaBounds(v) {   // el mar y la costa: caja ancha en vez del círculo de la ciudad
+  if (v.z <= 66 || Math.abs(v.x) > 175) return false;
+  v.x = clamp(v.x, -168, 168); v.z = Math.min(v.z, 262); return true;
+}
 function physics(f, dt) {
   if (f.mount && (f.mount.phase === 'climb' || f.mount.phase === 'ride')) { f.vel.set(0, 0, 0); f.onGround = true; return; }
   // La pista dirige el cuerpo durante la toma; la gravedad vuelve al soltarlo.
   if (f.choreTrack) { f.onGround = f.pos.y <= groundAt(f.pos.x, f.pos.z) + .02; return; }
   const a = f.action;
   if (f.frozen > 0) { f.vel.x = f.vel.z = 0; }
-  if(!(f.rFlightT>0&&canSekzaSpecial(f)))f.vel.y -= 32 * G.rules.grav * dt;
+  { // ¿está en aguas hondas? (no sobre el muelle ni en la orilla)
+    const gz = groundAt(f.pos.x, f.pos.z, f.pos.y), was = !!f.swim;
+    f.swim = f.alive && f.pos.z > SHORE(f.pos.x) + .2 && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
+    f.wade = !f.swim && f.pos.z > SHORE(f.pos.x) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
+    if (f.swim !== was && f.alive) { splashFx(f); if (f.isPlayer && f.swim && !G.swimHint) { G.swimHint = true; showBanner('NADANDO', '#7ad7ff', 'Espacio sube · C baja · cuida tu aire'); } }
+    if (f.swim) {
+      const surf = SEA_Y - 1.2, up = f.ctlJump, dn = f.ctlDown;
+      const tv = up ? 3.4 : dn ? -3.6 : (surf - f.pos.y) * 2.4;
+      f.vel.y += (tv - f.vel.y) * Math.min(1, dt * 5); f.vel.x *= Math.exp(-1.6 * dt); f.vel.z *= Math.exp(-1.6 * dt);
+      if (f.pos.y > surf + .35 && f.vel.y > 0 && !up) f.vel.y *= .4;
+    }
+    // aire: 20 s bajo el agua; sin aire, daño
+    f.air = f.air == null ? 20 : f.air;
+    if (f.alive && f.pos.y + 1.7 < SEA_Y - .05 && f.pos.z > SHORE(f.pos.x)) {
+      f.air -= dt;
+      if (f.air <= 0) { f.air = 0; f.airT = (f.airT || 0) + dt; if (f.airT > 1) { f.airT = 0; f.hp -= 4; popText(chestOf(f), '¡SIN AIRE!', '#7ad7ff', 18); if (f.hp <= 0 && f.alive) kill(f, f); } }
+    } else f.air = Math.min(20, f.air + dt * 9);
+    if (f.swim && f.alive && Math.random() < dt * (Math.hypot(f.vel.x, f.vel.z) > 1 ? 7 : 2.5) && f.pos.y + 1.2 < SEA_Y) emit(f.pos.x + rand(-.2, .2), f.pos.y + 1.4, f.pos.z + rand(-.2, .2), rand(-.3, .3), rand(.8, 1.6), rand(-.3, .3), '#cfeeff', .1, 1.4, -.5, 1);
+  }
+  if(!(f.rFlightT>0&&canSekzaSpecial(f))&&!f.swim)f.vel.y -= 32 * G.rules.grav * dt;
   const free = f.dashT > 0 || (a && a.noControl);
   if (!free && (f.stun > 0 || f.ragdoll > 0 || !f.alive)) { const fr = f.onGround ? Math.exp(-(f.ragdoll > 0 ? 2.3 : 5) * dt) : Math.exp(-.5 * dt); f.vel.x *= fr; f.vel.z *= fr; }
   f.pos.addScaledVector(f.vel, dt);
@@ -9642,7 +9793,8 @@ function physics(f, dt) {
     }
   }
   const r = Math.hypot(f.pos.x, f.pos.z);
-  if (r > ARENA - .5) {
+  if (seaBounds(f.pos)) { /* zona del mar */ }
+  else if (r > ARENA - .5) {
     const nx = f.pos.x / r, nz = f.pos.z / r; f.pos.x = nx * (ARENA - .5); f.pos.z = nz * (ARENA - .5);
     const vn = f.vel.x * nx + f.vel.z * nz;
     if (vn > 0) { const b = f.ragdoll > 0 ? 1.7 : 1; f.vel.x -= vn * b * nx; f.vel.z -= vn * b * nz; if (f.ragdoll > 0 && vn > 9) { burst(chestOf(f), 18, '#8b8b8b', 8, .25, .6); shakeFrom(f.pos, .4); sfx('heavy', f.pos, .6); worldDamage(chestOf(f), 1.6 * (f.ragPow || 1), .8); } }
@@ -9806,6 +9958,12 @@ function animate(f, dt) {
   else if (f.forcePose) { pose = POSE[f.forcePose]; k = 1000; z = .4; }
   else if (f.hurtT > 0) { pose = POSE[f.hurtPose]; k = 900; z = .45; }
   else if (f.grabbed) { pose = POSE.hurtA; k = 400; }
+  else if (f.swim && f.stun <= 0 && !a) {   // nadando: crol al avanzar, patadas flotando al estar quieto
+    const ph = T * 6.5 + f.seed, mv = sp > 1.2;
+    pose = mv ? { ix: 1.25, tx: -.15, hx: -.85, alx: -2.45 + Math.sin(ph) * 1.0, arx: -2.45 + Math.sin(ph + Math.PI) * 1.0, alz: .1, arz: -.1, llx: Math.sin(ph * 2) * .4, lrx: -Math.sin(ph * 2) * .4, by: -2 }
+              : { ix: 0, tx: .05, hx: -.1, alx: -.4 + Math.sin(ph * .5) * .3, arx: -.4 - Math.sin(ph * .5) * .3, alz: -.8, arz: .8, llx: Math.sin(ph) * .5, lrx: -Math.sin(ph) * .5, by: -1 + Math.sin(T * 2) * .5 };
+    if (f.vel.y < -1.5 && !mv) pose = Object.assign({}, pose, { ix: .5, hx: .3 }); k = 140; z = .7;
+  }
   else if (f.stun > 0) { pose = dizzyPose(T); k = 220; z = .6; }
   else if (a) {
     if (a.procedural === 'barrage') { pose = barragePose(T); k = 1400; z = .5; }
@@ -9989,7 +10147,8 @@ function sharpenTextures() {
   const mx = renderer.capabilities.getMaxAnisotropy ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4, seen = new Set();
   scene.traverse(o => {
     const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
-    for (const m of ms) for (const k of ['map', 'emissiveMap']) { const t = m[k]; if (!t || seen.has(t)) continue; seen.add(t); t.magFilter = THREE.NearestFilter; t.anisotropy = mx; t.needsUpdate = true; }
+    for (const m of ms) for (const k of ['map', 'emissiveMap']) { const t = m[k]; if (!t || seen.has(t) || !t.image || t.image.width < 256) continue;   // solo atlas y texturas grandes de la ciudad: las skins de los jugadores no se tocan
+       seen.add(t); t.magFilter = THREE.NearestFilter; t.anisotropy = mx; t.needsUpdate = true; }
   });
 }
 // ================= Calidad gráfica adaptable =================
@@ -10184,7 +10343,7 @@ function updateCamera(dt) {
   cam.roomDist=(cam.roomDist||cam.dist)+((inside?Math.min(4.3,cam.dist):cam.dist)-(cam.roomDist||cam.dist))*Math.min(1,dt*9);
   cam.shoulder += ((inside?.55:G.shiftLock?1.35:.85)-(cam.shoulder||.85))*Math.min(1,dt*8);
   const pos = cam.focus.clone().addScaledVector(dir, -cam.roomDist).addScaledVector(R, cam.shoulder);
-  pos.y = Math.max(.4, pos.y);
+  pos.y = Math.max(p.swim ? -8.5 : .4, pos.y);
   const wallT=citySegment(cam.focus,pos,.23,true);
   if(wallT<1)pos.copy(cam.focus).lerp(pos,Math.max(0,wallT-.04));
   camera.position.copy(pos);
@@ -12274,7 +12433,7 @@ function titleStart() {
   TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; G.state = 'title';
   $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight); }   // el inicio siempre a máxima nitidez
    $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
-  TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode };
+  TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode }; if (bloomPass) { TITLE.bloom = bloomPass.enabled; bloomPass.enabled = false; }   // sin bloom en el inicio: difuminaba las siluetas
   WX.mode = 'clear'; WX.hour = 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado
   titleBuild(); titleAudio(true);
 }
@@ -12289,7 +12448,7 @@ function titleBuild() {
   TITLE.fig = fig; for (const j of JOINTS) fig.anim.x[j] = JDEF[j] || 0; TITLE.baseIdx = -1;
 }
 function titleFinish() {
-  if (!TITLE.on) return; TITLE.on = false;
+  if (!TITLE.on) return; TITLE.on = false; if (bloomPass && TITLE.bloom != null) bloomPass.enabled = TITLE.bloom;
   WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
   if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0;
@@ -12668,7 +12827,7 @@ function loop(now){
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
   frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>updateCamera(rdt));
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
-  frameTask('playa',()=>updateBeach(rdt));frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
+  frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('culling',()=>cityCull());frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
   frameTask('voces',()=>updateCharacterVoices());
   frameTask('interfaz',()=>updateHUD(rdt));frameTask('lineas',()=>drawLines(rdt));
@@ -12677,6 +12836,7 @@ function loop(now){
   finally{drawFrameSafely();}
 }
 
+buildSeaWorld();
 initWeatherControls();
 initPauseAudioControls();
 gfxInit();

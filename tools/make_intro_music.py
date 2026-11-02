@@ -45,13 +45,13 @@ def env(n, a=.01, d=.3, s=0.0, r=.05):
 def rhodes(f, dur, vel=1.0):
     n = int(SR * dur); t = np.arange(n) / SR
     tine = np.sin(2 * np.pi * f * t + 1.6 * np.exp(-t * 7) * np.sin(2 * np.pi * f * 14 * t)) * np.exp(-t * 5.5)   # parte metálica del ataque
-    body = (np.sin(2 * np.pi * f * t) + .35 * np.sin(2 * np.pi * f * 2 * t) * np.exp(-t * 2) + .12 * np.sin(2 * np.pi * f * 3 * t) * np.exp(-t * 3))
+    body = (np.sin(2 * np.pi * f * t) + .55 * np.sin(2 * np.pi * f * 2 * t) * np.exp(-t * 1.6) + .33 * np.sin(2 * np.pi * f * 3 * t) * np.exp(-t * 2.4) + .2 * np.sin(2 * np.pi * f * 4 * t) * np.exp(-t * 3.2))
     trem = 1 + .12 * np.sin(2 * np.pi * 4.6 * t)
-    return (body * env(n, .006, 1.4, .25, .25) * trem + tine * .25) * vel * .22
+    return (body * env(n, .006, 1.4, .25, .25) * trem + tine * .45) * vel * .14
 
 def bass(f, dur):
     n = int(SR * dur); t = np.arange(n) / SR
-    return (np.sin(2 * np.pi * f * t) + .45 * np.sin(2 * np.pi * f * 2 * t) * np.exp(-t * 5)) * env(n, .01, .45, .15, .08) * .3
+    return (np.sin(2 * np.pi * f * t) + .6 * np.sin(2 * np.pi * f * 2 * t) * np.exp(-t * 4)) * env(n, .01, .4, .1, .08) * .4
 
 def pluck(f, dur, vel=1.0):
     n = int(SR * dur); t = np.arange(n) / SR
@@ -60,8 +60,8 @@ def pluck(f, dur, vel=1.0):
 
 def kick(vel=1.0):
     n = int(SR * .35); t = np.arange(n) / SR
-    f = 62 + 70 * np.exp(-t * 30)
-    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 11) * .5 * vel
+    f = 70 + 80 * np.exp(-t * 34)
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 14) * .38 * vel
 
 def snare(vel=1.0):
     n = int(SR * .28); t = np.arange(n) / SR
@@ -72,7 +72,7 @@ def snare(vel=1.0):
 def hat(vel=1.0):
     n = int(SR * .07); t = np.arange(n) / SR
     noise = np.diff(rng.standard_normal(n + 1))
-    return noise * np.exp(-t * 70) * .22 * vel
+    return noise * np.exp(-t * 60) * .45 * vel
 
 # ---- batería con swing
 SW = .12
@@ -100,10 +100,10 @@ for bar, name in enumerate(PROG):
     b0 = bar * BAR
     f0 = hz(root, octv)
     for k, semi in enumerate(voicing):
-        add(rhodes(f0 * 2 ** (semi / 12), BAR * .98, .75 + .05 * k), b0 + k * .028 + (SW * BEAT * .3 if bar % 2 else 0), -.25 + .17 * k, 1.0)
+        add(rhodes(2 * f0 * 2 ** (semi / 12), BAR * .98, .75 + .05 * k), b0 + k * .028 + (SW * BEAT * .3 if bar % 2 else 0), -.25 + .17 * k, 1.0)
     if bar % 2 == 1 and bar > 3:   # repetición suave del acorde a contratiempo
         for k, semi in enumerate(voicing[:3]):
-            add(rhodes(f0 * 2 ** (semi / 12), BEAT * 1.2, .35), b0 + 2.5 * BEAT + k * .02, -.1 + .12 * k, .6)
+            add(rhodes(2 * f0 * 2 ** (semi / 12), BEAT * 1.2, .35), b0 + 2.5 * BEAT + k * .02, -.1 + .12 * k, .6)
     add(bass(f0 if octv > 2 else f0 * 2, BEAT * 1.9), b0, 0, 1.0)
     add(bass(f0 if octv > 2 else f0 * 2, BEAT * 1.2), b0 + 2.5 * BEAT, 0, .8)
     for (tb, nn, oc, d) in MELODY.get(bar, []):
@@ -124,7 +124,12 @@ ir = rng.standard_normal(ir_n) * np.exp(-t * 2.4); ir = np.convolve(ir, np.ones(
 def conv(x):
     m = len(x) + ir_n; Nf = 1 << (m - 1).bit_length()
     return np.fft.irfft(np.fft.rfft(x, Nf) * np.fft.rfft(ir, Nf), Nf)[:len(x)]
-wet = np.stack([conv(buf[:, 0]), conv(buf[:, 1] if True else buf[:, 1])], 1) * .03
+wet = np.stack([conv(buf[:, 0]), conv(buf[:, 1])], 1) * .04
+def _lp(x, fc):
+    a = np.exp(-2 * np.pi * fc / SR); y = np.zeros_like(x); s_ = 0.0
+    for i in range(len(x)): s_ = (1 - a) * x[i] + a * s_; y[i] = s_
+    return y
+for ch in (0, 1): wet[:, ch] = wet[:, ch] - _lp(wet[:, ch], 350)   # la reverb sin graves: no embarra
 mix = buf + wet
 # filtro paso bajo suave (cinta) y saturación
 def lowpass(x, fc):
@@ -133,8 +138,7 @@ def lowpass(x, fc):
     return y
 def highpass(x, fc):   # quita el retumbo grave
     return x - lowpass(x, fc)
-for ch in (0, 1): mix[:, ch] = lowpass(highpass(mix[:, ch], 70), 5200)
-mix = np.tanh(mix * .9) / .9
+for ch in (0, 1): mix[:, ch] = lowpass(highpass(mix[:, ch], 110), 9500)
 # bucle sin corte: la cola del final se suma al principio
 mix[:tail] += mix[L:L + tail]; mix = mix[:L]
 fade = int(SR * .02); mix[:fade] *= np.linspace(0, 1, fade)[:, None]; mix[-fade:] *= np.linspace(1, 0, fade)[:, None]
