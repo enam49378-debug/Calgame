@@ -5403,9 +5403,25 @@ function musicNextFight() { const n = MUS.tracks.fight.length; let i; do { i = M
 function updateMusic(dt) {
   const want = G.state === 'menu' ? 'menu' : (G.state === 'play' || G.over) ? 'fight' : '';
   if (want !== MUS.want) { MUS.want = want; if (want === 'menu') musicPlay(MUS.tracks.menu, true); else if (want === 'fight') musicNextFight(); }
-  const duck = (G.paused ? .45 : 1) * ((G.cine || STAGE.on) ? .4 : 1), target = MUS.on ? MUS.vol * duck * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100 : 0;
+  const um = ULT_MUS.el;
+  if (um && um.ended) { ULT_MUS.el = null; } else if (um && (G.state !== 'play' || G.over || !MUS.on)) ULT_MUS.fade = true;
+  if (um && ULT_MUS.el) { const ut = ULT_MUS.fade ? 0 : MUS.vol * 1.25 * (G.paused ? .45 : 1) * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100; um.volume = clamp(um.volume + clamp(clamp(ut, 0, 1) - um.volume, -dt * 1.2, dt), 0, 1); if (ULT_MUS.fade && um.volume <= .01) { um.pause(); ULT_MUS.el = null; } }
+  const duck = (G.paused ? .45 : 1) * ((G.cine || STAGE.on) && !ULT_MUS.el ? .4 : 1) * (ULT_MUS.el && !ULT_MUS.fade ? .12 : 1), target = MUS.on ? MUS.vol * duck * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100 : 0;
   if (MUS.el) { const d = target - MUS.el.volume; MUS.el.volume = clamp(MUS.el.volume + clamp(d, -dt * .6, dt * .35), 0, 1); }
   if (MUS.old) { MUS.old.volume = Math.max(0, MUS.old.volume - dt * .9); if (MUS.old.volume <= .01) { MUS.old.pause(); MUS.old = null; } }
+}
+// música de la ulti: tema propio de cada personaje encima de la pelea (la de pelea baja mientras suena)
+const ULT_MUS = { el: null, pre: null, fade: false };
+function ultMusicPreload(id) { try { const el = new Audio('musica/ulti/' + id + '.mp3'); el.preload = 'auto'; el.__id = id; ULT_MUS.pre = el; } catch (e) { } }
+function ultMusic(id) {
+  if (!MUS.on || !CHARS[id]) return;
+  if (ULT_MUS.el) { ULT_MUS.el.pause(); ULT_MUS.el = null; }
+  const el = ULT_MUS.pre && ULT_MUS.pre.__id === id ? ULT_MUS.pre : new Audio('musica/ulti/' + id + '.mp3');
+  ULT_MUS.pre = null; ultMusicPreload(id);   // la próxima ulti ya queda cargada
+  el.currentTime = 0; el.volume = clamp(MUS.vol * 1.25 * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100, 0, 1); ULT_MUS.fade = false;
+  const pr = el.play(); if (pr && pr.catch) pr.catch(() => { });
+  el.addEventListener('ended', () => { if (ULT_MUS.el === el) ULT_MUS.el = null; });
+  ULT_MUS.el = el;
 }
 function musicKick() { if (MUS.el && MUS.el.paused && MUS.on) { const pr = MUS.el.play(); if (pr && pr.catch) pr.catch(() => { }); } }
 addEventListener('pointerdown', musicKick, true); addEventListener('keydown', musicKick, true);
@@ -9365,7 +9381,7 @@ function useUlt(f) {
   if (f.ult < 100) return;
   prepWeapon(f);
   if (f.awak > 0) return;
-  f.ult = 0; if (f.isPlayer) statsUlt(f);
+  f.ult = 0; if (f.isPlayer) { statsUlt(f); ultMusic(f.ch.id); }
   if (f.isPlayer && !ownsMissingSpear(f)) { startCine(f); return; }   // sin lanza no hay cinemática: despierta directo
   runUlt(f);
   if (involvesPlayerNear(f)) miniCut(f);
@@ -10710,7 +10726,7 @@ async function startMatch() {
   $('hud').classList.remove('hidden'); $('menu').classList.add('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden'); $('death').classList.add('hidden');
   $('ailbl').textContent = G.mp ? 'Sala' : 'IA nivel';
   showBanner('¡A PELEAR!', '#d7ff2f', G.mp ? CITY.name + ' · Sala con amigos' : `${CITY.name} · Primero en ${G.goal} K.O.`);
-  statsMatch(G.charId, G.mp);
+  statsMatch(G.charId, G.mp); ultMusicPreload(p.ch.id);
   if (G.mp) netSendPlay();
 }
 function toMenu() {
