@@ -154,6 +154,23 @@ body.cine #hud{opacity:0}
 #book .bk-tabs button{background:#1a1c26;color:var(--muted);border:0;padding:9px 18px;font:700 14px var(--body);cursor:pointer;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
 #book .bk-tabs button.on{background:var(--hot);color:#000}#book .bk-tabs button:disabled{opacity:.55;cursor:default}
 #book .bk-tabs small{font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-left:4px}
+#book .bk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px;overflow:auto}
+#book .bk-grid.hidden,#book .bk-sub.hidden,#book .bk-body.hidden{display:none}
+#book .bk-grid button{display:flex;flex-direction:column;align-items:center;gap:6px;background:#161822;border:0;border-bottom:3px solid var(--cc);color:var(--ink);padding:14px 8px 12px;cursor:pointer;font:inherit;transition:transform .12s,background .12s}
+#book .bk-grid button:hover{background:#20233a;transform:translateY(-3px)}
+#book .bk-grid canvas{width:64px;height:64px;image-rendering:pixelated;box-shadow:0 0 0 2px var(--cc)}
+#book .bk-grid b{font-family:var(--display);font-style:italic;font-size:19px}#book .bk-grid small{color:var(--cc);font-size:11px;letter-spacing:.12em;font-weight:700}
+#book .bk-sub{display:flex;align-items:center;gap:14px;padding:0 18px 10px}
+#book .bk-sub button{background:#1a1c26;border:0;color:var(--ink);padding:7px 14px;font:700 13px var(--body);cursor:pointer}#book .bk-sub button:hover{background:#262a3c}
+#bk-chname{font-family:var(--display);font-style:italic;font-size:22px;display:flex;align-items:center;gap:8px}#bk-chname i{width:10px;height:22px;display:inline-block}
+#bk-chname small{font-family:var(--body);font-style:normal;font-size:12px;color:var(--muted);letter-spacing:.06em}
+#book .bk-list .bk-grp{padding:10px 2px 4px;display:flex;flex-direction:column}#book .bk-list .bk-grp:first-child{padding-top:0}
+#book .bk-list .bk-grp b{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--hot)}#book .bk-list .bk-grp small{font-size:11px;color:var(--muted)}
+#book .bk-tags{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}#book .bk-tags span{font-size:11px;font-weight:700;letter-spacing:.05em;padding:3px 8px;background:#262a3c;color:#cfd6ff;border-radius:3px}
+#book .bk-keys span{color:var(--muted)}
+#book .bk-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 12px;font-size:13px;background:#0e1018;padding:10px 12px;border-left:3px solid var(--hot)}
+#book .bk-facts dt{color:var(--muted)}#book .bk-facts dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+#book .bk-tip{font-size:13px;line-height:1.5;background:#1a1d2b;padding:10px 12px;border-radius:4px}#book .bk-tip b{display:block;color:var(--hot);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
 #book .bk-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) 230px;gap:14px;padding:0 18px 18px;min-height:0;flex:1}
 #book .bk-prev{position:relative;min-height:300px;background:radial-gradient(ellipse at 50% 70%,#2a2f45 0%,#11131c 70%);border:1px solid #ffffff14;overflow:hidden}
 #book .bk-prev canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -463,8 +480,10 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="book" class="hidden" role="dialog" aria-modal="true" aria-labelledby="book-title">
   <div class="bk-box">
     <div class="bk-head"><h2 id="book-title">GUÍA DE COMBATE</h2><button type="button" class="bk-x" id="book-x" aria-label="Cerrar">✕</button></div>
-    <div class="bk-tabs" role="tablist"><button type="button" class="on" data-bk="basic" role="tab">Combate básico</button><button type="button" data-bk="skills" role="tab" disabled>Habilidades <small>pronto</small></button></div>
-    <div class="bk-body">
+    <div class="bk-tabs" role="tablist"><button type="button" class="on" data-bk="basic" role="tab">Combate básico</button><button type="button" data-bk="skills" role="tab">Habilidades</button></div>
+    <div class="bk-grid hidden" id="bk-grid" aria-label="Elegí un personaje"></div>
+    <div class="bk-sub hidden" id="bk-sub"><button type="button" id="bk-back">← Personajes</button><span id="bk-chname"></span></div>
+    <div class="bk-body" id="bk-body">
       <div class="bk-prev"><canvas id="bk-cv"></canvas><div id="bk-pops"></div></div>
       <div class="bk-info" id="bk-info"></div>
       <ol class="bk-list" id="bk-list"></ol>
@@ -13547,7 +13566,7 @@ function mmDraw() {
 setInterval(mmDraw, 66);
 
 // ===== Libro: guía de combate básico con vista previa en 3D =====
-const CB = { open: false, idx: 0, r: null, scene: null, cam: null, a: null, v: null, t: 0, last: 0, raf: 0, fx: [], paused: false };
+const CB = { open: false, mode: 'basic', E: null, idx: 0, r: null, scene: null, cam: null, a: null, v: null, t: 0, last: 0, raf: 0, fx: [], paused: false };
 const CB_BASIC = [
   { id: 'move', n: 'Moverse', keys: ['W', 'A', 'S', 'D'], d: 'Caminá y corré por la ciudad. La cámara se mueve con el mouse y el personaje va hacia donde apuntás.',
     tips: ['Correr en diagonal no es más rápido: elegí bien el camino.', 'En el mar nadás; con <b>Espacio</b> subís y con <b>Shift</b> bajás.'], len: 3.2, solo: true,
@@ -13612,20 +13631,28 @@ function cbFig(skin, slim, ch) {
   if (WEAPONS[ch.weapon]) { f.spear = WEAPONS[ch.weapon](); m.mats.push(f.spear.material); setSpear(f, true); }
   return f;
 }
-function cbBuild() {
-  if (CB.r) return true;
-  const cv = $('bk-cv');
-  try { CB.r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { CB.r = null; return false; }
-  CB.r.setPixelRatio(Math.min(2, devicePixelRatio || 1)); CB.r.outputEncoding = renderer.outputEncoding; CB.r.toneMapping = renderer.toneMapping; CB.r.toneMappingExposure = 1.05;
-  CB.scene = new THREE.Scene();
-  CB.scene.add(new THREE.HemisphereLight(0xffffff, 0x30344a, .95));
-  const key = new THREE.DirectionalLight(0xffffff, .85); key.position.set(3, 6, 5); CB.scene.add(key);
-  const fl = new THREE.Mesh(new THREE.CircleGeometry(4.2, 48), new THREE.MeshBasicMaterial({ color: 0x1b1f2d, transparent: true, opacity: .85 })); fl.rotation.x = -Math.PI / 2; CB.scene.add(fl);
-  const rg = new THREE.Mesh(new THREE.RingGeometry(4.1, 4.2, 64), glowMat('#d7ff2f', .5)); rg.rotation.x = -Math.PI / 2; rg.position.y = .01; CB.scene.add(rg);
-  CB.cam = new THREE.PerspectiveCamera(32, 1, .1, 60);
-  const me = G.player, id = me ? me.ch.id : G.charId, ch = CHARS[id] || CHARS.javi;
-  CB.a = cbFig(me && me.skin ? me.skin : charSkin(ch.id), me && me.skin && G.customSkin ? !!G.customSlim : !!ch.slim, ch);
-  CB.v = cbFig(makeSkinCanvas(DUMMY_CH.skin), false, DUMMY_CH);
+function cbFighter(id) {
+  const me = G.player && G.player.ch.id === id ? G.player : null, ch = CHARS[id] || CHARS.javi;
+  return cbFig(me && me.skin ? me.skin : charSkin(ch.id), me && me.skin && G.customSkin ? !!G.customSlim : !!ch.slim, ch);
+}
+// escena propia de la vista previa (otro canvas y otro renderer: no toca la pelea de fondo)
+function cbBuild(id, swap) {
+  id = id || (G.player ? G.player.ch.id : G.charId);
+  if (CB.r && CB.a && (!swap || CB.a.ch.id === id)) return true;
+  if (!CB.r) {
+    const cv = $('bk-cv');
+    try { CB.r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { CB.r = null; return false; }
+    CB.r.setPixelRatio(Math.min(2, devicePixelRatio || 1)); CB.r.outputEncoding = renderer.outputEncoding; CB.r.toneMapping = renderer.toneMapping; CB.r.toneMappingExposure = 1.05;
+    CB.scene = new THREE.Scene();
+    CB.scene.add(new THREE.HemisphereLight(0xffffff, 0x30344a, .95));
+    const key = new THREE.DirectionalLight(0xffffff, .85); key.position.set(3, 6, 5); CB.scene.add(key);
+    const fl = new THREE.Mesh(new THREE.CircleGeometry(5.2, 48), new THREE.MeshBasicMaterial({ color: 0x1b1f2d, transparent: true, opacity: .85 })); fl.rotation.x = -Math.PI / 2; CB.scene.add(fl);
+    const rg = new THREE.Mesh(new THREE.RingGeometry(5.1, 5.2, 64), glowMat('#d7ff2f', .5)); rg.rotation.x = -Math.PI / 2; rg.position.y = .01; CB.scene.add(rg);
+    CB.cam = new THREE.PerspectiveCamera(32, 1, .1, 120);
+    CB.v = cbFig(makeSkinCanvas(DUMMY_CH.skin), false, DUMMY_CH);
+  }
+  if (CB.a) { try { disposeModel(CB.a.model); } catch (e) { } }
+  CB.a = cbFighter(id);
   return true;
 }
 function cbDispose() {
@@ -13638,24 +13665,40 @@ function cbDispose() {
   CB.r = null; CB.scene = null;
 }
 function cbReset() {
-  const E = CB_BASIC[CB.idx], P = { a: CB.a, v: CB.v, E }; CB.P = P; CB.t = 0; CB.done = new Set();
-  for (const f of [CB.a, CB.v]) { f.vx = f.vy = f.vz = 0; f.hurt = 0; f.dizzy = 0; f.pose = null; f.trk = null; f.air = false; f.direct = false; f.sy = 1; f.hitT = 0; f.walkBack = false; f.anim.reset(); f.anim.bbR6 = false; }
-  CB.a.pos.set(E.solo ? 0 : -1.05, 0, 0); CB.a.yaw = Math.PI / 2;
-  CB.v.pos.set(1.05, 0, 0); CB.v.yaw = -Math.PI / 2; CB.v.model.root.visible = !E.solo;
+  const E = CB.E; if (!E || !CB.a) return;
+  const P = { a: CB.a, v: CB.v, E }; CB.P = P; CB.t = 0; CB.done = new Set();
+  for (const e of CB.fx) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); } CB.fx = [];
+  for (const f of [CB.a, CB.v]) { f.vx = f.vy = f.vz = 0; f.hurt = 0; f.dizzy = 0; f.pose = null; f.trk = null; f.bb = null; f.air = false; f.direct = false; f.sy = 1; f.hitT = 0; f.walkBack = false; f.dashUntil = 0; f.ctrk = null; f.released = false; f.anim.reset(); f.anim.bbR6 = false; }
+  const gap = E.gap || 1.05;
+  CB.a.pos.set(E.solo ? 0 : -gap, 0, 0); CB.a.yaw = Math.PI / 2;
+  CB.v.pos.set(gap, 0, 0); CB.v.yaw = -Math.PI / 2; CB.v.model.root.visible = !E.solo;
   if (E.swap) { CB.a.pos.x = -.95; CB.v.pos.x = 1.15; }
+  if (E.chore) {
+    const D = E.chore, a = CB.a, v = CB.v;
+    CB.origin = new V3(-.9, 0, 0); CB.oyaw = Math.PI / 2;
+    a.ctrk = D.bbPreview ? javiBBTrack(D.bbPreview, D.bbKey || 'javi') : D.attClip ? javiBBTrack(D.attClip, a.ch.id) : buildCineTrack(D.att, Object.assign({}, a.anim.x), D.ev);
+    a.cR6 = !!(D.bbPreview || D.attClip);
+    v.ctrk = D.vicClip ? javiBBTrack(D.vicClip, a.ch.id) : D.vic ? buildCineTrack(D.vic, Object.assign({}, v.anim.x), D.ev) : null;
+    if (!a.ctrk && D.att) a.ctrk = buildCineTrack(D.att, Object.assign({}, a.anim.x), D.ev);
+    v.cR6 = !!D.bbPreview;
+  }
   $('bk-pops').innerHTML = '';
 }
 function cbFigTick(f, dt, T) {
   // físicas mínimas: empujón que se frena, salto con gravedad y piso en 0
-  f.pos.x += f.vx * dt; f.pos.z += f.vz * dt; f.vx *= Math.exp(-dt * 6);
+  f.pos.x += f.vx * dt; f.pos.z += f.vz * dt;
+  if (f.dashUntil && CB.t >= f.dashUntil) { f.vx = 0; f.dashUntil = 0; }
+  if (!f.dashUntil) f.vx *= Math.exp(-dt * (f.walkBack ? 0 : 6));
   if (f.vy || f.pos.y > 0) { f.vy -= 22 * dt; f.pos.y += f.vy * dt; if (f.pos.y <= 0) { f.pos.y = 0; f.vy = 0; if (f.air) { f.air = false; f.hurt = .3; } if (f.pose === 'jump' || f.pose === 'fall') f.pose = 'land', f.landT = .2; } }
   if (f.landT > 0) { f.landT -= dt; if (f.landT <= 0 && f.pose === 'land') f.pose = null; }
   if (f.pose === 'jump' && f.vy < 0) f.pose = 'fall';
   f.hurt = Math.max(0, f.hurt - dt); f.dizzy = Math.max(0, f.dizzy - dt); f.hitT = Math.max(0, (f.hitT || 0) - dt);
   const x = f.anim.x;
-  if (f.direct) { f.anim.apply(); f.direct = false; }
-  else if (f.trk && f.tt < f.trkEnd) { f.tt += dt; f.anim.play(f.trk, Math.min(f.tt, f.trk[f.trk.length - 1].t), dt); if (f.tt >= f.trkEnd) f.trk = null; }
+  if (f.direct) { f.anim.bbR6 = false; f.anim.apply(); f.direct = false; }
+  else if (f.bb && f.hurt <= 0) { f.bb.t += dt; f.anim.bbR6 = true; f.anim.play(f.bb.track, Math.min(f.bb.t, f.bb.len), dt, true); if (f.bb.t >= f.bb.len + .15) { f.bb = null; f.anim.bbR6 = false; } }
+  else if (f.trk && f.tt < f.trkEnd) { f.anim.bbR6 = false; f.tt += dt; f.anim.play(f.trk, Math.min(f.tt, f.trk[f.trk.length - 1].t), dt); if (f.tt >= f.trkEnd) f.trk = null; }
   else {
+    f.anim.bbR6 = false; f.bb = null;
     let pose, k = 300, z = .72;
     if (f.air) { pose = POSE.down; k = 120; z = .4; }
     else if (f.dizzy > 0) { pose = dizzyPose(T); k = 220; z = .6; }
@@ -13663,47 +13706,94 @@ function cbFigTick(f, dt, T) {
     else if (f.pose === 'block') { pose = f.hitT > 0 ? Object.assign({}, POSE.block, { ix: (POSE.block.ix || 0) - .15 }) : POSE.block; k = 700; z = .6; }
     else if (f.pose) { pose = POSE[f.pose]; k = 700; z = .6; }
     else if (f.walkBack) { cmWalk2(x, T * 7.5, .8); f.anim.apply(); pose = undefined; }
+    else if (f.dashUntil) { pose = POSE.dash; k = 800; z = .6; }
     else pose = stancePose(f.ch, T, f.seed, true);
     if (pose !== undefined) f.anim.update(dt, pose, k, z);
   }
-  const m = f.model;
+  cbPlace(f);
+}
+function cbPlace(f) {
+  const m = f.model, x = f.anim.x;
   if (m.gripRot) m.gripRot.rotation.set(x.sx || 0, x.sy || 0, x.sz || 0);
   m.root.position.copy(f.pos); m.root.rotation.set(0, f.yaw, 0);
   const sy = f.sy || 1; m.root.scale.set(1 + (1 - sy) * .5, sy, 1 + (1 - sy) * .5); f.sy = 1;
+}
+// coreografías (agarres cinemáticos): mismas poses, recorridos y golpes que en la pelea
+function cbChoreTick(dt, T) {
+  const E = CB.E, D = E.chore, P = CB.P, a = CB.a, v = CB.v, t = CB.t;
+  if (t <= D.dur && a.ctrk) {
+    const ap = hermArr(D.apos || [[0, 0, 0, 0, 0]], t);
+    a.pos.copy(L2W(CB.origin, CB.oyaw, ap[0], ap[1], ap[2])); a.yaw = CB.oyaw + ap[3];
+    a.anim.bbR6 = a.cR6; a.anim.play(a.ctrk, a.cR6 && a.ctrk.loopLen ? t % a.ctrk.loopLen : t, dt, true); cbPlace(a);
+  } else { if (a.ctrk) { a.ctrk = null; a.pos.y = 0; } cbFigTick(a, dt, T); }
+  if (!v.released && t <= D.dur && v.ctrk) {
+    const vp = hermArr(D.vpos || [[0, 0, 0, 1.6, 0]], t);
+    v.pos.copy(L2W(CB.origin, CB.oyaw, vp[0], vp[1], vp[2])); v.yaw = CB.oyaw + Math.PI + vp[3];
+    v.anim.bbR6 = v.cR6; v.anim.play(v.ctrk, t, dt, true); cbPlace(v);
+  } else { if (!v.released) { v.released = true; v.air = v.pos.y > .1; } cbFigTick(v, dt, T + 1.3); }
+  D.ev.forEach((e, i) => {
+    if (CB.done.has('c' + i) || t < e.t) return; CB.done.add('c' + i);
+    if (e.hit) { cbPop(P, v, '-' + n1(e.hit), e.hit >= 3 ? a.ch.color : '#fff'); sfxSafe(e.hit >= 3 ? 'heavy' : 'hit', .45); }
+    if (e.rel || e.letGo) {
+      v.released = true; const F = fwd(a.yaw), r = e.rel || {};
+      v.vx = F.x * Math.min(14, (r.kb || 4) * .7); v.vy = Math.min(12, (r.up || 3) * .8); v.air = true;
+      if (e.rel) { cbPop(P, v, '-' + n1(r.dmg || 0), a.ch.color); cbRing(P, v, a.ch.color, 2); sfxSafe('heavy', .6); }
+    }
+  });
 }
 function cbFrame(now) {
   if (!CB.open || !CB.r) return;
   CB.raf = requestAnimationFrame(cbFrame);
   const dt = Math.min(.05, Math.max(0, (now - (CB.last || now)) / 1000)); CB.last = now;
+  if (CB.mode === 'grid' || !CB.E || !CB.a) return;
   const cv = $('bk-cv'), w = cv.clientWidth, h = cv.clientHeight;
   if (w && h && (cv.width !== Math.round(w * CB.r.getPixelRatio()) || cv.height !== Math.round(h * CB.r.getPixelRatio()))) { CB.r.setSize(w, h, false); CB.cam.aspect = w / h; CB.cam.updateProjectionMatrix(); }
-  const E = CB_BASIC[CB.idx], P = CB.P, t0 = CB.t; CB.t += dt;
+  const E = CB.E, P = CB.P; CB.t += dt;
   if (CB.t > E.len) { cbReset(); return; }
   for (const [i, ev] of (E.ev || []).entries()) if (!CB.done.has(i) && CB.t >= ev[0]) { CB.done.add(i); ev[1](P); }
   if (E.tick) E.tick(P, CB.t, dt);
   const T = now / 1000;
-  cbFigTick(CB.a, dt, T); if (!E.solo) cbFigTick(CB.v, dt, T + 1.3);
-  for (let i = CB.fx.length - 1; i >= 0; i--) { const e = CB.fx[i]; e.t += dt; const u = clamp(e.t / e.d, 0, 1); e.m.visible = e.t >= 0; const sc = 1 + u * 5; e.m.scale.set(sc, sc, sc); e.m.material.opacity = (1 - u) * .9; if (u >= 1) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); CB.fx.splice(i, 1); } }
-  // cámara: de costado y un poco de frente, encuadra a los dos
-  const mid = E.solo ? CB.a.pos.x * .3 : 0, sw = Math.sin(T * .35) * .25;
-  const dist = 7.4 / Math.min(1, CB.cam.aspect * 1.05);   // en vistas angostas se aleja para que entren los dos enteros
-  CB.cam.position.set(mid + dist * .22 + sw, 1.7, dist); CB.cam.lookAt(mid, 1.0, 0);
+  if (E.chore) cbChoreTick(dt, T);
+  else { cbFigTick(CB.a, dt, T); if (!E.solo) cbFigTick(CB.v, dt, T + 1.3); }
+  for (let i = CB.fx.length - 1; i >= 0; i--) {
+    const e = CB.fx[i]; e.t += dt; const u = clamp(e.t / e.d, 0, 1); e.m.visible = e.t >= 0;
+    if (e.shot) { e.m.position.lerpVectors(e.from, e.to, u); e.m.position.y += Math.sin(u * Math.PI) * .25; if (u >= 1) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); CB.fx.splice(i, 1); } continue; }
+    const sc = 1 + u * 5; e.m.scale.set(sc, sc, sc); e.m.material.opacity = (1 - u) * .9;
+    if (u >= 1) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); CB.fx.splice(i, 1); }
+  }
+  // cámara: de costado y un poco de frente; sigue a los dos (las coreografías se mueven mucho)
+  const vis = E.solo ? [CB.a] : [CB.a, CB.v], mx = vis.reduce((s, f) => s + f.pos.x, 0) / vis.length, mz = vis.reduce((s, f) => s + f.pos.z, 0) / vis.length;
+  const my = Math.min(9, vis.reduce((s, f) => s + f.pos.y, 0) / vis.length), spread = E.solo ? 0 : Math.hypot(CB.a.pos.x - CB.v.pos.x, CB.a.pos.z - CB.v.pos.z);
+  CB.cx = CB.cx == null ? mx : CB.cx + (mx - CB.cx) * Math.min(1, dt * 4); CB.cz = CB.cz == null ? mz : CB.cz + (mz - CB.cz) * Math.min(1, dt * 4); CB.cy = CB.cy == null ? my : CB.cy + (my - CB.cy) * Math.min(1, dt * 4);
+  const dist = (7.4 + Math.max(0, spread - 2.2) * 1.1) / Math.min(1, CB.cam.aspect * 1.05), sw = Math.sin(T * .35) * .25;
+  CB.cam.position.set(CB.cx + dist * .22 + sw, 1.7 + CB.cy * .8, CB.cz + dist); CB.cam.lookAt(CB.cx, 1.0 + CB.cy, CB.cz);
   CB.r.render(CB.scene, CB.cam);
 }
 function cbSelect(i) {
   CB.idx = (i + CB_BASIC.length) % CB_BASIC.length; const E = CB_BASIC[CB.idx];
   document.querySelectorAll('#bk-list button').forEach((b, j) => { b.classList.toggle('on', j === CB.idx); if (j === CB.idx) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
   $('bk-info').innerHTML = `<h3>${E.n}</h3><div class="bk-keys">${E.keys.map(k => /^[+×(]/.test(k) || k === 'Habilidades' ? `<span>${k}</span>` : `<kbd>${k}</kbd>`).join('')}</div><p>${E.d}</p><ul>${E.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
-  if (CB.r) cbReset();
+  CB.E = E; if (CB.r) cbReset();
+}
+function bookBasic() {
+  CB.mode = 'basic';
+  $('bk-grid').classList.add('hidden'); $('bk-sub').classList.add('hidden'); $('bk-body').classList.remove('hidden');
+  const list = $('bk-list'); list.innerHTML = '';
+  CB_BASIC.forEach((E, i) => { const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${E.n}</span><kbd>${E.keys[0]}</kbd>`; b.addEventListener('click', () => cbSelect(i)); li.appendChild(b); list.appendChild(li); });
+  cbBuild(null, true); cbSelect(CB.idx);
+}
+function bookTab(tab) {
+  document.querySelectorAll('#book .bk-tabs button').forEach(b => b.classList.toggle('on', b.dataset.bk === tab));
+  if (tab === 'skills') { if (SKB.ch && CB.mode === 'skills') return; skGrid(); } else bookBasic();
 }
 function bookOpen() {
   if (CB.open) return;
   CB.open = true; $('book').classList.remove('hidden');
   if (G.state === 'play') { G.panelOpen = true; unlock(); if (!G.mp && !G.paused) { G.paused = true; CB.paused = true; } }
   for (const k in keys) keys[k] = false; mouse.left = mouse.right = false;
-  const list = $('bk-list');
-  if (!list.children.length) CB_BASIC.forEach((E, i) => { const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${E.n}</span><kbd>${E.keys[0]}</kbd>`; b.addEventListener('click', () => cbSelect(i)); li.appendChild(b); list.appendChild(li); });
-  cbBuild(); cbSelect(CB.idx); CB.last = 0; CB.raf = requestAnimationFrame(cbFrame);
+  cbBuild(null, true); CB.cx = CB.cy = CB.cz = null;
+  if (CB.mode === 'skills' && SKB.ch) skPickChar(SKB.ch.id); else if (CB.mode === 'grid') skGrid(); else bookBasic();
+  CB.last = 0; CB.raf = requestAnimationFrame(cbFrame);
   $('book-x').focus({ preventScroll: true });
 }
 function bookClose() {
@@ -13714,18 +13804,246 @@ function bookClose() {
 }
 $('bookbtn').addEventListener('click', e => { e.stopPropagation(); bookOpen(); });
 $('book-x').addEventListener('click', bookClose);
+$('bk-back').addEventListener('click', () => { SKB.ch = null; skGrid(); });
+document.querySelectorAll('#book .bk-tabs button').forEach(b => b.addEventListener('click', () => bookTab(b.dataset.bk)));
 $('book').addEventListener('click', e => { if (e.target === $('book')) bookClose(); });
 addEventListener('keydown', e => {
   if (CB.open) {
-    if (e.code === 'Escape' || e.code === 'KeyB') bookClose();
-    else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') cbSelect(CB.idx + 1);
-    else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') cbSelect(CB.idx - 1);
-    else if (e.code === 'Tab') { e.preventDefault(); }
-    if (e.code !== 'Tab') e.preventDefault();
-    e.stopImmediatePropagation(); return;
+    const sel = d => CB.mode === 'skills' ? skSelect(clamp((SKB.idx || 0) + d, 0, SKB.list.length - 1)) : CB.mode === 'basic' ? cbSelect(CB.idx + d) : null;
+    if (e.code === 'Escape') { if (CB.mode === 'skills') { SKB.ch = null; skGrid(); } else bookClose(); }
+    else if (e.code === 'KeyB') bookClose();
+    else if (e.code === 'Backspace' && CB.mode === 'skills') { SKB.ch = null; skGrid(); }
+    else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') sel(1);
+    else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') sel(-1);
+    e.preventDefault(); e.stopImmediatePropagation(); return;
   }
   if (e.code === 'KeyB' && !e.repeat && G.state === 'play' && !G.paused && !G.over && !G.viewer && !G.panelOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); e.stopImmediatePropagation(); bookOpen(); }
 }, true);
+// ===== Libro · Habilidades: elegís un personaje y ves cada habilidad en detalle con su vista previa =====
+// consejos de uso escritos a mano (personaje.grupo+número: S habilidades, A despertar, F sin lanza, AF sin lanza en despertar, U ulti)
+const SK_TIPS = {
+  'javi.S1': 'Usala para cerrar distancia o rematar a alguien que huye. Rompe guardia: ideal contra rivales que se quedan bloqueando.',
+  'javi.S2': 'Apuntá con la cámara (mejor con Shift lock). Si mata, la lanza queda clavada y peleás a puño limpio hasta recuperarla: no la tires si el rival está casi muerto y lejos.',
+  'javi.S3': 'Metete en medio de varios rivales: los atrae con cortes y al final los expulsa. Combina muy bien después de la Embestida.',
+  'javi.S4': 'Salta y busca solo al rival: buena para caer sobre un grupo o seguir a alguien que lanzaste por el aire.',
+  'javi.A1': 'Activala apenas despertás: durante 7 s las lanzas disparan solas mientras seguís pegando con el combo.',
+  'javi.A2': 'Cinemática: si conecta, el rival no puede hacer nada hasta el final. Usala de cerca (hasta 6 bloques).',
+  'javi.A3': 'La única cinemática que agarra de lejos (4 a 20 bloques): perfecta para traer a alguien que se escapa.',
+  'javi.A4': 'La más larga y la que más daño hace: guardala para terminar la pelea. Necesitás estar pegado al rival.',
+  'javi.U': 'Cubre una zona grande: usala cuando varios rivales estén juntos. La última lanza, la gigante, es la que más pega.',
+  'javi.F1': 'Golpe rápido para empezar combos cuando no tenés la lanza.',
+  'javi.F2': 'Apretá otra vez la tecla (o clic) justo cuando el puño toca: si acertás hace 26 de daño y rompe guardia; si fallás es un golpe normal.',
+  'javi.F3': 'La tercera patada lanza al rival: saltá enseguida para seguir el combo en el aire.',
+  'javi.F4': 'Pega a todos los que tengas adelante: buena cuando te rodean.',
+  'javi.AF1': 'Tres oportunidades de Destello Negro seguidas: tocá en cada impacto. Cuantos más aciertes, más daño.',
+  'javi.AF2': 'Destroza el piso y lo que haya alrededor: usala en grupos o para romper coberturas.',
+  'javi.AF3': 'Como la Embestida con lanza, pero a puño: rompe guardia y arrolla a todos en línea.',
+  'javi.AF4': 'La cinemática más fuerte sin lanza: agarre de cerca y remate con Destello Negro garantizado.',
+  'redbird.S1': 'Mantené la mira sobre el rival mientras dura: el láser lo va empujando, así que sirve para sacarlo de un lugar o tirarlo al mar.',
+  'redbird.S2': 'Tres disparos que persiguen solos: ideal para pegar desde lejos y cargar el despertar sin arriesgarte.',
+  'redbird.S3': 'Tiene medio segundo de retraso: usala cuando el rival esté aturdido, bloqueando o quieto.',
+  'redbird.S4': 'Te lanza por el aire: sirve para escapar o subir a techos, y rompe la guardia de los que estén pegados.',
+  'redbird.A1': 'Carga casi 2 s: no la uses con rivales encima. Desde lejos rompe guardias y los manda muy lejos.',
+  'redbird.A2': 'Cada rebote pega más fuerte: funciona mejor contra un rival que se queda en el lugar.',
+  'redbird.A3': 'La marca persigue con retraso: obligá al rival a moverse o usala cuando esté atrapado.',
+  'redbird.A4': 'Prestá atención a las flechas que aparecen y tocá W A S D (o las flechas) a tiempo. Con las 4 bien, el remate del cielo es enorme.',
+  'redbird.U': 'Un rayo gigante que rompe guardias: apuntalo a una fila de rivales.',
+  'gato.S1': 'Las copias persiguen solas: lanzalas y aprovechá para atacar por otro lado.',
+  'gato.S2': 'Cuatro dagas que persiguen y aturden: buenas para frenar a alguien que viene corriendo.',
+  'gato.S3': 'Te deja a la espalda del rival: después pegale con el combo, que de espaldas no se puede bloquear.',
+  'gato.S4': 'Deja al rival quieto 1,6 s: el tiempo justo para encadenar otra habilidad.',
+  'gato.A1': 'Plantate en el medio de una pelea grande: aturde y daña a todos los que queden adentro durante 5 s.',
+  'gato.A2': 'Cinemática de cerca: las copias se lo pasan como pelota y no se puede escapar.',
+  'gato.A3': 'Atrae al rival de lejos (4 a 20 bloques): perfecta para traer a alguien que huye.',
+  'gato.A4': 'La más vistosa: usala de cerca para cerrar la pelea.',
+  'gato.U': 'Seis copias salen en círculo y persiguen a todos: ideal cuando hay varios rivales alrededor.',
+  'sekza.S1': 'La hoz vuelve a tu mano y arrastra a los que cruza: tirala más allá del rival para traerlo hacia vos.',
+  'sekza.S2': 'Marca el piso donde vas a caer: te encuentra aunque el rival se mueva un poco, y rompe guardia.',
+  'sekza.S3': 'Es un parry: activala justo antes de que te peguen. Si nadie te pega en ese instante, se pierde.',
+  'sekza.S4': 'Los sube por el aire y quedan indefensos: seguí con la Picada de Halcón o con el combo en el aire.',
+  'sekza.A1': 'Cubre toda la zona del rival: buena para pegarle a un grupo desde arriba.',
+  'sekza.A2': 'Cinemática: lo sube hasta las nubes y lo suelta en picada. Usala de cerca.',
+  'sekza.A3': 'Te mueve muy rápido: sirve para escapar o cruzar el mapa atravesando rivales.',
+  'sekza.A4': 'Fija a todos los rivales a la vez hasta 30 bloques: la mejor contra grupos dispersos.',
+  'sekza.U': 'Durante el despertar mantené Espacio al caer para planear. Atacar desde el aire es su punto fuerte.',
+  'rocket.S1': 'Si toca, el rival queda inmóvil 1,7 s: abrí con esta y seguí con la Picadura Venenosa.',
+  'rocket.S2': 'Te arrastra hasta el rival y lo patea: un acercamiento seguro que rompe guardia.',
+  'rocket.S3': 'El veneno sigue quitando vida 4,5 s: mordé y alejate mientras el rival se debilita.',
+  'rocket.S4': 'Ponelas en el camino del rival o alrededor tuyo para que nadie se te acerque.',
+  'rocket.A1': 'Cinco estocadas al frente: quedate de cara al rival; la última lo lanza por el aire.',
+  'rocket.A2': 'Cinemática de cerca: lo envuelve en seda y lo estrella contra el piso.',
+  'rocket.A3': 'Arrastra a todos hacia el centro: combinala con Patas Lanza cuando estén juntos.',
+  'rocket.A4': 'Las arañitas persiguen solas: soltalas al empezar a pelear y seguí atacando.',
+  'rocket.U': 'Con las patas de araña corrés más rápido: aprovechá el despertar para perseguir.',
+  'ukyo.S1': 'Hace caer a todos los que toca: buena para empezar combos o frenar a un grupo.',
+  'ukyo.S2': 'Atraviesa al primero y lo arrastra clavado: rompe guardia y te aleja del peligro.',
+  'ukyo.S3': 'Las cuchillas que se clavan vuelven a tu mano y pegan otra vez: tiralas y alejate.',
+  'ukyo.S4': 'El piso queda ardiendo unos segundos: tirala por donde el rival tenga que pasar.',
+  'ukyo.A1': 'Atraviesa a todos en línea y los lanza al aire: apuntá a los grupos.',
+  'ukyo.A2': 'Cinemática: el corte llega antes de que se vea. Usala de cerca.',
+  'ukyo.A3': 'Durante 10 s corrés más y cada golpe prende fuego: activala antes de lanzarte con el combo.',
+  'ukyo.A4': 'Dos olas de fuego alrededor tuyo: perfecta cuando te rodean.',
+  'ukyo.U': 'Todo prende fuego durante el despertar: el combo normal se vuelve mucho más peligroso.',
+  'mattux.S1': 'Carga un instante y sale disparado: arrolla a todos en línea y rompe guardia.',
+  'mattux.S2': 'Busca solo al rival más cercano y rebota hasta tres: genial contra grupos.',
+  'mattux.S3': 'Dos tajos en abanico a distancia: sirven para pegar sin acercarte.',
+  'mattux.S4': 'Congela a todos los rivales cercanos y les pega a todos: guardala para cuando estén juntos.',
+  'mattux.A1': 'Más largo y más fuerte que el normal: cruza media ciudad.',
+  'mattux.A2': 'Atraviesa a todos y cierra con una onda de choque: también sirve para escapar.',
+  'mattux.A3': 'Cinco lanzas doradas disparan solas durante 7 s mientras peleás.',
+  'mattux.A4': '18 de daño a todos alrededor: metete en el medio y soltala.',
+  'mattux.U': 'Más velocidad y habilidades nuevas: no te quedes quieto.',
+  'sebolla.S1': 'Se lanza sobre el rival: buena para empezar la pelea, y rompe guardia.',
+  'sebolla.S2': 'Patea al rival al cielo y Verity lo estampa: usala de cerca.',
+  'sebolla.S3': 'Verity aparece atrás del rival: no tiene a dónde escapar.',
+  'sebolla.S4': 'Activala justo antes de que te peguen: si aciertan, Verity los aturde y vos te curás.',
+  'sebolla.A1': 'Durante 12 s manejás a Verity gigante: caminá encima de los rivales y usá Q para embestir.',
+  'sebolla.A2': '¡ORA ORA ORA!: cinemática de cerca con más de diez golpes.',
+  'sebolla.A3': 'Lo agarra del cuello y lo lanza de cabeza contra el rayo de Verity.',
+  'sebolla.A4': 'Lo golpea desde todos los lados y remata con una patada voladora.',
+  'sebolla.U': 'Verity se agranda, te cura del todo y ataca sola: tus habilidades pasan a ser cinemáticas.',
+  'randi.S1': 'Empezá siempre por acá: cada marca de Picoteado hace que tus habilidades peguen un 12 % más (hasta ×3).',
+  'randi.S2': 'Si el rival tiene marcas, las gasta para hacer daño extra: tirala después de 2 o 3 palomas.',
+  'randi.S3': 'Las llamas arrasan en línea recta y rompen lo que encuentran: buena contra grupos.',
+  'randi.S4': '7 s más rápido y pegando un 20 % más: tomalo antes de lanzarte a pelear.',
+  'randi.A1': 'Necesitás un rival cerca y gasta 12 s de despertar: pasás a controlar a Capitán Perú, que se vuelve más resistente con cada golpe que recibe.',
+  'randi.A2': 'Atrapa al rival desde el cielo y lo suelta contra el piso: funciona de lejos.',
+  'randi.A3': 'Dos perros lo muerden por los dos lados durante 9 s: soltalos y seguí peleando.',
+  'randi.A4': 'Te encierra con el rival 6 s y pegás un 20 % más: usala contra el más débil para que no escape.',
+  'randi.U': 'Te cura del todo y dura 30 s: es el momento de invocar a Capitán Perú.',
+  'jesuluto.S1': 'Las tres primeras ventanas aturden y la última, ERROR FATAL, lo lanza: tirala desde lejos.',
+  'jesuluto.S2': 'Además de pegar, Clippy te ayuda más durante 6 s: usala antes de empezar el combo.',
+  'jesuluto.S3': 'Te devuelve adonde estabas hace 3 s y te cura: usala cuando te estén ganando.',
+  'jesuluto.S4': 'Tarda en cargar: plantate en el medio de un grupo y que no te saquen antes del 100 %.',
+  'jesuluto.A1': 'Llueve sobre la zona marcada: buena contra grupos o rivales quietos.',
+  'jesuluto.A2': 'Clippy cae encima del rival y lo lanza: rompe guardia.',
+  'jesuluto.A3': 'Congela a quien toca y le rompe la guardia: tirala a una fila de rivales.',
+  'jesuluto.A4': 'Cinco virus disparan solos durante 7 s: activala y seguí atacando.',
+  'jesuluto.U': 'Te cura del todo y Clippy crece: tus habilidades pasan a ser puro caos de Windows.',
+};
+const SK_TAG = { gap: 'Acercamiento', proj: 'A distancia', aoe: 'En área', close: 'Cuerpo a cuerpo', gb: 'Rompe guardia', counter: 'Contraataque', buff: 'Mejora' };
+const SK_ULT_TAGS = { spearRain: 'aoe gb', beam: 'proj gb', illusion: 'proj aoe' };
+const n1 = v => (Math.round(v * 10) / 10).toString().replace('.', ',');
+function skFacts(s, grp, D) {
+  const o = s.o || {}, p = o.proj || {}, F = [];
+  if (grp !== 'U') F.push(['Recarga', n1(s.cd) + ' s']);
+  if (s.r && s.r[1]) F.push(['Alcance', s.r[0] > 0 ? `${n1(s.r[0])} a ${n1(s.r[1])} bloques` : `hasta ${n1(s.r[1])} bloques`]);
+  const cnt = o.count > 1 ? o.count : o.n > 1 ? o.n : 0;
+  if (o.dmg) F.push(['Daño', cnt ? `${n1(o.dmg)} × ${cnt}` : o.dmg2 ? `${n1(o.dmg)} + ${n1(o.dmg2)}` : n1(o.dmg)]);
+  else if (p.dmg) F.push(['Daño', cnt ? `${n1(p.dmg)} × ${cnt}` : n1(p.dmg)]);
+  if (D) { const tot = D.ev.reduce((t, e) => t + (e.hit || 0) + (e.rel ? e.rel.dmg || 0 : 0), 0); if (tot) F.push(['Daño total', n1(tot)]); F.push(['Duración', n1(D.dur) + ' s (sos invulnerable)']); }
+  if (o.dps) F.push(['Veneno', `${n1(o.dps)} por segundo, ${n1(o.dur)} s`]);
+  else if (o.dur && !D) F.push(['Duración', n1(o.dur) + ' s']);
+  if (o.root) F.push(['Inmoviliza', n1(o.root) + ' s']);
+  const stun = o.stun || p.stun; if (stun) F.push(['Aturde', n1(stun) + ' s']);
+  if (o.radius || (o.r && typeof o.r === 'number')) F.push(['Radio', n1(o.radius || o.r) + ' bloques']);
+  if (o.homing || p.homing) F.push(['Persigue', 'Sí, busca al rival solo']);
+  if (o.hold) F.push(['Carga', n1(o.hold) + ' s antes de disparar']);
+  if (o.delay) F.push(['Retraso', n1(o.delay) + ' s']);
+  return F;
+}
+const SKB = { ch: null, list: [] };
+function skGroups(ch) {
+  const G0 = [['Habilidades', 'S', ch.skills, 'Se usan con 1, 2, 3 y 4']];
+  if (ch.ult && ch.ult.n && ch.ult.n !== '—') G0.push(['Despertar', 'U', [Object.assign({ tags: SK_ULT_TAGS[ch.ult.k] || 'buff', cd: 0 }, ch.ult)], 'Con la barra al 100 %, tecla G']);
+  if (ch.awk) G0.push(['Con el despertar', 'A', ch.awk, 'Reemplazan a las normales mientras dure el despertar']);
+  if (ch.fist) G0.push(['Sin lanza', 'F', ch.fist, 'Cuando la lanza quedó clavada o la perdiste']);
+  if (ch.awkFist) G0.push(['Sin lanza + despertar', 'AF', ch.awkFist, 'Despierto y a puño limpio']);
+  return G0;
+}
+function skClip(ch, s, grp, i) {
+  const BS = bbSet(ch.id); if (!BS) return null;
+  const act = BB_ACTIONS[ch.id] || {}, keys = Object.keys(BS);
+  if (grp === 'U') return keys.find(k => k.startsWith('ulti_')) || (BS.despertar_accion ? 'despertar_accion' : null);
+  if (grp === 'S') { const k = keys.find(k => k.startsWith('habilidad_' + (i + 1) + '_') && !k.endsWith('_contra')); if (k) return k; }
+  if (grp === 'S' || grp === 'A') { if (act[s.k] && BS[act[s.k]]) return act[s.k]; if (s.o && s.o.bbClip && BS[s.o.bbClip]) return s.o.bbClip; }
+  return null;
+}
+// arma la escena de la vista previa de una habilidad (mismo formato que las del combate básico)
+function skEntry(ch, s, grp, i) {
+  const tags = (s.tags || '').split(/\s+/).filter(Boolean), D = s.k === 'chore' && CHORE[s.o.id] ? CHORE[s.o.id] : null;
+  const E = { n: s.n, s, grp, tags, ev: [], len: 3.4, keys: [] };
+  if (D) { E.chore = D; E.len = D.dur + 1.2; return E; }
+  const clip = skClip(ch, s, grp, i), BS = bbSet(ch.id), far = s.r && s.r[0] >= 2.5 || tags.includes('proj');
+  E.gap = far ? 1.9 : 1.05; E.solo = grp === 'U' && !SK_ULT_TAGS[ch.ult.k];
+  const t0 = .45, gen = tags.includes('counter') ? [[0, 'counter', 900], [.4, 'thrust', 1300]] : tags.includes('proj') ? [[0, 'spearThrowW', 700], [.2, 'throw', 1300]] : tags.includes('aoe') ? [[0, 'overhead', 700], [.22, 'plunge', 1300]] : tags.includes('buff') || E.solo ? [[0, 'charge', 700], [.45, 'javiHero', 900]] : [[0, 'thrust_w', 800], [.14, 'thrust', 1300]];
+  const clen = clip ? BS[clip].length : gen[gen.length - 1][0] + .5;
+  let hits = clip && (BS[clip].contacts || []).length ? BS[clip].contacts.slice(0, 5) : [clip ? Math.min(clen * .45, 1.1) : gen[1] ? gen[1][0] + .05 : .3];
+  E.len = Math.max(3.2, t0 + Math.min(clen, 4.5) + 1.1);
+  const start = P => { if (clip) P.a.bb = { track: javiBBTrack(clip, ch.id), t: 0, len: Math.min(clen, 4.5) }; else cbAct(P.a, gen); };
+  if (E.solo) { E.ev.push([t0, P => { start(P); cbRing(P, P.a, ch.color, 3); cbPop(P, P.a, '¡DESPERTAR!', ch.color); }]); return E; }
+  if (tags.includes('buff')) { E.ev.push([t0, P => { start(P); cbRing(P, P.a, ch.color, 2); cbPop(P, P.a, '¡MEJORA!', ch.color); }]); E.solo = true; return E; }
+  if (tags.includes('counter')) {
+    E.ev.push([.3, P => cbAct(P.v, M1[0].anim)], [.42, P => { start(P); cbPop(P, P.a, '¡CONTRA!', '#9fd3ff'); }], [.75, P => { cbHurt(P.v, 2.4, 0); cbPop(P, P.v, '¡CONTRAATAQUE!', ch.color); sfxSafe('heavy', .5); }]);
+    return E;
+  }
+  const gb = tags.includes('gb'), up = /aire|arriba|lanza al|cielo/i.test(s.d || '') ? 8 : 0, dmg = (s.o && (s.o.dmg || (s.o.proj && s.o.proj.dmg))) || 0;
+  if (gb) E.ev.push([0, P => { P.v.pose = 'block'; }]);
+  E.ev.push([t0, P => start(P)]);
+  hits.forEach((h, k) => {
+    const tc = t0 + h, last = k === hits.length - 1;
+    if (tags.includes('proj') && k === 0) E.ev.push([Math.max(t0, tc - .25), P => cbShot(P, ch.color, .25)]);
+    if (tags.includes('gap') && k === 0) E.ev.push([Math.max(t0, tc - .25), P => { P.a.vx = (P.v.pos.x - 1 - P.a.pos.x) / .25; P.a.dashUntil = tc; }]);
+    E.ev.push([tc, P => {
+      if (tags.includes('aoe') && (k === 0 || last)) cbRing(P, P.v, ch.color, 2);
+      if (gb && k === 0) { P.v.pose = null; cbPop(P, P.v, '¡GUARDIA ROTA!', '#ffd54f'); sfxSafe('break', .5); }
+      cbHurt(P.v, last ? (tags.includes('aoe') || gb ? 3 : 1.8) : .7, last ? up : 0);
+      if (!(gb && k === 0)) cbPop(P, P.v, last && dmg ? '-' + n1(dmg) : hits.length > 1 ? String(k + 1) : '¡GOLPE!', last ? ch.color : '#fff');
+      sfxSafe(last ? 'heavy' : 'hit', .5);
+    }]);
+  });
+  if (tags.includes('gap')) E.ev.push([t0 + hits[0] + .9, P => { P.a.vx = -2.4; P.a.walkBack = true; }], [t0 + hits[0] + 1.6, P => { P.a.vx = 0; P.a.walkBack = false; }]);
+  return E;
+}
+// proyectil simple: una esfera brillante del color del personaje que va del pecho del atacante al del rival
+function cbShot(P, col, dur) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(.18, 12, 8), glowMat(col, 1)); CB.scene.add(m);
+  CB.fx.push({ m, t: 0, d: dur, shot: true, from: new V3(P.a.pos.x + .5, 1.3, P.a.pos.z), to: new V3(P.v.pos.x - .2, 1.2, P.v.pos.z) });
+}
+function skRender() {
+  const ch = SKB.ch; if (!ch) return;
+  $('bk-chname').innerHTML = `<i style="background:${ch.color}"></i>${ch.name} <small>${ch.title} · ${ch.role}</small>`;
+  const list = $('bk-list'); list.innerHTML = ''; SKB.list = [];
+  for (const [title, grp, set, sub] of skGroups(ch)) {
+    const h = document.createElement('li'); h.className = 'bk-grp'; h.innerHTML = `<b>${title}</b><small>${sub}</small>`; list.appendChild(h);
+    set.forEach((s, i) => {
+      const idx = SKB.list.length; SKB.list.push({ s, grp, i });
+      const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button';
+      b.innerHTML = `<span>${s.n}</span><kbd>${grp === 'U' ? 'G' : i + 1}</kbd>`; b.addEventListener('click', () => skSelect(idx));
+      li.appendChild(b); list.appendChild(li);
+    });
+  }
+}
+function skSelect(idx) {
+  const it = SKB.list[idx]; if (!it) return; SKB.idx = idx;
+  const ch = SKB.ch, { s, grp, i } = it, E = skEntry(ch, s, grp, i), D = E.chore;
+  [...$('bk-list').querySelectorAll('button')].forEach((b, j) => { b.classList.toggle('on', j === idx); if (j === idx) b.scrollIntoView({ block: 'nearest' }); });
+  const tags = E.tags.map(t => SK_TAG[t]).filter(Boolean); if (D) tags.push('Cinemática');
+  const key = grp === 'U' ? 'G' : String(i + 1), when = grp === 'A' || grp === 'AF' ? ' <span>durante el despertar</span>' : grp === 'F' ? ' <span>sin lanza</span>' : '';
+  const tip = SK_TIPS[ch.id + '.' + grp + (grp === 'U' ? '' : i + 1)];
+  $('bk-info').innerHTML = `<h3>${s.n}</h3><div class="bk-keys"><kbd>${key}</kbd>${when}</div>`
+    + (tags.length ? `<div class="bk-tags">${tags.map(t => `<span>${t}</span>`).join('')}</div>` : '')
+    + `<p>${s.d}</p>`
+    + `<dl class="bk-facts">${skFacts(s, grp, D).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
+    + (tip ? `<div class="bk-tip"><b>Cómo usarla</b>${tip}</div>` : '');
+  CB.E = E; if (CB.r) cbReset();
+}
+function skPickChar(id) {
+  SKB.ch = CHARS[id]; CB.mode = 'skills';
+  $('bk-grid').classList.add('hidden'); $('bk-sub').classList.remove('hidden'); $('bk-body').classList.remove('hidden');
+  cbBuild(id, true); skRender(); skSelect(0);
+}
+function skGrid() {
+  CB.mode = 'grid';
+  $('bk-body').classList.add('hidden'); $('bk-sub').classList.add('hidden');
+  const g = $('bk-grid'); g.classList.remove('hidden');
+  if (!g.children.length) for (const id of CHAR_IDS) {
+    const ch = CHARS[id], b = document.createElement('button'); b.type = 'button'; b.style.setProperty('--cc', ch.color);
+    const cv = document.createElement('canvas'); cv.className = 'px'; headPortrait(charSkin(id), cv);
+    b.appendChild(cv); b.insertAdjacentHTML('beforeend', `<b>${ch.name}</b><small>${ch.role}</small>`);
+    b.addEventListener('click', () => skPickChar(id)); g.appendChild(b);
+  }
+}
 
 const FPS = { el: null, n: 0, t: 0, on: false, ms: 0, worst: 0 };
 try { FPS.on = localStorage.getItem('bsb_fps') === '1'; } catch (e) { FPS.on = false; }
