@@ -346,6 +346,17 @@ tr.me td{color:var(--hot);font-weight:700}
 #airbar span{position:absolute;left:8px;top:-20px;font:900 12px/1 var(--display,'Chakra Petch',sans-serif);color:#bfeaff;text-shadow:1px 1px 0 #000;letter-spacing:.14em}
 #airbar i{display:block;height:100%;width:100%;background:linear-gradient(180deg,#9fe8ff,#2aa7e0);transition:width .1s}
 #airbar.low i{background:linear-gradient(180deg,#ff9a9a,#e03a3a)}
+
+#trays{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:screen;opacity:.55;--sx:25%;--sy:45%;
+  background:repeating-conic-gradient(from 0deg at var(--sx) var(--sy),rgba(255,190,110,0) 0deg,rgba(255,200,130,.22) 2.4deg,rgba(255,190,110,0) 5.2deg,rgba(255,190,110,0) 9deg);
+  -webkit-mask:radial-gradient(circle at var(--sx) var(--sy),#000 0,rgba(0,0,0,.5) 38%,transparent 78%);mask:radial-gradient(circle at var(--sx) var(--sy),#000 0,rgba(0,0,0,.5) 38%,transparent 78%);animation:tRays 26s linear infinite}
+@keyframes tRays{from{filter:hue-rotate(0)}50%{filter:hue-rotate(-10deg) brightness(1.2)}to{filter:hue-rotate(0)}}
+#tdof{position:absolute;inset:0;z-index:1;pointer-events:none;backdrop-filter:blur(3.2px);-webkit-backdrop-filter:blur(3.2px);-webkit-mask:radial-gradient(ellipse at 50% 52%,transparent 52%,#000 100%);mask:radial-gradient(ellipse at 50% 52%,transparent 52%,#000 100%)}
+#tgrain{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;opacity:.13;mix-blend-mode:overlay;image-rendering:pixelated}
+.tfl{position:absolute;z-index:2;pointer-events:none;border-radius:50%;mix-blend-mode:screen;transform:translate(-50%,-50%);opacity:.0;transition:opacity .6s}
+.tfl.a{width:90px;height:90px;background:radial-gradient(circle,rgba(255,220,150,.55),transparent 70%)}.tfl.b{width:46px;height:46px;background:radial-gradient(circle,rgba(255,150,200,.5),transparent 70%)}
+.tfl.c{width:130px;height:130px;background:radial-gradient(circle,rgba(150,200,255,.28),transparent 70%)}.tfl.d{width:28px;height:28px;background:radial-gradient(circle,rgba(255,255,255,.7),transparent 70%)}
+#title.leaving #trays,#title.leaving .tfl{opacity:0!important;transition:opacity .2s}
 </style>
 
 </head>
@@ -402,6 +413,7 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="airbar" class="hidden"><span>AIRE</span><i></i></div>
 <div id="title" class="hidden">
   <div class="tbar t1"></div><div class="tbar t2"></div>
+  <div id="trays"></div><div id="tdof"></div><canvas id="tgrain" width="96" height="96"></canvas><i class="tfl a"></i><i class="tfl b"></i><i class="tfl c"></i><i class="tfl d"></i>
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
   <button type="button" id="tplay">▶ JUGAR</button>
   <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><div id="tspeed"></div>
@@ -12591,6 +12603,7 @@ function titleStart() {
   TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode }; if (bloomPass) { TITLE.bloom = bloomPass.enabled; bloomPass.enabled = false; }   // sin bloom en el inicio: difuminaba las siluetas
   WX.mode = 'clear'; WX.hour = 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado
   titleBuild(); titleAudio(true);
+  const fl = $('tfall'); fl.className = 'black'; void fl.offsetWidth; setTimeout(() => { fl.className = 'fade'; }, 150);   // sale del negro
 }
 function titleBuild() {
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
@@ -12606,7 +12619,7 @@ function titleFinish() {
   if (!TITLE.on) return; TITLE.on = false; if (bloomPass && TITLE.bloom != null) bloomPass.enabled = TITLE.bloom;
   WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
-  if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0;
+  if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0; titleSekzaEnd();
   titleAudio(false);
   $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); showSelect(G.charId);
   camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix(); gfxSet(GFX.level, GFX.auto, false);
@@ -12615,6 +12628,31 @@ function titleFinish() {
 }
 function titleLeave() {
   if (!TITLE.on || TITLE.lt != null) return; TITLE.lt = 0; $('title').classList.add('leaving'); initAudio();
+}
+// Sekza volando con una bandada de gaviotas: cruza delante del sol y se aleja hasta perderse (cada ~50 s)
+function titleSky(dt, t, cp, yaw) {
+  const K = TITLE.sek;
+  if (!K) { if (t > (TITLE.nextSek == null ? 7 : TITLE.nextSek) && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw); return; }
+  K.t += dt; const u = K.t / K.dur, e = u * u * (3 - 2 * u) * .35 + u * .65, pos = K.a.clone().lerp(K.b, e);
+  pos.y += Math.sin(u * 5) * 1.2 + Math.sin(u * 3) * 2; const dir = K.b.clone().sub(K.a).normalize();
+  const m = K.model, x = K.anim.x, T = K.t;
+  m.root.position.set(pos.x, pos.y, pos.z); m.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(T * 1.3) * .08; m.root.rotation.z = Math.sin(T * 1.3) * .22;
+  Object.assign(x, { ix: 1.4, tx: -.2, hx: -.8, alx: -3.0, arx: -3.0, alz: .12, arz: -.12, llx: .35 + Math.sin(T * 3) * .1, lrx: .25 - Math.sin(T * 3) * .1, by: -1 }); K.anim.apply(); updateWings({ alive: true, awak: 1, rFlightT: 1, onGround: false }, m, dt, T * 1.4);
+  K.gulls.forEach((g, i) => { const a = T * (.9 + i * .07) + i * 1.1, r = 3.2 + (i % 3) * 1.6; g.position.set(pos.x + Math.cos(a) * r - dir.x * (2 + i * .7), pos.y + Math.sin(a * 1.3) * 1.6 + 1, pos.z + Math.sin(a) * r - dir.z * (2 + i * .7)); g.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(a) * .4; g.rotation.z = Math.sin(T * 9 + i) * .35; g.scale.setScalar(1.3); });
+  if (u >= 1) titleSekzaEnd();
+}
+function titleSekzaStart(cp, yaw) {
+  const F = fwd(yaw), R = rightOf(yaw), c = CHARS.sekza, skin = charSkin('sekza'), faceC = copyCanvas(skin), model = buildModel(faceC, !!c.slim, scene);
+  if (!model.wings) addWings(model, c.color);
+  model.root.traverse(o => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
+  const a = cp.clone().addScaledVector(F, 22).addScaledVector(R, -26); a.y += 8; const b = cp.clone().addScaledVector(F, 150).addScaledVector(R, 34); b.y += 30;
+  const gulls = []; for (let i = 0; i < 6; i++) { const g = BEACH.gulls[0].g.clone(true); scene.add(g); gulls.push(g); }
+  TITLE.sek = { t: 0, dur: 13, a, b, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
+  try { const e = new Audio('sonidos/sekza/vuelo_1.mp3'); trackHtmlAudio(e, .35, 'voices'); e.play().catch(() => { }); } catch (x) { }
+}
+function titleSekzaEnd() {
+  const K = TITLE.sek; if (!K) return; scene.remove(K.model.root); disposeModel(K.model); for (const g of K.gulls) scene.remove(g);
+  TITLE.sek = null; TITLE.nextSek = TITLE.t + 48;
 }
 function bangSprite() {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.lineJoin = 'round';
@@ -12638,6 +12676,22 @@ function titleUpdate(dt) {
     back = 4.8; side = 1.5; ch0 = .85; lh0 = 1.35; fov = 44;
   }
   const gy = groundAt(px, pz, 4), yaw = Math.atan2(sd.x - px, sd.z - pz);
+  // ---- vida: respira y, de vez en cuando, se estira, mira alrededor, suspira o cambia el peso
+  if (L == null) {
+    x.tx += br * .012; x.hy += Math.sin(t * .31) * .05;
+    if (!TITLE.act && t > (TITLE.nextAct == null ? 3.2 : TITLE.nextAct)) { const nm = ['stretch', 'look', 'sigh', 'shift', 'look'][(Math.random() * 5) | 0]; TITLE.act = { nm, t0: t, d: nm === 'stretch' ? 3.4 : nm === 'look' ? 3.6 : nm === 'sigh' ? 2.6 : 2.4 }; }
+    if (TITLE.act) {
+      const A = TITLE.act, u = (t - A.t0) / A.d;
+      if (u >= 1) { TITLE.act = null; TITLE.nextAct = t + rand(3.2, 6.5); }
+      else {
+        const sm = (a, b, v) => { const q = clamp((v - a) / (b - a), 0, 1); return q * q * (3 - 2 * q); }, e = sm(0, .28, u) * (1 - sm(.72, 1, u)), to = (k, v) => { x[k] += (v - x[k]) * e; };
+        if (A.nm === 'stretch') { to('alx', -3.05); to('arx', -3.05); to('alz', -.3); to('arz', .3); to('tx', TITLE.idx === 0 ? -.1 : -.32); to('hx', -.55); to('by', x.by + .7); if (TITLE.idx === 0) { to('llx', 0); to('lrx', 0); } }
+        else if (A.nm === 'look') { x.hy += Math.sin(u * Math.PI * 2) * .85 * Math.sin(u * Math.PI); x.hx += .06 * e; x.ty = (x.ty || 0) + Math.sin(u * Math.PI * 2) * .25 * Math.sin(u * Math.PI); }
+        else if (A.nm === 'sigh') { x.by += Math.sin(u * Math.PI) * 1.0; x.tx -= .09 * e; x.hx -= .14 * e; x.alz += .12 * e; x.arz -= .12 * e; }
+        else { if (TITLE.idx === 0) { to('llx', .5); to('lrx', -.3); x.iz = (x.iz || 0) + .04 * e; } else { to('llx', -1.0); x.tz = .05 * e; } x.hy += .2 * e; }
+      }
+    }
+  }
   // ---- salida estilo anime: susto (agacha y levanta la cabeza + "!") -> giro rápido con rebote -> zoom -> la cámara se cae -> negro
   let turn = 0, sx = 1, sy = 1, bang = 0, lines = 0, zoom = 0, shake = 0;
   if (L != null) {
@@ -12660,12 +12714,22 @@ function titleUpdate(dt) {
   }
   const B = TITLE.base, tr = (a, b) => (Math.sin(t * a) + Math.sin(t * b + 1.3)) * .5;
   const cam = B.cam.clone(), look = B.look.clone(); let roll = tr(31, 19) * .0016;
+  { const ci = clamp(t / 5, 0, 1), ce = 1 - ci * ci * (3 - 2 * ci), dv = look.clone().sub(cam).setY(0).normalize(); cam.addScaledVector(dv, -ce * 2.2); cam.y += ce * .6; look.y += ce * .15; }   // travelling y grúa de entrada; luego la cámara queda fija
   cam.x += tr(37, 23) * .0035 + shake * Math.sin(t * 95) * .025; cam.y += tr(41, 27) * .0035 + shake * Math.cos(t * 83) * .02; look.y += tr(29, 17) * .004;
   if (L != null && L > .4) {   // la cámara se cae cuando el personaje termina de girar
     const fl = L - .4, drop = .5 * 9.8 * fl * fl * 2.4; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 3.4; look.y -= fl * 5 * (1 + fl * 2);
     if (!TITLE.thud && cam.y <= B.gy + .09) { TITLE.thud = true; sfx('break', cam, 1); $('tfall').classList.add('black'); }
   }
   camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = B.fov - 9 * zoom; camera.updateProjectionMatrix();
+  // ---- Sekza cruza el cielo con las gaviotas y se va hacia el sol
+  titleSky(dt, t, camera.position, yaw);
+  // ---- polvo flotando en la luz, rayos, destello de lente y grano
+  if (Math.random() < dt * 14) { const F2 = fwd(yaw), R2 = rightOf(yaw), d = rand(3, 20), sd2 = rand(-9, 9); emit(camera.position.x + F2.x * d + R2.x * sd2, camera.position.y + rand(-1, 2.8), camera.position.z + F2.z * d + R2.z * sd2, rand(-.06, .06), rand(.03, .18), rand(-.06, .06), Math.random() < .3 ? '#ffffff' : '#ffd9a0', rand(.025, .06), rand(5, 9), 0, .5); }
+  { const v = CITY.sunDisc.position.clone().project(camera), vis = v.z < 1 && Math.abs(v.x) < 1.6 && Math.abs(v.y) < 1.6, sx = (v.x * .5 + .5) * 100, sy = (-v.y * .5 + .5) * 100;
+    const ry = $('trays'); ry.style.setProperty('--sx', sx.toFixed(1) + '%'); ry.style.setProperty('--sy', sy.toFixed(1) + '%'); ry.style.opacity = vis ? .55 : 0;
+    const fls = document.querySelectorAll('.tfl'), mx = 50 - sx, my = 50 - sy;
+    fls.forEach((el, i) => { const k = [.35, .7, 1.15, 1.5][i]; el.style.left = (sx + mx * k).toFixed(1) + '%'; el.style.top = (sy + my * k).toFixed(1) + '%'; el.style.opacity = vis && !TITLE.lt ? .85 : 0; }); }
+  if (t - (TITLE.grainT || 0) > .09) { TITLE.grainT = t; const g = $('tgrain').getContext('2d'), im = g.createImageData(96, 96); for (let i = 0; i < im.data.length; i += 4) { const n = 90 + Math.random() * 120; im.data[i] = im.data[i + 1] = im.data[i + 2] = n; im.data[i + 3] = 255; } g.putImageData(im, 0, 0); }
   if (TITLE.mus) TITLE.mus.volume = titleVol(MUS.vol);
   TITLE.gullT -= dt; if (TITLE.gullT <= 0 && AC) { TITLE.gullT = rand(7, 14); try { const e = new Audio('sonidos/gull' + (1 + (Math.random() * 2 | 0)) + '.mp3'); trackHtmlAudio(e, .22, 'ambient'); e.play().catch(() => { }); } catch (x2) { } }
   if (L != null && L > .95) { TITLE.thud = false; titleFinish(); }
