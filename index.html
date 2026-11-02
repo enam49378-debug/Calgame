@@ -12641,8 +12641,9 @@ function titleSky(dt, t, cp, yaw) {
   K.t += dt; const u = K.t / K.dur, e = u * u * (3 - 2 * u) * .35 + u * .65, pos = K.a.clone().lerp(K.b, e);
   pos.y += Math.sin(u * 5) * 1.2 + Math.sin(u * 3) * 2; const dir = K.b.clone().sub(K.a).normalize();
   const m = K.model, x = K.anim.x, T = K.t;
-  m.root.position.set(pos.x, pos.y, pos.z); m.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(T * 1.3) * .08; m.root.rotation.z = Math.sin(T * 1.3) * .22;
-  Object.assign(x, { ix: 1.4, tx: -.2, hx: -.8, alx: -3.0, arx: -3.0, alz: .12, arz: -.12, llx: .35 + Math.sin(T * 3) * .1, lrx: .25 - Math.sin(T * 3) * .1, by: -1 }); K.anim.apply(); updateWings({ alive: true, awak: 1, rFlightT: 1, onGround: false }, m, dt, T * 1.4);
+  const roll = u > .42 && u < .58 ? EZ.io((u - .42) / .16) * Math.PI * 2 : 0;   // voltereta de lucimiento
+  m.root.position.set(pos.x, pos.y + Math.sin(T * 21) * .18, pos.z); m.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(T * 1.3) * .08; m.root.rotation.z = Math.sin(T * 1.3) * .22 + roll;
+  Object.assign(x, { ix: 1.4 + Math.sin(T * 21) * .05, tx: -.2, hx: -.8 + Math.sin(T * 21 + 1) * .08, alx: -2.6 + Math.sin(T * 21) * .25, arx: -2.6 + Math.sin(T * 21) * .25, alz: .3, arz: -.3, llx: .35 + Math.sin(T * 6) * .25, lrx: .25 - Math.sin(T * 6) * .25, by: -1 }); K.anim.apply(); updateWings({ alive: true, awak: 1, rFlightT: 1, onGround: false }, m, dt, T * 1.4);
   K.gulls.forEach((g, i) => { const a = T * (.9 + i * .07) + i * 1.1, r = 3.2 + (i % 3) * 1.6; g.position.set(pos.x + Math.cos(a) * r - dir.x * (2 + i * .7), pos.y + Math.sin(a * 1.3) * 1.6 + 1, pos.z + Math.sin(a) * r - dir.z * (2 + i * .7)); g.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(a) * .4; g.rotation.z = Math.sin(T * 9 + i) * .35; g.scale.setScalar(1.3); });
   if (u >= 1) titleSekzaEnd();
 }
@@ -12663,53 +12664,82 @@ function cmSpawn(id) {
   return fig;
 }
 const cmReset = x => { for (const j of JOINTS) x[j] = JDEF[j] || 0; };
-const cmWalk = (x, ph, amp = .85, lean = .05) => { cmReset(x); Object.assign(x, { ix: lean, llx: Math.sin(ph) * amp, lrx: -Math.sin(ph) * amp, alx: -Math.sin(ph) * amp * .8, arx: Math.sin(ph) * amp * .8, by: -Math.abs(Math.sin(ph)) * .6 }); };
-const cmPlace = (f, px, pz, yaw, py) => { const gy = groundAt(px, pz, 4); f.model.root.position.set(px, (py == null ? gy : py) + .02, pz); f.model.root.rotation.y = yaw; f.anim.apply(); };
+// curvas de tiempo estilo animación: 'snap' entra seco, 'back' se pasa y vuelve, 'io' suave, 'hold' se queda quieto hasta la siguiente clave
+const EZ = { lin: u => u, io: u => u * u * (3 - 2 * u), out: u => 1 - (1 - u) ** 3, in: u => u * u * u, back: u => outBack(u), snap: u => 1 - (1 - u) ** 5, hold: u => (u >= 1 ? 1 : 0) };
+// poses clave: [[tiempo, {canal: valor}, curva]]; lo que no se nombra vuelve a su valor de reposo. Devuelve la escala vertical (sy) si alguna clave la trae
+function cmKeys(x, keys, t) {
+  cmReset(x); let i = 0; while (i < keys.length - 1 && t >= keys[i + 1][0]) i++;
+  const A = keys[i], B = keys[Math.min(i + 1, keys.length - 1)], u = B === A ? 1 : clamp((t - A[0]) / (B[0] - A[0]), 0, 1), w = (EZ[B[2] || 'io'])(u);
+  const ks = new Set([...Object.keys(A[1]), ...Object.keys(B[1])]); let sy = 1;
+  for (const k of ks) { const va = A[1][k] != null ? A[1][k] : (k === 'sy' ? 1 : JDEF[k] || 0), vb = B[1][k] != null ? B[1][k] : (k === 'sy' ? 1 : JDEF[k] || 0), v = va + (vb - va) * w; if (k === 'sy') sy = v; else x[k] = v; }
+  return sy;
+}
+// ciclos: carrera anime (inclinado, brazos fuertes, rebote con aplastar/estirar) y caminata con peso
+function cmRun(x, ph, k = 1, lean = .4) { cmReset(x); const s = Math.sin(ph), c2 = Math.cos(ph * 2); Object.assign(x, { ix: lean, tx: .12 * k, hx: -.2 * k, ty: s * .18 * k, llx: s * 1.15 * k, lrx: -s * 1.15 * k, alx: -s * 1.35 * k - .35, arx: s * 1.35 * k - .35, alz: .18, arz: -.18, by: (-1.4 + c2 * 1.1) * k, hy: -s * .08 }); return 1 - c2 * .04 * k; }
+function cmWalk2(x, ph, k = 1) { cmReset(x); const s = Math.sin(ph), c2 = Math.cos(ph * 2); Object.assign(x, { ix: .05, llx: s * .62 * k, lrx: -s * .62 * k, alx: -s * .55 * k, arx: s * .55 * k, by: (-.5 + c2 * .45) * k, ty: s * .1 * k, hy: -s * .07, hz: s * .04 }); return 1 - c2 * .02; }
+function cmSneak(x, ph) { cmReset(x); const s = Math.sin(ph), up = Math.max(0, s), dn = Math.max(0, -s); Object.assign(x, { ix: .32, tx: .15, hx: -.35, llx: -up * 1.25, lrx: -dn * 1.25, alx: -1.25 + s * .2, arx: -1.25 - s * .2, alz: -.25, arz: .25, by: -2.2 + Math.abs(s) * 1.2, hy: Math.sin(ph * .5) * .35 }); return 1 + Math.abs(s) * .03; }
+const cmPlace = (f, px, pz, yaw, py, sy = 1) => { const gy = groundAt(px, pz, 4); f.model.root.position.set(px, (py == null ? gy : py) + .02, pz); f.model.root.rotation.y = yaw; f.model.root.scale.set(1 + (1 - sy) * .5, sy, 1 + (1 - sy) * .5); f.anim.apply(); };
 const CM_W = -Math.PI / 2, CM_E = Math.PI / 2;   // mirando al oeste (hacia el sol) o al este
+const smoothK = (a, b, v) => { const q = clamp((v - a) / (b - a), 0, 1); return q * q * (3 - 2 * q); };
 const CAMEOS = {
-  mattux: { dur: 4.4, init(c) { c.f = [cmSpawn('mattux')]; c.last = null; }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; let px = -16;
-    if (t < .9) { cmReset(x); x.llx = .1 + Math.abs(Math.sin(t * 9)) * .35; x.alx = -1; x.arx = -1; x.alz = .5; x.arz = -.5; x.hy = Math.sin(t * 3) * .6; x.tx = .05; }
-    else { const k = clamp((t - .9) / 1.3, 0, 1), e = k * k * (3 - 2 * k); px = -16 - 80 * e; cmWalk(x, t * 30, 1.4, .55); x.hx = -.3;
-      const p = new V3(px, groundAt(px, 89, 4) + .9, 89); if (c.last) { slashLine(c.last, p, '#2f6bff', .45, .2); slashLine(c.last, p, '#ffffff', .3, .08); } c.last = p;
-      emit(px + 1, .3, 89 + rand(-.3, .3), rand(1, 4), rand(.4, 1.4), rand(-.6, .6), '#cfe6ff', .18, .5, .2, 2); if (!c.go) { c.go = 1; ringAt(new V3(-16, .2, 89), '#2f6bff', 3, .35); sfx('dash', new V3(-16, 0, 89), .5); } }
-    f.model.root.visible = t < 2.4; cmPlace(f, px, 89, CM_W);
+  // Mattux: espera impaciente (brazos cruzados, golpecitos con el pie, mira a cámara), se agacha y sale disparado
+  mattux: { dur: 3.4, init(c) { c.f = [cmSpawn('mattux')]; c.last = null; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x; let px = -16, sy = 1;
+    if (t < 1.0) { sy = cmKeys(x, [[0, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 0 }], [.35, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 1.1, hx: -.1 }, 'back'], [.8, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 1.1, hx: -.1 }, 'hold'], [1.0, { by: -3.2, ix: .55, tx: .2, alx: .9, arx: .9, hy: 0, sy: .84 }, 'snap']], t); x.llx = Math.abs(Math.sin(t * 11)) * .32 * (t < .8 ? 1 : 0); }
+    else { const k = clamp((t - 1.0) / 1.2, 0, 1), e = EZ.in(k) * .4 + EZ.io(k) * .6; px = -16 - 85 * e; sy = cmRun(x, t * 34, 1.25, .7) * (t < 1.12 ? 1.12 : 1);
+      const p = new V3(px, groundAt(px, 89, 4) + .9, 89); if (c.last) { slashLine(c.last, p, '#2f6bff', .5, .24); slashLine(c.last, p, '#ffffff', .32, .08); } c.last = p;
+      emit(px + 1, .3, 89 + rand(-.3, .3), rand(1, 4), rand(.4, 1.4), rand(-.6, .6), '#cfe6ff', .18, .5, .2, 2);
+      if (!c.go) { c.go = 1; ringAt(new V3(-16, .2, 89), '#2f6bff', 3.2, .35); burst(new V3(-16, .3, 89), 18, '#e8d9b0', 6, .2, .5, .3); ghost(f, '#2f6bff', .55, .3); sfx('dash', new V3(-16, 0, 89), .5); } }
+    f.model.root.visible = t < 2.3; cmPlace(f, px, 89, CM_W, null, sy);
   } },
-  javi: { dur: 8.6, init(c) { c.f = [cmSpawn('javi')]; setSpear(c.f[0], true); }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; let px, yaw;
-    if (t < 3.4) { px = -72 + 38 * (t / 3.4); yaw = CM_E; cmWalk(x, t * 7, .6); x.arx = -.6; }
-    else if (t < 5.6) { px = -34; yaw = CM_W; cmReset(x); x.arx = -1.25; x.arz = -.1; x.alx = -.4; x.hy = Math.sin(t * 2) * .2; x.llx = .15; x.lrx = -.1; if (f.model.gripRot) f.model.gripRot.rotation.x = (t - 3.4) * 11; }
-    else { px = -34 - 38 * ((t - 5.6) / 3); yaw = CM_W; cmWalk(x, t * 7, .6); x.arx = -.6; if (f.model.gripRot) f.model.gripRot.rotation.x = 0; }
-    if (t < 3.4 || t >= 5.6) { if (f.model.gripRot) f.model.gripRot.rotation.set(0, 0, 0); }
-    cmPlace(f, px, 88, yaw);
+  // Javi: llega caminando con la lanza, frena, gira la lanza con anticipación y queda en pose de héroe; se va
+  javi: { dur: 8.4, init(c) { c.f = [cmSpawn('javi')]; setSpear(c.f[0], true); c.spin = 0; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x, gr = f.model.gripRot; let px = -34, yaw = CM_W, sy = 1;
+    if (t < 3.0) { px = -70 + 36 * EZ.out(t / 3.0); yaw = CM_E; sy = cmWalk2(x, t * 7.5); x.arx = -.45; }
+    else if (t < 6.0) {
+      const u = t - 3.0;
+      sy = cmKeys(x, [[0, { arx: -.45, by: -.5 }], [.25, { by: -1.6, ix: .12, arx: -.2, sy: .9 }, 'out'], [.45, { by: -2.2, ty: -.6, arx: .5, alx: -.6, sy: .88 }, 'io'], [.6, { by: -.8, ty: .5, arx: -1.6, alx: .4, sy: 1.06 }, 'snap'], [1.8, { by: -.8, ty: .2, arx: -1.5, alx: .3 }, 'io'], [2.1, { tx: -.12, hx: -.25, arx: -.2, arz: .1, alx: 0, alz: .35, llz: .14, lrz: -.14, sy: 1.04 }, 'back'], [3.0, { tx: -.12, hx: -.25, arx: -.2, arz: .1, alz: .35, llz: .14, lrz: -.14 }, 'hold']], u);
+      if (gr) { const spinning = u > .5 && u < 1.9, k = spinning ? smoothK(.5, .8, u) * (1 - smoothK(1.6, 1.9, u)) : 0; c.spin += k * 28 * (1 / 60); gr.rotation.set(c.spin, 0, 0); if (spinning && Math.random() < .5) emit(f.model.root.position.x + rand(-.6, .6), 1.3 + rand(-.4, .6), 88 + rand(-.6, .6), 0, rand(.5, 1.5), 0, '#3fa9ff', .12, .4, 0, 2); if (u > 1.9) gr.rotation.set(0, 0, 0); }
+    } else { px = -34 - 36 * EZ.in((t - 6.0) / 2.4); yaw = CM_W; sy = cmWalk2(x, t * 7.5); x.arx = -.45; }
+    cmPlace(f, px, 88, yaw, null, sy);
   } },
-  ukyo: { dur: 5.4, init(c) { c.f = [cmSpawn('ukyo')]; setSpear(c.f[0], true); }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; cmReset(x); x.llx = .1; x.lrx = -.1;
-    const slash = t0 => { const u = t - t0; if (u < 0 || u > 1.1) return; if (u < .45) { x.ty = -.9 * outBack(u / .45); x.arx = -1.2; x.tx = .2; } else if (u < .6) { x.ty = -.9 + 1.9 * ((u - .45) / .15); x.arx = -1.6; x.tx = .35; } else { x.ty = 1 * (1 - clamp((u - .6) / .5, 0, 1)); x.arx = -1.6 + (1 - clamp((u - .6) / .5, 0, 1)) * 0; }
-      if (u >= .5 && !c['s' + t0]) { c['s' + t0] = 1; const p = new V3(-30 + 1.6, groundAt(-30, 86, 4) + 1.2, 86); burst(p, 26, '#e0263a', 9, .18, .5, 0); burst(p, 12, '#ffb347', 6, .14, .4, 0); sfx('swing', p, .5); } };
-    slash(1.0); slash(2.7); if (t > 4.4 && f.spear) setSpear(f, false);
-    cmPlace(f, -30, 86, CM_W);
+  // ItzUkyo: guardia baja, carga, tajo seco con estela de fuego y pausa; contratajo; envaina y saluda
+  ukyo: { dur: 5.2, init(c) { c.f = [cmSpawn('ukyo')]; setSpear(c.f[0], true); }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x, G0 = { llz: .2, lrz: -.2, by: -1.6, ix: .1 };
+    const sy = cmKeys(x, [[0, {}], [.5, Object.assign({ arx: -.9, alx: -.6 }, G0), 'back'],
+      [1.0, Object.assign({ ty: -1.05, tx: .2, arx: -1.3, alx: -.8, sy: .92 }, G0), 'io'], [1.08, Object.assign({ ty: 1.15, tx: .38, arx: -1.85, alx: .35, sy: 1.08 }, G0), 'snap'], [1.6, Object.assign({ ty: .95, tx: .3, arx: -1.75, alx: .3 }, G0), 'hold'],
+      [2.3, Object.assign({ ty: .9, tx: .2, arx: -2.6, alx: -.3 }, G0), 'io'], [2.38, Object.assign({ ty: -1.1, tx: .4, arx: -1.2, alx: -.2, sy: 1.08 }, G0), 'snap'], [3.0, Object.assign({ ty: -.9, tx: .3, arx: -1.1 }, G0), 'hold'],
+      [3.6, { arx: -.3, alx: -.3 }, 'io'], [4.2, { tx: .45, hx: .25, arx: -.2, alx: -.2 }, 'back'], [4.9, { tx: .45, hx: .25 }, 'hold'], [5.2, {}, 'io']], t);
+    const fx = (k, t0, dir) => { if (t >= t0 && !c[k]) { c[k] = 1; const o = new V3(-30, groundAt(-30, 86, 4) + 1.25, 86), a1 = o.clone().add(new V3(-1.4, .5, 1.6 * dir)), a2 = o.clone().add(new V3(-1.6, -.2, -1.6 * dir)); slashLine(a1, a2, '#e0263a', .35, .35); slashLine(a1, a2, '#ffd27a', .25, .12); burst(o.clone().add(new V3(-1.5, 0, 0)), 26, '#e0263a', 9, .18, .5, 0); burst(o.clone().add(new V3(-1.5, 0, 0)), 12, '#ffb347', 6, .14, .4, 0); ghost(f, '#e0263a', .45, .22); sfx('swing', o, .5); } };
+    fx('a', 1.06, 1); fx('b', 2.36, -1); if (t > 3.7 && f.spear) setSpear(f, false);
+    cmPlace(f, -30, 86, CM_W, null, sy);
   } },
-  redbird: { dur: 4.6, init(c) { c.f = [cmSpawn('redbird')]; }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; cmReset(x); x.llx = .1; x.lrx = -.1;
-    if (t > 1.3 && t < 3.4) { const k = outBack(clamp((t - 1.3) / .4, 0, 1)); x.arx = -1.5 * k; x.tx = -.1 * k; x.hx = -.25 * k; }
-    cmPlace(f, -24, 86, CM_W);
-    if (t > 2.1 && t < 2.8) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 6 * PX)), d = CITY.sunDisc.position.clone().sub(o).normalize(), e = o.clone().addScaledVector(d, 150); slashLine(o, e, '#ff3a3a', .12, .3); slashLine(o, e, '#ffffff', .1, .1); if (!c.b) { c.b = 1; burst(o, 14, '#ff3a3a', 6, .12, .3, 0); sfx('zap', o, .5); } }
+  // Redbird: lleva la mano al visor, carga (tiembla y brilla), dispara con retroceso y pausa
+  redbird: { dur: 4.4, init(c) { c.f = [cmSpawn('redbird')]; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x;
+    const sy = cmKeys(x, [[0, {}], [.6, { arx: -2.25, arz: .45, hx: .1 }, 'back'], [1.5, { arx: -2.25, arz: .45, by: -1.4, tx: .15, hx: .15, sy: .93 }, 'io'], [1.6, { arx: -2.1, arz: .45, by: .5, tx: -.28, hx: -.25, ix: -.08, sy: 1.06 }, 'snap'], [2.3, { arx: -2.1, arz: .45, by: .2, tx: -.2, hx: -.2 }, 'hold'], [3.0, { arx: -.3 }, 'io'], [3.6, { hy: .5 }, 'back'], [4.4, {}, 'io']], t);
+    if (t > .7 && t < 1.55) { f.model.root.position.x += rand(-.02, .02); if (Math.random() < .6) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 5 * PX)); emit(o.x + rand(-.3, .3), o.y + rand(-.3, .3), o.z + rand(-.3, .3), 0, rand(.3, 1), 0, '#ff3a3a', .12, .4, 0, 2); } }
+    cmPlace(f, -24, 86, CM_W, null, sy);
+    if (t > 1.6 && t < 2.3) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 6 * PX)), d = CITY.sunDisc.position.clone().sub(o).normalize(), e = o.clone().addScaledVector(d, 150), w = 1 - (t - 1.6) / .7; slashLine(o, e, '#ff3a3a', .1, .34 * w + .06); slashLine(o, e, '#ffffff', .08, .12 * w + .03); if (!c.b) { c.b = 1; burst(o, 18, '#ff3a3a', 7, .14, .35, 0); ringAt(o, '#ff3a3a', 2, .3); sfx('zap', o, .5); } }
   } },
+  // Rocket: manos en la cintura, se agacha, lanza la tela, sale en arco estirándose, cae aplastándose y saluda
   rocket: { dur: 4.4, init(c) { c.f = [cmSpawn('rocket')]; }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; cmReset(x); let px = -26, py = null;
-    if (t < 1) { x.alz = .9; x.arz = -.9; x.llz = .12; x.lrz = -.12; x.hy = Math.sin(t * 4) * .3; }
-    else if (t < 2.1) { const k = (t - 1) / 1.1, e = k * k * (3 - 2 * k); px = -26 - 26 * e; py = groundAt(px, 87, 4) + Math.sin(k * Math.PI) * 4.5; Object.assign(x, { arx: -2.6, ix: .4 }); const a = new V3(px, py + 1.5, 87), anc = new V3(-52, 6.5, 87); slashLine(a, anc, '#ffffff', .1, .06); if (!c.z) { c.z = 1; sfx('whoosh', a, .5); } }
-    else { px = -52; x.arx = -2.9 + Math.sin(t * 9) * .4; x.llx = .1; }
-    cmPlace(f, px, 87, CM_W, py);
+    const f = c.f[0], x = f.anim.x; let px = -26, py = null, sy = 1;
+    if (t < 1.0) sy = cmKeys(x, [[0, { alz: .7, arz: -.7, alx: .3, arx: .3, hy: .4 }], [.55, { alz: .7, arz: -.7, alx: .3, arx: .3, hy: -.3 }, 'back'], [1.0, { by: -3, ix: .3, arx: -2.9, alx: .4, sy: .85 }, 'snap']], t);
+    else if (t < 2.1) { const k = (t - 1.0) / 1.1, e = EZ.io(k); px = -26 - 26 * e; py = groundAt(px, 87, 4) + Math.sin(k * Math.PI) * 4.5; cmReset(x); Object.assign(x, { arx: -2.9, alx: .6, ix: .45, llx: .5, lrx: -.3, hx: -.3 }); sy = 1 + Math.sin(k * Math.PI) * .12;
+      const a = new V3(px, py + 1.6, 87), anc = new V3(-52, 6.5, 87); slashLine(a, anc, '#ffffff', .1, .06); if (!c.z) { c.z = 1; sfx('whoosh', a, .5); } }
+    else { px = -52; const u = t - 2.1; sy = cmKeys(x, [[0, { by: -3, ix: .2, sy: .82 }], [.25, { by: 0, sy: 1.05 }, 'back'], [.5, { arx: -2.9, arz: .2 }, 'back'], [2.3, { arx: -2.9, arz: .2 }, 'hold']], u); if (u > .5) x.arz = .2 + Math.sin(u * 14) * .45; if (u < .1 && !c.l) { c.l = 1; burst(new V3(-52, .3, 87), 14, '#e8d9b0', 5, .18, .4, .3); } }
+    cmPlace(f, px, 87, CM_W, py, sy);
   } },
-  randi: { dur: 6.2, init(c) { c.f = [cmSpawn('randi')]; c.ll = []; for (let i = 0; i < 4; i++) { const g = DOM_ANIMALS[[0, 2, 3, 0][i]](); g.scale.setScalar(.8); scene.add(g); c.ll.push(g); } }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x, px = -92 + 82 * (t / 5.4); cmWalk(x, t * 13, 1.0, .12); x.alx = -2.7; x.arx = -2.7; x.alz = -.3; x.arz = .3;
-    cmPlace(f, px, 90, CM_E); c.ll.forEach((g, i) => { const gx = px - 5 - i * 2.4, gz = 90 + (i % 2 ? 1.4 : -1.4); g.position.set(gx, groundAt(gx, gz, 4) + Math.abs(Math.sin(t * 13 + i)) * .3, gz); g.rotation.y = CM_E; });
+  // ElRandi: corre con los brazos arriba como loco delante de las llamas, con saltitos
+  randi: { dur: 6.0, init(c) { c.f = [cmSpawn('randi')]; c.ll = []; for (let i = 0; i < 4; i++) { const g = DOM_ANIMALS[[0, 2, 3, 0][i]](); g.scale.setScalar(.8); scene.add(g); c.ll.push(g); } }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x, px = -92 + 82 * (t / 5.4), hop = Math.max(0, Math.sin(t * 6.5)) ** 3 * .45; const sy = cmRun(x, t * 15, 1.1, .2); x.alx = -2.8 + Math.sin(t * 15) * .35; x.arx = -2.8 - Math.sin(t * 15) * .35; x.alz = -.45; x.arz = .45; x.hx = -.35 + Math.sin(t * 30) * .08;
+    cmPlace(f, px, 90, CM_E, groundAt(px, 90, 4) + hop, sy); c.ll.forEach((g, i) => { const gx = px - 5 - i * 2.4, gz = 90 + (i % 2 ? 1.4 : -1.4), b = Math.abs(Math.sin(t * 13 + i)); g.position.set(gx, groundAt(gx, gz, 4) + b * .35, gz); g.rotation.y = CM_E; g.rotation.x = (b - .5) * .12; g.scale.set(.8, .8 * (1 + (b - .5) * .08), .8); });
     if (Math.random() < .5) emit(px - 4 + rand(-3, 3), .2, 90 + rand(-2, 2), rand(-1, 1), rand(.5, 1.5), rand(-1, 1), '#e8d9b0', .16, .6, .2, 2);
   }, done(c) { for (const g of c.ll) scene.remove(g); } },
+  // ElGato: caminata sigilosa de dibujo animado con dos copias que se desfasan y parpadean
   gato: { dur: 6.4, init(c) { c.f = [cmSpawn('gato'), cmSpawn('gato'), cmSpawn('gato')]; c.f.slice(1).forEach(f => f.model.root.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .42; } })); }, upd(c, t) {
-    c.f.forEach((f, i) => { const x = f.anim.x, tt = Math.max(0, t - i * .35), px = -16 - 60 * (tt / 5.6), pz = 89 + [0, 1.5, -1.5][i] * (1 + Math.sin(t * 1.2) * .5); cmWalk(x, tt * 6, .55, .02); f.model.root.visible = t > i * .35 && tt < 5.6 && (i === 0 || Math.floor(t * 9 + i) % 5 !== 0); cmPlace(f, px, pz, CM_W); });
+    c.f.forEach((f, i) => { const x = f.anim.x, tt = Math.max(0, t - i * .3), px = -16 - 58 * (tt / 5.6), pz = 89 + [0, 1.5, -1.5][i] * (1 + Math.sin(t * 1.2) * .5); const sy = cmSneak(x, tt * 4.2 + i); f.model.root.visible = t > i * .3 && tt < 5.6 && (i === 0 || Math.floor(t * 9 + i) % 5 !== 0); cmPlace(f, px, pz, CM_W, null, sy); });
   } },
   jesuluto: { dur: 6, init(c) { const d = document.createElement('div'); d.id = 'tclippy'; d.innerHTML = '<b>📎</b><span>¡Parece que estás viendo el atardecer!<br><small>¿Necesitas ayuda con eso?</small></span>'; $('title').appendChild(d); c.el = d; }, upd(c, t) { c.el.classList.toggle('on', t > .3 && t < 5.4); }, done(c) { if (c.el) c.el.remove(); } },
 };
