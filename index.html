@@ -10,6 +10,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CalFight</title>
 <link rel="icon" type="image/png" href="assets/calfight_icon.png">
+<meta name="description" content="CalFight: peleas anime en una ciudad de bloques. Juega gratis en el navegador, solo o con amigos.">
+<meta name="theme-color" content="#3f266e">
+<meta property="og:type" content="website"><meta property="og:site_name" content="CalFight"><meta property="og:title" content="CalFight">
+<meta property="og:description" content="Peleas anime en una ciudad de bloques. Elige tu peleador, rompe la ciudad y juega con tus amigos. Gratis, en el navegador.">
+<meta property="og:url" content="https://enam49378-debug.github.io/Calgame/"><meta property="og:image" content="https://enam49378-debug.github.io/Calgame/assets/calfight_banner.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="CalFight"><meta name="twitter:description" content="Peleas anime en una ciudad de bloques. Gratis, en el navegador."><meta name="twitter:image" content="https://enam49378-debug.github.io/Calgame/assets/calfight_banner.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
 <style>
@@ -324,6 +330,16 @@ tr.me td{color:var(--hot);font-weight:700}
 #menu.menufall .selmodes{animation:mfDrop .8s cubic-bezier(.3,1.5,.5,1) 1.05s backwards !important}
 @keyframes mfTop{from{transform:translateY(-140vh) rotate(-3deg)}}
 @keyframes mfDrop{from{transform:translateY(-130vh) rotate(5deg);opacity:1}}
+
+#tplay{position:absolute;right:5vw;bottom:15vh;z-index:3;background:#ffd400;color:#000;border:4px solid #000;padding:16px 38px;font:900 clamp(18px,2.2vw,30px)/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.08em;cursor:pointer;transform:skewX(-8deg);box-shadow:6px 6px 0 #000;animation:tPlayIn .8s 1.1s cubic-bezier(.2,1.4,.4,1) both,tPlayPulse 1.8s ease-in-out 2s infinite}
+@keyframes tPlayIn{from{opacity:0;transform:translateX(120px) skewX(-8deg)}}@keyframes tPlayPulse{0%,100%{box-shadow:6px 6px 0 #000}50%{box-shadow:6px 6px 0 #000,0 0 26px rgba(255,212,0,.8)}}
+#tplay:hover{background:#fff;transform:skewX(-8deg) translate(-3px,-3px);box-shadow:9px 9px 0 #000}
+#tset{position:absolute;right:5vw;top:calc(12vh + 46px);z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg)}
+#tset:hover,#setbtn:hover{background:#ffd400;color:#000}
+#title.leaving #tplay,#title.leaving #tset{opacity:0;transition:opacity .2s}
+#tspeed{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;background:repeating-conic-gradient(from 0deg at 50% 52%,rgba(255,255,255,.95) 0 .8deg,transparent .8deg 4.2deg);-webkit-mask:radial-gradient(circle at 50% 52%,transparent 22%,#000 78%);mask:radial-gradient(circle at 50% 52%,transparent 22%,#000 78%)}
+#setbtn{margin-left:auto}
+#pause.ext{z-index:95}
 </style>
 
 </head>
@@ -379,8 +395,8 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="title" class="hidden">
   <div class="tbar t1"></div><div class="tbar t2"></div>
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
-  <div class="thint"><b>PRESIONA CUALQUIER TECLA</b> para elegir tu peleador</div>
-  <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button>
+  <button type="button" id="tplay">▶ JUGAR</button>
+  <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><div id="tspeed"></div>
 </div>
 
 <div id="menu">
@@ -390,6 +406,7 @@ tr.me td{color:var(--hot);font-weight:700}
     <button type="button" id="viewbtn">SALA DE CINEMÁTICAS ▸</button>
     <button type="button" id="feb">EDITOR DE EXPRESIONES ▸</button>
     <button type="button" id="animedbtn">EDITOR DE ANIMACIONES ▸</button>
+    <button type="button" id="setbtn">⚙ AJUSTES</button>
   </header>
   <section class="mpanel" id="tab-sel">
     <div id="cinfo" style="display:flex;flex-direction:column;gap:10px">
@@ -5217,9 +5234,13 @@ function setPauseView(view,focus=true){
   if(options)syncAudioControls();
   if(focus&&G.paused)(options?$('volume-general'):$('pause-options')).focus({preventScroll:true});
 }
+let SETTINGS_EXT=false;
+function openSettings(){SETTINGS_EXT=true;$('pause').classList.add('ext');$('pause').classList.remove('hidden');setPauseView('options',false);}
+function closeSettings(){SETTINGS_EXT=false;$('pause').classList.add('hidden');$('pause').classList.remove('ext');setPauseView('home',false);}
 function initPauseAudioControls(){
-  syncAudioControls();$('pause-options').addEventListener('click',()=>setPauseView('options'));
-  $('pause-back').addEventListener('click',()=>setPauseView('home'));
+  syncAudioControls();$('tset').addEventListener('click',e=>{e.stopPropagation();openSettings();});$('setbtn').addEventListener('click',openSettings);
+  addEventListener('keydown',e=>{if(SETTINGS_EXT&&e.code==='Escape'){e.preventDefault();e.stopPropagation();closeSettings();}},true);$('pause-options').addEventListener('click',()=>setPauseView('options'));
+  $('pause-back').addEventListener('click',()=>{if(SETTINGS_EXT)closeSettings();else setPauseView('home');});
   for(const el of document.querySelectorAll('[data-volume]'))el.addEventListener('input',()=>setAudioLevel(el.dataset.volume,el.value));
 }
 
@@ -9987,11 +10008,11 @@ function gfxSet(level, auto, save = true) {
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   if (wasOn !== shadows) scene.traverse(o => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach(x => { x.needsUpdate = true; }); } });
   OUTLINE_MAT.visible = level < 2;
-  if (save) { try { localStorage.setItem('bsb_gfx', JSON.stringify({ level, auto: !!auto, best: GFX.best })); } catch (e) { } }
+  if (save) { try { localStorage.setItem('bsb_gfx_v2', JSON.stringify({ level, auto: !!auto, best: GFX.best })); } catch (e) { } }
   document.querySelectorAll('.gfxsel').forEach(el => { el.value = auto ? 'auto' : String(level); });
 }
 function gfxInit() {
-  let sv = null; try { sv = JSON.parse(localStorage.getItem('bsb_gfx') || 'null'); } catch (e) { }
+  let sv = null; try { sv = JSON.parse(localStorage.getItem('bsb_gfx_v2') || 'null'); } catch (e) { }
   const q = /[?&]q=([0-4])/.exec(location.search);
   try {   // sin aceleración por hardware (render por software): arranca en Mínima
     const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'), name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
@@ -10004,7 +10025,7 @@ function gfxInit() {
 }
 // llamado cada cuadro con el tiempo real: si durante 3 s seguidos va por debajo de ~42 FPS, baja un nivel
 function gfxWatch(rawDt) {
-  if (document.hidden || rawDt > .5) { GFX.acc = 0; GFX.frames = 0; return; }   // pestaña oculta o parón largo (carga de shaders): no cuenta
+  if (document.hidden || rawDt > .5 || G.state !== 'play') { GFX.acc = 0; GFX.frames = 0; return; }   // solo se mide jugando (la carga de shaders no cuenta)   // pestaña oculta o parón largo (carga de shaders): no cuenta
   GFX.acc += rawDt; GFX.frames++;
   if (GFX.acc < 1) return;
   GFX.fps = GFX.frames / GFX.acc; GFX.acc = 0; GFX.frames = 0;
@@ -12238,20 +12259,21 @@ const titleVol = k => k * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100;
 function titleAudio(on) {
   if (on) {
     try {
-      const m = new Audio('musica/calfight_intro.mp3'); m.loop = true; m.volume = titleVol(.55); m.play().catch(() => { }); TITLE.mus = m;
+      const m = new Audio('musica/calfight_intro.mp3'); m.loop = true; m.volume = titleVol(MUS.vol); m.play().catch(() => { }); TITLE.mus = m;
       for (const [n, v] of [['waves', .3], ['breeze', .14]]) { const e = new Audio('sonidos/' + n + '.mp3'); e.loop = true; trackHtmlAudio(e, v, 'ambient'); e.play().catch(() => { }); TITLE.amb.push(e); }
     } catch (e) { }
     return;
   }
   const m = TITLE.mus, amb = TITLE.amb; TITLE.mus = null; TITLE.amb = [];
-  let k = 1; const iv = setInterval(() => { k -= .05; if (m) m.volume = Math.max(0, titleVol(.55) * k); for (const e of amb) e.volume = Math.max(0, e.volume * .93); if (k <= 0) { clearInterval(iv); if (m) m.pause(); for (const e of amb) e.pause(); } }, 70);
+  let k = 1; const iv = setInterval(() => { k -= .05; if (m) m.volume = Math.max(0, titleVol(MUS.vol) * k); for (const e of amb) e.volume = Math.max(0, e.volume * .93); if (k <= 0) { clearInterval(iv); if (m) m.pause(); for (const e of amb) e.pause(); } }, 70);
 }
 function titleStart() {
   if (TITLE.on || /[#?](sala|room|j=|join)|notitle/i.test(location.hash + location.search)) return;
   if (!CHARS[G.charId]) G.charId = 'javi';
   let idx = 0; try { idx = (parseInt(localStorage.getItem('bsb_title_idx') || '-1') + 1) % 2; localStorage.setItem('bsb_title_idx', String(idx)); } catch (e) { }
   TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; G.state = 'title';
-  $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
+  $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight); }   // el inicio siempre a máxima nitidez
+   $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
   TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode };
   WX.mode = 'clear'; WX.hour = 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado
   titleBuild(); titleAudio(true);
@@ -12270,15 +12292,23 @@ function titleFinish() {
   if (!TITLE.on) return; TITLE.on = false;
   WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
+  if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0;
   titleAudio(false);
   $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); showSelect(G.charId);
-  camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix();
+  camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix(); gfxSet(GFX.level, GFX.auto, false);
   const mn = $('menu'); mn.classList.add('menufall'); const fl = $('tfall'); fl.className = 'black'; void fl.offsetWidth; fl.className = 'fade'; setTimeout(() => { fl.className = ''; }, 3200);
   setTimeout(() => menuVoice(G.charId), 1500); setTimeout(() => mn.classList.remove('menufall'), 3800);
 }
 function titleLeave() {
   if (!TITLE.on || TITLE.lt != null) return; TITLE.lt = 0; $('title').classList.add('leaving'); initAudio();
 }
+function bangSprite() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.lineJoin = 'round';
+  g.font = '900 120px Impact,Arial Black,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 16; g.strokeStyle = '#000'; g.strokeText('!', 64, 66); g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeText('!', 64, 66); g.fillStyle = '#ff2d4a'; g.fillText('!', 64, 66);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false })); sp.renderOrder = 30; sp.visible = false; return sp;
+}
+const outBack = k => { k = clamp(k, 0, 1); const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
 function titleUpdate(dt) {
   if (!TITLE.on || !TITLE.fig) return;
   TITLE.t += dt; const t = TITLE.t, f = TITLE.fig, x = f.anim.x, m = f.model, sd = CITY.sunDisc.position, br = Math.sin(t * 1.5), L = TITLE.lt;
@@ -12294,10 +12324,20 @@ function titleUpdate(dt) {
     back = 4.8; side = 1.5; ch0 = .85; lh0 = 1.35; fov = 44;
   }
   const gy = groundAt(px, pz, 4), yaw = Math.atan2(sd.x - px, sd.z - pz);
-  // al pulsar: primero la cabeza y luego el cuerpo giran hacia la cámara
-  let turn = 0; if (L != null) { const k = clamp((L - .2) / 1.0, 0, 1); turn = k * k * (3 - 2 * k); x.hy = Math.sin(clamp(L / .45, 0, 1) * 1.57) * 1.0 * (1 - turn) + (x.hy || 0) * (1 - clamp(L / .45, 0, 1)); x.hx = x.hx * (1 - clamp(L / .5, 0, 1) * .6); if (TITLE.idx === 0) x.tx *= 1 - turn * .8; }
-  m.root.position.set(px, gy + .02, pz); m.root.rotation.y = yaw + turn * Math.PI;
+  // ---- salida estilo anime: susto (agacha y levanta la cabeza + "!") -> giro rápido con rebote -> zoom -> la cámara se cae -> negro
+  let turn = 0, sx = 1, sy = 1, bang = 0, lines = 0, zoom = 0, shake = 0;
+  if (L != null) {
+    const a = clamp(L / .14, 0, 1), k = clamp((L - .14) / .2, 0, 1);
+    if (L < .14) { const q = Math.sin(a * 1.57); x.by -= 1.4 * q; x.hx -= .3 * q; x.tx = (x.tx || 0) - .1 * q; sx = 1 + .05 * q; sy = 1 - .07 * q; }
+    else { turn = outBack(k); const st = Math.sin(clamp(k, 0, 1) * 3.14); sy = 1 + .1 * st; sx = 1 - .05 * st; x.hy = -Math.sin(clamp(k * 1.7, 0, 1) * 1.57) * 1.1 * (1 - clamp((k - .5) * 2, 0, 1)); x.hx *= .4; if (TITLE.idx === 0) x.tx *= 1 - clamp(k * 1.4, 0, 1) * .9; }
+    bang = L < .62 ? outBack((L - .02) / .16) * (L > .5 ? clamp((.62 - L) / .12, 0, 1) : 1) : 0;
+    lines = L > .14 && L < .5 ? (L < .2 ? 1 : clamp(1 - (L - .2) / .3, 0, 1)) : 0; zoom = clamp((L - .17) / .1, 0, 1) * (L > .4 ? clamp(1 - (L - .4) / .1, 0, 1) : 1); shake = L > .14 && L < .42 ? 1 : 0;
+  }
+  m.root.position.set(px, gy + .02, pz); m.root.rotation.y = yaw + turn * Math.PI; m.root.scale.set(sx, sy, sx);
   f.anim.apply(); f.blinkT -= dt; if (f.blinkT < -.13) f.blinkT = rand(2, 4.5); try { updateFace(f, dt); } catch (e) { }
+  if (!TITLE.bang) { TITLE.bang = bangSprite(); scene.add(TITLE.bang); }
+  const hp = m.head.localToWorld(new V3(0, 13 * PX, 0)); TITLE.bang.position.set(hp.x, hp.y + .15, hp.z); TITLE.bang.scale.setScalar(.9 * Math.max(.001, bang)); TITLE.bang.visible = bang > .01;
+  $('tspeed').style.opacity = lines;
   // cámara fija (se calcula una vez) con un temblor muy leve
   if (TITLE.baseIdx !== TITLE.idx) {
     const F = fwd(yaw), Rv = rightOf(yaw), a10 = .17;
@@ -12305,19 +12345,18 @@ function titleUpdate(dt) {
     const c = TITLE.base.cam; TITLE.base.look = new V3(c.x + (F.x * Math.cos(a10) - Rv.x * Math.sin(a10)) * 20, gy + lh0, c.z + (F.z * Math.cos(a10) - Rv.z * Math.sin(a10)) * 20); TITLE.baseIdx = TITLE.idx;
   }
   const B = TITLE.base, tr = (a, b) => (Math.sin(t * a) + Math.sin(t * b + 1.3)) * .5;
-  const cam = B.cam.clone(), look = B.look.clone(); let roll = tr(31, 19) * .0016, drop = 0;
-  cam.x += tr(37, 23) * .0035; cam.y += tr(41, 27) * .0035; look.y += tr(29, 17) * .004;
-  if (L != null && L > .85) {   // la cámara se cae justo cuando está por terminar de girar
-    const fl = L - .85; drop = .5 * 9.8 * fl * fl * 1.6; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 2.6; look.y -= fl * 4 * (1 + fl * 2);
-    if (fl > .02 && !TITLE.thud && cam.y <= B.gy + .09) { TITLE.thud = true; sfx('break', cam, 1); $('tfall').classList.add('black'); }
+  const cam = B.cam.clone(), look = B.look.clone(); let roll = tr(31, 19) * .0016;
+  cam.x += tr(37, 23) * .0035 + shake * Math.sin(t * 95) * .025; cam.y += tr(41, 27) * .0035 + shake * Math.cos(t * 83) * .02; look.y += tr(29, 17) * .004;
+  if (L != null && L > .4) {   // la cámara se cae cuando el personaje termina de girar
+    const fl = L - .4, drop = .5 * 9.8 * fl * fl * 2.4; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 3.4; look.y -= fl * 5 * (1 + fl * 2);
+    if (!TITLE.thud && cam.y <= B.gy + .09) { TITLE.thud = true; sfx('break', cam, 1); $('tfall').classList.add('black'); }
   }
-  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = B.fov; camera.updateProjectionMatrix();
-  if (TITLE.mus) TITLE.mus.volume = titleVol(.55);
+  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = B.fov - 9 * zoom; camera.updateProjectionMatrix();
+  if (TITLE.mus) TITLE.mus.volume = titleVol(MUS.vol);
   TITLE.gullT -= dt; if (TITLE.gullT <= 0 && AC) { TITLE.gullT = rand(7, 14); try { const e = new Audio('sonidos/gull' + (1 + (Math.random() * 2 | 0)) + '.mp3'); trackHtmlAudio(e, .22, 'ambient'); e.play().catch(() => { }); } catch (x2) { } }
-  if (L != null && L > 1.75) { TITLE.thud = false; titleFinish(); }
+  if (L != null && L > .95) { TITLE.thud = false; titleFinish(); }
 }
-addEventListener('keydown', e => { if (TITLE.on && !e.repeat && !['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'F5', 'F11', 'F12'].includes(e.code)) { e.preventDefault(); titleLeave(); } }, true);
-$('title').addEventListener('pointerdown', e => { if (e.target.id === 'tscene') return; titleLeave(); });
+$('tplay').addEventListener('click', e => { e.stopPropagation(); titleLeave(); });
 $('tscene').addEventListener('click', e => { e.stopPropagation(); if (TITLE.lt != null) return; TITLE.idx = 1 - TITLE.idx; try { localStorage.setItem('bsb_title_idx', String(TITLE.idx)); } catch (x) { } });
 loadCharSkins().then(() => { ensureNormalAll(); renderRoster(); showSelect(G.charId, true); titleStart(); });
 netInit();
