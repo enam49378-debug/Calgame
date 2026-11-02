@@ -31,9 +31,10 @@ EVENTS = {'activar la ulti': 'activar_ulti', 'activar ulti': 'activar_ulti', 'ac
           'habilidad ulti': 'habilidad_ulti',
           'al golpiar': 'golpe', 'al golpear': 'golpe', 'golpear': 'golpe', 'golpiar': 'golpe', 'cuandoactivoulti': 'activar_ulti', 'cuandoconsigoulti': 'ulti_lista',
           'matando a alguien': 'baja', 'apunto de matar a alguien': 'casi_baja', 'apunto de matar un jugador': 'casi_baja', 'variantes menu': 'menu', 'menu': 'menu',
-          'activa la ulti': 'activar_ulti', 'consige ulti': 'ulti_lista', 'cuando muere': 'muerte', 'muere': 'muerte', 'mata alguein': 'baja', 'mata alguien': 'baja'}
+          'activa la ulti': 'activar_ulti', 'consige ulti': 'ulti_lista', 'cuando muere': 'muerte', 'muere': 'muerte', 'mata alguein': 'baja', 'mata alguien': 'baja',
+          'a punto de matar': 'casi_baja', 'al obtener ulti': 'ulti_lista', 'obtener ulti': 'ulti_lista', 'cuando mata': 'baja'}
 # eventos cuyo texto empieza así (nombres largos)
-PREFIX_EVENTS = [('cuando llama las gaviotas', 'gaviotas'), ('cuando vuela', 'vuelo')]
+PREFIX_EVENTS = [('cuando llama las gaviotas', 'gaviotas'), ('cuando vuela', 'vuelo'), ('al selec', 'menu'), ('al elegirlo', 'menu')]
 
 
 def norm(t):
