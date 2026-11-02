@@ -362,6 +362,9 @@ tr.me td{color:var(--hot);font-weight:700}
 #tclippy{position:absolute;left:6vw;top:14vh;z-index:3;display:flex;gap:10px;align-items:center;background:#fffbe0;color:#222;border:3px solid #000;border-radius:14px;padding:10px 16px;font:700 clamp(12px,1.3vw,17px)/1.3 'Chakra Petch',sans-serif;box-shadow:4px 4px 0 #000;opacity:0;transform:translateY(-14px) scale(.9);transition:opacity .35s,transform .35s cubic-bezier(.2,1.5,.4,1);pointer-events:none}
 #tclippy.on{opacity:1;transform:none}#tclippy b{font-size:30px}#tclippy small{font-weight:600;opacity:.7}
 #tclippy::after{content:'';position:absolute;left:30px;bottom:-14px;border:8px solid transparent;border-top:14px solid #000}
+
+.tboom{position:absolute;z-index:4;transform:translate(-50%,-50%) rotate(-8deg);font:900 clamp(30px,5vw,70px)/1 Impact,'Arial Black',sans-serif;color:#ffd23f;-webkit-text-stroke:3px #000;text-shadow:5px 5px 0 #e0263a,8px 8px 0 #000;pointer-events:none;animation:tBoom 1.7s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes tBoom{0%{transform:translate(-50%,-50%) rotate(-8deg) scale(.2);opacity:0}15%{transform:translate(-50%,-50%) rotate(-8deg) scale(1.25);opacity:1}30%{transform:translate(-50%,-50%) rotate(-5deg) scale(1)}80%{opacity:1}100%{transform:translate(-50%,-70%) rotate(-5deg) scale(1.05);opacity:0}}
 </style>
 
 </head>
@@ -12634,26 +12637,80 @@ function titleFinish() {
 function titleLeave() {
   if (!TITLE.on || TITLE.lt != null) return; TITLE.lt = 0; $('title').classList.add('leaving'); initAudio();
 }
-// Sekza volando con una bandada de gaviotas: cruza delante del sol y se aleja hasta perderse (cada ~50 s)
+// Sekza volando con una bandada de gaviotas: entra desde detrás de la cámara, se distrae, se desvía y se estrella contra un edificio alto (cada ~50 s)
+function sekzaTarget(cp) {
+  let best = null, bs = -1e9;
+  // edificios de la ciudad y los altos del horizonte (el anillo de torres de fondo)
+  const list = (CITY.buildings || []).slice();
+  for (let i = 0; i < 64; i++) { const an = i / 64 * TAU, r = 136 + (i % 4) * 10, h = 10 + (i * 7 % 30); if (Math.sin(an) > .3) continue; list.push({ x: Math.cos(an) * r, z: Math.sin(an) * r, w: 8, d: 7, h }); }
+  for (const b of list) {
+    if (b.h < 11) continue; const pt = new V3(b.x, b.h * .72, b.z), d = pt.distanceTo(cp); if (d < 28 || d > 210) continue;
+    const v = pt.clone().project(camera); if (v.z > 1 || Math.abs(v.x) > .85 || v.y > .85 || v.y < -.5) continue;
+    const sc = b.h - Math.abs(v.x) * 12 - d * .05; if (sc > bs) { bs = sc; best = { b, p: pt }; }
+  }
+  if (best) { const b = best.b, dx = cp.x - b.x, dz = cp.z - b.z; if (Math.abs(dx) / b.w > Math.abs(dz) / b.d) best.p.x = b.x + Math.sign(dx) * (b.w / 2 + .3); else best.p.z = b.z + Math.sign(dz) * (b.d / 2 + .3); }   // punto en la fachada que mira a la cámara
+  return best;
+}
+const bez = (p0, p1, p2, k) => p0.clone().multiplyScalar((1 - k) * (1 - k)).addScaledVector(p1, 2 * (1 - k) * k).addScaledVector(p2, k * k);
 function titleSky(dt, t, cp, yaw) {
   const K = TITLE.sek;
   if (!K) { if (t > (TITLE.nextSek == null ? 7 : TITLE.nextSek) && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw); return; }
-  K.t += dt; const u = K.t / K.dur, e = u * u * (3 - 2 * u) * .35 + u * .65, pos = K.a.clone().lerp(K.b, e);
-  pos.y += Math.sin(u * 5) * 1.2 + Math.sin(u * 3) * 2; const dir = K.b.clone().sub(K.a).normalize();
-  const m = K.model, x = K.anim.x, T = K.t;
-  const roll = u > .42 && u < .58 ? EZ.io((u - .42) / .16) * Math.PI * 2 : 0;   // voltereta de lucimiento
-  m.root.position.set(pos.x, pos.y + Math.sin(T * 21) * .18, pos.z); m.root.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(T * 1.3) * .08; m.root.rotation.z = Math.sin(T * 1.3) * .22 + roll;
-  Object.assign(x, { ix: 1.4 + Math.sin(T * 21) * .05, tx: -.2, hx: -.8 + Math.sin(T * 21 + 1) * .08, alx: -2.6 + Math.sin(T * 21) * .25, arx: -2.6 + Math.sin(T * 21) * .25, alz: .3, arz: -.3, llx: .35 + Math.sin(T * 6) * .25, lrx: .25 - Math.sin(T * 6) * .25, by: -1 }); K.anim.apply(); updateWings({ alive: true, awak: 1, rFlightT: 1, onGround: false }, m, dt, T * 1.4);
-  K.gulls.forEach((g, i) => { const a = T * (.9 + i * .07) + i * 1.1, r = 3.2 + (i % 3) * 1.6; g.position.set(pos.x + Math.cos(a) * r - dir.x * (2 + i * .7), pos.y + Math.sin(a * 1.3) * 1.6 + 1, pos.z + Math.sin(a) * r - dir.z * (2 + i * .7)); g.rotation.y = Math.atan2(dir.x, dir.z) + Math.sin(a) * .4; g.rotation.z = Math.sin(T * 9 + i) * .35; g.scale.setScalar(1.3); });
-  if (u >= 1) titleSekzaEnd();
+  K.t += dt; const T = K.t, m = K.model, x = K.anim.x;
+  const T1 = 4.0, T2 = T1 + .9, T3 = T2 + 1.5;   // vuelo tranquilo · se distrae · picada descontrolada hasta el choque
+  let pos, roll = 0, flail = 0;
+  if (T < T1) { const u = T / T1, e = u * u * (3 - 2 * u); pos = K.a.clone().lerp(K.mid, e); pos.y += Math.sin(u * 4) * 1.2; }
+  else if (T < T2) { const u = (T - T1) / (T2 - T1); pos = K.mid.clone().addScaledVector(K.dir0, u * 6); pos.y += Math.sin(u * 3) * .3; roll = Math.sin(u * 9) * .25 * u; }
+  else if (!K.boom && T < T3) { const k = (T - T2) / (T3 - T2), e = k * k * (.4 + .6 * k); pos = bez(K.mid.clone().addScaledVector(K.dir0, 6), K.ctrl, K.tgt, e); roll = k * 9; flail = 1; }
+  else pos = K.tgt.clone();
+  // orientación según hacia dónde se mueve
+  if (K.prev && pos.distanceToSquared(K.prev) > 1e-6) { const d = pos.clone().sub(K.prev); K.yaw = Math.atan2(d.x, d.z); }
+  K.prev = pos.clone();
+  if (!K.boom) {
+    m.root.position.set(pos.x, pos.y + Math.sin(T * 21) * .18 * (1 - flail), pos.z); m.root.rotation.y = (K.yaw || 0) + Math.sin(T * 1.3) * .08; m.root.rotation.z = Math.sin(T * 1.3) * .22 + roll;
+    if (T < T1) Object.assign(x, { ix: 1.4 + Math.sin(T * 21) * .05, tx: -.2, hx: -.8, hy: 0, alx: -2.6 + Math.sin(T * 21) * .25, arx: -2.6 + Math.sin(T * 21) * .25, alz: .3, arz: -.3, llx: .35 + Math.sin(T * 6) * .25, lrx: .25 - Math.sin(T * 6) * .25, by: -1 });
+    else if (T < T2) Object.assign(x, { ix: 1.1, hx: -.5, hy: 1.2 * EZ.back(clamp((T - T1) / .3, 0, 1)), alx: -1.4, arx: -1.4, alz: .9, arz: -.9, llx: .3, lrx: .3 });   // mira a las gaviotas... y se olvida del camino
+    else Object.assign(x, { ix: 1.3, hx: -1.2, hy: 0, alx: -2.9 + Math.sin(T * 30) * .9, arx: -2.9 - Math.sin(T * 30) * .9, alz: .8 + Math.sin(T * 26) * .5, arz: -.8 - Math.sin(T * 26) * .5, llx: Math.sin(T * 28) * .9, lrx: -Math.sin(T * 28) * .9 });   // agita todo: ¡se va a chocar!
+    K.anim.apply(); updateWings({ alive: true, awak: 1, rFlightT: 1, onGround: false }, m, dt, T * (flail ? 2.5 : 1.4));
+    if (T > T2 - .1 && !K.bang) { K.bang = bangSprite(); scene.add(K.bang); }
+    if (K.bang) { const hp = m.head.localToWorld(new V3(0, 14 * PX, 0)), k = clamp((T - T2 + .1) / .2, 0, 1); K.bang.position.copy(hp); K.bang.scale.setScalar(1.6 * outBack(k)); K.bang.visible = T < T3 - .2; }
+    if (!K.boom && T >= T3 && K.crash) sekzaBoom(K);
+    if (!K.crash && T >= T3) m.root.visible = false;   // sin edificio a la vista: se pierde en el horizonte
+  } else {
+    // después del choque: humo, plumas y Sekza cae girando desde la fachada
+    const u = T - K.boomT;
+    if (u < 4 && Math.random() < .8) emit(K.tgt.x + rand(-1, 1), K.tgt.y + rand(-.5, 1), K.tgt.z + rand(-1, 1), rand(-.4, .4), rand(1, 2.4), rand(-.4, .4), Math.random() < .5 ? '#3a3540' : '#6b6470', rand(.35, .7), rand(2, 3.5), -.25, .8);
+    if (u > .3 && u < 3.5 && Math.random() < .5) emit(K.tgt.x + rand(-3, 3), K.tgt.y + rand(-1, 2), K.tgt.z + rand(-3, 3), rand(-.5, .5), rand(-.3, .2), rand(-.5, .5), '#ffffff', .12, rand(3, 5), .08, 1.5);
+    if (u > .7 && u < 3.6) { const k = u - .7; m.root.visible = true; m.root.position.set(K.tgt.x + K.out.x * k * 2.5, K.tgt.y + 2 * k - 4.9 * k * k, K.tgt.z + K.out.z * k * 2.5); m.root.rotation.x = k * 9; m.root.rotation.z = k * 6;
+      Object.assign(x, { ix: 0, hx: .4, alx: -2.9 + Math.sin(k * 20) * .6, arx: -2.9 - Math.sin(k * 20) * .6, alz: -.9, arz: .9, llx: Math.sin(k * 18) * .8, lrx: -Math.sin(k * 18) * .8 }); K.anim.apply(); }
+    else m.root.visible = false;
+  }
+  K.gulls.forEach((g, i) => {
+    if (K.boom) { const v = K.gv[i], u = T - K.boomT; g.position.addScaledVector(v, dt); v.y -= dt * 1.5; g.rotation.y = Math.atan2(v.x, v.z); g.rotation.z = Math.sin(T * 14 + i) * .5; g.visible = u < 4; return; }
+    const a = T * (.9 + i * .07) + i * 1.1, r = 3.2 + (i % 3) * 1.6, fwdv = new V3(Math.sin(K.yaw || 0), 0, Math.cos(K.yaw || 0)), lag = T > T2 ? 3 + i : 2 + i * .7;
+    g.position.set(pos.x + Math.cos(a) * r - fwdv.x * lag, pos.y + Math.sin(a * 1.3) * 1.6 + 1, pos.z + Math.sin(a) * r - fwdv.z * lag); g.rotation.y = (K.yaw || 0) + Math.sin(a) * .4; g.rotation.z = Math.sin(T * 9 + i) * .35; g.scale.setScalar(1.3);
+  });
+  if (T > K.dur) titleSekzaEnd();
+}
+function sekzaBoom(K) {
+  K.boom = true; K.boomT = K.t; K.model.root.visible = false; if (K.bang) { scene.remove(K.bang); K.bang = null; }
+  const c = K.tgt; K.out = c.clone().sub(K.mid).setY(0).normalize().multiplyScalar(-1);
+  sphereFlash(c, '#ffb347', 6, .55); sphereFlash(c, '#ffffff', 3.2, .3); ringAt(c, '#ff7a3a', 9, .6); ringAt(c, '#ffffff', 6, .45); impactStar(c, '#fff3c0', 6, .45);
+  burst(c, 60, '#ff7a3a', 14, .35, .8, .4); burst(c, 40, '#ffd23f', 11, .28, .7, .3); burst(c, 30, '#8a8a8a', 9, .4, 1.4, 1.2); burst(c, 20, '#b9a07a', 7, .3, 1.6, 1.6);
+  K.gv = K.gulls.map(() => new V3(rand(-1, 1), rand(.4, 1.2), rand(-1, 1)).normalize().multiplyScalar(rand(9, 16)));
+  TITLE.boomShake = 1; sfx('break', c, 1.3); sfx('ult', c, .6);
+  // ¡KABOOM! en pantalla, estilo cómic
+  const v = c.clone().project(camera), d = document.createElement('div'); d.className = 'tboom'; d.textContent = '¡KABOOM!'; d.style.left = ((v.x * .5 + .5) * 100).toFixed(1) + '%'; d.style.top = ((-v.y * .5 + .5) * 100).toFixed(1) + '%'; $('title').appendChild(d); setTimeout(() => d.remove(), 1700);
 }
 function titleSekzaStart(cp, yaw) {
   const F = fwd(yaw), R = rightOf(yaw), c = CHARS.sekza, skin = charSkin('sekza'), faceC = copyCanvas(skin), model = buildModel(faceC, !!c.slim, scene);
   if (!model.wings) addWings(model, c.color);
   model.root.traverse(o => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
-  const a = cp.clone().addScaledVector(F, -8).addScaledVector(R, -6); a.y += 7; /* empieza detrás de la cámara: entra en cuadro volando, nunca aparece de golpe */ const b = cp.clone().addScaledVector(F, 150).addScaledVector(R, 34); b.y += 30;
+  const a = cp.clone().addScaledVector(F, -8).addScaledVector(R, -6); a.y += 7;   // empieza detrás de la cámara
+  const mid = cp.clone().addScaledVector(F, 40).addScaledVector(R, -4); mid.y += 16;
+  const tg = sekzaTarget(cp), tgt = tg ? tg.p : cp.clone().addScaledVector(F, 150).addScaledVector(R, 34).add(new V3(0, 30, 0));
+  const dir0 = mid.clone().sub(a).normalize(), ctrl = mid.clone().addScaledVector(dir0, 18).add(new V3(0, 4, 0)).lerp(tgt, .25);
   const gulls = []; for (let i = 0; i < 6; i++) { const g = BEACH.gulls[0].g.clone(true); scene.add(g); gulls.push(g); }
-  TITLE.sek = { t: 0, dur: 13, a, b, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
+  TITLE.sek = { t: 0, dur: tg ? 10.5 : 7, a, mid, dir0, ctrl, tgt, crash: !!tg, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
   try { const e = new Audio('sonidos/sekza/vuelo_1.mp3'); trackHtmlAudio(e, .35, 'voices'); e.play().catch(() => { }); } catch (x) { }
 }
 // ===== Cameos: otros personajes que pasan por la playa haciendo lo suyo =====
@@ -12787,7 +12844,7 @@ function cameoEnd() {
   TITLE.cm = null; TITLE.nextCm = TITLE.t + rand(9, 14);
 }
 function titleSekzaEnd() {
-  const K = TITLE.sek; if (!K) return; scene.remove(K.model.root); disposeModel(K.model); for (const g of K.gulls) scene.remove(g);
+  const K = TITLE.sek; if (!K) return; if (K.bang) scene.remove(K.bang); scene.remove(K.model.root); disposeModel(K.model); for (const g of K.gulls) scene.remove(g);
   TITLE.sek = null; TITLE.nextSek = TITLE.t + 48;
 }
 function bangSprite() {
@@ -12860,6 +12917,7 @@ function titleUpdate(dt) {
   const B = TITLE.base;
   const cam = B.cam.clone(), look = B.look.clone(); let roll = sn(t * .55 + 50) * .006;
   { const ci = clamp(t / 5, 0, 1), ce = 1 - ci * ci * (3 - 2 * ci), dv = look.clone().sub(cam).setY(0).normalize(); cam.addScaledVector(dv, -ce * 2.2); cam.y += ce * .6; look.y += ce * .15; }   // travelling y grúa de entrada; luego la cámara queda fija
+  if (TITLE.boomShake > 0) { cam.x += sn(t * 28 + 3) * .2 * TITLE.boomShake; cam.y += sn(t * 31 + 9) * .16 * TITLE.boomShake; roll += sn(t * 25) * .02 * TITLE.boomShake; TITLE.boomShake = Math.max(0, TITLE.boomShake - dt * 1.3); }
   cam.x += (sn(t * .7) + .5 * sn(t * 1.9 + 10)) * .05 + shake * sn(t * 24) * .12; cam.y += (sn(t * .8 + 20) + .5 * sn(t * 2.3 + 30)) * .04 + Math.sin(t * 1.25) * .008 + shake * sn(t * 21 + 7) * .1; look.y += sn(t * .6 + 40) * .09; look.x += sn(t * .5 + 60) * .09; look.z += sn(t * .45 + 80) * .09;
   if (L != null && L > .4) {   // la cámara se cae cuando el personaje termina de girar
     const fl = L - .4, drop = .5 * 9.8 * fl * fl * 2.4; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 3.4; look.y -= fl * 5 * (1 + fl * 2);
