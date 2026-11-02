@@ -29,6 +29,10 @@
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--body);user-select:none;-webkit-user-select:none}
 #wrap canvas{display:block}
+body.guide-frame{background:#000;overflow:hidden}
+body.guide-frame>*{visibility:hidden}
+body.guide-frame>#wrap,body.guide-frame>#lines,body.guide-frame>#cinedim,body.guide-frame>#halftone,body.guide-frame>#nums,body.guide-frame>#dmgv,body.guide-frame>#lb,body.guide-frame>#cutin,body.guide-frame>#cinetitle,body.guide-frame>#flash,body.guide-frame>#impact-flash,body.guide-frame>#minicut{visibility:visible}
+#bk-fr{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
 .hidden{display:none!important}
 #seqhud{position:fixed;left:50%;bottom:172px;transform:translateX(-50%);z-index:20;min-width:280px;max-width:90vw;text-align:center;font:800 22px/1.25 system-ui,sans-serif;letter-spacing:.04em;text-shadow:0 2px 10px #000;pointer-events:none}
 #seqhud .sb{height:9px;border-radius:6px;background:rgba(0,0,0,.6);margin-top:7px;overflow:hidden;border:1px solid rgba(255,255,255,.28)}
@@ -145,7 +149,7 @@ body.guide-on #lockhint{display:none!important}
 #minimap.hidden{display:none}
 #hud.mm #feed{top:204px}
 @media (max-width:700px){#minimap{width:128px;height:128px}#hud.mm #feed{top:154px}#bookbtn span{display:none}}
-#book{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#05060cf2;padding:16px}
+#book{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#05060cb8;padding:16px}
 #book.hidden{display:none}
 #book .bk-box{width:min(1180px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--panel);border-top:3px solid var(--hot);box-shadow:0 20px 60px #000a;overflow:hidden}
 #book .bk-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 6px}
@@ -731,6 +735,8 @@ const yawTo = (a, b) => Math.atan2(b.pos.x - a.pos.x, b.pos.z - a.pos.z);
 const dist2d = (a, b) => Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z);
 const easeOut = k => 1 - (1 - k) * (1 - k);
 const $ = id => document.getElementById(id);
+const IS_GUIDE = /[?&]guia=1/.test(location.search); let GUIDE_OFF = false;
+if (IS_GUIDE) document.body.classList.add('guide-frame');
 function shade(hex, f) { const c = new THREE.Color(hex); c.lerp(new THREE.Color(f > 0 ? 0xffffff : 0x000000), Math.abs(f)); return '#' + c.getHexString(); }
 const _c = new THREE.Color();
 
@@ -2052,7 +2058,8 @@ function seaFloor(x, z) {
   const d = Math.max(0, z - SHORE(x)), k = 1 - Math.exp(-d / 24);
   return -(.09 + 9.2 * k) + Math.sin(x * .13 + z * .09) * .45 * k + Math.sin(x * .31 - z * .23) * .18 * k;
 }
-function groundAt(x,z,footY=0){let g=(z>SHORE(x)+.2&&z<290&&Math.abs(x)<190)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
+let GUIDE_Y=0;
+function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;let g=(z>SHORE(x)+.2&&z<290&&Math.abs(x)<190)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
 // ================= Partículas (bloquecitos) =================
 class Parts {
@@ -2861,7 +2868,7 @@ function applyNetDest(e) {
 }
 function worldDamage(c, r, power, dmg, dest) {
   if (NETREP.on) return;   // lo que hace un jugador remoto se rompe con sus paquetes (no dos veces)
-  if (r < 1.2 || G.state !== 'play' || dest === 0 || G.rules.dest === 0) return;
+  if (r < 1.2 || G.state !== 'play' || dest === 0 || G.rules.dest === 0 || G.guide) return;
   netDestSend(c, r, power, dmg, dest);
   if (dmg != null) dmg *= (dest != null ? dest : 1) * G.rules.dest * PERF_DEST; else power *= G.rules.dest * PERF_DEST;
   if (dmg != null && dmg < 2.5) return;
@@ -11238,7 +11245,7 @@ function stDy() {
   return dy[t];
 }
 function stC(id) { if (!CHARS[id]) return null; return ST.d.c[id] || (ST.d.c[id] = [0, 0, 0, 0, 0]); }   // elegido, ganadas, K.O., ultis, minutos
-const stCount = () => ST.on && !ST.owner && !G.guide && !/[?&]nostats/.test(location.search);
+const stCount = () => ST.on && !ST.owner && !G.guide && !IS_GUIDE && !/[?&]nostats/.test(location.search);
 function stClients(will) {
   if (ST.cl.length || !window.mqtt) return ST.cl;
   RELAYS.forEach((url, i) => {
@@ -13212,7 +13219,7 @@ function titleUpdate(dt) {
 $('tplay').addEventListener('click', e => { e.stopPropagation(); titleLeave(); });
 $('tscene').addEventListener('click', e => { e.stopPropagation(); if (TITLE.lt != null) return; TITLE.idx = 1 - TITLE.idx; try { localStorage.setItem('bsb_title_idx', String(TITLE.idx)); } catch (x) { } });
 loadCharSkins().then(() => { ensureNormalAll(); renderRoster(); showSelect(G.charId, true); titleStart(); });
-netInit();
+if (!IS_GUIDE) netInit();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (SH.fig) drawBackdrop(SH.fig.ch); });
 try {
   const d = localStorage.getItem('bsb_skin');
@@ -13579,8 +13586,9 @@ const CB_BASIC = [
     tips: ['Saltá justo después para seguir el combo en el aire.', 'Sirve para sacar al rival de una pelea entre varios.'], len: 5.2, gap: 1.7,
     ctl(t, c) { c.m1 = when(t, .6, 2.8); c.up = t > .5; } },
   { id: 'block', n: 'Bloquear', keys: ['F', '(mantener)'], d: 'Mientras mantenés F te cubrís: los golpes de frente casi no te hacen daño (solo el 12 %) y además cargás algo de despertar.',
-    tips: ['Solo cubre <b>de frente</b>: por la espalda te pegan normal.', 'Bloqueando no podés atacar ni saltar.', 'Las habilidades fuertes rompen la guardia (mirá la siguiente).'], len: 5, gap: 1.8, vic: 'attack',
-    ctl(t, c) { c.block = t > .2 && t < 4.3; } },
+    tips: ['Solo cubre <b>de frente</b>: por la espalda te pegan normal.', 'Bloqueando no podés atacar ni saltar.', 'Las habilidades fuertes rompen la guardia (mirá la siguiente).'], len: 5.5, gap: 1.8,
+    ctl(t, c) { c.block = t > .2; },
+    ev: [[.9, P => { P.vic.dummy = 'attack'; }]] },
   { id: 'guard', n: 'Romper guardia', keys: ['Habilidades'], d: 'Algunos ataques fuertes rompen el bloqueo: el que se estaba cubriendo queda mareado más de un segundo y no puede hacer nada.',
     tips: ['Si ves que el rival prepara un ataque grande, <b>esquivá</b> en vez de bloquear.', 'En la lista de habilidades, las que rompen guardia lo dicen en su descripción.'], len: 4.6, gap: 1.8,
     ctl(t, c) { c.block = t > .1 && t < 1.2; },
@@ -13731,13 +13739,33 @@ function guideNums(on) {
   if (on) { if (!GS.numsHome) { GS.numsHome = { p: n.parentNode, s: n.nextSibling }; $('bk-win').appendChild(n); } }
   else if (GS.numsHome) { GS.numsHome.p.insertBefore(n, GS.numsHome.s); GS.numsHome = null; }
 }
+const GS_Y = 300;
+function guideStage(on) {
+  if (on && !GS.stage) {
+    const cv = document.createElement('canvas'); cv.width = 8; cv.height = 256; const g = cv.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
+    gr.addColorStop(0, '#0a0e1c'); gr.addColorStop(.55, '#1d2b4d'); gr.addColorStop(.8, '#3a4f7e'); gr.addColorStop(1, '#8aa0c8'); g.fillStyle = gr; g.fillRect(0, 0, 8, 256);
+    const gc = document.createElement('canvas'); gc.width = gc.height = 256; const q = gc.getContext('2d'); q.fillStyle = '#242c40'; q.fillRect(0, 0, 256, 256);
+    q.strokeStyle = '#33405e'; q.lineWidth = 3; for (let i = 0; i <= 256; i += 64) { q.beginPath(); q.moveTo(i, 0); q.lineTo(i, 256); q.moveTo(0, i); q.lineTo(256, i); q.stroke(); }
+    const ft = new THREE.CanvasTexture(gc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(10, 10);
+    const grp = new THREE.Group(); grp.position.set(0, GS_Y, 0);
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(36, 36, 80, 48, 1, true), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), side: THREE.BackSide, fog: false, depthWrite: false })); wall.position.y = 36;
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(36, 48), new THREE.MeshLambertMaterial({ map: ft })); floor.rotation.x = -Math.PI / 2; floor.position.y = .02; floor.receiveShadow = true;
+    grp.add(wall, floor); scene.add(grp);
+    const light = new THREE.HemisphereLight(0xffffff, 0x556070, .9); light.position.set(0, GS_Y + 20, 0); scene.add(light);
+    GUIDE_Y = GS_Y;
+    GS.stage = { grp, light, mats: [wall.material.map, ft, wall.material, floor.material], geos: [wall.geometry, floor.geometry] };
+  } else if (!on && GS.stage) {
+    const st = GS.stage; scene.remove(st.grp); scene.remove(st.light); GUIDE_Y = 0;
+    st.geos.forEach(x => x.dispose()); st.mats.forEach(x => x.dispose()); GS.stage = null;
+  }
+}
 function guideEnter() {
   if (GS.on) return true;
   if (G.state !== 'play' || G.viewer || !G.player) return false;
   const R = GS.real = { F: G.fighters, P: G.player, goal: G.goal, auto: G.auto, paused: G.paused, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, sl: G.shiftLock };
   for (const f of R.F) { try { f.model.root.visible = false; if (f.plate) f.plate.style.display = 'none'; } catch (e) { } }
   G.fighters = []; G.goal = 99999; G.auto = false; G.paused = false; GS.on = true; G.guide = true;
-  guideNums(true); return true;
+  guideStage(true); guideNums(true); return true;
 }
 // deja la escena sin nada de la vista previa (peleadores, proyectiles, efectos, números, cinemática)
 function guideWipe() {
@@ -13754,11 +13782,11 @@ function guideBuild(E) {
   const id = E.ch || curChar(), rp = GS.real && GS.real.P, own = rp && rp.ch.id === id && G.customSkin;
   const att = new Fighter({ name: 'Vos', char: id, isPlayer: true, skin: own ? G.customSkin : null, slim: own ? G.customSlim : false });
   const vic = new Fighter({ name: 'Dummy', ch: DUMMY_CH, lvlVar: 0 });
-  const gap = E.solo ? 0 : E.gap || 2.2;
+  const gap = E.solo ? 0 : Math.min(6.5, E.gap || 2.2);
   vic.dummy = E.vic || 'idle'; vic.ai.P = aiParams(4); vic.flourT = att.flourT = 1e9;
   G.fighters.push(att, vic); G.player = att; GS.att = att; GS.vic = vic;
   // de costado (cámara mirando +z, el rival a la derecha): se ven los dos y no se tapan; con shift lock el rival va adelante
-  const side = !E.lock; cam.yaw = 0; cam.pitch = .3; cam.dist = side ? clamp(6.5 + gap * .55, 6.5, 12.5) : 6.5;
+  const side = !E.lock; cam.yaw = side ? Math.PI / 2 : 0; cam.pitch = .3; GS.cm = null; cam.dist = side ? clamp(6.5 + gap * .55, 6.5, 12.5) : 6.5;
   vReset(att, 0, 0, side ? Math.PI / 2 : 0); vReset(vic, E.solo ? 0 : side ? gap : 0, E.solo ? -30 : side ? 0 : gap, side ? -Math.PI / 2 : Math.PI);
   att.awak = vic.awak = 0; att.maxHp = att.hp = vic.maxHp = vic.hp = 99999; att.cd = [0, 0, 0, 0]; att.ult = (E.ult || E.grp === 'U') ? 100 : 0;
   vic.home = vic.pos.clone(); att.guideCtl = () => { const c = NEUTRAL(); if (GS.E && GS.E.ctl) GS.E.ctl(GS.t, c, GS); if (GS.pulse.skill != null) { c.skill = GS.pulse.skill; GS.pulse.skill = null; } if (GS.pulse.ult) { c.ult = true; GS.pulse.ult = false; } return c; };
@@ -13777,6 +13805,17 @@ function guideNet(dt) {
     for (const f of R.F) { try { f.model.root.visible = false; if (f.plate) f.plate.style.display = 'none'; } catch (e) { } }
   }
 }
+// cámara de la vista previa: de costado, siguiendo a los dos (las cinemáticas y el shift lock usan la cámara normal del juego)
+function guideCam(dt) {
+  const E = GS.E, a = GS.att, v = GS.vic; if (!a || !E || E.lock || G.cine || G.chore) return;
+  const two = !E.solo, mx = two ? (a.pos.x + v.pos.x) / 2 : a.pos.x, mz = two ? (a.pos.z + v.pos.z) / 2 : a.pos.z, my = a.pos.y + (two ? (v.pos.y - a.pos.y) / 2 : 0);
+  const gap = two ? Math.hypot(a.pos.x - v.pos.x, a.pos.z - v.pos.z) : 0, k = Math.min(1, dt * 5);
+  const tgt = { x: mx, y: my, z: mz, d: Math.max(5.2, 4 + gap * 1.05) };
+  const c = GS.cm || (GS.cm = Object.assign({}, tgt)); for (const q of ['x', 'y', 'z', 'd']) c[q] += (tgt[q] - c[q]) * k;
+  const d = c.d / Math.min(1, camera.aspect * 1.05), sh = G.shake * .25;
+  camera.position.set(c.x + (Math.random() - .5) * sh, c.y + 1.7 + d * .1 + (Math.random() - .5) * sh, c.z - d);
+  camera.lookAt(c.x, c.y + 1.0, c.z);
+}
 function guideTick(dt) {
   const E = GS.E; if (!GS.on || !E || !GS.att) return;
   GS.t += dt;
@@ -13790,7 +13829,7 @@ function guideLeave() {
   G.fighters = R.F; G.player = R.P; G.goal = R.goal; G.auto = R.auto; G.paused = R.paused; G.guide = false; GS.on = false; GS.E = null;
   cam.yaw = R.yaw; cam.pitch = R.pitch; cam.dist = R.dist; G.shiftLock = R.sl; $('slchip').classList.toggle('hidden', !G.shiftLock);
   for (const f of R.F) { try { f.model.root.visible = true; } catch (e) { } }
-  guideNums(false); try { destRestore(true); } catch (e) { } GS.real = null;
+  guideStage(false); guideNums(false); try { destRestore(true); } catch (e) { } GS.real = null;
 }
 // copia el cuadro que acaba de dibujar el juego (con su cámara, brillo y cinemática) a la caja de la guía
 function guideBlit() {
@@ -13801,6 +13840,24 @@ function guideBlit() {
   const g = cv.getContext('2d'); g.drawImage(renderer.domElement, 0, 0, W, H);
   $('bk-win').style.transform = `scale(${w / innerWidth})`;
 }
+function guidePost(spec) {
+  CB.spec = spec; const fr = $('bk-fr');
+  if (CB.ready && fr && fr.contentWindow) fr.contentWindow.postMessage({ t: 'entry', spec }, location.origin);
+}
+function guideFrame() {
+  const box = $('bk-prev'), note = $('bk-note'); let fr = $('bk-fr');
+  if (!fr) {
+    CB.ready = false; note.classList.remove('hidden'); note.textContent = 'Preparando la vista previa…';
+    fr = document.createElement('iframe'); fr.id = 'bk-fr'; fr.allow = 'autoplay'; fr.title = 'Vista previa';
+    fr.src = location.href.split('#')[0].split('?')[0] + '?guia=1&nostats&q=' + GFX.level + '#notitle'; box.insertBefore(fr, box.firstChild);
+    clearTimeout(CB.fail); CB.fail = setTimeout(() => { if (!CB.ready) note.textContent = 'No se pudo cargar la vista previa. Cerrá la guía y volvé a abrirla.'; }, 25000);
+  } else if (fr.contentWindow) { fr.contentWindow.postMessage({ t: 'on' }, location.origin); if (CB.spec) fr.contentWindow.postMessage({ t: 'entry', spec: CB.spec }, location.origin); }
+}
+addEventListener('message', e => {
+  if (e.origin !== location.origin || IS_GUIDE) return; const m = e.data || {};
+  if (m.guideReady) { CB.ready = true; $('bk-note').classList.add('hidden'); const fr = $('bk-fr'); if (CB.spec && fr && fr.contentWindow) fr.contentWindow.postMessage({ t: 'entry', spec: CB.spec }, location.origin); }
+  else if (m.guideError) $('bk-note').textContent = 'No se pudo preparar la vista previa.';
+});
 function guideFit() { const b = $('bk-prev'); b.style.aspectRatio = innerWidth + ' / ' + innerHeight; const w = $('bk-win'); w.style.width = innerWidth + 'px'; w.style.height = innerHeight + 'px'; }
 addEventListener('resize', () => { if (CB.open) guideFit(); });
 
@@ -13816,7 +13873,7 @@ function skGroups(ch) {
 }
 function skEntry(ch, s, grp, i) {
   const tags = (s.tags || '').split(/\s+/).filter(Boolean), r = s.r || [0, 6], D = s.k === 'chore' ? CHORE[s.o.id] : null, o = s.o || {};
-  const gap = r[0] >= 2 ? clamp((r[0] + r[1]) / 2, 3, 10) : r[1] <= 6 ? 2.2 : clamp(r[1] / 2.5, 3, 6);
+  const gap = r[0] >= 2 ? clamp((r[0] + r[1]) / 2, 3, 6.5) : r[1] <= 6 ? 2.2 : clamp(r[1] / 2.5, 3, 6);
   const awake = grp === 'A' || grp === 'AF', long = Math.max(o.dur || 0, grp === 'U' ? 8 : 0);
   const E = { ch: ch.id, s, grp, tags, gap, fist: grp === 'F' || grp === 'AF', vic: tags.includes('gb') ? 'block' : 'idle', ev: [], len: Math.min(20, Math.max(7, (D ? D.dur + 3.5 : 0), long + 3.5) + (awake ? 2.4 : 0) + (grp === 'U' ? 3 : 0)) };
   if (grp === 'U') { E.ult = true; E.ev.push([.5, P => { P.pulse.ult = true; }]); return E; }
@@ -13855,7 +13912,7 @@ function skSelect(idx) {
     + `<p>${s.d}</p>`
     + `<dl class="bk-facts">${skFacts(s, grp, D).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
     + (tip ? `<div class="bk-tip"><b>Cómo usarla</b>${tip}</div>` : '');
-  if (GS.on) guideBuild(E);
+  guidePost({ k: 's', ch: ch.id, grp, i });
 }
 function skPickChar(id) {
   SKB.ch = CHARS[id]; CB.mode = 'skills';
@@ -13866,7 +13923,7 @@ function skGrid() {
   CB.mode = 'grid';
   $('bk-body').classList.add('hidden'); $('bk-sub').classList.add('hidden');
   const g = $('bk-grid'); g.classList.remove('hidden');
-  if (GS.on) guideBuild({ ch: curChar(), solo: true, len: 1e9 });
+  guidePost({ k: 'i', ch: curChar() });
   if (!g.children.length) for (const id of CHAR_IDS) {
     const ch = CHARS[id], b = document.createElement('button'); b.type = 'button'; b.style.setProperty('--cc', ch.color);
     const cv = document.createElement('canvas'); cv.className = 'px'; headPortrait(charSkin(id), cv);
@@ -13880,7 +13937,7 @@ function cbSelect(i) {
   CB.idx = (i + CB_BASIC.length) % CB_BASIC.length; const E0 = CB_BASIC[CB.idx];
   document.querySelectorAll('#bk-list button').forEach((b, j) => { b.classList.toggle('on', j === CB.idx); if (j === CB.idx) { b.setAttribute('aria-current', 'true'); b.scrollIntoView({ block: 'nearest' }); } else b.removeAttribute('aria-current'); });
   $('bk-info').innerHTML = `<h3>${E0.n}</h3><div class="bk-keys">${E0.keys.map(k => /^[+×(]/.test(k) || k === 'Habilidades' ? `<span>${k}</span>` : `<kbd>${k}</kbd>`).join('')}</div><p>${E0.d}</p><ul>${E0.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
-  if (GS.on) guideBuild(Object.assign({}, E0, { ch: curChar() }));
+  guidePost({ k: 'b', id: E0.id, ch: curChar() });
 }
 function bookBasic() {
   CB.mode = 'basic';
@@ -13898,15 +13955,17 @@ function bookOpen() {
   CB.open = true; $('book').classList.remove('hidden'); document.body.classList.add('guide-on');
   if (G.state === 'play') { G.panelOpen = true; unlock(); }
   for (const k in keys) keys[k] = false; mouse.left = mouse.right = false;
-  const live = guideEnter(); guideFit();
-  $('bk-note').classList.toggle('hidden', live);
-  if (!live) $('bk-note').textContent = G.mp ? 'La vista previa en vivo no está disponible en partidas online (la pelea sigue corriendo). Abrí la guía en una partida con bots para verla.' : 'No se pudo preparar la vista previa.';
+  // la partida sigue detrás: con bots se pausa como cualquier menú; online sigue corriendo y te pueden pegar
+  if (G.state === 'play' && !G.mp && !G.paused) { G.paused = true; CB.paused = true; }
+  guideFit(); guideFrame();
   if (CB.mode === 'skills' && SKB.ch) skPickChar(SKB.ch.id); else if (CB.mode === 'grid') skGrid(); else bookBasic();
   $('book-x').focus({ preventScroll: true });
 }
 function bookClose() {
   if (!CB.open) return;
-  CB.open = false; $('book').classList.add('hidden'); document.body.classList.remove('guide-on'); guideLeave();
+  CB.open = false; $('book').classList.add('hidden'); document.body.classList.remove('guide-on');
+  const fr = $('bk-fr'); if (fr && fr.contentWindow) fr.contentWindow.postMessage({ t: 'off' }, location.origin);
+  if (CB.paused) { G.paused = false; CB.paused = false; }
   if (G.state === 'play') { G.panelOpen = false; if (!G.over) requestLock(); }
 }
 $('bookbtn').addEventListener('click', e => { e.stopPropagation(); bookOpen(); });
@@ -13938,6 +13997,7 @@ function fpsTick(raw) {
 }
 function loop(now){
   requestAnimationFrame(loop);
+  if(IS_GUIDE&&GUIDE_OFF){last=Number.isFinite(now)?now:performance.now();return;}
   try{
   const rawDt=Number.isFinite(now)&&Number.isFinite(last)?Math.max(0,(now-last)/1000):0,rdt=Math.min(.05,rawDt);last=Number.isFinite(now)?now:performance.now();
   frameTask('contador',()=>{gfxWatch(rawDt);fpsTick(rawDt);});
@@ -13962,7 +14022,7 @@ function loop(now){
   }
   if(G.mp)frameTask('red',()=>guideNet(rdt));
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
-  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>updateCamera(rdt));
+  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
   frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('culling',()=>cityCull());frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
@@ -13978,6 +14038,26 @@ initWeatherControls();
 initPauseAudioControls();
 gfxInit();
 requestAnimationFrame(loop);
+function guideSpec(sp) {
+  if (sp.k === 'b') return Object.assign({}, CB_BASIC.find(x => x.id === sp.id), { ch: sp.ch });
+  if (sp.k === 's') { const ch = CHARS[sp.ch], set = skGroups(ch).find(g => g[1] === sp.grp)[2]; return skEntry(ch, set[sp.i], sp.grp, sp.i); }
+  return { ch: sp.ch, solo: true, len: 1e9 };
+}
+if (IS_GUIDE) {
+  addEventListener('message', e => {
+    if (e.origin !== location.origin) return; const m = e.data || {};
+    if (m.t === 'off') { GUIDE_OFF = true; return; }
+    if (m.t === 'on') { GUIDE_OFF = false; try { if (AC && AC.state === 'suspended') AC.resume(); } catch (x) { } return; }
+    if (m.t === 'entry' && GS.on) { GUIDE_OFF = false; try { if (AC && AC.state === 'suspended') AC.resume(); } catch (x) { } guideBuild(guideSpec(m.spec)); }
+  });
+  (async () => {
+    try {
+      await new Promise(r => setTimeout(r, 2200)); MUS.on = false; G.charId = 'javi'; $('nbots').value = 1;
+      await startMatch(); WX.hour = 12; WX.cycle = false; guideEnter();
+      parent.postMessage({ guideReady: 1 }, location.origin);
+    } catch (e) { parent.postMessage({ guideError: String(e) }, location.origin); }
+  })();
+}
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás
 setInterval(()=>{if(G.mp&&G.state==='play'&&performance.now()-last>250)frameTask('red:segundo-plano',()=>guideNet(.1));},200);
 </script>
