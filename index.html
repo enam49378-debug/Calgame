@@ -10470,41 +10470,28 @@ function gfxSet(level, auto, save = true) {
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   if (wasOn !== shadows) scene.traverse(o => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach(x => { x.needsUpdate = true; }); } });
   OUTLINE_MAT.visible = level < 2;
-  if (save) { try { localStorage.setItem('bsb_gfx_v2', JSON.stringify({ level, auto: !!auto, best: GFX.best })); } catch (e) { } }
+  if (save) { try { localStorage.setItem('bsb_gfx_v3', JSON.stringify({ level, auto: !!auto, best: GFX.best })); } catch (e) { } }
   document.querySelectorAll('.gfxsel').forEach(el => { el.value = auto ? 'auto' : String(level); });
 }
+const gfxAutoLevel = () => GFX.soft ? 4 : WEAK_PC ? 3 : LOW_PC ? 2 : 0;
 function gfxInit() {
-  let sv = null; try { sv = JSON.parse(localStorage.getItem('bsb_gfx_v2') || 'null'); } catch (e) { }
+  let sv = null; try { sv = JSON.parse(localStorage.getItem('bsb_gfx_v3') || 'null'); } catch (e) { }
   const q = /[?&]q=([0-4])/.exec(location.search);
   try {   // sin aceleración por hardware (render por software): arranca en Mínima
     const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'), name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
     GFX.soft = /swiftshader|llvmpipe|software|basic render|softpipe/i.test(name); GFX.gpu = name;
   } catch (e) { }
   if (q) gfxSet(+q[1], false, false);
-  else if (sv && typeof sv.level === 'number') { GFX.best = clamp(sv.best | 0, 0, 4); gfxSet(sv.level, sv.auto !== false, false); }
-  else gfxSet(GFX.soft ? 4 : WEAK_PC ? 3 : LOW_PC ? 2 : 0, true, false);   // equipo modesto: arranca bajo y sube solo si va sobrado
-  document.querySelectorAll('.gfxsel').forEach(el => el.addEventListener('change', () => { if (el.value === 'auto') gfxSet(0, true); else gfxSet(+el.value, false); GFX.bad = 0; GFX.cool = 6; }));
+  else if (sv && sv.auto === false && typeof sv.level === 'number') gfxSet(sv.level, false, false);   // lo que elegiste a mano
+  else gfxSet(gfxAutoLevel(), true, false);   // Auto: se mira el equipo una sola vez al abrir el juego y la calidad queda fija
+  document.querySelectorAll('.gfxsel').forEach(el => el.addEventListener('change', () => { if (el.value === 'auto') gfxSet(gfxAutoLevel(), true); else gfxSet(+el.value, false); GFX.bad = 0; GFX.cool = 6; }));
 }
 // llamado cada cuadro con el tiempo real: si durante 3 s seguidos va por debajo de ~42 FPS, baja un nivel
-function gfxWatch(rawDt) {
-  if (document.hidden || rawDt > .5 || G.state !== 'play') { GFX.acc = 0; GFX.frames = 0; return; }   // solo se mide jugando (la carga de shaders no cuenta)   // pestaña oculta o parón largo (carga de shaders): no cuenta
+function gfxWatch(rawDt) {   // solo mide los FPS para mostrarlos: el modo Auto NO cambia la calidad por los FPS (se decide una vez, por el equipo)
+  if (document.hidden || rawDt > .5 || G.state !== 'play') { GFX.acc = 0; GFX.frames = 0; return; }
   GFX.acc += rawDt; GFX.frames++;
   if (GFX.acc < 1) return;
   GFX.fps = GFX.frames / GFX.acc; GFX.acc = 0; GFX.frames = 0;
-  if (GFX.cool > 0) { GFX.cool--; return; }
-  if (!GFX.auto) return;
-  if (G.state === 'play' && GFX.fps >= 57) GFX.good++; else GFX.good = 0;
-  if (GFX.good >= 15 && GFX.level > GFX.best) {   // 15 s seguidos a ritmo completo: sube un nivel
-    GFX.good = 0; GFX.cool = 4; gfxSet(GFX.level - 1, true, false);
-    try { showBanner('CALIDAD ' + GFX.names[GFX.level].toUpperCase(), '#9ba1ba', 'Tu equipo va sobrado: subí los efectos'); } catch (e) { }
-    return;
-  }
-  if (GFX.level >= 4) return;
-  GFX.bad = GFX.fps < 42 ? GFX.bad + 1 : 0;
-  if (GFX.bad >= 3) {
-    GFX.bad = 0; GFX.cool = 5; GFX.good = 0; GFX.best = GFX.level + 1; gfxSet(GFX.level + 1, true);
-    try { showBanner('CALIDAD ' + GFX.names[GFX.level].toUpperCase(), '#9ba1ba', 'El juego iba lento: bajé los efectos (se puede cambiar en Pausa)'); } catch (e) { }
-  }
 }
 function renderView(sc,cm){
   if(!composer||!GFX.post){renderer.render(sc,cm);return;}
