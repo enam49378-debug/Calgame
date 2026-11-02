@@ -785,9 +785,9 @@ function cityGrassAt(x,z) {
   const solid = (x,z,w,d,h,y0=0,ceiling=false) => COL.push({x,z,hx:w/2,hz:d/2,h,y0,ceiling});
   const flat = (x,z,w,d,color,y=.013) => box(x,y,z,w,.018,d,color);
   const grass = BLOCK_TEX.grass.clone(); grass.needsUpdate = true;
-  grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,420/B);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(420,420),new THREE.MeshLambertMaterial({map:grass}));
-  ground.rotation.x=-Math.PI/2; ground.position.y=-.15; ground.receiveShadow=true; scene.add(ground);
+  grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,280/B);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(420,280),new THREE.MeshLambertMaterial({map:grass}));   // el césped llega hasta la playa (z=70): ya no tapa el mar
+  ground.rotation.x=-Math.PI/2; ground.position.y=-.15; ground.position.z=-70; ground.receiveShadow=true; scene.add(ground);
   const paving = pixTex(32,32,g=>{
     noiseRect(g,0,0,32,32,'#8c999f',8); g.fillStyle='#919da5';
     for(let i=0;i<32;i+=8){g.fillRect(i,0,1,32);g.fillRect(0,i,32,1);}
@@ -9756,10 +9756,12 @@ function physics(f, dt) {
     const gz = groundAt(f.pos.x, f.pos.z, f.pos.y), was = !!f.swim;
     f.swim = f.alive && f.pos.z > SHORE(f.pos.x) + .2 && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
     f.wade = !f.swim && f.pos.z > SHORE(f.pos.x) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
-    if (f.swim !== was && f.alive) { splashFx(f); if (f.isPlayer && f.swim && !G.swimHint) { G.swimHint = true; showBanner('NADANDO', '#7ad7ff', 'Espacio sube · C baja · cuida tu aire'); } }
+    if (f.swim !== was && f.alive) { splashFx(f); if (f.isPlayer && f.swim && !G.swimHint) { G.swimHint = true; showBanner('NADANDO', '#7ad7ff', 'Mira abajo y avanza para bucear · Espacio sube · C baja'); } }
     if (f.swim) {
       const surf = SEA_Y - 1.2, up = f.ctlJump, dn = f.ctlDown;
-      const tv = up ? 3.4 : dn ? -3.6 : (surf - f.pos.y) * 2.4;
+      const hsp = Math.hypot(f.vel.x, f.vel.z), look = f.isPlayer && hsp > 1 ? -Math.sin(cam.pitch) * hsp * 1.15 : 0;   // mirar abajo y avanzar = bucear; mirar arriba = subir
+      let tv = up ? 3.4 : dn ? -3.6 : hsp > 1 ? look : (surf - f.pos.y) * .7;
+      if (f.pos.y > surf && tv > 0 && !up) tv = 0;
       f.vel.y += (tv - f.vel.y) * Math.min(1, dt * 5); f.vel.x *= Math.exp(-1.6 * dt); f.vel.z *= Math.exp(-1.6 * dt);
       if (f.pos.y > surf + .35 && f.vel.y > 0 && !up) f.vel.y *= .4;
     }
@@ -11374,7 +11376,7 @@ function presenceOf(f, ch) {
 }
 function applyNetHit(px, h, p = G.player) {
   if (!p || !p.alive || VB.on) return;
-  const dmg=clamp(+h.dm||0,0,60),shot=px.ch===CHARS.javi&&dmg>0&&dmg<=8.01&&h.sf&&typeof h.sf.id==='string'&&h.sf.id.length<=100&&h.sf.id.startsWith(spearActorId(px)+':')&&spearVector(h.sf.dir)?h.sf:null;
+  const dmg=clamp(+h.dm||0,0,60),shot=px.ch===CHARS.javi&&dmg>0&&dmg<=16&&h.sf&&typeof h.sf.id==='string'&&h.sf.id.length<=100&&h.sf.id.startsWith(spearActorId(px)+':')&&spearVector(h.sf.dir)?h.sf:null;
   const lethal=shot&&p.hp<=dmg;
   const hit=applyHit(px, p, {
     fromNet: true, dmg, kb: lethal?3.2:clamp(+h.kb || 0, -30, 50), up: lethal?1.2:clamp(+h.up || 0, 0, 30), ragdoll: clamp(+h.rg || 0, 0, 3),
