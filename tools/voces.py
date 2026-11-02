@@ -20,9 +20,9 @@ HTML = os.path.join(ROOT, 'index.html')
 SND = os.path.join(ROOT, 'sonidos')
 
 # nombre escrito en el archivo -> id del personaje en el juego
-CHARS = {'javi': 'javi', 'javicubito': 'javi', 'redbird': 'redbird', 'sobrecargador': 'redbird', 'gato': 'gato', 'elgatopro300': 'gato', 'gatopro': 'gato',
+CHARS = {'javi': 'javi', 'javicubito': 'javi', 'redbird': 'redbird', 'sobrecargador': 'redbird', 'gato': 'gato', 'elgatopro300': 'gato', 'elgatopro': 'gato', 'gatopro': 'gato',
          'sekza': 'sekza', 'rocket': 'rocket', 'ukyo': 'ukyo', 'itzukyo': 'ukyo', 'itsukio': 'ukyo', 'itsukyo': 'ukyo', 'sebolla': 'sebolla', 'seb0lla': 'sebolla',
-         'randi': 'randi', 'elrandi': 'randi', 'capitan': 'capitan', 'capitanperu': 'capitan', 'jesuluto': 'jesuluto', 'kaiza': 'kaiza', 'nyx': 'nyx',
+         'randi': 'randi', 'elrandi': 'randi', 'capitan': 'capitan', 'capitanperu': 'capitan', 'jesuluto': 'jesuluto', 'mattux': 'mattux', 'kaiza': 'kaiza', 'nyx': 'nyx',
          'volt': 'volt', 'brasa': 'brasa', 'yuki': 'yuki', 'titan': 'titan'}
 # texto del evento (sin tildes ni números) -> nombre del archivo
 EVENTS = {'activar la ulti': 'activar_ulti', 'activar ulti': 'activar_ulti', 'activar la ult': 'activar_ulti', 'activar ult': 'activar_ulti', 'consegir ult': 'ulti_lista', 'conseguir ult': 'ulti_lista', 'consegir ulti': 'ulti_lista', 'conseguir ulti': 'ulti_lista', 'ulti lista': 'ulti_lista',
@@ -30,7 +30,8 @@ EVENTS = {'activar la ulti': 'activar_ulti', 'activar ulti': 'activar_ulti', 'ac
           'al morir': 'muerte', 'morir': 'muerte', 'idle': 'reposo', 'reposo': 'reposo', 'dano': 'dano', 'al recibir dano': 'dano', 'recibir dano': 'dano',
           'habilidad ulti': 'habilidad_ulti',
           'al golpiar': 'golpe', 'al golpear': 'golpe', 'golpear': 'golpe', 'golpiar': 'golpe', 'cuandoactivoulti': 'activar_ulti', 'cuandoconsigoulti': 'ulti_lista',
-          'matando a alguien': 'baja', 'apunto de matar a alguien': 'casi_baja', 'apunto de matar un jugador': 'casi_baja', 'variantes menu': 'menu', 'menu': 'menu'}
+          'matando a alguien': 'baja', 'apunto de matar a alguien': 'casi_baja', 'apunto de matar un jugador': 'casi_baja', 'variantes menu': 'menu', 'menu': 'menu',
+          'activa la ulti': 'activar_ulti', 'consige ulti': 'ulti_lista', 'cuando muere': 'muerte', 'muere': 'muerte', 'mata alguein': 'baja', 'mata alguien': 'baja'}
 # eventos cuyo texto empieza así (nombres largos)
 PREFIX_EVENTS = [('cuando llama las gaviotas', 'gaviotas'), ('cuando vuela', 'vuelo')]
 
@@ -40,9 +41,24 @@ def norm(t):
     return re.sub(r'[^a-z0-9 ]', ' ', ''.join(c for c in t if unicodedata.category(c) != 'Mn'))
 
 
+DYNAMIC = ('cerca_', 'hab_', 'reac_')   # eventos con nombre propio: cerca de otro personaje, al usar una habilidad, reacciones
+
+
 def match_event(text):
     ev = EVENTS.get(text)
     if ev: return ev
+    # "Al estar cerca de Sekza" -> cerca_sekza ("... con ulti" -> cerca_<id>_ulti: solo cuando ese personaje está despierto)
+    if text.startswith('al estar cerca de '):
+        rest = text[len('al estar cerca de '):].split(' ')
+        for k in (2, 1):
+            cid = CHARS.get(''.join(rest[:k]))
+            if cid: return 'cerca_' + cid + ('_ulti' if 'con ulti' in text else '')
+    # "Al usar la habilidad Paloma mensajera" -> hab_paloma
+    if text.startswith('al usar la habilidad '):
+        w = text[len('al usar la habilidad '):].split(' ')
+        if w and w[0]: return 'hab_' + w[0]
+    # "Al ver o recibir el ataque de Javi Torbellino" -> reac_torbellino
+    if 'torbellin' in text: return 'reac_torbellino'
     for pre, e in PREFIX_EVENTS:
         if text.startswith(pre): return e
 
@@ -51,6 +67,7 @@ def classify(fname, default=None):
     base = os.path.splitext(fname)[0]
     m = re.search(r'[ _]*(\d+)\s*$', base)
     num = int(m.group(1)) if m else None
+    if num is not None and num > 30: num = None; m = None   # el número es parte del nombre (ej. Elgatopro300)
     text = re.sub(r'\s+', ' ', norm(base[:m.start()] if m else base)).strip()
     words = text.split(' ')
     for k in range(min(2, len(words) - 1), 0, -1):   # prefijo de 1 o 2 palabras = personaje
@@ -99,13 +116,13 @@ def scan():
         if not os.path.isdir(d) or cid in ('clippy', 'entrada'): continue
         for f in sorted(os.listdir(d)):
             m = re.fullmatch(r'([a-z_]+?)_?(\d*)\.mp3', f)
-            if not m or m.group(1) not in set(EVENTS.values()): continue
+            if not m or (m.group(1) not in set(EVENTS.values()) and not m.group(1).startswith(DYNAMIC)): continue
             packs.setdefault(cid, {}).setdefault(m.group(1), []).append(f[:-4])
             dur = duration(os.path.join(d, f))
             if dur: durs[cid + '/' + f[:-4]] = dur
     # el juego usa nombres de evento en inglés interno
     ev = {'golpe': 'hit', 'gaviotas': 'gulls', 'vuelo': 'fly', 'menu': 'menu', 'muerte': 'death', 'ulti_lista': 'ready', 'casi_baja': 'near', 'baja': 'kill', 'reposo': 'idle', 'activar_ulti': 'activate', 'dano': 'hurt', 'habilidad_ulti': 'skill'}
-    return {c: {ev[k]: sorted(v, key=lambda x: int((re.search(r'(\d+)$', x) or [0, 0])[1])) for k, v in e.items()} for c, e in packs.items()}, durs
+    return {c: {ev.get(k, k): sorted(v, key=lambda x: int((re.search(r'(\d+)$', x) or [0, 0])[1])) for k, v in e.items()} for c, e in packs.items()}, durs
 
 
 def write(packs, durs):
