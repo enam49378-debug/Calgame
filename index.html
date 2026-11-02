@@ -5100,8 +5100,14 @@ renderer.domElement.addEventListener('webglcontextlost',event=>{
   event.preventDefault();FRAME_HEALTH.contextLost=true;graphicsRecoveryStatus(true);reportFrameError('grafica:contexto',new Error('Se perdio el contexto WebGL'));
 });
 renderer.domElement.addEventListener('webglcontextrestored',()=>{
-  FRAME_HEALTH.contextLost=false;GFX.post=false;
+  FRAME_HEALTH.contextLost=false;
   frameTask('grafica:restaurar',()=>{renderer.resetState?.();renderer.setRenderTarget(null);if(composer)composer.reset();});graphicsRecoveryStatus(false);
+  // tras perder la GPU todo hay que subirlo otra vez: si no, skins y mar quedaban negros o rotos hasta recargar
+  setTimeout(()=>frameTask('grafica:recargar',()=>{
+    const seen=new Set();
+    scene.traverse(o=>{const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[];for(const m of ms){m.needsUpdate=true;for(const k in m){const t=m[k];if(t&&t.isTexture&&!seen.has(t)){seen.add(t);t.needsUpdate=true;}}}});
+    GFX.post=GFX.level===0&&!!composer;gfxSet(GFX.level,GFX.auto,false);
+  }),400);
 });
 window.getBlockstrikeDiagnostics=()=>({build:FRAME_HEALTH.build,contextLost:FRAME_HEALTH.contextLost,rendered:FRAME_HEALTH.rendered,errors:FRAME_HEALTH.errors});
 
