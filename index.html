@@ -12651,7 +12651,7 @@ function titleSekzaStart(cp, yaw) {
   const F = fwd(yaw), R = rightOf(yaw), c = CHARS.sekza, skin = charSkin('sekza'), faceC = copyCanvas(skin), model = buildModel(faceC, !!c.slim, scene);
   if (!model.wings) addWings(model, c.color);
   model.root.traverse(o => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
-  const a = cp.clone().addScaledVector(F, 22).addScaledVector(R, -26); a.y += 8; const b = cp.clone().addScaledVector(F, 150).addScaledVector(R, 34); b.y += 30;
+  const a = cp.clone().addScaledVector(F, -8).addScaledVector(R, -6); a.y += 7; /* empieza detrás de la cámara: entra en cuadro volando, nunca aparece de golpe */ const b = cp.clone().addScaledVector(F, 150).addScaledVector(R, 34); b.y += 30;
   const gulls = []; for (let i = 0; i < 6; i++) { const g = BEACH.gulls[0].g.clone(true); scene.add(g); gulls.push(g); }
   TITLE.sek = { t: 0, dur: 13, a, b, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
   try { const e = new Audio('sonidos/sekza/vuelo_1.mp3'); trackHtmlAudio(e, .35, 'voices'); e.play().catch(() => { }); } catch (x) { }
@@ -12681,68 +12681,95 @@ function cmSneak(x, ph) { cmReset(x); const s = Math.sin(ph), up = Math.max(0, s
 const cmPlace = (f, px, pz, yaw, py, sy = 1) => { const gy = groundAt(px, pz, 4); f.model.root.position.set(px, (py == null ? gy : py) + .02, pz); f.model.root.rotation.y = yaw; f.model.root.scale.set(1 + (1 - sy) * .5, sy, 1 + (1 - sy) * .5); f.anim.apply(); };
 const CM_W = -Math.PI / 2, CM_E = Math.PI / 2;   // mirando al oeste (hacia el sol) o al este
 const smoothK = (a, b, v) => { const q = clamp((v - a) / (b - a), 0, 1); return q * q * (3 - 2 * q); };
+// ¿se ve este punto? (dentro del cuadro y no perdido en la distancia)
+function cmVisible(x, z, h = 1) { const v = new V3(x, groundAt(x, z, 4) + h, z), d = v.distanceTo(camera.position); v.project(camera); return v.z < 1 && Math.abs(v.x) < 1.12 && Math.abs(v.y) < 1.15 && d < 88; }
+// punto fuera de cámara sobre la playa: se camina desde 'x0' hacia 'dir' (+1 este / -1 oeste) hasta que deja de verse
+function cmOff(x0, z, dir) { for (let x = x0; Math.abs(x - x0) < 160; x += dir * 2) if (!cmVisible(x, z) && !cmVisible(x, z, .2) && !cmVisible(x, z, 2)) return x + dir * 3; return x0 + dir * 160; }
+// trayecto con su paso (caminar / correr / sigilo); devuelve true al llegar
+function cmGo(c, f, from, to, z, speed, style, u, py) {
+  const dist = Math.abs(to - from) || 1, k = clamp(u * speed / dist, 0, 1), px = from + (to - from) * k, x = f.anim.x, ph = u * (style === 'run' ? speed * 1.6 : style === 'sneak' ? 4.2 : 7.5);
+  const sy = style === 'run' ? cmRun(x, ph, 1.1, .45) : style === 'sneak' ? cmSneak(x, ph) : cmWalk2(x, ph);
+  cmPlace(f, px, z, to < from ? CM_W : CM_E, py, sy); f.model.root.visible = true; return k >= 1;
+}
+const legT = (a, b, sp) => Math.abs(b - a) / sp;
+// sitio donde actúa: el preferido si se ve bien; si no, el punto de la playa más cercano que quede dentro del cuadro
+function cmStage(x0, z) { const ok = x => { if (!cmVisible(x, z) || !cmVisible(x, z, 2)) return false; const v = new V3(x, groundAt(x, z, 4) + 1, z).project(camera); return Math.abs(v.x) < .75; }; if (ok(x0)) return x0; for (let d = 2; d < 70; d += 2) { if (ok(x0 - d)) return x0 - d; if (ok(x0 + d)) return x0 + d; } return x0; }
 const CAMEOS = {
-  // Mattux: espera impaciente (brazos cruzados, golpecitos con el pie, mira a cámara), se agacha y sale disparado
-  mattux: { dur: 3.4, init(c) { c.f = [cmSpawn('mattux')]; c.last = null; }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; let px = -16, sy = 1;
-    if (t < 1.0) { sy = cmKeys(x, [[0, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 0 }], [.35, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 1.1, hx: -.1 }, 'back'], [.8, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 1.1, hx: -.1 }, 'hold'], [1.0, { by: -3.2, ix: .55, tx: .2, alx: .9, arx: .9, hy: 0, sy: .84 }, 'snap']], t); x.llx = Math.abs(Math.sin(t * 11)) * .32 * (t < .8 ? 1 : 0); }
-    else { const k = clamp((t - 1.0) / 1.2, 0, 1), e = EZ.in(k) * .4 + EZ.io(k) * .6; px = -16 - 85 * e; sy = cmRun(x, t * 34, 1.25, .7) * (t < 1.12 ? 1.12 : 1);
-      const p = new V3(px, groundAt(px, 89, 4) + .9, 89); if (c.last) { slashLine(c.last, p, '#2f6bff', .5, .24); slashLine(c.last, p, '#ffffff', .32, .08); } c.last = p;
-      emit(px + 1, .3, 89 + rand(-.3, .3), rand(1, 4), rand(.4, 1.4), rand(-.6, .6), '#cfe6ff', .18, .5, .2, 2);
-      if (!c.go) { c.go = 1; ringAt(new V3(-16, .2, 89), '#2f6bff', 3.2, .35); burst(new V3(-16, .3, 89), 18, '#e8d9b0', 6, .2, .5, .3); ghost(f, '#2f6bff', .55, .3); sfx('dash', new V3(-16, 0, 89), .5); } }
-    f.model.root.visible = t < 2.3; cmPlace(f, px, 89, CM_W, null, sy);
+  // Mattux: entra corriendo desde fuera, frena derrapando, espera impaciente y sale disparado hacia el sol
+  mattux: { init(c) { c.f = [cmSpawn('mattux')]; c.z = 89; c.S = cmStage(-16, c.z); c.from = cmOff(c.S, c.z, 1); c.tIn = legT(c.from, c.S, 26) + .25; c.dur = c.tIn + 1.0 + 2.2; c.last = null; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x;
+    if (t < c.tIn - .25) { cmGo(c, f, c.from, c.S + 3, c.z, 26, 'run', t); x.ix = .7; ghostTrail(c, f, '#2f6bff'); }
+    else if (t < c.tIn) { const u = (t - (c.tIn - .25)) / .25, px = c.S + 3 * (1 - EZ.out(u)); const sy = cmKeys(x, [[0, { ix: -.35, tx: -.3, by: -2.4, llx: -.9, lrx: .6, alx: .8, arx: .8, sy: .9 }], [1, { ix: -.1, by: -1, sy: 1 }, 'out']], u); cmPlace(f, px, c.z, CM_W, null, sy); emit(px + rand(-.3, .3), .2, c.z + rand(-.4, .4), rand(1, 3), rand(.5, 1.5), rand(-.6, .6), '#e8d9b0', .2, .5, .3, 2); }
+    else if (t < c.tIn + 1.0) { const u = t - c.tIn; const sy = cmKeys(x, [[0, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75 }], [.3, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 1.1, hx: -.1 }, 'back'], [.75, { alx: -1.35, arx: -1.35, alz: -.75, arz: .75, hy: 1.1, hx: -.1 }, 'hold'], [1.0, { by: -3.2, ix: .55, tx: .2, alx: .9, arx: .9, sy: .84 }, 'snap']], u); x.llx = Math.abs(Math.sin(u * 11)) * .32 * (u < .75 ? 1 : 0); cmPlace(f, c.S, c.z, CM_W, null, sy); }
+    else { const u = t - c.tIn - 1.0, px = c.S - 95 * EZ.in(clamp(u / 1.6, 0, 1)); const sy = cmRun(x, u * 34, 1.25, .7); cmPlace(f, px, c.z, CM_W, null, sy);
+      const pt = new V3(px, groundAt(px, c.z, 4) + .9, c.z); if (c.last) { slashLine(c.last, pt, '#2f6bff', .5, .24); slashLine(c.last, pt, '#ffffff', .32, .08); } c.last = pt;
+      if (!c.go) { c.go = 1; ringAt(new V3(c.S, .2, c.z), '#2f6bff', 3.2, .35); burst(new V3(c.S, .3, c.z), 18, '#e8d9b0', 6, .2, .5, .3); ghost(f, '#2f6bff', .55, .3); sfx('dash', new V3(c.S, 0, c.z), .5); }
+      f.model.root.visible = cmVisible(px, c.z) || u < .3; }
   } },
-  // Javi: llega caminando con la lanza, frena, gira la lanza con anticipación y queda en pose de héroe; se va
-  javi: { dur: 8.4, init(c) { c.f = [cmSpawn('javi')]; setSpear(c.f[0], true); c.spin = 0; }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x, gr = f.model.gripRot; let px = -34, yaw = CM_W, sy = 1;
-    if (t < 3.0) { px = -70 + 36 * EZ.out(t / 3.0); yaw = CM_E; sy = cmWalk2(x, t * 7.5); x.arx = -.45; }
-    else if (t < 6.0) {
-      const u = t - 3.0;
-      sy = cmKeys(x, [[0, { arx: -.45, by: -.5 }], [.25, { by: -1.6, ix: .12, arx: -.2, sy: .9 }, 'out'], [.45, { by: -2.2, ty: -.6, arx: .5, alx: -.6, sy: .88 }, 'io'], [.6, { by: -.8, ty: .5, arx: -1.6, alx: .4, sy: 1.06 }, 'snap'], [1.8, { by: -.8, ty: .2, arx: -1.5, alx: .3 }, 'io'], [2.1, { tx: -.12, hx: -.25, arx: -.2, arz: .1, alx: 0, alz: .35, llz: .14, lrz: -.14, sy: 1.04 }, 'back'], [3.0, { tx: -.12, hx: -.25, arx: -.2, arz: .1, alz: .35, llz: .14, lrz: -.14 }, 'hold']], u);
-      if (gr) { const spinning = u > .5 && u < 1.9, k = spinning ? smoothK(.5, .8, u) * (1 - smoothK(1.6, 1.9, u)) : 0; c.spin += k * 28 * (1 / 60); gr.rotation.set(c.spin, 0, 0); if (spinning && Math.random() < .5) emit(f.model.root.position.x + rand(-.6, .6), 1.3 + rand(-.4, .6), 88 + rand(-.6, .6), 0, rand(.5, 1.5), 0, '#3fa9ff', .12, .4, 0, 2); if (u > 1.9) gr.rotation.set(0, 0, 0); }
-    } else { px = -34 - 36 * EZ.in((t - 6.0) / 2.4); yaw = CM_W; sy = cmWalk2(x, t * 7.5); x.arx = -.45; }
-    cmPlace(f, px, 88, yaw, null, sy);
+  // Javi: llega caminando desde fuera, gira la lanza, pose de héroe y se va por donde vino
+  javi: { init(c) { c.f = [cmSpawn('javi')]; setSpear(c.f[0], true); c.z = 88; c.S = cmStage(-34, c.z); c.from = cmOff(c.S, c.z, 1); c.sp = Math.max(2.4, Math.abs(c.from - c.S) / 4.5); c.sty = c.sp > 4 ? 'run' : 'walk'; c.tIn = legT(c.from, c.S, c.sp); c.dur = c.tIn * 2 + 3.0; c.spin = 0; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x, gr = f.model.gripRot;
+    if (t < c.tIn) { cmGo(c, f, c.from, c.S, c.z, c.sp, c.sty, t); x.arx = -.45; f.anim.apply(); }
+    else if (t < c.tIn + 3.0) { const u = t - c.tIn;
+      const sy = cmKeys(x, [[0, { arx: -.45, by: -.5 }], [.25, { by: -1.6, ix: .12, arx: -.2, sy: .9 }, 'out'], [.45, { by: -2.2, ty: -.6, arx: .5, alx: -.6, sy: .88 }, 'io'], [.6, { by: -.8, ty: .5, arx: -1.6, alx: .4, sy: 1.06 }, 'snap'], [1.8, { by: -.8, ty: .2, arx: -1.5, alx: .3 }, 'io'], [2.1, { tx: -.12, hx: -.25, arx: -.2, arz: .1, alz: .35, llz: .14, lrz: -.14, sy: 1.04 }, 'back'], [2.7, { tx: -.12, hx: -.25, arx: -.2, arz: .1, alz: .35, llz: .14, lrz: -.14 }, 'hold'], [3.0, { arx: -.45 }, 'io']], u);
+      cmPlace(f, c.S, c.z, CM_W, null, sy);
+      if (gr) { const k = smoothK(.5, .8, u) * (1 - smoothK(1.6, 1.9, u)); c.spin += k * 28 / 60; gr.rotation.set(u > 1.9 ? 0 : c.spin, 0, 0); if (k > .5 && Math.random() < .5) emit(c.S + rand(-.6, .6), 1.3 + rand(-.4, .6), c.z + rand(-.6, .6), 0, rand(.5, 1.5), 0, '#3fa9ff', .12, .4, 0, 2); } }
+    else { cmGo(c, f, c.S, c.from, c.z, c.sp, c.sty, t - c.tIn - 3.0); x.arx = -.45; f.anim.apply(); }
   } },
-  // ItzUkyo: guardia baja, carga, tajo seco con estela de fuego y pausa; contratajo; envaina y saluda
-  ukyo: { dur: 5.2, init(c) { c.f = [cmSpawn('ukyo')]; setSpear(c.f[0], true); }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x, G0 = { llz: .2, lrz: -.2, by: -1.6, ix: .1 };
+  // ItzUkyo: llega caminando, guardia, dos tajos de fuego, envaina, reverencia y se va
+  ukyo: { init(c) { c.f = [cmSpawn('ukyo')]; c.z = 86; c.S = cmStage(-30, c.z); c.from = cmOff(c.S, c.z, 1); c.sp = Math.max(2.4, Math.abs(c.from - c.S) / 4.5); c.sty = c.sp > 4 ? 'run' : 'walk'; c.tIn = legT(c.from, c.S, c.sp); c.dur = c.tIn * 2 + 5.0; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x;
+    if (t < c.tIn) { cmGo(c, f, c.from, c.S, c.z, c.sp, c.sty, t); return; }
+    if (t >= c.tIn + 5.0) { cmGo(c, f, c.S, c.from, c.z, c.sp, c.sty, t - c.tIn - 5.0); return; }
+    const u = t - c.tIn, G0 = { llz: .2, lrz: -.2, by: -1.6, ix: .1 };
+    if (!f.spearOut && u > .2 && u < 3.6 && f.spear) setSpear(f, true);
     const sy = cmKeys(x, [[0, {}], [.5, Object.assign({ arx: -.9, alx: -.6 }, G0), 'back'],
       [1.0, Object.assign({ ty: -1.05, tx: .2, arx: -1.3, alx: -.8, sy: .92 }, G0), 'io'], [1.08, Object.assign({ ty: 1.15, tx: .38, arx: -1.85, alx: .35, sy: 1.08 }, G0), 'snap'], [1.6, Object.assign({ ty: .95, tx: .3, arx: -1.75, alx: .3 }, G0), 'hold'],
       [2.3, Object.assign({ ty: .9, tx: .2, arx: -2.6, alx: -.3 }, G0), 'io'], [2.38, Object.assign({ ty: -1.1, tx: .4, arx: -1.2, alx: -.2, sy: 1.08 }, G0), 'snap'], [3.0, Object.assign({ ty: -.9, tx: .3, arx: -1.1 }, G0), 'hold'],
-      [3.6, { arx: -.3, alx: -.3 }, 'io'], [4.2, { tx: .45, hx: .25, arx: -.2, alx: -.2 }, 'back'], [4.9, { tx: .45, hx: .25 }, 'hold'], [5.2, {}, 'io']], t);
-    const fx = (k, t0, dir) => { if (t >= t0 && !c[k]) { c[k] = 1; const o = new V3(-30, groundAt(-30, 86, 4) + 1.25, 86), a1 = o.clone().add(new V3(-1.4, .5, 1.6 * dir)), a2 = o.clone().add(new V3(-1.6, -.2, -1.6 * dir)); slashLine(a1, a2, '#e0263a', .35, .35); slashLine(a1, a2, '#ffd27a', .25, .12); burst(o.clone().add(new V3(-1.5, 0, 0)), 26, '#e0263a', 9, .18, .5, 0); burst(o.clone().add(new V3(-1.5, 0, 0)), 12, '#ffb347', 6, .14, .4, 0); ghost(f, '#e0263a', .45, .22); sfx('swing', o, .5); } };
-    fx('a', 1.06, 1); fx('b', 2.36, -1); if (t > 3.7 && f.spear) setSpear(f, false);
-    cmPlace(f, -30, 86, CM_W, null, sy);
+      [3.6, { arx: -.3, alx: -.3 }, 'io'], [4.2, { tx: .45, hx: .25 }, 'back'], [4.7, { tx: .45, hx: .25 }, 'hold'], [5.0, {}, 'io']], u);
+    const fx = (k, t0, dir) => { if (u >= t0 && !c[k]) { c[k] = 1; const o = new V3(c.S, groundAt(c.S, c.z, 4) + 1.25, c.z), a1 = o.clone().add(new V3(-1.4, .5, 1.6 * dir)), a2 = o.clone().add(new V3(-1.6, -.2, -1.6 * dir)); slashLine(a1, a2, '#e0263a', .35, .35); slashLine(a1, a2, '#ffd27a', .25, .12); burst(o.clone().add(new V3(-1.5, 0, 0)), 26, '#e0263a', 9, .18, .5, 0); ghost(f, '#e0263a', .45, .22); sfx('swing', o, .5); } };
+    fx('a', 1.06, 1); fx('b', 2.36, -1); if (u > 3.7 && f.spearOut) setSpear(f, false);
+    cmPlace(f, c.S, c.z, CM_W, null, sy);
   } },
-  // Redbird: lleva la mano al visor, carga (tiembla y brilla), dispara con retroceso y pausa
-  redbird: { dur: 4.4, init(c) { c.f = [cmSpawn('redbird')]; }, upd(c, t) {
+  // Redbird: llega caminando, mano al visor, carga, dispara con retroceso y se va
+  redbird: { init(c) { c.f = [cmSpawn('redbird')]; c.z = 86; c.S = cmStage(-24, c.z); c.from = cmOff(c.S, c.z, 1); c.sp = Math.max(2.4, Math.abs(c.from - c.S) / 4.5); c.sty = c.sp > 4 ? 'run' : 'walk'; c.tIn = legT(c.from, c.S, c.sp); c.dur = c.tIn * 2 + 4.0; }, upd(c, t) {
     const f = c.f[0], x = f.anim.x;
-    const sy = cmKeys(x, [[0, {}], [.6, { arx: -2.25, arz: .45, hx: .1 }, 'back'], [1.5, { arx: -2.25, arz: .45, by: -1.4, tx: .15, hx: .15, sy: .93 }, 'io'], [1.6, { arx: -2.1, arz: .45, by: .5, tx: -.28, hx: -.25, ix: -.08, sy: 1.06 }, 'snap'], [2.3, { arx: -2.1, arz: .45, by: .2, tx: -.2, hx: -.2 }, 'hold'], [3.0, { arx: -.3 }, 'io'], [3.6, { hy: .5 }, 'back'], [4.4, {}, 'io']], t);
-    if (t > .7 && t < 1.55) { f.model.root.position.x += rand(-.02, .02); if (Math.random() < .6) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 5 * PX)); emit(o.x + rand(-.3, .3), o.y + rand(-.3, .3), o.z + rand(-.3, .3), 0, rand(.3, 1), 0, '#ff3a3a', .12, .4, 0, 2); } }
-    cmPlace(f, -24, 86, CM_W, null, sy);
-    if (t > 1.6 && t < 2.3) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 6 * PX)), d = CITY.sunDisc.position.clone().sub(o).normalize(), e = o.clone().addScaledVector(d, 150), w = 1 - (t - 1.6) / .7; slashLine(o, e, '#ff3a3a', .1, .34 * w + .06); slashLine(o, e, '#ffffff', .08, .12 * w + .03); if (!c.b) { c.b = 1; burst(o, 18, '#ff3a3a', 7, .14, .35, 0); ringAt(o, '#ff3a3a', 2, .3); sfx('zap', o, .5); } }
+    if (t < c.tIn) { cmGo(c, f, c.from, c.S, c.z, c.sp, c.sty, t); return; }
+    if (t >= c.tIn + 4.0) { cmGo(c, f, c.S, c.from, c.z, c.sp, c.sty, t - c.tIn - 4.0); return; }
+    const u = t - c.tIn;
+    const sy = cmKeys(x, [[0, {}], [.6, { arx: -2.25, arz: .45, hx: .1 }, 'back'], [1.5, { arx: -2.25, arz: .45, by: -1.4, tx: .15, hx: .15, sy: .93 }, 'io'], [1.6, { arx: -2.1, arz: .45, by: .5, tx: -.28, hx: -.25, ix: -.08, sy: 1.06 }, 'snap'], [2.3, { arx: -2.1, arz: .45, by: .2, tx: -.2, hx: -.2 }, 'hold'], [3.0, { arx: -.3 }, 'io'], [3.5, { hy: .5 }, 'back'], [4.0, {}, 'io']], u);
+    cmPlace(f, c.S, c.z, CM_W, null, sy);
+    if (u > .7 && u < 1.55 && Math.random() < .6) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 5 * PX)); emit(o.x + rand(-.3, .3), o.y + rand(-.3, .3), o.z + rand(-.3, .3), 0, rand(.3, 1), 0, '#ff3a3a', .12, .4, 0, 2); }
+    if (u > 1.6 && u < 2.3) { const o = f.model.head.localToWorld(new V3(0, 4 * PX, 6 * PX)), d = CITY.sunDisc.position.clone().sub(o).normalize(), e = o.clone().addScaledVector(d, 150), w = 1 - (u - 1.6) / .7; slashLine(o, e, '#ff3a3a', .1, .34 * w + .06); slashLine(o, e, '#ffffff', .08, .12 * w + .03); if (!c.b) { c.b = 1; burst(o, 18, '#ff3a3a', 7, .14, .35, 0); ringAt(o, '#ff3a3a', 2, .3); sfx('zap', o, .5); } }
   } },
-  // Rocket: manos en la cintura, se agacha, lanza la tela, sale en arco estirándose, cae aplastándose y saluda
-  rocket: { dur: 4.4, init(c) { c.f = [cmSpawn('rocket')]; }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x; let px = -26, py = null, sy = 1;
-    if (t < 1.0) sy = cmKeys(x, [[0, { alz: .7, arz: -.7, alx: .3, arx: .3, hy: .4 }], [.55, { alz: .7, arz: -.7, alx: .3, arx: .3, hy: -.3 }, 'back'], [1.0, { by: -3, ix: .3, arx: -2.9, alx: .4, sy: .85 }, 'snap']], t);
-    else if (t < 2.1) { const k = (t - 1.0) / 1.1, e = EZ.io(k); px = -26 - 26 * e; py = groundAt(px, 87, 4) + Math.sin(k * Math.PI) * 4.5; cmReset(x); Object.assign(x, { arx: -2.9, alx: .6, ix: .45, llx: .5, lrx: -.3, hx: -.3 }); sy = 1 + Math.sin(k * Math.PI) * .12;
-      const a = new V3(px, py + 1.6, 87), anc = new V3(-52, 6.5, 87); slashLine(a, anc, '#ffffff', .1, .06); if (!c.z) { c.z = 1; sfx('whoosh', a, .5); } }
-    else { px = -52; const u = t - 2.1; sy = cmKeys(x, [[0, { by: -3, ix: .2, sy: .82 }], [.25, { by: 0, sy: 1.05 }, 'back'], [.5, { arx: -2.9, arz: .2 }, 'back'], [2.3, { arx: -2.9, arz: .2 }, 'hold']], u); if (u > .5) x.arz = .2 + Math.sin(u * 14) * .45; if (u < .1 && !c.l) { c.l = 1; burst(new V3(-52, .3, 87), 14, '#e8d9b0', 5, .18, .4, .3); } }
-    cmPlace(f, px, 87, CM_W, py, sy);
+  // Rocket: llega columpiándose con tela desde fuera, aterriza aplastado, saluda y se va igual
+  rocket: { init(c) { c.f = [cmSpawn('rocket')]; c.z = 87; c.S = cmStage(-30, c.z); c.from = cmOff(c.S, c.z, 1); c.tIn = 1.3; c.dur = c.tIn * 2 + 2.2; }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x;
+    const swing = (a0, a1, k) => { const e = EZ.io(k), px = a0 + (a1 - a0) * e, py = groundAt(px, c.z, 4) + Math.sin(k * Math.PI) * 5; cmReset(x); Object.assign(x, { arx: -2.9, alx: .6, ix: .45, llx: .5, lrx: -.3, hx: -.3 }); cmPlace(f, px, c.z, a1 < a0 ? CM_W : CM_E, py, 1 + Math.sin(k * Math.PI) * .12); slashLine(new V3(px, py + 1.6, c.z), new V3((a0 + a1) / 2, 9, c.z), '#ffffff', .1, .06); };
+    if (t < c.tIn) { swing(c.from, c.S, t / c.tIn); if (!c.z1) { c.z1 = 1; sfx('whoosh', new V3(c.S, 2, c.z), .5); } }
+    else if (t < c.tIn + 2.2) { const u = t - c.tIn; const sy = cmKeys(x, [[0, { by: -3, ix: .2, sy: .82 }], [.25, { by: 0, sy: 1.05 }, 'back'], [.5, { arx: -2.9, arz: .2 }, 'back'], [1.8, { arx: -2.9, arz: .2 }, 'hold'], [2.2, { by: -3, ix: .3, arx: -2.9, sy: .85 }, 'snap']], u); if (u > .5 && u < 1.8) x.arz = .2 + Math.sin(u * 14) * .45; if (u < .1 && !c.l) { c.l = 1; burst(new V3(c.S, .3, c.z), 14, '#e8d9b0', 5, .18, .4, .3); } cmPlace(f, c.S, c.z, CM_W, null, sy); }
+    else swing(c.S, c.from, (t - c.tIn - 2.2) / c.tIn);
   } },
-  // ElRandi: corre con los brazos arriba como loco delante de las llamas, con saltitos
-  randi: { dur: 6.0, init(c) { c.f = [cmSpawn('randi')]; c.ll = []; for (let i = 0; i < 4; i++) { const g = DOM_ANIMALS[[0, 2, 3, 0][i]](); g.scale.setScalar(.8); scene.add(g); c.ll.push(g); } }, upd(c, t) {
-    const f = c.f[0], x = f.anim.x, px = -92 + 82 * (t / 5.4), hop = Math.max(0, Math.sin(t * 6.5)) ** 3 * .45; const sy = cmRun(x, t * 15, 1.1, .2); x.alx = -2.8 + Math.sin(t * 15) * .35; x.arx = -2.8 - Math.sin(t * 15) * .35; x.alz = -.45; x.arz = .45; x.hx = -.35 + Math.sin(t * 30) * .08;
-    cmPlace(f, px, 90, CM_E, groundAt(px, 90, 4) + hop, sy); c.ll.forEach((g, i) => { const gx = px - 5 - i * 2.4, gz = 90 + (i % 2 ? 1.4 : -1.4), b = Math.abs(Math.sin(t * 13 + i)); g.position.set(gx, groundAt(gx, gz, 4) + b * .35, gz); g.rotation.y = CM_E; g.rotation.x = (b - .5) * .12; g.scale.set(.8, .8 * (1 + (b - .5) * .08), .8); });
-    if (Math.random() < .5) emit(px - 4 + rand(-3, 3), .2, 90 + rand(-2, 2), rand(-1, 1), rand(.5, 1.5), rand(-1, 1), '#e8d9b0', .16, .6, .2, 2);
+  // ElRandi: entra corriendo desde fuera con los brazos arriba, las llamas detrás, y se pierde hacia el sol
+  randi: { init(c) { c.f = [cmSpawn('randi')]; c.z = 90; c.from = cmOff(-30, c.z, 1) + 12; c.to = c.from - 120; c.dur = legT(c.from, c.to, 11); c.ll = []; for (let i = 0; i < 4; i++) { const g = DOM_ANIMALS[[0, 2, 3, 0][i]](); g.scale.setScalar(.8); scene.add(g); c.ll.push(g); } }, upd(c, t) {
+    const f = c.f[0], x = f.anim.x, px = c.from - 11 * t, hop = Math.max(0, Math.sin(t * 6.5)) ** 3 * .45; const sy = cmRun(x, t * 15, 1.1, .2); x.alx = -2.8 + Math.sin(t * 15) * .35; x.arx = -2.8 - Math.sin(t * 15) * .35; x.alz = -.45; x.arz = .45; x.hx = -.35 + Math.sin(t * 30) * .08;
+    cmPlace(f, px, c.z, CM_W, groundAt(px, c.z, 4) + hop, sy); c.ll.forEach((g, i) => { const gx = px + 5 + i * 2.4, gz = c.z + (i % 2 ? 1.4 : -1.4), b = Math.abs(Math.sin(t * 13 + i)); g.position.set(gx, groundAt(gx, gz, 4) + b * .35, gz); g.rotation.y = CM_W; g.scale.set(.8, .8 * (1 + (b - .5) * .08), .8); });
+    if (Math.random() < .5) emit(px + 4 + rand(-3, 3), .2, c.z + rand(-2, 2), rand(-1, 1), rand(.5, 1.5), rand(-1, 1), '#e8d9b0', .16, .6, .2, 2);
   }, done(c) { for (const g of c.ll) scene.remove(g); } },
-  // ElGato: caminata sigilosa de dibujo animado con dos copias que se desfasan y parpadean
-  gato: { dur: 6.4, init(c) { c.f = [cmSpawn('gato'), cmSpawn('gato'), cmSpawn('gato')]; c.f.slice(1).forEach(f => f.model.root.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .42; } })); }, upd(c, t) {
-    c.f.forEach((f, i) => { const x = f.anim.x, tt = Math.max(0, t - i * .3), px = -16 - 58 * (tt / 5.6), pz = 89 + [0, 1.5, -1.5][i] * (1 + Math.sin(t * 1.2) * .5); const sy = cmSneak(x, tt * 4.2 + i); f.model.root.visible = t > i * .3 && tt < 5.6 && (i === 0 || Math.floor(t * 9 + i) % 5 !== 0); cmPlace(f, px, pz, CM_W, null, sy); });
+  // ElGato: entra de puntillas con sus copias, se congela al notar la cámara, salta del susto y huye por donde vino
+  gato: { init(c) { c.f = [cmSpawn('gato'), cmSpawn('gato'), cmSpawn('gato')]; c.f.slice(1).forEach(f => f.model.root.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = .42; } })); c.z = 89; c.S = cmStage(-28, c.z); c.from = cmOff(c.S, c.z, 1); c.sp = Math.max(2.2, Math.abs(c.from - c.S) / 5); c.tIn = legT(c.from, c.S, c.sp); c.dur = c.tIn + 1.4 + legT(c.S, c.from, 9) + .6; }, upd(c, t) {
+    c.f.forEach((f, i) => { const x = f.anim.x, z = c.z + [0, 1.5, -1.5][i], d0 = i * .35, tt = t - d0;
+      if (tt < 0) { f.model.root.visible = false; return; }
+      if (tt < c.tIn) cmGo(c, f, c.from, c.S + i * 1.2, z, c.sp, 'sneak', tt);
+      else if (tt < c.tIn + 1.4) { const u = tt - c.tIn; const sy = cmKeys(x, [[0, { ix: .32, tx: .15, alx: -1.25, arx: -1.25, by: -2 }], [.25, { hy: 1.3, hx: -.1, by: -1.5 }, 'snap'], [.8, { hy: 1.3, hx: -.1, by: -1.5 }, 'hold'], [.95, { by: -3, sy: .8, alx: -.2, arx: -.2 }, 'snap'], [1.15, { by: 1.5, alx: -2.9, arx: -2.9, alz: -.6, arz: .6, hy: 1.3, sy: 1.15 }, 'back'], [1.4, { by: 0, hy: 0 }, 'io']], u); cmPlace(f, c.S + i * 1.2, z, CM_W, groundAt(c.S, z, 4) + (u > .95 && u < 1.4 ? Math.sin((u - .95) / .45 * Math.PI) * .9 : 0), sy); }
+      else cmGo(c, f, c.S + i * 1.2, c.from, z, 9, 'run', tt - c.tIn - 1.4);
+      if (i > 0) f.model.root.visible = f.model.root.visible && Math.floor(t * 9 + i) % 5 !== 0;
+    });
   } },
   jesuluto: { dur: 6, init(c) { const d = document.createElement('div'); d.id = 'tclippy'; d.innerHTML = '<b>📎</b><span>¡Parece que estás viendo el atardecer!<br><small>¿Necesitas ayuda con eso?</small></span>'; $('title').appendChild(d); c.el = d; }, upd(c, t) { c.el.classList.toggle('on', t > .3 && t < 5.4); }, done(c) { if (c.el) c.el.remove(); } },
 };
+// estela de imágenes residuales mientras corre rápido
+function ghostTrail(c, f, col) { c.gt = (c.gt || 0) + 1; if (c.gt % 4 === 0) ghost(f, col, .4, .2); }
 const CAMEO_IDS = Object.keys(CAMEOS);
 function titleCameo(dt, t) {
   let C = TITLE.cm;
@@ -12752,7 +12779,7 @@ function titleCameo(dt, t) {
     const id = ids[(Math.random() * ids.length) | 0], def = CAMEOS[id]; C = TITLE.cm = { id, def, t: 0 }; TITLE.lastCm = id; def.init(C);
   }
   C.t += dt; C.def.upd(C, C.t);
-  if (C.t >= C.def.dur) cameoEnd();
+  if (C.t >= (C.dur || C.def.dur)) cameoEnd();
 }
 function cameoEnd() {
   const C = TITLE.cm; if (!C) return; if (C.def.done) C.def.done(C);
