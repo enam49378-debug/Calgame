@@ -12656,9 +12656,9 @@ function titleSky(dt, t, cp, yaw) {
   const K = TITLE.sek;
   if (!K) { if (t > (TITLE.nextSek == null ? 7 : TITLE.nextSek) && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw); return; }
   K.t += dt; const T = K.t, m = K.model, x = K.anim.x;
-  const T1 = 4.0, T2 = T1 + .9, T3 = T2 + 1.5;   // vuelo tranquilo · se distrae · picada descontrolada hasta el choque
+  const T1 = 8.5, T2 = T1 + 1.2, T3 = T2 + 1.7;   // vuelo tranquilo dando vueltas a la vista · se distrae · picada descontrolada hasta el choque
   let pos, roll = 0, flail = 0;
-  if (T < T1) { const u = T / T1, e = u * u * (3 - 2 * u); pos = K.a.clone().lerp(K.mid, e); pos.y += Math.sin(u * 4) * 1.2; }
+  if (T < T1) { const u = T / T1, e = 1 - (1 - u) * (1 - u); pos = K.curve.getPoint(e); pos.y += Math.sin(T * 1.6) * .6; roll = u > .45 && u < .6 ? EZ.io((u - .45) / .15) * Math.PI * 2 : 0; }   // paseo tranquilo con una voltereta de lucimiento
   else if (T < T2) { const u = (T - T1) / (T2 - T1); pos = K.mid.clone().addScaledVector(K.dir0, u * 6); pos.y += Math.sin(u * 3) * .3; roll = Math.sin(u * 9) * .25 * u; }
   else if (!K.boom && T < T3) { const k = (T - T2) / (T3 - T2), e = k * k * (.4 + .6 * k); pos = bez(K.mid.clone().addScaledVector(K.dir0, 6), K.ctrl, K.tgt, e); roll = k * 9; flail = 1; }
   else pos = K.tgt.clone();
@@ -12706,11 +12706,15 @@ function titleSekzaStart(cp, yaw) {
   if (!model.wings) addWings(model, c.color);
   model.root.traverse(o => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
   const a = cp.clone().addScaledVector(F, -8).addScaledVector(R, -6); a.y += 7;   // empieza detrás de la cámara
-  const mid = cp.clone().addScaledVector(F, 40).addScaledVector(R, -4); mid.y += 16;
+  // recorrido tranquilo y a la vista: entra por la izquierda, cruza a la derecha y vuelve al centro antes de distraerse
+  const p1 = cp.clone().addScaledVector(F, 20).addScaledVector(R, -11); p1.y += 8;
+  const p2 = cp.clone().addScaledVector(F, 28).addScaledVector(R, 11); p2.y += 11;
+  const mid = cp.clone().addScaledVector(F, 36).addScaledVector(R, -3); mid.y += 13;
+  const curve = new THREE.CatmullRomCurve3([a, p1, p2, mid], false, 'centripetal');
   const tg = sekzaTarget(cp), tgt = tg ? tg.p : cp.clone().addScaledVector(F, 150).addScaledVector(R, 34).add(new V3(0, 30, 0));
-  const dir0 = mid.clone().sub(a).normalize(), ctrl = mid.clone().addScaledVector(dir0, 18).add(new V3(0, 4, 0)).lerp(tgt, .25);
+  const dir0 = curve.getTangent(1).normalize(), ctrl = mid.clone().addScaledVector(dir0, 18).add(new V3(0, 4, 0)).lerp(tgt, .25);
   const gulls = []; for (let i = 0; i < 6; i++) { const g = BEACH.gulls[0].g.clone(true); scene.add(g); gulls.push(g); }
-  TITLE.sek = { t: 0, dur: tg ? 10.5 : 7, a, mid, dir0, ctrl, tgt, crash: !!tg, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
+  TITLE.sek = { t: 0, dur: tg ? 15 : 11.5, a, mid, curve, dir0, ctrl, tgt, crash: !!tg, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
   try { const e = new Audio('sonidos/sekza/vuelo_1.mp3'); trackHtmlAudio(e, .35, 'voices'); e.play().catch(() => { }); } catch (x) { }
 }
 // ===== Cameos: otros personajes que pasan por la playa haciendo lo suyo =====
