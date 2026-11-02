@@ -2848,7 +2848,7 @@ function bbHole(c, r) {
 const NETREP = { on: false, recv: false, last: -9 };
 // la destrucción de un jugador se manda a los demás para que todos rompan lo mismo y puedan pasar por los mismos huecos
 function netDestSend(c, r, power, dmg, dest) {
-  if (!G.mp || NETREP.recv || NETREP.on || G.viewer) return;
+  if (!G.mp || NETREP.recv || NETREP.on || G.viewer || G.guide) return;
   if (G.time - NETREP.last < .2 && r < 3) return; NETREP.last = G.time;
   NET.destSeq = (NET.destSeq || 0) + 1;
   (NET.destOut || (NET.destOut = [])).push({ s: NET.destSeq, t: G.time, x: r2(c.x), y: r2(c.y), z: r2(c.z), r: r2(r), p: r2(power), m: dmg == null ? null : r2(dmg), e: dest == null ? null : r2(dest) });
@@ -11199,7 +11199,7 @@ loadFaceLib(); feInit();
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
 const _tp = new V3();
-function netAct(a) { a.s = ++NET.actSeq; NET.act = a; }
+function netAct(a) { if (G.guide) return; a.s = ++NET.actSeq; NET.act = a; }
 async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
@@ -13733,7 +13733,7 @@ function guideNums(on) {
 }
 function guideEnter() {
   if (GS.on) return true;
-  if (G.mp || G.state !== 'play' || G.viewer || !G.player) return false;
+  if (G.state !== 'play' || G.viewer || !G.player) return false;
   const R = GS.real = { F: G.fighters, P: G.player, goal: G.goal, auto: G.auto, paused: G.paused, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, sl: G.shiftLock };
   for (const f of R.F) { try { f.model.root.visible = false; if (f.plate) f.plate.style.display = 'none'; } catch (e) { } }
   G.fighters = []; G.goal = 99999; G.auto = false; G.paused = false; GS.on = true; G.guide = true;
@@ -13766,6 +13766,16 @@ function guideBuild(E) {
   G.shiftLock = !!E.lock; $('slchip').classList.toggle('hidden', !G.shiftLock);
   GS.E = E; GS.t = 0; GS.fired = new Set(); GS.cast = false; GS.pulse = { skill: null, ult: false };
   if (E.setup) E.setup(GS);
+}
+// online: la red se atiende con el estado real (amigos, tu posición, golpes que te llegan) y la pelea real queda congelada e invulnerable
+function guideNet(dt) {
+  if (!GS.on) { netTick(dt); return; }
+  const sf = G.fighters, sp = G.player, R = GS.real;
+  G.fighters = R.F; G.player = R.P; R.P.iframes = Math.max(R.P.iframes, 1);
+  try { netTick(dt); } finally {
+    G.fighters = sf; G.player = sp;
+    for (const f of R.F) { try { f.model.root.visible = false; if (f.plate) f.plate.style.display = 'none'; } catch (e) { } }
+  }
 }
 function guideTick(dt) {
   const E = GS.E; if (!GS.on || !E || !GS.att) return;
@@ -13950,7 +13960,7 @@ function loop(now){
     if(dt>0)frameTask('simulacion',()=>step(dt),()=>pressed.clear());
     if(G.viewer)frameTask('visor',()=>vTick(dt));else if(G.paused)pressed.clear();
   }
-  if(G.mp)frameTask('red',()=>netTick(rdt));
+  if(G.mp)frameTask('red',()=>guideNet(rdt));
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
   frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>updateCamera(rdt));
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
@@ -13969,7 +13979,7 @@ initPauseAudioControls();
 gfxInit();
 requestAnimationFrame(loop);
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás
-setInterval(()=>{if(G.mp&&G.state==='play'&&performance.now()-last>250)frameTask('red:segundo-plano',()=>netTick(.1));},200);
+setInterval(()=>{if(G.mp&&G.state==='play'&&performance.now()-last>250)frameTask('red:segundo-plano',()=>guideNet(.1));},200);
 </script>
 
 </body>
