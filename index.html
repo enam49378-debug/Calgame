@@ -572,6 +572,10 @@ tr.me td{color:var(--hot);font-weight:700}
           <small>Las voces de los personajes (Javi, Rocket, Itsukio, Randi, Clippy...).</small>
         </div>
       </section>
+      <section class="audio-settings" aria-labelledby="st-title">
+        <h3 id="st-title">PRIVACIDAD</h3>
+        <label class="chk"><input id="st-opt" type="checkbox" checked><span>Enviar estadísticas anónimas<small>Solo números (partidas, tiempo jugado, personaje elegido) con un código al azar: sin tu nombre ni tu IP. Ayudan a mejorar el juego. Si lo apagás se borran.</small></span></label>
+      </section>
       <section class="pause-game-settings" aria-labelledby="pause-game-title">
         <h3 id="pause-game-title">PARTIDA Y GRÁFICOS</h3>
         <div class="field"><label for="plvl">Nivel de los bots <output id="plvl-o">5</output></label><input id="plvl" type="range" min="1" max="10" step="1" value="5"></div>
@@ -5707,7 +5711,7 @@ function kill(v, k) {
   javiSpeak(v,'death');if(k&&k!==v)javiSpeak(k,'kill');
   sfx('ko', v.pos);
   if (v.dummy) { if (k && k.isPlayer) popText(chestOf(v), 'K.O.', '#d7ff2f', 26); return; }
-  if (k && k !== v) { k.kills++; k.ult = Math.min(100, k.ult + 20 * ULT_GAIN); k.hp = Math.min(k.maxHp, k.hp + 15); }
+  if (k && k !== v) { k.kills++; if (k.isPlayer) statsKill(); k.ult = Math.min(100, k.ult + 20 * ULT_GAIN); k.hp = Math.min(k.maxHp, k.hp + 15); }
   addFeed(k, v);
   if (G.state === 'play') { if (k && k.isPlayer) G.winPK++; if (v.isPlayer) G.winPD++; }
   if (v.isPlayer) { $('death').classList.remove('hidden'); $('deathby').textContent = k && k !== v ? `Te noqueó ${k.name}` : 'Te noqueaste solo'; G.combo = 0; }
@@ -9361,7 +9365,7 @@ function useUlt(f) {
   if (f.ult < 100) return;
   prepWeapon(f);
   if (f.awak > 0) return;
-  f.ult = 0;
+  f.ult = 0; if (f.isPlayer) statsUlt(f);
   if (f.isPlayer && !ownsMissingSpear(f)) { startCine(f); return; }   // sin lanza no hay cinemática: despierta directo
   runUlt(f);
   if (involvesPlayerNear(f)) miniCut(f);
@@ -10706,6 +10710,7 @@ async function startMatch() {
   $('hud').classList.remove('hidden'); $('menu').classList.add('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden'); $('death').classList.add('hidden');
   $('ailbl').textContent = G.mp ? 'Sala' : 'IA nivel';
   showBanner('¡A PELEAR!', '#d7ff2f', G.mp ? CITY.name + ' · Sala con amigos' : `${CITY.name} · Primero en ${G.goal} K.O.`);
+  statsMatch(G.charId, G.mp);
   if (G.mp) netSendPlay();
 }
 function toMenu() {
@@ -10716,7 +10721,7 @@ function toMenu() {
 }
 function endMatch(w) {
   if (G.over) return;
-  G.over = true; unlock(); w.victory = true; G.winner = w;
+  G.over = true; unlock(); w.victory = true; G.winner = w; statsEnd(!!w.isPlayer);
   $('overtitle').textContent = w.isPlayer ? '¡GANASTE!' : `GANÓ ${w.name.toUpperCase()}`;
   $('overtitle').style.color = w.isPlayer ? 'var(--hot)' : w.ch.color;
   const t = $('overtable'); t.innerHTML = ''; t.appendChild(scoreTable());
@@ -11110,6 +11115,158 @@ async function netInit() {
 // Tiene la misma forma que la sala de claude.ai: peers(), presence(), onPeers(), leave().
 // medido desde una conexión real: HiveMQ 0 % de pérdida (236 ms); EMQX perdía el 57 % de los paquetes, por eso va de respaldo
 const RELAYS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
+// ===== Estadísticas anónimas para el dueño del juego =====
+// Cada navegador guarda un resumen propio (código al azar, sin nombre ni IP) como mensaje retenido en los relays MQTT
+// y avisa cada 30 s que está conectado. El panel del dueño se suscribe a todos y los suma. Sin servidor propio:
+// si un relay borra lo retenido, se vuelve a llenar con los que entren después.
+const ST_BASE = 'calfight/st1/', ST_OWNER_H = 'fb17ef57e8280b11bee6b43b62abac9010b59f331474ec483838184412fe14b5';
+const ST = { id: '', d: null, on: true, owner: false, cl: [], push: 0 };
+const stDay = () => Math.floor(Date.now() / 864e5);
+function stLoad() {
+  let o = null; try { o = JSON.parse(localStorage.getItem('bsb_st') || 'null'); ST.owner = localStorage.getItem('bsb_owner') === '1'; ST.on = localStorage.getItem('bsb_st_off') !== '1'; } catch (e) { }
+  ST.id = o && /^s[a-z0-9]{8,}$/.test(o.id) ? o.id : 's' + Math.random().toString(36).slice(2, 12);
+  ST.d = o && o.d && o.d.v === 1 ? o.d : { v: 1, f: stDay(), l: 0, s: 0, w: 0, dy: {}, c: {}, mo: [0, 0] };
+}
+function stSave() { try { localStorage.setItem('bsb_st', JSON.stringify({ id: ST.id, d: ST.d })); } catch (e) { } }
+function stDy() {
+  const t = stDay(), dy = ST.d.dy; if (!dy[t]) dy[t] = [0, 0, 0];
+  for (const k in dy) if (+k < t - 120) delete dy[k];
+  return dy[t];
+}
+function stC(id) { if (!CHARS[id]) return null; return ST.d.c[id] || (ST.d.c[id] = [0, 0, 0, 0, 0]); }   // elegido, ganadas, K.O., ultis, minutos
+const stCount = () => ST.on && !ST.owner && !/[?&]nostats/.test(location.search);
+function stClients(will) {
+  if (ST.cl.length || !window.mqtt) return ST.cl;
+  RELAYS.forEach((url, i) => {
+    try {
+      const o = { clientId: 'cfs_' + ST.id + '_' + i + '_' + Math.random().toString(36).slice(2, 6), clean: true, keepalive: 30, reconnectPeriod: 6000, connectTimeout: 8000 };
+      if (will) o.will = { topic: ST_BASE + 'on/' + ST.id, payload: '', qos: 0, retain: true };   // al cerrar la pestaña se borra el "en línea"
+      const c = mqtt.connect(url, o); c.on('error', () => { }); ST.cl.push(c);
+    } catch (e) { }
+  });
+  return ST.cl;
+}
+function stPub(t, v) { for (const c of stClients(true)) { try { c.publish(ST_BASE + t + '/' + ST.id, v, { qos: 0, retain: true }); } catch (e) { } } }
+function stPush(full) {
+  if (!stCount()) return;
+  ST.d.l = Date.now();
+  stPub('on', JSON.stringify({ c: CHARS[G.charId] ? G.charId : '', s: G.state === 'play' ? 1 : 0, m: G.mp ? 1 : 0, t: Date.now() }));
+  if (full !== false) stPub('u', JSON.stringify(ST.d));
+}
+function stForget() { stPub('u', ''); stPub('on', ''); }
+function statsMatch(id, mp) { if (!stCount()) return; stDy()[1]++; const c = stC(id); if (c) c[0]++; ST.d.mo[mp ? 1 : 0]++; stSave(); stPush(); }
+function statsEnd(won) { if (!stCount() || !G.player) return; if (won) { ST.d.w++; const c = stC(G.player.ch.id); if (c) c[1]++; } stSave(); stPush(); }
+function statsKill() { if (!stCount() || !G.player) return; const c = stC(G.player.ch.id); if (c) c[2]++; }
+function statsUlt(f) { if (!stCount()) return; const c = stC(f.ch.id); if (c) c[3]++; }
+stLoad();
+if (stCount()) { ST.d.s++; stDy()[0]++; stSave(); setTimeout(() => stPush(), 4000); }
+setInterval(() => {
+  if (!stCount()) return;
+  if (G.state === 'play' && !G.paused && !G.viewer && !document.hidden) { stDy()[2] += .5; const c = G.player && stC(G.player.ch.id); if (c) c[4] += .5; stSave(); }
+  if (document.hidden) return;
+  stPush(++ST.push % 4 === 0);   // "en línea" cada 30 s, el resumen cada 2 min
+}, 30000);
+addEventListener('visibilitychange', () => { if (document.hidden && stCount()) { stSave(); stPush(); } });
+
+// ---- panel del dueño ----
+const OW = { u: new Map(), on: new Map(), cl: [], el: null, tm: 0 };
+async function stHash(k) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+async function ownerOpen() {
+  if (!ST.owner) {
+    const k = prompt('Clave del dueño de CalFight:'); if (!k) return;
+    let h = ''; try { h = await stHash(k.trim()); } catch (e) { alert('Abrí el juego por https para usar el panel.'); return; }
+    if (h !== ST_OWNER_H) { alert('Clave incorrecta.'); return; }
+    stForget(); ST.owner = true; try { localStorage.setItem('bsb_owner', '1'); } catch (e) { }   // este aparato ya no cuenta como jugador
+  }
+  ownerUI(); OW.el.classList.remove('hidden'); ownerConnect(); ownerRender(); clearInterval(OW.tm); OW.tm = setInterval(ownerRender, 2000);
+}
+function ownerClose() { if (OW.el) OW.el.classList.add('hidden'); clearInterval(OW.tm); }
+function ownerConnect() {
+  if (OW.cl.length || !window.mqtt) return;
+  RELAYS.forEach((url, i) => {
+    try {
+      const c = mqtt.connect(url, { clientId: 'cfo_' + Math.random().toString(36).slice(2, 10) + '_' + i, clean: true, keepalive: 30, reconnectPeriod: 4000, connectTimeout: 8000 });
+      c.on('connect', () => c.subscribe(ST_BASE + '#', { qos: 0 }));
+      c.on('error', () => { });
+      c.on('message', (topic, buf) => {
+        const m = /^calfight\/st1\/(u|on)\/(s[a-z0-9]{8,14})$/.exec(topic); if (!m || buf.length > 20000) return;
+        const map = m[1] === 'u' ? OW.u : OW.on, id = m[2];
+        if (!buf.length) { map.delete(id); return; }
+        let o; try { o = JSON.parse(buf.toString()); } catch (e) { return; }
+        if (!o || typeof o !== 'object') return;
+        if (m[1] === 'u') { if (o.v !== 1 || typeof o.dy !== 'object' || typeof o.c !== 'object') return; const old = map.get(id); if (old && (+old.l || 0) > (+o.l || 0)) return; }
+        map.set(id, o);
+      });
+      OW.cl.push(c);
+    } catch (e) { }
+  });
+}
+function ownerUI() {
+  if (OW.el) return;
+  const st = document.createElement('style');
+  st.textContent = `#owner{position:fixed;inset:0;z-index:9999;background:rgba(7,9,16,.97);color:#e8ecf4;overflow:auto;font:14px/1.4 system-ui,sans-serif;padding:18px max(16px,calc(50% - 560px))}
+#owner.hidden{display:none}#owner h2{margin:0;font-size:22px;letter-spacing:.06em}#owner h3{margin:22px 0 8px;font-size:13px;letter-spacing:.12em;color:#9aa6bd}
+#owner .ow-top{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}#owner .ow-top button{background:#1c2234;color:#e8ecf4;border:1px solid #333c55;border-radius:8px;padding:7px 14px;cursor:pointer;font:inherit}
+#owner .ow-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}#owner .ow-k{background:#121726;border:1px solid #232b40;border-radius:10px;padding:10px 12px}
+#owner .ow-k b{display:block;font-size:26px;font-variant-numeric:tabular-nums}#owner .ow-k span{color:#9aa6bd;font-size:12px}#owner .ow-k.live b{color:#5dff9a}
+#owner .ow-row{display:grid;grid-template-columns:150px 1fr 230px;gap:10px;align-items:center;margin:4px 0}#owner .ow-bar{height:16px;background:#151b2b;border-radius:4px;overflow:hidden}
+#owner .ow-bar i{display:block;height:100%;border-radius:4px}#owner .ow-row small{color:#9aa6bd;font-variant-numeric:tabular-nums}#owner .ow-chips{display:flex;flex-wrap:wrap;gap:6px}
+#owner .ow-chips span{background:#121726;border:1px solid #232b40;border-radius:20px;padding:3px 10px}#owner .ow-note{color:#7d889e;font-size:12px;margin-top:22px}
+@media (max-width:640px){#owner .ow-row{grid-template-columns:90px 1fr;}#owner .ow-row small{grid-column:1/-1}}`;
+  document.head.appendChild(st);
+  const el = document.createElement('div'); el.id = 'owner'; el.className = 'hidden';
+  el.innerHTML = '<div class="ow-top"><h2>PANEL DEL DUEÑO · CALFIGHT</h2><div><button type="button" id="ow-x">Cerrar</button></div></div><div id="ow-body"></div>';
+  document.body.appendChild(el); OW.el = el;
+  $('ow-x').addEventListener('click', ownerClose);
+}
+function ownerRender() {
+  if (!OW.el || OW.el.classList.contains('hidden')) return;
+  const now = Date.now(), T = stDay(), n = v => +v || 0, fmt = v => Math.round(v).toLocaleString('es');
+  const live = [...OW.on.values()].filter(o => now - n(o.t) < 75000);
+  const users = [...OW.u.values()];
+  const days = u => Object.keys(u.dy).map(Number).filter(Number.isFinite);
+  const activeIn = (a, b) => users.filter(u => days(u).some(d => d >= a && d <= b)).length;
+  let ses = 0, mat = 0, min = 0, wins = 0, mo = [0, 0], ret = 0, wkSum = 0, first = T;
+  const ch = {};
+  for (const u of users) {
+    ses += n(u.s); wins += n(u.w); if (Array.isArray(u.mo)) { mo[0] += n(u.mo[0]); mo[1] += n(u.mo[1]); }
+    const ds = days(u); if (ds.length > 1) ret++;
+    wkSum += new Set(ds.map(d => Math.floor((T - d) / 7))).size; first = Math.min(first, n(u.f) || T);
+    for (const d of ds) { const r = u.dy[d]; if (Array.isArray(r)) { mat += n(r[1]); min += n(r[2]); } }
+    for (const id in u.c) { if (!CHARS[id] || !Array.isArray(u.c[id])) continue; const a = ch[id] || (ch[id] = [0, 0, 0, 0, 0, 0]); for (let i = 0; i < 5; i++) a[i] += n(u.c[id][i]); if (n(u.c[id][0]) > 0) a[5]++; }
+  }
+  const K = (v, l, c) => `<div class="ow-k${c ? ' ' + c : ''}"><b>${v}</b><span>${l}</span></div>`;
+  let h = '<h3>AHORA MISMO</h3><div class="ow-kpis">' + K(live.length, 'conectados ahora', 'live') + K(live.filter(o => o.s === 1).length, 'en una pelea') + K(live.filter(o => o.s !== 1).length, 'en el menú') + K(live.filter(o => o.s === 1 && o.m === 1).length, 'peleando online') + '</div>';
+  const lc = {}; for (const o of live) if (CHARS[o.c]) lc[o.c] = (lc[o.c] || 0) + 1;
+  if (Object.keys(lc).length) h += '<div class="ow-chips" style="margin-top:8px">' + Object.entries(lc).sort((a, b) => b[1] - a[1]).map(([id, c]) => `<span style="border-color:${CHARS[id].color}">${CHARS[id].name} × ${c}</span>`).join('') + '</div>';
+  const weeks = Math.max(1, Math.ceil((T - first + 1) / 7));
+  h += '<h3>RESUMEN</h3><div class="ow-kpis">' + K(fmt(users.length), 'jugadores distintos') + K(activeIn(T, T), 'activos hoy') + K(activeIn(T - 6, T), 'activos en 7 días') + K(activeIn(T - 29, T), 'activos en 30 días')
+    + K(fmt(ses), 'veces que abrieron el juego') + K(fmt(mat), 'partidas jugadas') + K((min / 60).toFixed(1) + ' h', 'tiempo peleando') + K(users.length ? Math.round(min / users.length) + ' min' : '—', 'por jugador')
+    + K(weeks, weeks === 1 ? 'semana con datos' : 'semanas con datos') + K(users.length ? (wkSum / users.length).toFixed(1) : '—', 'semanas jugadas (promedio)') + K(users.length ? Math.round(ret / users.length * 100) + '%' : '—', 'volvieron otro día')
+    + K(mo[0] + mo[1] ? Math.round(mo[1] / (mo[0] + mo[1]) * 100) + '%' : '—', 'partidas online (resto con bots)') + '</div>';
+  // semanas
+  h += '<h3>POR SEMANA</h3>';
+  const wk = [];
+  for (let w = 11; w >= 0; w--) {
+    const a = T - 6 - w * 7, b = T - w * 7; let pl = 0, m = 0, mn = 0, nu = 0;
+    for (const u of users) { let any = false; for (const d of days(u)) if (d >= a && d <= b) { any = true; const r = u.dy[d]; if (Array.isArray(r)) { m += n(r[1]); mn += n(r[2]); } } if (any) pl++; const f = n(u.f); if (f >= a && f <= b) nu++; }
+    wk.push({ a, pl, m, mn, nu });
+  }
+  const wmax = Math.max(1, ...wk.map(x => x.pl));
+  const dl = d => { const t = new Date(d * 864e5); return t.getUTCDate() + '/' + (t.getUTCMonth() + 1); };
+  for (const x of wk) h += `<div class="ow-row"><span>${x.a + 6 === T ? 'Esta semana' : 'Semana del ' + dl(x.a)}</span><div class="ow-bar"><i style="width:${x.pl / wmax * 100}%;background:#5d8bff"></i></div><small>${x.pl} jugadores · ${x.nu} nuevos · ${x.m} partidas · ${(x.mn / 60).toFixed(1)} h</small></div>`;
+  // personajes
+  const rows = Object.entries(ch).sort((a, b) => b[1][0] - a[1][0]), picks = rows.reduce((t, r) => t + r[1][0], 0), pmax = Math.max(1, ...rows.map(r => r[1][0]));
+  h += '<h3>PERSONAJES MÁS USADOS</h3>';
+  if (!rows.length) h += '<div class="ow-note">Todavía no hay partidas registradas.</div>';
+  for (const [id, a] of rows) h += `<div class="ow-row"><span style="color:${CHARS[id].color}">${CHARS[id].name}</span><div class="ow-bar"><i style="width:${a[0] / pmax * 100}%;background:${CHARS[id].color}"></i></div><small>${a[0]} partidas (${picks ? Math.round(a[0] / picks * 100) : 0}%) · ${a[5]} jugadores · ${a[0] ? Math.round(a[1] / a[0] * 100) : 0}% victorias · ${a[2]} K.O. · ${a[3]} ultis · ${(a[4] / 60).toFixed(1)} h</small></div>`;
+  h += `<div class="ow-note">Datos anónimos: cada navegador es un código al azar (sin nombre ni IP). Se guardan como mensajes retenidos en los relays públicos de MQTT, que no garantizan guardarlos para siempre; este aparato quedó marcado como del dueño y no se cuenta. Relays conectados: ${OW.cl.filter(c => c.connected).length}/${OW.cl.length} · resúmenes recibidos: ${users.length}.</div>`;
+  $('ow-body').innerHTML = h;
+}
+addEventListener('keydown', e => { if (e.code === 'F9' && e.ctrlKey && e.shiftKey) { e.preventDefault(); ownerOpen(); } });
+const ownerHash = () => { if (/^#(dueno|due%C3%B1o|dueño|owner)$/i.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); ownerOpen(); } };
+addEventListener('hashchange', ownerHash); setTimeout(ownerHash, 600);
+{ const o = $('st-opt'); if (o) { o.checked = ST.on; o.addEventListener('change', () => { ST.on = o.checked; try { localStorage.setItem('bsb_st_off', ST.on ? '0' : '1'); } catch (e) { } if (!ST.on) stForget(); else stPush(); }); } }
 // ===== Canal directo entre jugadores (WebRTC) =====
 // El relay público solo se usa para presentarse y como respaldo. Si los dos navegadores logran conectarse directo, el estado del juego
 // viaja por un canal sin orden ni reintentos (como UDP): sin pasar por el servidor del relay, que suele estar en otro continente.
