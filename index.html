@@ -130,6 +130,7 @@ body.cine #hud{opacity:0}
 #death h2{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(48px,8vw,96px);color:var(--hp-low);text-shadow:5px 5px 0 #000;font-style:italic}
 #death p{margin:0;font-size:18px;font-weight:600;text-shadow:0 2px 2px #000}
 #dmgv{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 140px rgba(255,0,0,.55);opacity:0}
+body.guide-on #lockhint{display:none!important}
 #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
 #impact-flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
 #crosshair{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;background:#fff;border-radius:50%;opacity:.55;box-shadow:0 0 0 2px rgba(0,0,0,.4)}
@@ -144,9 +145,9 @@ body.cine #hud{opacity:0}
 #minimap.hidden{display:none}
 #hud.mm #feed{top:204px}
 @media (max-width:700px){#minimap{width:128px;height:128px}#hud.mm #feed{top:154px}#bookbtn span{display:none}}
-#book{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#05060cc4;backdrop-filter:blur(3px);padding:16px}
+#book{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#05060cf2;padding:16px}
 #book.hidden{display:none}
-#book .bk-box{width:min(980px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--panel);border-top:3px solid var(--hot);box-shadow:0 20px 60px #000a;overflow:hidden}
+#book .bk-box{width:min(1180px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--panel);border-top:3px solid var(--hot);box-shadow:0 20px 60px #000a;overflow:hidden}
 #book .bk-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 6px}
 #book h2{margin:0;font-family:var(--display);font-size:clamp(26px,4vw,38px);font-style:italic;color:var(--hot);letter-spacing:.02em}
 #book .bk-x{background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px}#book .bk-x:hover{color:var(--ink)}
@@ -171,12 +172,14 @@ body.cine #hud{opacity:0}
 #book .bk-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 12px;font-size:13px;background:#0e1018;padding:10px 12px;border-left:3px solid var(--hot)}
 #book .bk-facts dt{color:var(--muted)}#book .bk-facts dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
 #book .bk-tip{font-size:13px;line-height:1.5;background:#1a1d2b;padding:10px 12px;border-radius:4px}#book .bk-tip b{display:block;color:var(--hot);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
-#book .bk-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) 230px;gap:14px;padding:0 18px 18px;min-height:0;flex:1}
-#book .bk-prev{position:relative;min-height:300px;background:radial-gradient(ellipse at 50% 70%,#2a2f45 0%,#11131c 70%);border:1px solid #ffffff14;overflow:hidden}
+#book .bk-body{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr) 215px;gap:14px;padding:0 18px 18px;min-height:0;flex:1}
+#book .bk-main{display:contents}
+#book .bk-prev{position:relative;width:100%;align-self:start;background:#000;border:1px solid #ffffff14;overflow:hidden}
 #book .bk-prev canvas{position:absolute;inset:0;width:100%;height:100%}
-#bk-pops{position:absolute;inset:0;pointer-events:none}
-#bk-pops b{position:absolute;transform:translate(-50%,-50%);font-family:var(--display);font-style:italic;font-size:22px;text-shadow:2px 2px 0 #000;white-space:nowrap;animation:bkPop .8s ease-out forwards}
-@keyframes bkPop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-120%) scale(1)}}
+#bk-win{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;overflow:hidden}
+#bk-win #nums{position:absolute;inset:0}
+#bk-note{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted);font-size:14px;line-height:1.5;background:#0b0d16}#bk-note.hidden{display:none}
+
 #book .bk-info{overflow:auto;padding-right:4px}
 #book .bk-info h3{margin:2px 0 8px;font-family:var(--display);font-size:28px;font-style:italic;color:var(--ink)}
 #book .bk-keys{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px;font-size:13px;color:var(--muted)}
@@ -188,7 +191,7 @@ body.cine #hud{opacity:0}
 #book .bk-list button{width:100%;display:flex;align-items:center;gap:10px;background:#161822;border:0;color:var(--ink);text-align:left;padding:9px 10px;font:600 14px var(--body);cursor:pointer;border-left:3px solid transparent}
 #book .bk-list button:hover{background:#1f2230}#book .bk-list button.on{border-left-color:var(--hot);background:#222536;color:var(--hot)}
 #book .bk-list kbd{min-width:0;padding:2px 6px;font-size:11px;margin-left:auto}
-@media (max-width:820px){#book .bk-body{grid-template-columns:1fr;overflow:auto}#book .bk-prev{min-height:240px}#book .bk-list{border-left:0;padding-left:0;order:-1;flex-direction:row;flex-wrap:wrap}#book .bk-list li{flex:1 1 140px}}
+@media (max-width:980px){#book .bk-body{grid-template-columns:1fr;overflow:auto}#book .bk-list{border-left:0;padding-left:0;order:-1;flex-direction:row;flex-wrap:wrap}#book .bk-list li{flex:1 1 140px}}
 #board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 32px));background:var(--panel);padding:14px;border-top:3px solid var(--hot)}
 
 /* Menú / selector */
@@ -484,8 +487,10 @@ tr.me td{color:var(--hot);font-weight:700}
     <div class="bk-grid hidden" id="bk-grid" aria-label="Elegí un personaje"></div>
     <div class="bk-sub hidden" id="bk-sub"><button type="button" id="bk-back">← Personajes</button><span id="bk-chname"></span></div>
     <div class="bk-body" id="bk-body">
-      <div class="bk-prev"><canvas id="bk-cv"></canvas><div id="bk-pops"></div></div>
-      <div class="bk-info" id="bk-info"></div>
+      <div class="bk-main">
+        <div class="bk-prev" id="bk-prev"><canvas id="bk-cv"></canvas><div id="bk-win"></div><div id="bk-note" class="hidden"></div></div>
+        <div class="bk-info" id="bk-info"></div>
+      </div>
       <ol class="bk-list" id="bk-list"></ol>
     </div>
   </div>
@@ -11246,7 +11251,7 @@ function stDy() {
   return dy[t];
 }
 function stC(id) { if (!CHARS[id]) return null; return ST.d.c[id] || (ST.d.c[id] = [0, 0, 0, 0, 0]); }   // elegido, ganadas, K.O., ultis, minutos
-const stCount = () => ST.on && !ST.owner && !/[?&]nostats/.test(location.search);
+const stCount = () => ST.on && !ST.owner && !G.guide && !/[?&]nostats/.test(location.search);
 function stClients(will) {
   if (ST.cl.length || !window.mqtt) return ST.cl;
   RELAYS.forEach((url, i) => {
@@ -11274,7 +11279,7 @@ stLoad();
 if (stCount()) { ST.d.s++; stDy()[0]++; stSave(); setTimeout(() => stPush(), 4000); }
 setInterval(() => {
   if (!stCount()) return;
-  if (G.state === 'play' && !G.paused && !G.viewer && !document.hidden) { stDy()[2] += .5; const c = G.player && stC(G.player.ch.id); if (c) c[4] += .5; stSave(); }
+  if (G.state === 'play' && !G.paused && !G.viewer && !G.guide && !document.hidden) { stDy()[2] += .5; const c = G.player && stC(G.player.ch.id); if (c) c[4] += .5; stSave(); }
   if (document.hidden) return;
   stPush(++ST.push % 4 === 0);   // "en línea" cada 30 s, el resumen cada 2 min
 }, 30000);
@@ -13234,7 +13239,7 @@ function step(dt) {
   for(let i=TIMERS.length-1;i>=0;i--){const tm=TIMERS[i];if(!tm)continue;tm.t-=dt;if(tm.t<=0){TIMERS.splice(i,1);frameTask('evento',()=>tm.fn());}}
   for (const f of G.fighters) {
     if (f.remote) continue;
-    if(f.alive)frameTask('accion:'+f.ch.id,()=>{const c=f.isPlayer?(VB.on?vbPlayerCtl(f,playerCtl()):playerCtl()):f.vbBot?vbBotCtl(f,dt):f.dummy?dummyCtl(f,dt):VB.on?VB_NEUTRAL():aiCtl(f,dt);applyCtl(f,c,dt);updateAction(f,dt);},()=>cancelFailedAction(f));
+    if(f.alive)frameTask('accion:'+f.ch.id,()=>{const c=f.guideCtl?f.guideCtl(f,dt):f.isPlayer?(VB.on?vbPlayerCtl(f,playerCtl()):playerCtl()):f.vbBot?vbBotCtl(f,dt):f.dummy?dummyCtl(f,dt):VB.on?VB_NEUTRAL():aiCtl(f,dt);applyCtl(f,c,dt);updateAction(f,dt);},()=>cancelFailedAction(f));
     if (G.cine) break;
   }
   for(const f of G.fighters){if(f.remote)continue;frameTask('fisica:'+f.ch.id,()=>physics(f,dt));frameTask('tiempos:'+f.ch.id,()=>tickTimers(f,dt));frameTask('pose:'+f.ch.id,()=>animate(f,dt),()=>{cancelFailedAction(f);f.anim.reset();f.model.root.position.copy(f.pos);});}
@@ -13565,260 +13570,49 @@ function mmDraw() {
 }
 setInterval(mmDraw, 66);
 
-// ===== Libro: guía de combate básico con vista previa en 3D =====
-const CB = { open: false, mode: 'basic', E: null, idx: 0, r: null, scene: null, cam: null, a: null, v: null, t: 0, last: 0, raf: 0, fx: [], paused: false };
+// ===== Libro: guía de combate con el motor REAL del juego =====
+// La vista previa no imita nada: mete a tu personaje y a un dummy en la plaza de la ciudad y apreta los mismos botones que apretarías vos
+// (golpe, bloqueo, esquiva, habilidades, G...) con el motor de la pelea: mismas animaciones, efectos, sonidos, cámara y cinemáticas.
+// La pelea de fondo queda congelada (sus peleadores se esconden y se vuelven a poner al cerrar). En partidas online no se puede congelar nada, por eso ahí solo hay texto.
+const CB = { open: false, mode: 'basic', idx: 0, E: null };
+const GS = { on: false, real: null, att: null, vic: null, t: 0, E: null, fired: null, pulse: { skill: null, ult: false }, numsHome: null };
+const NEUTRAL = () => ({ mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false });
+const when = (t, a, b) => t >= a && t < b;
 const CB_BASIC = [
   { id: 'move', n: 'Moverse', keys: ['W', 'A', 'S', 'D'], d: 'Caminá y corré por la ciudad. La cámara se mueve con el mouse y el personaje va hacia donde apuntás.',
-    tips: ['Correr en diagonal no es más rápido: elegí bien el camino.', 'En el mar nadás; con <b>Espacio</b> subís y con <b>Shift</b> bajás.'], len: 3.2, solo: true,
-    tick(P, t) { const ph = t * 9, x = Math.sin(t * 1.96) * 1.7; P.a.pos.x = x; P.a.yaw = Math.cos(t * 1.96) > 0 ? Math.PI / 2 : -Math.PI / 2; const sy = cmRun(P.a.anim.x, ph, 1, .4); P.a.direct = true; P.a.sy = sy; } },
+    tips: ['Correr en diagonal no es más rápido: elegí bien el camino.', 'En el mar nadás; con <b>Espacio</b> subís y con <b>Shift</b> bajás.'], len: 5, solo: true,
+    ctl(t, c) { c.mx = when(t, .3, 2) ? 1 : when(t, 2.2, 3.9) ? -1 : 0; } },
   { id: 'jump', n: 'Saltar', keys: ['Espacio'], d: 'Salto alto para esquivar golpes bajos, subir a techos y perseguir a los que lanzás por el aire.',
-    tips: ['Algunos personajes pueden esquivar en el aire una vez.', 'Durante un ataque no podés saltar: terminá el golpe primero.'], len: 2, solo: true,
-    ev: [[.35, P => { P.a.vy = 7.5; P.a.pose = 'jump'; }]] },
+    tips: ['Algunos personajes pueden esquivar en el aire una vez.', 'Durante un ataque no podés saltar: terminá el golpe primero.'], len: 4.2, solo: true,
+    ctl(t, c) { c.jump = when(t, .5, .62) || when(t, 2.2, 2.32); } },
   { id: 'm1', n: 'Combo de golpes', keys: ['Clic', '×4'], d: 'Hacé clic seguido para encadenar cuatro golpes. Los tres primeros son rápidos y el cuarto es un remate que empuja lejos al rival.',
-    tips: ['Si dejás de pegar más de <b>1 segundo</b>, el combo vuelve a empezar.', 'Después del remate hay una pausa corta antes de volver a pegar.', 'Cada golpe carga tu barra de despertar.'], len: 3.4,
-    ev: [[.3, P => cbM1(P, 0)], [.62, P => cbM1(P, 1)], [.94, P => cbM1(P, 2)], [1.3, P => cbM1(P, 3)]] },
+    tips: ['Si dejás de pegar más de <b>1 segundo</b>, el combo vuelve a empezar.', 'Después del remate hay una pausa corta antes de volver a pegar.', 'Cada golpe carga tu barra de despertar.'], len: 5, gap: 1.7,
+    ctl(t, c) { c.m1 = when(t, .6, 2.6); } },
   { id: 'launch', n: 'Remate al aire', keys: ['Espacio', '+', '4º golpe'], d: 'Mantené Espacio mientras hacés el cuarto golpe: en vez de empujar, el remate lanza al rival hacia arriba.',
-    tips: ['Saltá justo después para seguir el combo en el aire.', 'Sirve para sacar al rival de una pelea entre varios.'], len: 3.4,
-    ev: [[.3, P => cbM1(P, 0)], [.62, P => cbM1(P, 1)], [.94, P => cbM1(P, 2)], [1.3, P => cbM1(P, 4)]] },
+    tips: ['Saltá justo después para seguir el combo en el aire.', 'Sirve para sacar al rival de una pelea entre varios.'], len: 5.2, gap: 1.7,
+    ctl(t, c) { c.m1 = when(t, .6, 2.8); c.up = t > .5; } },
   { id: 'block', n: 'Bloquear', keys: ['F', '(mantener)'], d: 'Mientras mantenés F te cubrís: los golpes de frente casi no te hacen daño (solo el 12 %) y además cargás algo de despertar.',
-    tips: ['Solo cubre <b>de frente</b>: por la espalda te pegan normal.', 'Bloqueando no podés atacar ni saltar.', 'Las habilidades fuertes rompen la guardia (mirá la siguiente).'], len: 3.2, swap: true,
-    ev: [[0, P => { P.a.pose = 'block'; }], [.4, P => cbEnemyHit(P, 0)], [.75, P => cbEnemyHit(P, 1)], [1.1, P => cbEnemyHit(P, 2)], [2.8, P => { P.a.pose = null; }]] },
+    tips: ['Solo cubre <b>de frente</b>: por la espalda te pegan normal.', 'Bloqueando no podés atacar ni saltar.', 'Las habilidades fuertes rompen la guardia (mirá la siguiente).'], len: 5, gap: 1.8, vic: 'attack',
+    ctl(t, c) { c.block = t > .2 && t < 4.3; } },
   { id: 'guard', n: 'Romper guardia', keys: ['Habilidades'], d: 'Algunos ataques fuertes rompen el bloqueo: el que se estaba cubriendo queda mareado más de un segundo y no puede hacer nada.',
-    tips: ['Si ves que el rival prepara un ataque grande, <b>esquivá</b> en vez de bloquear.', 'En la lista de habilidades, las que rompen guardia lo dicen en su descripción.'], len: 3.4, swap: true,
-    ev: [[0, P => { P.a.pose = 'block'; }], [.6, P => cbEnemyHit(P, 3, true)], [2.6, P => { P.a.dizzy = 0; P.a.pose = null; }]] },
+    tips: ['Si ves que el rival prepara un ataque grande, <b>esquivá</b> en vez de bloquear.', 'En la lista de habilidades, las que rompen guardia lo dicen en su descripción.'], len: 4.6, gap: 1.8,
+    ctl(t, c) { c.block = t > .1 && t < 1.2; },
+    ev: [[1.0, P => { const dir = fwd(P.vic.yaw); applyHit(P.vic, P.att, { dmg: 8, stun: 1.2, kb: 12, up: 6, color: '#ffd91a', noCounter: true, guardBreak: true, hitstop: .15, shake: .6, dir }); }]] },
   { id: 'dash', n: 'Esquivar', keys: ['Q'], d: 'Un impulso rápido hacia donde te movés (o hacia adelante si estás quieto). Durante el primer instante sos intocable.',
-    tips: ['Se recarga en <b>1,4 segundos</b>: no la gastes sin motivo.', 'En el aire se puede usar una vez por salto.', 'Esquivar cancela el bloqueo.'], len: 3, swap: true,
-    ev: [[.55, P => { cbAct(P.v, cbSet(P.v)[1].anim); }], [.5, P => { P.a.pose = 'dash'; P.a.vz = 9; cbPop(P, P.a, '¡ESQUIVA!', '#9fd3ff'); }], [.8, P => { P.a.pose = null; }], [1.6, P => { P.a.vz = -2.6; P.a.walkBack = true; }], [2.4, P => { P.a.vz = 0; P.a.walkBack = false; P.a.pos.z = 0; }]] },
+    tips: ['Se recarga en <b>1,4 segundos</b>: no la gastes sin motivo.', 'En el aire se puede usar una vez por salto.', 'Esquivar cancela el bloqueo.'], len: 5, solo: true,
+    ctl(t, c) { c.dash = when(t, .6, .7) || when(t, 2.4, 2.5); c.mx = when(t, .6, .7) ? 1 : when(t, 2.4, 2.5) ? -1 : 0; } },
   { id: 'skills', n: 'Habilidades', keys: ['1', '2', '3', '4'], d: 'Cada personaje tiene cuatro habilidades propias. Abajo a la derecha ves cuánto les falta para recargarse.',
-    tips: ['Mezclalas con el combo: un golpe, una habilidad y otro golpe.', 'La guía completa de habilidades de cada personaje llega pronto.'], len: 3.4, solo: true,
-    ev: [[.3, P => { const fl = P.a.ch.flourish; cbAct(P.a, fl ? fl.anim : (P.a.ch.intro && P.a.ch.intro.length ? P.a.ch.intro : cbSet(P.a)[3].anim)); cbRing(P, P.a, P.a.ch.color); }]] },
+    tips: ['Mezclalas con el combo: un golpe, una habilidad y otro golpe.', 'En la pestaña Habilidades ves la ficha completa de cada una.'], len: 6, gap: 3.2,
+    ctl(t, c, P) { if (when(t, .5, .6)) c.skill = 0; if (when(t, 2.6, 2.7)) c.skill = 1; } },
   { id: 'awake', n: 'Despertar (ulti)', keys: ['G'], d: 'Cuando la barra celeste llega al 100 % apretá G: tu personaje despierta, hace su ulti y por un rato sus habilidades cambian por otras más fuertes.',
-    tips: ['La barra se carga pegando, recibiendo golpes y bloqueando.', 'Cada K.O. te da un <b>20 %</b> de golpe.', 'Cada personaje tiene su propia música de ulti.'], len: 3.6, solo: true,
-    ev: [[.2, P => { cbAct(P.a, P.a.ch.intro && P.a.ch.intro.length ? P.a.ch.intro : [[0, 'land', 700], [.4, 'counter', 900]]); cbRing(P, P.a, P.a.ch.color, 3); cbPop(P, P.a, '¡DESPERTAR!', P.a.ch.color); }]] },
+    tips: ['La barra se carga pegando, recibiendo golpes y bloqueando.', 'Cada K.O. te da un <b>20 %</b> de golpe.', 'Cada personaje tiene su propia música de ulti.'], len: 11, gap: 6, ult: true,
+    ctl(t, c, P) { c.ult = when(t, .5, .6); } },
   { id: 'lock', n: 'Shift lock', keys: ['Shift'], d: 'Tocá Shift para fijar la cámara detrás del personaje: siempre mira hacia donde apuntás, aunque camines de costado o para atrás.',
-    tips: ['Ideal para apuntar habilidades y lanzar la lanza.', 'Volvé a tocar Shift para soltarla.'], len: 3, swap: true,
-    tick(P, t) { const sd = Math.sin(t * 2.1); P.a.pos.z = sd * 1.3; P.a.yaw = Math.PI / 2; cmWalk2(P.a.anim.x, t * 7.5, Math.abs(Math.cos(t * 2.1)) > .2 ? 1 : .3); P.a.direct = true; } },
+    tips: ['Ideal para apuntar habilidades y lanzar la lanza.', 'Volvé a tocar Shift para soltarla.'], len: 5, gap: 4, lock: true,
+    ctl(t, c) { c.mx = when(t, .4, 1.9) ? 1 : when(t, 2, 3.5) ? -1 : 0; c.mz = when(t, 3.6, 4.5) ? -.6 : 0; } },
 ];
-const cbSet = f => f.ch.m1set || M1;
-function cbAct(f, list) { if (!list || !list.length) return; f.trk = buildTrack(list, Object.assign({}, f.anim.x), 0); f.tt = 0; f.trkEnd = list[list.length - 1][0] + .35; }
-function cbM1(P, i) {
-  const def = cbSet(P.a)[i] || M1[Math.min(i, 3)]; cbAct(P.a, def.anim); sfxSafe('swing', .5);
-  setTimeout(() => { if (!CB.open || P !== CB.P) return; const fin = i >= 3; cbHurt(P.v, fin ? (i === 4 ? 1.2 : 4.5) : .9, i === 4 ? 9 : 0); cbPop(P, P.v, fin ? (i === 4 ? '¡AL AIRE!' : '¡REMATE!') : String(i + 1), fin ? '#d7ff2f' : '#fff'); sfxSafe(fin ? 'heavy' : 'hit', .5); }, (def.anim[1] ? def.anim[1][0] : .06) * 1000 + 40);
-}
-function cbEnemyHit(P, i, gb) {
-  const list = gb ? [[0, 'kick_w', 800], [.12, 'kick', 1100]] : (M1[i] || M1[0]).anim; cbAct(P.v, list); sfxSafe('swing', .5);
-  setTimeout(() => {
-    if (!CB.open || P !== CB.P) return;
-    if (gb) { P.a.pose = null; P.a.dizzy = 1.8; P.a.vx = -2.2; cbPop(P, P.a, '¡GUARDIA ROTA!', '#ffd54f'); sfxSafe('break', .6); }
-    else { P.a.vx = -1.1; P.a.hitT = .12; cbPop(P, P.a, 'BLOQUEO', '#9fd3ff'); sfxSafe('block', .5); }
-  }, 150);
-}
-function cbHurt(f, kb, up) { f.hurt = .28; f.vx += kb; if (up) { f.vy = up; f.air = true; } }
-function cbRing(P, f, col, n = 2) {
-  for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.RingGeometry(.5, .62, 48), glowMat(col, .9)); m.rotation.x = -Math.PI / 2; m.position.set(f.pos.x, .05, f.pos.z); CB.scene.add(m); CB.fx.push({ m, t: -i * .25, d: .9 }); }
-}
-function cbPop(P, f, txt, col) {
-  const box = $('bk-pops'), cv = $('bk-cv'); if (!box || !CB.cam) return;
-  const v = new V3(f.pos.x, f.pos.y + 2.5, f.pos.z).project(CB.cam), el = document.createElement('b');
-  el.textContent = txt; el.style.color = col; el.style.left = ((v.x * .5 + .5) * 100) + '%'; el.style.top = ((-v.y * .5 + .5) * 100) + '%';
-  box.appendChild(el); setTimeout(() => el.remove(), 850);
-}
-function sfxSafe(n, v) { try { if (typeof sfx === 'function') sfx(n, null, v); } catch (e) { } }
-function cbFig(skin, slim, ch) {
-  const m = buildModel(copyCanvas(skin), slim, CB.scene);
-  m.root.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-  const f = { model: m, anim: new Animator(m), ch, pos: new V3(), yaw: 0, vx: 0, vy: 0, vz: 0, hurt: 0, dizzy: 0, pose: null, trk: null, tt: 0, sy: 1, seed: Math.random() * 9 };
-  if (WEAPONS[ch.weapon]) { f.spear = WEAPONS[ch.weapon](); m.mats.push(f.spear.material); setSpear(f, true); }
-  return f;
-}
-function cbFighter(id) {
-  const me = G.player && G.player.ch.id === id ? G.player : null, ch = CHARS[id] || CHARS.javi;
-  return cbFig(me && me.skin ? me.skin : charSkin(ch.id), me && me.skin && G.customSkin ? !!G.customSlim : !!ch.slim, ch);
-}
-// escena propia de la vista previa (otro canvas y otro renderer: no toca la pelea de fondo)
-function cbBuild(id, swap) {
-  id = id || (G.player ? G.player.ch.id : G.charId);
-  if (CB.r && CB.a && (!swap || CB.a.ch.id === id)) return true;
-  if (!CB.r) {
-    const cv = $('bk-cv');
-    try { CB.r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { CB.r = null; return false; }
-    CB.r.setPixelRatio(Math.min(2, devicePixelRatio || 1)); CB.r.outputEncoding = renderer.outputEncoding; CB.r.toneMapping = renderer.toneMapping; CB.r.toneMappingExposure = 1.05;
-    CB.scene = new THREE.Scene();
-    CB.scene.add(new THREE.HemisphereLight(0xffffff, 0x30344a, .95));
-    const key = new THREE.DirectionalLight(0xffffff, .85); key.position.set(3, 6, 5); CB.scene.add(key);
-    const fl = new THREE.Mesh(new THREE.CircleGeometry(5.2, 48), new THREE.MeshBasicMaterial({ color: 0x1b1f2d, transparent: true, opacity: .85 })); fl.rotation.x = -Math.PI / 2; CB.scene.add(fl);
-    const rg = new THREE.Mesh(new THREE.RingGeometry(5.1, 5.2, 64), glowMat('#d7ff2f', .5)); rg.rotation.x = -Math.PI / 2; rg.position.y = .01; CB.scene.add(rg);
-    CB.cam = new THREE.PerspectiveCamera(32, 1, .1, 120);
-    CB.v = cbFig(makeSkinCanvas(DUMMY_CH.skin), false, DUMMY_CH);
-  }
-  if (CB.a) { try { disposeModel(CB.a.model); } catch (e) { } }
-  CB.a = cbFighter(id);
-  return true;
-}
-function cbDispose() {
-  cancelAnimationFrame(CB.raf); CB.raf = 0;
-  if (!CB.r) return;
-  for (const f of [CB.a, CB.v]) if (f) { try { disposeModel(f.model); } catch (e) { } }
-  for (const e of CB.fx) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); }
-  CB.fx = []; CB.a = CB.v = null;
-  try { CB.r.dispose(); CB.r.forceContextLoss(); } catch (e) { }
-  CB.r = null; CB.scene = null;
-}
-function cbReset() {
-  const E = CB.E; if (!E || !CB.a) return;
-  const P = { a: CB.a, v: CB.v, E }; CB.P = P; CB.t = 0; CB.done = new Set();
-  for (const e of CB.fx) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); } CB.fx = [];
-  for (const f of [CB.a, CB.v]) { f.vx = f.vy = f.vz = 0; f.hurt = 0; f.dizzy = 0; f.pose = null; f.trk = null; f.bb = null; f.air = false; f.direct = false; f.sy = 1; f.hitT = 0; f.walkBack = false; f.dashUntil = 0; f.ctrk = null; f.released = false; f.anim.reset(); f.anim.bbR6 = false; }
-  const gap = E.gap || 1.05;
-  CB.a.pos.set(E.solo ? 0 : -gap, 0, 0); CB.a.yaw = Math.PI / 2;
-  CB.v.pos.set(gap, 0, 0); CB.v.yaw = -Math.PI / 2; CB.v.model.root.visible = !E.solo;
-  if (E.swap) { CB.a.pos.x = -.95; CB.v.pos.x = 1.15; }
-  if (E.chore) {
-    const D = E.chore, a = CB.a, v = CB.v;
-    CB.origin = new V3(-.9, 0, 0); CB.oyaw = Math.PI / 2;
-    a.ctrk = D.bbPreview ? javiBBTrack(D.bbPreview, D.bbKey || 'javi') : D.attClip ? javiBBTrack(D.attClip, a.ch.id) : buildCineTrack(D.att, Object.assign({}, a.anim.x), D.ev);
-    a.cR6 = !!(D.bbPreview || D.attClip);
-    v.ctrk = D.vicClip ? javiBBTrack(D.vicClip, a.ch.id) : D.vic ? buildCineTrack(D.vic, Object.assign({}, v.anim.x), D.ev) : null;
-    if (!a.ctrk && D.att) a.ctrk = buildCineTrack(D.att, Object.assign({}, a.anim.x), D.ev);
-    v.cR6 = !!D.bbPreview;
-  }
-  $('bk-pops').innerHTML = '';
-}
-function cbFigTick(f, dt, T) {
-  // físicas mínimas: empujón que se frena, salto con gravedad y piso en 0
-  f.pos.x += f.vx * dt; f.pos.z += f.vz * dt;
-  if (f.dashUntil && CB.t >= f.dashUntil) { f.vx = 0; f.dashUntil = 0; }
-  if (!f.dashUntil) f.vx *= Math.exp(-dt * (f.walkBack ? 0 : 6));
-  if (f.vy || f.pos.y > 0) { f.vy -= 22 * dt; f.pos.y += f.vy * dt; if (f.pos.y <= 0) { f.pos.y = 0; f.vy = 0; if (f.air) { f.air = false; f.hurt = .3; } if (f.pose === 'jump' || f.pose === 'fall') f.pose = 'land', f.landT = .2; } }
-  if (f.landT > 0) { f.landT -= dt; if (f.landT <= 0 && f.pose === 'land') f.pose = null; }
-  if (f.pose === 'jump' && f.vy < 0) f.pose = 'fall';
-  f.hurt = Math.max(0, f.hurt - dt); f.dizzy = Math.max(0, f.dizzy - dt); f.hitT = Math.max(0, (f.hitT || 0) - dt);
-  const x = f.anim.x;
-  if (f.direct) { f.anim.bbR6 = false; f.anim.apply(); f.direct = false; }
-  else if (f.bb && f.hurt <= 0) { f.bb.t += dt; f.anim.bbR6 = true; f.anim.play(f.bb.track, Math.min(f.bb.t, f.bb.len), dt, true); if (f.bb.t >= f.bb.len + .15) { f.bb = null; f.anim.bbR6 = false; } }
-  else if (f.trk && f.tt < f.trkEnd) { f.anim.bbR6 = false; f.tt += dt; f.anim.play(f.trk, Math.min(f.tt, f.trk[f.trk.length - 1].t), dt); if (f.tt >= f.trkEnd) f.trk = null; }
-  else {
-    f.anim.bbR6 = false; f.bb = null;
-    let pose, k = 300, z = .72;
-    if (f.air) { pose = POSE.down; k = 120; z = .4; }
-    else if (f.dizzy > 0) { pose = dizzyPose(T); k = 220; z = .6; }
-    else if (f.hurt > 0) { pose = POSE.hurtA; k = 900; z = .45; }
-    else if (f.pose === 'block') { pose = f.hitT > 0 ? Object.assign({}, POSE.block, { ix: (POSE.block.ix || 0) - .15 }) : POSE.block; k = 700; z = .6; }
-    else if (f.pose) { pose = POSE[f.pose]; k = 700; z = .6; }
-    else if (f.walkBack) { cmWalk2(x, T * 7.5, .8); f.anim.apply(); pose = undefined; }
-    else if (f.dashUntil) { pose = POSE.dash; k = 800; z = .6; }
-    else pose = stancePose(f.ch, T, f.seed, true);
-    if (pose !== undefined) f.anim.update(dt, pose, k, z);
-  }
-  cbPlace(f);
-}
-function cbPlace(f) {
-  const m = f.model, x = f.anim.x;
-  if (m.gripRot) m.gripRot.rotation.set(x.sx || 0, x.sy || 0, x.sz || 0);
-  m.root.position.copy(f.pos); m.root.rotation.set(0, f.yaw, 0);
-  const sy = f.sy || 1; m.root.scale.set(1 + (1 - sy) * .5, sy, 1 + (1 - sy) * .5); f.sy = 1;
-}
-// coreografías (agarres cinemáticos): mismas poses, recorridos y golpes que en la pelea
-function cbChoreTick(dt, T) {
-  const E = CB.E, D = E.chore, P = CB.P, a = CB.a, v = CB.v, t = CB.t;
-  if (t <= D.dur && a.ctrk) {
-    const ap = hermArr(D.apos || [[0, 0, 0, 0, 0]], t);
-    a.pos.copy(L2W(CB.origin, CB.oyaw, ap[0], ap[1], ap[2])); a.yaw = CB.oyaw + ap[3];
-    a.anim.bbR6 = a.cR6; a.anim.play(a.ctrk, a.cR6 && a.ctrk.loopLen ? t % a.ctrk.loopLen : t, dt, true); cbPlace(a);
-  } else { if (a.ctrk) { a.ctrk = null; a.pos.y = 0; } cbFigTick(a, dt, T); }
-  if (!v.released && t <= D.dur && v.ctrk) {
-    const vp = hermArr(D.vpos || [[0, 0, 0, 1.6, 0]], t);
-    v.pos.copy(L2W(CB.origin, CB.oyaw, vp[0], vp[1], vp[2])); v.yaw = CB.oyaw + Math.PI + vp[3];
-    v.anim.bbR6 = v.cR6; v.anim.play(v.ctrk, t, dt, true); cbPlace(v);
-  } else { if (!v.released) { v.released = true; v.air = v.pos.y > .1; } cbFigTick(v, dt, T + 1.3); }
-  D.ev.forEach((e, i) => {
-    if (CB.done.has('c' + i) || t < e.t) return; CB.done.add('c' + i);
-    if (e.hit) { cbPop(P, v, '-' + n1(e.hit), e.hit >= 3 ? a.ch.color : '#fff'); sfxSafe(e.hit >= 3 ? 'heavy' : 'hit', .45); }
-    if (e.rel || e.letGo) {
-      v.released = true; const F = fwd(a.yaw), r = e.rel || {};
-      v.vx = F.x * Math.min(14, (r.kb || 4) * .7); v.vy = Math.min(12, (r.up || 3) * .8); v.air = true;
-      if (e.rel) { cbPop(P, v, '-' + n1(r.dmg || 0), a.ch.color); cbRing(P, v, a.ch.color, 2); sfxSafe('heavy', .6); }
-    }
-  });
-}
-function cbFrame(now) {
-  if (!CB.open || !CB.r) return;
-  CB.raf = requestAnimationFrame(cbFrame);
-  const dt = Math.min(.05, Math.max(0, (now - (CB.last || now)) / 1000)); CB.last = now;
-  if (CB.mode === 'grid' || !CB.E || !CB.a) return;
-  const cv = $('bk-cv'), w = cv.clientWidth, h = cv.clientHeight;
-  if (w && h && (cv.width !== Math.round(w * CB.r.getPixelRatio()) || cv.height !== Math.round(h * CB.r.getPixelRatio()))) { CB.r.setSize(w, h, false); CB.cam.aspect = w / h; CB.cam.updateProjectionMatrix(); }
-  const E = CB.E, P = CB.P; CB.t += dt;
-  if (CB.t > E.len) { cbReset(); return; }
-  for (const [i, ev] of (E.ev || []).entries()) if (!CB.done.has(i) && CB.t >= ev[0]) { CB.done.add(i); ev[1](P); }
-  if (E.tick) E.tick(P, CB.t, dt);
-  const T = now / 1000;
-  if (E.chore) cbChoreTick(dt, T);
-  else { cbFigTick(CB.a, dt, T); if (!E.solo) cbFigTick(CB.v, dt, T + 1.3); }
-  for (let i = CB.fx.length - 1; i >= 0; i--) {
-    const e = CB.fx[i]; e.t += dt; const u = clamp(e.t / e.d, 0, 1); e.m.visible = e.t >= 0;
-    if (e.shot) { e.m.position.lerpVectors(e.from, e.to, u); e.m.position.y += Math.sin(u * Math.PI) * .25; if (u >= 1) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); CB.fx.splice(i, 1); } continue; }
-    const sc = 1 + u * 5; e.m.scale.set(sc, sc, sc); e.m.material.opacity = (1 - u) * .9;
-    if (u >= 1) { CB.scene.remove(e.m); e.m.geometry.dispose(); e.m.material.dispose(); CB.fx.splice(i, 1); }
-  }
-  // cámara: de costado y un poco de frente; sigue a los dos (las coreografías se mueven mucho)
-  const vis = E.solo ? [CB.a] : [CB.a, CB.v], mx = vis.reduce((s, f) => s + f.pos.x, 0) / vis.length, mz = vis.reduce((s, f) => s + f.pos.z, 0) / vis.length;
-  const my = Math.min(9, vis.reduce((s, f) => s + f.pos.y, 0) / vis.length), spread = E.solo ? 0 : Math.hypot(CB.a.pos.x - CB.v.pos.x, CB.a.pos.z - CB.v.pos.z);
-  CB.cx = CB.cx == null ? mx : CB.cx + (mx - CB.cx) * Math.min(1, dt * 4); CB.cz = CB.cz == null ? mz : CB.cz + (mz - CB.cz) * Math.min(1, dt * 4); CB.cy = CB.cy == null ? my : CB.cy + (my - CB.cy) * Math.min(1, dt * 4);
-  const dist = (7.4 + Math.max(0, spread - 2.2) * 1.1) / Math.min(1, CB.cam.aspect * 1.05), sw = Math.sin(T * .35) * .25;
-  CB.cam.position.set(CB.cx + dist * .22 + sw, 1.7 + CB.cy * .8, CB.cz + dist); CB.cam.lookAt(CB.cx, 1.0 + CB.cy, CB.cz);
-  CB.r.render(CB.scene, CB.cam);
-}
-function cbSelect(i) {
-  CB.idx = (i + CB_BASIC.length) % CB_BASIC.length; const E = CB_BASIC[CB.idx];
-  document.querySelectorAll('#bk-list button').forEach((b, j) => { b.classList.toggle('on', j === CB.idx); if (j === CB.idx) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
-  $('bk-info').innerHTML = `<h3>${E.n}</h3><div class="bk-keys">${E.keys.map(k => /^[+×(]/.test(k) || k === 'Habilidades' ? `<span>${k}</span>` : `<kbd>${k}</kbd>`).join('')}</div><p>${E.d}</p><ul>${E.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
-  CB.E = E; if (CB.r) cbReset();
-}
-function bookBasic() {
-  CB.mode = 'basic';
-  $('bk-grid').classList.add('hidden'); $('bk-sub').classList.add('hidden'); $('bk-body').classList.remove('hidden');
-  const list = $('bk-list'); list.innerHTML = '';
-  CB_BASIC.forEach((E, i) => { const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${E.n}</span><kbd>${E.keys[0]}</kbd>`; b.addEventListener('click', () => cbSelect(i)); li.appendChild(b); list.appendChild(li); });
-  cbBuild(null, true); cbSelect(CB.idx);
-}
-function bookTab(tab) {
-  document.querySelectorAll('#book .bk-tabs button').forEach(b => b.classList.toggle('on', b.dataset.bk === tab));
-  if (tab === 'skills') { if (SKB.ch && CB.mode === 'skills') return; skGrid(); } else bookBasic();
-}
-function bookOpen() {
-  if (CB.open) return;
-  CB.open = true; $('book').classList.remove('hidden');
-  if (G.state === 'play') { G.panelOpen = true; unlock(); if (!G.mp && !G.paused) { G.paused = true; CB.paused = true; } }
-  for (const k in keys) keys[k] = false; mouse.left = mouse.right = false;
-  cbBuild(null, true); CB.cx = CB.cy = CB.cz = null;
-  if (CB.mode === 'skills' && SKB.ch) skPickChar(SKB.ch.id); else if (CB.mode === 'grid') skGrid(); else bookBasic();
-  CB.last = 0; CB.raf = requestAnimationFrame(cbFrame);
-  $('book-x').focus({ preventScroll: true });
-}
-function bookClose() {
-  if (!CB.open) return;
-  CB.open = false; $('book').classList.add('hidden'); cbDispose();
-  if (CB.paused) { G.paused = false; CB.paused = false; }
-  if (G.state === 'play') { G.panelOpen = false; if (!G.over) requestLock(); }
-}
-$('bookbtn').addEventListener('click', e => { e.stopPropagation(); bookOpen(); });
-$('book-x').addEventListener('click', bookClose);
-$('bk-back').addEventListener('click', () => { SKB.ch = null; skGrid(); });
-document.querySelectorAll('#book .bk-tabs button').forEach(b => b.addEventListener('click', () => bookTab(b.dataset.bk)));
-$('book').addEventListener('click', e => { if (e.target === $('book')) bookClose(); });
-addEventListener('keydown', e => {
-  if (CB.open) {
-    const sel = d => CB.mode === 'skills' ? skSelect(clamp((SKB.idx || 0) + d, 0, SKB.list.length - 1)) : CB.mode === 'basic' ? cbSelect(CB.idx + d) : null;
-    if (e.code === 'Escape') { if (CB.mode === 'skills') { SKB.ch = null; skGrid(); } else bookClose(); }
-    else if (e.code === 'KeyB') bookClose();
-    else if (e.code === 'Backspace' && CB.mode === 'skills') { SKB.ch = null; skGrid(); }
-    else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') sel(1);
-    else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') sel(-1);
-    e.preventDefault(); e.stopImmediatePropagation(); return;
-  }
-  if (e.code === 'KeyB' && !e.repeat && G.state === 'play' && !G.paused && !G.over && !G.viewer && !G.panelOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); e.stopImmediatePropagation(); bookOpen(); }
-}, true);
+const SK_REST = {};   // se llena abajo con los textos de cada habilidad
+
 // ===== Libro · Habilidades: elegís un personaje y ves cada habilidad en detalle con su vista previa =====
 // consejos de uso escritos a mano (personaje.grupo+número: S habilidades, A despertar, F sin lanza, AF sin lanza en despertar, U ulti)
 const SK_TIPS = {
@@ -13942,7 +13736,79 @@ function skFacts(s, grp, D) {
   if (o.delay) F.push(['Retraso', n1(o.delay) + ' s']);
   return F;
 }
-const SKB = { ch: null, list: [] };
+
+// ---------------------------------------------------------------- motor: sandbox con peleadores reales
+const curChar = () => (GS.real ? GS.real.P : G.player) ? (GS.real ? GS.real.P : G.player).ch.id : G.charId;
+function guideNums(on) {
+  const n = $('nums');
+  if (on) { if (!GS.numsHome) { GS.numsHome = { p: n.parentNode, s: n.nextSibling }; $('bk-win').appendChild(n); } }
+  else if (GS.numsHome) { GS.numsHome.p.insertBefore(n, GS.numsHome.s); GS.numsHome = null; }
+}
+function guideEnter() {
+  if (GS.on) return true;
+  if (G.mp || G.state !== 'play' || G.viewer || !G.player) return false;
+  const R = GS.real = { F: G.fighters, P: G.player, goal: G.goal, auto: G.auto, paused: G.paused, yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist, sl: G.shiftLock };
+  for (const f of R.F) { try { f.model.root.visible = false; if (f.plate) f.plate.style.display = 'none'; } catch (e) { } }
+  G.fighters = []; G.goal = 99999; G.auto = false; G.paused = false; GS.on = true; G.guide = true;
+  guideNums(true); return true;
+}
+// deja la escena sin nada de la vista previa (peleadores, proyectiles, efectos, números, cinemática)
+function guideWipe() {
+  for (const f of [GS.att, GS.vic]) if (f) { try { f.dispose(); } catch (e) { } }
+  GS.att = GS.vic = null; G.fighters = []; G.player = null;
+  PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
+  TIMERS.length = 0; for (const d of DN) d.el.remove(); DN.length = 0; PS.clear(); ZONES.length = 0;
+  for (const fx of FX) { fx.sc.remove(fx.obj); if (fx.dispose) fx.dispose(); else { fx.obj.geometry.dispose(); fx.obj.material.dispose(); } } FX.length = 0;
+  G.chore = null; G.cine = null; G.hitstop = 0; G.slowT = 0; G.shake = 0; G.linesI = 0; IMPACT.t = 0; CAMFX.zoom = CAMFX.roll = CAMFX.rollV = CAMFX.ca = 0;
+  try { cineGrade(false); } catch (e) { } document.body.classList.remove('cine', 'duel'); seqHud(null);
+}
+function guideBuild(E) {
+  guideWipe(); try { destRestore(true); } catch (e) { }
+  const id = E.ch || curChar(), rp = GS.real && GS.real.P, own = rp && rp.ch.id === id && G.customSkin;
+  const att = new Fighter({ name: 'Vos', char: id, isPlayer: true, skin: own ? G.customSkin : null, slim: own ? G.customSlim : false });
+  const vic = new Fighter({ name: 'Dummy', ch: DUMMY_CH, lvlVar: 0 });
+  const gap = E.solo ? 0 : E.gap || 2.2;
+  vic.dummy = E.vic || 'idle'; vic.ai.P = aiParams(4); vic.flourT = att.flourT = 1e9;
+  G.fighters.push(att, vic); G.player = att; GS.att = att; GS.vic = vic;
+  // de costado (cámara mirando +z, el rival a la derecha): se ven los dos y no se tapan; con shift lock el rival va adelante
+  const side = !E.lock; cam.yaw = 0; cam.pitch = .3; cam.dist = side ? clamp(6.5 + gap * .55, 6.5, 12.5) : 6.5;
+  vReset(att, 0, 0, side ? Math.PI / 2 : 0); vReset(vic, E.solo ? 0 : side ? gap : 0, E.solo ? -30 : side ? 0 : gap, side ? -Math.PI / 2 : Math.PI);
+  att.awak = vic.awak = 0; att.maxHp = att.hp = vic.maxHp = vic.hp = 99999; att.cd = [0, 0, 0, 0]; att.ult = (E.ult || E.grp === 'U') ? 100 : 0;
+  vic.home = vic.pos.clone(); att.guideCtl = () => { const c = NEUTRAL(); if (GS.E && GS.E.ctl) GS.E.ctl(GS.t, c, GS); if (GS.pulse.skill != null) { c.skill = GS.pulse.skill; GS.pulse.skill = null; } if (GS.pulse.ult) { c.ult = true; GS.pulse.ult = false; } return c; };
+  if (E.fist) att._fistKit = 1;
+  G.shiftLock = !!E.lock; $('slchip').classList.toggle('hidden', !G.shiftLock);
+  GS.E = E; GS.t = 0; GS.fired = new Set(); GS.cast = false; GS.pulse = { skill: null, ult: false };
+  if (E.setup) E.setup(GS);
+}
+function guideTick(dt) {
+  const E = GS.E; if (!GS.on || !E || !GS.att) return;
+  GS.t += dt;
+  if (GS.t > E.len) { guideBuild(E); return; }
+  if (E.ev) E.ev.forEach((e, i) => { if (!GS.fired.has(i) && GS.t >= e[0]) { GS.fired.add(i); e[1](GS); } });
+  if (E.tick) E.tick(GS);
+}
+function guideLeave() {
+  if (!GS.on) return;
+  guideWipe(); const R = GS.real;
+  G.fighters = R.F; G.player = R.P; G.goal = R.goal; G.auto = R.auto; G.paused = R.paused; G.guide = false; GS.on = false; GS.E = null;
+  cam.yaw = R.yaw; cam.pitch = R.pitch; cam.dist = R.dist; G.shiftLock = R.sl; $('slchip').classList.toggle('hidden', !G.shiftLock);
+  for (const f of R.F) { try { f.model.root.visible = true; } catch (e) { } }
+  guideNums(false); try { destRestore(true); } catch (e) { } GS.real = null;
+}
+// copia el cuadro que acaba de dibujar el juego (con su cámara, brillo y cinemática) a la caja de la guía
+function guideBlit() {
+  if (!CB.open) return;
+  const box = $('bk-prev'), cv = $('bk-cv'), w = box.clientWidth, h = box.clientHeight; if (!w || !h) return;
+  const dpr = Math.min(2, devicePixelRatio || 1), W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d'); g.drawImage(renderer.domElement, 0, 0, W, H);
+  $('bk-win').style.transform = `scale(${w / innerWidth})`;
+}
+function guideFit() { const b = $('bk-prev'); b.style.aspectRatio = innerWidth + ' / ' + innerHeight; const w = $('bk-win'); w.style.width = innerWidth + 'px'; w.style.height = innerHeight + 'px'; }
+addEventListener('resize', () => { if (CB.open) guideFit(); });
+
+// ---------------------------------------------------------------- habilidades: cada una se lanza de verdad
+const SKB = { ch: null, list: [], idx: 0 };
 function skGroups(ch) {
   const G0 = [['Habilidades', 'S', ch.skills, 'Se usan con 1, 2, 3 y 4']];
   if (ch.ult && ch.ult.n && ch.ult.n !== '—') G0.push(['Despertar', 'U', [Object.assign({ tags: SK_ULT_TAGS[ch.ult.k] || 'buff', cd: 0 }, ch.ult)], 'Con la barra al 100 %, tecla G']);
@@ -13951,54 +13817,20 @@ function skGroups(ch) {
   if (ch.awkFist) G0.push(['Sin lanza + despertar', 'AF', ch.awkFist, 'Despierto y a puño limpio']);
   return G0;
 }
-function skClip(ch, s, grp, i) {
-  const BS = bbSet(ch.id); if (!BS) return null;
-  const act = BB_ACTIONS[ch.id] || {}, keys = Object.keys(BS);
-  if (grp === 'U') return keys.find(k => k.startsWith('ulti_')) || (BS.despertar_accion ? 'despertar_accion' : null);
-  if (grp === 'S') { const k = keys.find(k => k.startsWith('habilidad_' + (i + 1) + '_') && !k.endsWith('_contra')); if (k) return k; }
-  if (grp === 'S' || grp === 'A') { if (act[s.k] && BS[act[s.k]]) return act[s.k]; if (s.o && s.o.bbClip && BS[s.o.bbClip]) return s.o.bbClip; }
-  return null;
-}
-// arma la escena de la vista previa de una habilidad (mismo formato que las del combate básico)
 function skEntry(ch, s, grp, i) {
-  const tags = (s.tags || '').split(/\s+/).filter(Boolean), D = s.k === 'chore' && CHORE[s.o.id] ? CHORE[s.o.id] : null;
-  const E = { n: s.n, s, grp, tags, ev: [], len: 3.4, keys: [] };
-  if (D) { E.chore = D; E.len = D.dur + 1.2; return E; }
-  const clip = skClip(ch, s, grp, i), BS = bbSet(ch.id), far = s.r && s.r[0] >= 2.5 || tags.includes('proj');
-  E.gap = far ? 1.9 : 1.05; E.solo = grp === 'U' && !SK_ULT_TAGS[ch.ult.k];
-  const t0 = .45, gen = tags.includes('counter') ? [[0, 'counter', 900], [.4, 'thrust', 1300]] : tags.includes('proj') ? [[0, 'spearThrowW', 700], [.2, 'throw', 1300]] : tags.includes('aoe') ? [[0, 'overhead', 700], [.22, 'plunge', 1300]] : tags.includes('buff') || E.solo ? [[0, 'charge', 700], [.45, 'javiHero', 900]] : [[0, 'thrust_w', 800], [.14, 'thrust', 1300]];
-  const clen = clip ? BS[clip].length : gen[gen.length - 1][0] + .5;
-  let hits = clip && (BS[clip].contacts || []).length ? BS[clip].contacts.slice(0, 5) : [clip ? Math.min(clen * .45, 1.1) : gen[1] ? gen[1][0] + .05 : .3];
-  E.len = Math.max(3.2, t0 + Math.min(clen, 4.5) + 1.1);
-  const start = P => { if (clip) P.a.bb = { track: javiBBTrack(clip, ch.id), t: 0, len: Math.min(clen, 4.5) }; else cbAct(P.a, gen); };
-  if (E.solo) { E.ev.push([t0, P => { start(P); cbRing(P, P.a, ch.color, 3); cbPop(P, P.a, '¡DESPERTAR!', ch.color); }]); return E; }
-  if (tags.includes('buff')) { E.ev.push([t0, P => { start(P); cbRing(P, P.a, ch.color, 2); cbPop(P, P.a, '¡MEJORA!', ch.color); }]); E.solo = true; return E; }
-  if (tags.includes('counter')) {
-    E.ev.push([.3, P => cbAct(P.v, M1[0].anim)], [.42, P => { start(P); cbPop(P, P.a, '¡CONTRA!', '#9fd3ff'); }], [.75, P => { cbHurt(P.v, 2.4, 0); cbPop(P, P.v, '¡CONTRAATAQUE!', ch.color); sfxSafe('heavy', .5); }]);
-    return E;
-  }
-  const gb = tags.includes('gb'), up = /aire|arriba|lanza al|cielo/i.test(s.d || '') ? 8 : 0, dmg = (s.o && (s.o.dmg || (s.o.proj && s.o.proj.dmg))) || 0;
-  if (gb) E.ev.push([0, P => { P.v.pose = 'block'; }]);
-  E.ev.push([t0, P => start(P)]);
-  hits.forEach((h, k) => {
-    const tc = t0 + h, last = k === hits.length - 1;
-    if (tags.includes('proj') && k === 0) E.ev.push([Math.max(t0, tc - .25), P => cbShot(P, ch.color, .25)]);
-    if (tags.includes('gap') && k === 0) E.ev.push([Math.max(t0, tc - .25), P => { P.a.vx = (P.v.pos.x - 1 - P.a.pos.x) / .25; P.a.dashUntil = tc; }]);
-    E.ev.push([tc, P => {
-      if (tags.includes('aoe') && (k === 0 || last)) cbRing(P, P.v, ch.color, 2);
-      if (gb && k === 0) { P.v.pose = null; cbPop(P, P.v, '¡GUARDIA ROTA!', '#ffd54f'); sfxSafe('break', .5); }
-      cbHurt(P.v, last ? (tags.includes('aoe') || gb ? 3 : 1.8) : .7, last ? up : 0);
-      if (!(gb && k === 0)) cbPop(P, P.v, last && dmg ? '-' + n1(dmg) : hits.length > 1 ? String(k + 1) : '¡GOLPE!', last ? ch.color : '#fff');
-      sfxSafe(last ? 'heavy' : 'hit', .5);
-    }]);
-  });
-  if (tags.includes('gap')) E.ev.push([t0 + hits[0] + .9, P => { P.a.vx = -2.4; P.a.walkBack = true; }], [t0 + hits[0] + 1.6, P => { P.a.vx = 0; P.a.walkBack = false; }]);
+  const tags = (s.tags || '').split(/\s+/).filter(Boolean), r = s.r || [0, 6], D = s.k === 'chore' ? CHORE[s.o.id] : null, o = s.o || {};
+  const gap = r[0] >= 2 ? clamp((r[0] + r[1]) / 2, 3, 10) : r[1] <= 6 ? 2.2 : clamp(r[1] / 2.5, 3, 6);
+  const awake = grp === 'A' || grp === 'AF', long = Math.max(o.dur || 0, grp === 'U' ? 8 : 0);
+  const E = { ch: ch.id, s, grp, tags, gap, fist: grp === 'F' || grp === 'AF', vic: tags.includes('gb') ? 'block' : 'idle', ev: [], len: Math.min(20, Math.max(7, (D ? D.dur + 3.5 : 0), long + 3.5) + (awake ? 2.4 : 0) + (grp === 'U' ? 3 : 0)) };
+  if (grp === 'U') { E.ult = true; E.ev.push([.5, P => { P.pulse.ult = true; }]); return E; }
+  if (tags.includes('counter')) E.ev.push([.7, P => { P.vic.dummy = 'attack'; }]);
+  const cast = P => { P.att.cd = [0, 0, 0, 0]; P.pulse.skill = i; P.cast = true; };
+  if (awake) {
+    // primero el despertar de verdad (animación, luz y curación); recién cuando termina se usa la habilidad
+    E.ev.push([.3, P => runUlt(P.att)]);
+    E.tick = P => { if (!P.cast && P.t > 1.2 && P.att.awak > 0 && !P.att.action) cast(P); };
+  } else E.ev.push([.6, cast]);
   return E;
-}
-// proyectil simple: una esfera brillante del color del personaje que va del pecho del atacante al del rival
-function cbShot(P, col, dur) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(.18, 12, 8), glowMat(col, 1)); CB.scene.add(m);
-  CB.fx.push({ m, t: 0, d: dur, shot: true, from: new V3(P.a.pos.x + .5, 1.3, P.a.pos.z), to: new V3(P.v.pos.x - .2, 1.2, P.v.pos.z) });
 }
 function skRender() {
   const ch = SKB.ch; if (!ch) return;
@@ -14016,27 +13848,28 @@ function skRender() {
 }
 function skSelect(idx) {
   const it = SKB.list[idx]; if (!it) return; SKB.idx = idx;
-  const ch = SKB.ch, { s, grp, i } = it, E = skEntry(ch, s, grp, i), D = E.chore;
+  const ch = SKB.ch, { s, grp, i } = it, E = skEntry(ch, s, grp, i), D = s.k === 'chore' ? CHORE[s.o.id] : null;
   [...$('bk-list').querySelectorAll('button')].forEach((b, j) => { b.classList.toggle('on', j === idx); if (j === idx) b.scrollIntoView({ block: 'nearest' }); });
   const tags = E.tags.map(t => SK_TAG[t]).filter(Boolean); if (D) tags.push('Cinemática');
-  const key = grp === 'U' ? 'G' : String(i + 1), when = grp === 'A' || grp === 'AF' ? ' <span>durante el despertar</span>' : grp === 'F' ? ' <span>sin lanza</span>' : '';
+  const key = grp === 'U' ? 'G' : String(i + 1), wh = grp === 'A' || grp === 'AF' ? ' <span>durante el despertar</span>' : grp === 'F' ? ' <span>sin lanza</span>' : '';
   const tip = SK_TIPS[ch.id + '.' + grp + (grp === 'U' ? '' : i + 1)];
-  $('bk-info').innerHTML = `<h3>${s.n}</h3><div class="bk-keys"><kbd>${key}</kbd>${when}</div>`
+  $('bk-info').innerHTML = `<h3>${s.n}</h3><div class="bk-keys"><kbd>${key}</kbd>${wh}</div>`
     + (tags.length ? `<div class="bk-tags">${tags.map(t => `<span>${t}</span>`).join('')}</div>` : '')
     + `<p>${s.d}</p>`
     + `<dl class="bk-facts">${skFacts(s, grp, D).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
     + (tip ? `<div class="bk-tip"><b>Cómo usarla</b>${tip}</div>` : '');
-  CB.E = E; if (CB.r) cbReset();
+  if (GS.on) guideBuild(E);
 }
 function skPickChar(id) {
   SKB.ch = CHARS[id]; CB.mode = 'skills';
   $('bk-grid').classList.add('hidden'); $('bk-sub').classList.remove('hidden'); $('bk-body').classList.remove('hidden');
-  cbBuild(id, true); skRender(); skSelect(0);
+  skRender(); skSelect(0);
 }
 function skGrid() {
   CB.mode = 'grid';
   $('bk-body').classList.add('hidden'); $('bk-sub').classList.add('hidden');
   const g = $('bk-grid'); g.classList.remove('hidden');
+  if (GS.on) guideBuild({ ch: curChar(), solo: true, len: 1e9 });
   if (!g.children.length) for (const id of CHAR_IDS) {
     const ch = CHARS[id], b = document.createElement('button'); b.type = 'button'; b.style.setProperty('--cc', ch.color);
     const cv = document.createElement('canvas'); cv.className = 'px'; headPortrait(charSkin(id), cv);
@@ -14044,6 +13877,58 @@ function skGrid() {
     b.addEventListener('click', () => skPickChar(id)); g.appendChild(b);
   }
 }
+
+// ---------------------------------------------------------------- libro
+function cbSelect(i) {
+  CB.idx = (i + CB_BASIC.length) % CB_BASIC.length; const E0 = CB_BASIC[CB.idx];
+  document.querySelectorAll('#bk-list button').forEach((b, j) => { b.classList.toggle('on', j === CB.idx); if (j === CB.idx) { b.setAttribute('aria-current', 'true'); b.scrollIntoView({ block: 'nearest' }); } else b.removeAttribute('aria-current'); });
+  $('bk-info').innerHTML = `<h3>${E0.n}</h3><div class="bk-keys">${E0.keys.map(k => /^[+×(]/.test(k) || k === 'Habilidades' ? `<span>${k}</span>` : `<kbd>${k}</kbd>`).join('')}</div><p>${E0.d}</p><ul>${E0.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
+  if (GS.on) guideBuild(Object.assign({}, E0, { ch: curChar() }));
+}
+function bookBasic() {
+  CB.mode = 'basic';
+  $('bk-grid').classList.add('hidden'); $('bk-sub').classList.add('hidden'); $('bk-body').classList.remove('hidden');
+  const list = $('bk-list'); list.innerHTML = '';
+  CB_BASIC.forEach((E, i) => { const li = document.createElement('li'), b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${E.n}</span><kbd>${E.keys[0]}</kbd>`; b.addEventListener('click', () => cbSelect(i)); li.appendChild(b); list.appendChild(li); });
+  cbSelect(CB.idx);
+}
+function bookTab(tab) {
+  document.querySelectorAll('#book .bk-tabs button').forEach(b => b.classList.toggle('on', b.dataset.bk === tab));
+  if (tab === 'skills') { if (SKB.ch && CB.mode === 'skills') return; skGrid(); } else bookBasic();
+}
+function bookOpen() {
+  if (CB.open) return;
+  CB.open = true; $('book').classList.remove('hidden'); document.body.classList.add('guide-on');
+  if (G.state === 'play') { G.panelOpen = true; unlock(); }
+  for (const k in keys) keys[k] = false; mouse.left = mouse.right = false;
+  const live = guideEnter(); guideFit();
+  $('bk-note').classList.toggle('hidden', live);
+  if (!live) $('bk-note').textContent = G.mp ? 'La vista previa en vivo no está disponible en partidas online (la pelea sigue corriendo). Abrí la guía en una partida con bots para verla.' : 'No se pudo preparar la vista previa.';
+  if (CB.mode === 'skills' && SKB.ch) skPickChar(SKB.ch.id); else if (CB.mode === 'grid') skGrid(); else bookBasic();
+  $('book-x').focus({ preventScroll: true });
+}
+function bookClose() {
+  if (!CB.open) return;
+  CB.open = false; $('book').classList.add('hidden'); document.body.classList.remove('guide-on'); guideLeave();
+  if (G.state === 'play') { G.panelOpen = false; if (!G.over) requestLock(); }
+}
+$('bookbtn').addEventListener('click', e => { e.stopPropagation(); bookOpen(); });
+$('book-x').addEventListener('click', bookClose);
+$('bk-back').addEventListener('click', () => { SKB.ch = null; skGrid(); });
+document.querySelectorAll('#book .bk-tabs button').forEach(b => b.addEventListener('click', () => bookTab(b.dataset.bk)));
+$('book').addEventListener('click', e => { if (e.target === $('book')) bookClose(); });
+addEventListener('keydown', e => {
+  if (CB.open) {
+    const sel = d => CB.mode === 'skills' ? skSelect(clamp((SKB.idx || 0) + d, 0, SKB.list.length - 1)) : CB.mode === 'basic' ? cbSelect(CB.idx + d) : null;
+    if (e.code === 'Escape') { if (CB.mode === 'skills') { SKB.ch = null; skGrid(); } else bookClose(); }
+    else if (e.code === 'KeyB') bookClose();
+    else if (e.code === 'Backspace' && CB.mode === 'skills') { SKB.ch = null; skGrid(); }
+    else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') sel(1);
+    else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') sel(-1);
+    e.preventDefault(); e.stopImmediatePropagation(); return;
+  }
+  if (e.code === 'KeyB' && !e.repeat && G.state === 'play' && !G.paused && !G.over && !G.viewer && !G.panelOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') { e.preventDefault(); e.stopImmediatePropagation(); bookOpen(); }
+}, true);
 
 const FPS = { el: null, n: 0, t: 0, on: false, ms: 0, worst: 0 };
 try { FPS.on = localStorage.getItem('bsb_fps') === '1'; } catch (e) { FPS.on = false; }
@@ -14069,6 +13954,7 @@ function loop(now){
     frameTask('musica',()=>updateMusic(rdt));frameTask('clima',()=>updateCityWeather(0));frameTask('selector',()=>updateShow(rdt));updateFx(rdt);
     frameTask('lineas',()=>drawLines(rdt));return;
   }
+  if(GS.on)frameTask('guia',()=>guideTick(rdt));
   if(G.cine&&!G.paused)frameTask('cinematica',()=>updateCine(rdt));
   else{
     let dt=rdt*(G.slowT>0?.3:1);if(G.slowT>0)G.slowT-=rdt;
@@ -14087,7 +13973,7 @@ function loop(now){
   frameTask('interfaz',()=>updateHUD(rdt));frameTask('lineas',()=>drawLines(rdt));
   if(G.cine&&G.cine.shot===1)frameTask('paneles',()=>drawPanelBorders());
   }catch(error){reportFrameError('cuadro',error);}
-  finally{drawFrameSafely();}
+  finally{drawFrameSafely();if(GS.on)guideBlit();}
 }
 
 buildSeaWorld();
