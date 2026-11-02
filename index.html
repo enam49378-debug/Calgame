@@ -2738,8 +2738,24 @@ function bbHole(c, r) {
   }
 }
 // daño al escenario en un punto: marca en el piso, marcas en las paredes cercanas y piezas pequeñas que saltan (el ragdoll lo hace en menor medida)
+const NETREP = { on: false, recv: false, last: -9 };
+// la destrucción de un jugador se manda a los demás para que todos rompan lo mismo y puedan pasar por los mismos huecos
+function netDestSend(c, r, power, dmg, dest) {
+  if (!G.mp || NETREP.recv || NETREP.on || G.viewer) return;
+  if (G.time - NETREP.last < .2 && r < 3) return; NETREP.last = G.time;
+  NET.destSeq = (NET.destSeq || 0) + 1;
+  (NET.destOut || (NET.destOut = [])).push({ s: NET.destSeq, t: G.time, x: r2(c.x), y: r2(c.y), z: r2(c.z), r: r2(r), p: r2(power), m: dmg == null ? null : r2(dmg), e: dest == null ? null : r2(dest) });
+  while (NET.destOut.length > 8) NET.destOut.shift(); NET.sendT = 0;
+}
+function applyNetDest(e) {
+  if (!e || ![e.x, e.y, e.z, e.r, e.p].every(v => Number.isFinite(+v)) || Math.abs(e.x) > 400 || Math.abs(e.z) > 400 || Math.abs(e.y) > 60) return;
+  NETREP.recv = true;
+  try { worldDamage(new V3(+e.x, +e.y, +e.z), clamp(+e.r, 0, 14), clamp(+e.p, 0, 5), e.m == null ? undefined : clamp(+e.m, 0, 80), e.e == null ? undefined : clamp(+e.e, 0, 3)); } finally { NETREP.recv = false; }
+}
 function worldDamage(c, r, power, dmg, dest) {
+  if (NETREP.on) return;   // lo que hace un jugador remoto se rompe con sus paquetes (no dos veces)
   if (r < 1.2 || G.state !== 'play' || dest === 0 || G.rules.dest === 0) return;
+  netDestSend(c, r, power, dmg, dest);
   if (dmg != null) dmg *= (dest != null ? dest : 1) * G.rules.dest * PERF_DEST; else power *= G.rules.dest * PERF_DEST;
   if (dmg != null && dmg < 2.5) return;
   const rr = dmg != null ? Math.min(r * .85, .9 + dmg * .15) : r * .85 * power;   // el hueco depende de la fuerza del golpe
@@ -3892,6 +3908,7 @@ const POSE = {
   shoulder: { ix: .55, ty: -.7, tx: .2, by: -1.5, alx: -.2, alz: -.4, arx: -.9, arz: .9, llx: -.9, lrx: .6 },
   kickRush: { ix: -.35, iz: .2, by: 1, alx: -1.2, alz: .6, arx: .4, arz: -.6, llx: .3, lrx: -1.6, ty: -.4 },
   windup: { ty: -.9, tx: -.1, ix: -.1, by: -2, arx: .9, arz: .4, alx: -1.3, alz: -.4, llx: -.5, lrx: .4, hy: .7 },
+  ball: { by: -7, tx: .95, hx: .55, alx: -2.5, arx: -2.5, alz: .5, arz: -.5, llx: -2.3, lrx: -2.3, llz: .1, lrz: -.1 },
   mega: { ty: 1.1, tx: .3, ix: .2, bz: 3, by: -2.5, arx: -1.6, arz: .1, alx: .6, alz: .4, llx: -.9, lrx: .9, hy: -.9 },
   throwW: { ty: -.6, arx: -2.6, arz: .3, alx: -1.0, llx: -.3, lrx: .3, hy: .5 },
   throw: { ty: .8, tx: .2, arx: -1.7, arz: -.3, ary: -.5, alx: .4, alz: .3, llx: -.5, lrx: .4, hy: -.6 },
@@ -4489,6 +4506,22 @@ const CHARS = {
     intro: [[0, 'idle', 500], [.5, 'scepterW', 700], [1.0, 'sweep', 500], [1.4, 'idle', 400]],
     cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
   },
+  mattux: {
+    name: 'Mattux', title: 'Velocista Sónico', role: 'VELOCISTA', color: '#2f6bff', hp: 96, spd: 1.28, ai: 'melee', stance: 'idle',
+    desc: 'El más rápido del juego: corre, rueda y rebota. Se hace bola en un Spin Dash, salta de rival en rival con el ataque teledirigido, lanza ondas sónicas y detiene el tiempo con el Control del Caos. Al despertar se vuelve Súper: dorado, más veloz y con el poder de las esmeraldas.',
+    stats: [3, 3, 5, 3, 4],
+    skin: { skin: '#f0c9a8', hair: '#1c2e8c', eye: '#2f6bff', shirt: '#2f6bff', pants: '#2f6bff', shoes: '#c4162a', sleeve: 12 },
+    skinData: 'data:image/png;base64,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',
+    skills: [
+      { n: 'Spin Dash', d: 'Se hace bola, carga un instante y sale disparado girando: arrolla a todos los que toca en el camino.', k: 'sonSpin', cd: 6, o: { dmg: 7 }, r: [3, 14], tags: 'gap gb' },
+      { n: 'Ataque Teledirigido', d: 'Salta hacia el rival más cercano convertido en bola y rebota para encadenar hasta tres rivales.', k: 'sonHoming', cd: 7, o: { dmg: 7 }, r: [3, 18], tags: 'gap proj' },
+      { n: 'Onda Sónica', d: 'Dos tajos de viento azul salen en abanico y cortan todo a su paso.', k: 'sonBoom', cd: 8, o: { dmg: 6 }, r: [2, 24], tags: 'proj' },
+      { n: 'Control del Caos', d: 'Detiene el tiempo: congela a todos los rivales cercanos, aparece junto a cada uno golpeándolos a velocidad de luz y, cuando el tiempo vuelve, todos reciben el golpe de golpe.', k: 'sonChaos', cd: 14, o: {}, r: [0, 12], tags: 'aoe close gb' },
+    ],
+    ult: { n: 'Súper Mattux', d: 'Se vuelve dorado: más velocidad y habilidades nuevas con el poder del caos.', k: 'serious', o: {}, r: [0, 15] },
+    intro: [[0, 'idle', 400], [.45, 'jabR_w', 600], [.65, 'jabR', 900], [1.2, 'idle', 400]],
+    cine: [[0, 'charge', 400], [.7, 'castUp', 600], [1.2, 'jump', 500]],
+  },
   sebolla: {
     name: 'Seb0lla', title: 'El del Paquete Misterioso', role: 'HUMORISTA', color: '#fa6c00', hp: 100, spd: 1.05, ai: 'mid', stance: 'idle', verity: true,
     desc: 'Humorista de Minecraft y mejor amigo de Verity, la esfera sonriente que lo sabe todo y lo acompaña siempre. En su estado normal pelea a puñetazo limpio con ella (Paliza, Pelota y Sándwich) y se defiende con un Parry. Al despertar Verity se pone seria y todo se vuelve cinemática: Dúo Dinámico, Rayo a Quemarropa, Maratón y la gran Verity Gigante, un humanoide enorme al que monta como a un caballo.',
@@ -4675,6 +4708,12 @@ const AWK = {
     { n: 'Red Gigante', d: 'Extiende una telaraña enorme en el piso que arrastra a todos hacia el centro y los hiere sin parar.', k: 'rkWebField', cd: 15, o: { dmg: 1.1, r: 6 }, r: [0, 14], tags: 'aoe' },
     { n: 'Enjambre', d: 'Suelta seis arañitas que persiguen al rival y lo muerden varias veces.', k: 'rkSwarm', cd: 12, o: { n: 5, dmg: .9 }, r: [2, 22], tags: 'proj' },
   ],
+  mattux: [
+    { n: 'Súper Spin Dash', d: 'Un Spin Dash enorme y dorado que dura más y golpea más fuerte.', k: 'sonSpin', cd: 7, o: { dmg: 10, sup: 1 }, r: [3, 18], tags: 'gap gb' },
+    { n: 'Aceleración Sónica', d: 'Corre más rápido que el sonido atravesando a todos y cierra con una onda de choque.', k: 'sonBoost', cd: 9, o: { dmg: 10 }, r: [3, 22], tags: 'gap gb' },
+    { n: 'Lanzas del Caos', d: 'Cinco lanzas de energía dorada giran a tu alrededor y salen solas hacia los rivales.', k: 'orbitals', cd: 10, o: { n: 5, kind: 'shard', dur: 7, rate: .42, proj: { speed: 44, dmg: 5, stun: .5, size: .3, long: 4, homing: 3 } }, r: [0, 14], tags: 'proj' },
+    { n: 'Explosión del Caos', d: 'Carga toda la energía de las esmeraldas y la libera en una explosión que lanza a todos por los aires.', k: 'sonBlast', cd: 13, o: { dmg: 18 }, r: [0, 9], tags: 'aoe close gb' },
+  ],
   ukyo: [
     { n: 'Corte Solar', d: 'Alza la espada ardiendo y baja un arco de fuego enorme que atraviesa a todos los que encuentra y los lanza al aire.', k: 'ukSun', cd: 9, o: { dmg: 8 }, r: [3, 20], tags: 'proj' },
     { n: 'Corte Instantáneo', d: 'Se queda inmóvil, desaparece en un tajo y vuelve a envainar. El rival tarda un instante en notar que ya está cortado.', k: 'chore', cd: 14, o: { id: 'ukIai' }, r: [0, 5], tags: 'close gap gb', cine: 1 },
@@ -4749,7 +4788,7 @@ CHARS.javi.awkFist = [
   { n: 'Embestida de Hombro', d: 'Carga con el hombro y arrolla a todos en el camino.', k: 'shoulderDash', cd: 8, o: {}, r: [2, 12], tags: 'gap gb' },
   { n: 'Furia del Destello', d: 'Coreografía: lo agarra, diez puñetazos seguidos, un gancho que lo sube y un Destello Negro que lo manda a volar.', k: 'chore', cd: 15, o: { id: 'javiFury' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
 ];
-const skillsOf = f => (f.ch === CHARS.javi && f.spearLost) ? (f.awak > 0 ? f.ch.awkFist : f.ch.fist) : (f.awak > 0 && f.ch.awk) ? f.ch.awk : f.ch.skills;
+const skillsOf = f => (f.ch === CHARS.javi && (f.spearLost || f._fistKit)) ? (f.awak > 0 ? f.ch.awkFist : f.ch.fist) : (f.awak > 0 && f.ch.awk) ? f.ch.awk : f.ch.skills;
 // por ahora el elenco es de tres: los demás peleadores quedan fuera del juego
 for (const id of ['kaiza', 'nyx', 'volt', 'brasa', 'yuki', 'titan']) delete CHARS[id];
 for (const id in CHARS) CHARS[id].id = id;
@@ -4759,7 +4798,7 @@ const CHAR_IDS = Object.keys(CHARS).filter(k => !CHARS[k].hidden);   // los pers
 const DMG_GLOBAL = .85;
 {
   // Valores ajustados con duelos automáticos entre bots (28 combinaciones): los que ganaban de más bajan, los que perdían de más suben
-  const DM = { javi: .9, redbird: .85, gato: 1, sekza: 1.7, rocket: 1, ukyo: .72, sebolla: .95, jesuluto: .9, randi: 1.05, capitan: 1.1 };
+  const DM = { javi: .9, redbird: .85, gato: 1, sekza: 1.7, rocket: 1, ukyo: .72, mattux: .95, sebolla: .95, jesuluto: .9, randi: 1.05, capitan: 1.1 };
   for (const k in DM) if (CHARS[k]) CHARS[k].dmgMul = DM[k];
   CHARS.javi.hp = 92; CHARS.gato.hp = 92;
 }
@@ -8771,6 +8810,116 @@ const MOVES = {
     steps.push({ at: 2.28, fn: () => bfStrike(f, o, new Set(), true, 26, true) });
     startAction(f, { name: 'fistrain', dur: 2.7, aim: true, noControl: true, speedMul: 0, anim: an, steps });
   },
+  // ---------- Mattux (temática Sonic) ----------
+  sonSpin(f, o) {
+    const sup = !!o.sup, T = sup ? .38 : .5, D = sup ? .8 : .58; let hitT = 0, set = new Set();
+    startAction(f, {
+      name: 'sonspin', dur: T + D + .25, aim: true, noControl: true, lockYaw: true, speedMul: 0, anim: [[0, 'ball', 500]], spinX: 14,
+      start: () => { sfx('dash', f.pos, .6); popText(chestOf(f), sup ? '¡SÚPER SPIN DASH!' : '¡SPIN DASH!', o.color, 22); },
+      tick: (a, t, dt) => {
+        const F = fwd(f.yaw);
+        if (t < T) {   // carga: gira cada vez más rápido y levanta polvo
+          a.spinX = 12 + t / T * 40; f.vel.x *= .8; f.vel.z *= .8;
+          if (Math.random() < .7) emit(f.pos.x - F.x * .4 + rand(-.3, .3), f.pos.y + .15, f.pos.z - F.z * .4 + rand(-.3, .3), -F.x * rand(2, 5), rand(.5, 2), -F.z * rand(2, 5), '#e8d9b0', .16, .35, .2, 2);
+        } else if (t < T + D) {
+          if (!a.go) { a.go = true; a.ghost = true; sfx('swing', f.pos, .8); G.fovKick = Math.max(G.fovKick, 6); ringAt(new V3(f.pos.x, f.pos.y + .8, f.pos.z), o.color, 3, .3); }
+          a.spinX = 46; f.vel.x = F.x * (sup ? 38 : 31); f.vel.z = F.z * (sup ? 38 : 31);
+          emit(f.pos.x, f.pos.y + rand(.3, 1.3), f.pos.z, rand(-1, 1), rand(0, 1), rand(-1, 1), Math.random() < .5 ? o.color : '#ffffff', .22, .35, 0, 3);
+          hitT -= dt; if (hitT <= 0) { hitT = .17; set = new Set(); }
+          if (hitArea(f, front(f, .5, .9), 1.4, { dmg: o.dmg || 7, kb: 7, up: 5, ragdoll: .55, color: o.color, set, hitstop: .03, shake: .25 })) { impactStar(front(f, .6, .9), '#ffffff', 1.6, .15); worldDamage(front(f, 1.2, .8), 2.6, .8, o.dmg || 7, .8); }
+        } else if (a.go && !a.end) { a.end = true; a.ghost = false; a.spinX = 0; f.vel.x *= .2; f.vel.z *= .2; a.anim = [[t, 'idle', 500]]; }
+      },
+      onEnd: () => { f.vel.x *= .2; f.vel.z *= .2; },
+    });
+  },
+  sonHoming(f, o) {
+    const hit = new Set(); let tg = null, bounced = 0, st = 'jump', tt = 0;
+    const next = (rng) => { let b = null, bd = rng; for (const g of enemiesOf(f)) { if (!g.alive || hit.has(g)) continue; const d = dist2d(f, g); if (d < bd) { bd = d; b = g; } } return b; };
+    startAction(f, {
+      name: 'sonhome', dur: 2.3, aim: true, noControl: true, speedMul: 0, anim: [[0, 'ball', 400]], spinX: 30,
+      start: () => { tg = findTarget(f, 18) || next(18); sfx('jump', f.pos, 1.2); popText(chestOf(f), '¡ATAQUE TELEDIRIGIDO!', o.color, 20); f.vel.y = 9; f.onGround = false; },
+      tick: (a, t, dt) => {
+        tt += dt; a.spinX = 34; if (st === 'jump' && tt > .18) st = 'fly';
+        if (st === 'fly') {
+          if (!tg || !tg.alive) { tg = next(10); if (!tg) { if (bounced > 0 || tt > .9) { st = 'end'; } else { const F = fwd(f.yaw); f.vel.x = F.x * 16; f.vel.z = F.z * 16; if (tt > .7) st = 'end'; } return; } }
+          const c = chestOf(tg), to = c.clone().sub(new V3(f.pos.x, f.pos.y + .9, f.pos.z)), d = to.length();
+          if (d > .01) { to.normalize(); f.vel.x = to.x * 36; f.vel.z = to.z * 36; f.vel.y = to.y * 36; f.yaw = Math.atan2(to.x, to.z); }
+          a.ghost = true; emit(f.pos.x, f.pos.y + .9, f.pos.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), o.color, .2, .3, 0, 3);
+          if (d < 1.5) {
+            hit.add(tg); const last = bounced >= 2; applyHit(f, tg, { dmg: (o.dmg || 7) + (last ? 4 : 0), kb: last ? 13 : 3, up: last ? 7 : 4, ragdoll: last ? 1 : .35, color: o.color, hitstop: .06, shake: .3, guardBreak: true });
+            impactStar(c, '#ffffff', 2.2, .22); ringAt(c, o.color, 3, .3); sfx('heavy', f.pos, .7); worldDamage(c, 2.2, .8, o.dmg || 7, .5);
+            f.vel.y = 12; f.vel.x = -(to.x) * 7; f.vel.z = -(to.z) * 7; bounced++; tt = 0; st = bounced >= 3 ? 'end' : 'bounce'; tg = null;
+          }
+        } else if (st === 'bounce') { if (tt > .22) { tg = next(10); st = tg ? 'fly' : 'end'; } }
+        else if (st === 'end' && !a.fin) { a.fin = true; a.ghost = false; a.spinX = 0; a.anim = [[t, 'jump', 600]]; a.t = Math.max(a.t, a.dur - .35); }
+      },
+      onEnd: () => { f.vel.x *= .3; f.vel.z *= .3; },
+    });
+  },
+  sonBoom(f, o) {
+    startAction(f, {
+      name: 'sonboom', dur: .6, aim: true, speedMul: .3, anim: [[0, 'windup', 500], [.18, 'mega', 1300]],
+      steps: [{ at: .2, fn: () => {
+        for (const off of [-.24, 0, .24]) spawnProj(f, f.yaw + off, { color: o.color, speed: 34, size: .6, long: 2.8, range: 26, dmg: o.dmg || 6, kb: 8, up: 3, stun: .45 });
+        sfx('zap', f.pos, .8); ringAt(front(f, 1.2, 1.2), o.color, 2.4, .3); burst(front(f, 1.4, 1.2), 14, '#ffffff', 8, .14, .3, 0);
+      } }],
+    });
+  },
+  sonChaos(f, o) {
+    const foes = enemiesOf(f).filter(g => g.alive && dist2d(f, g) < 14), frozen = foes.slice(0, 4); if (!frozen.length) return false;
+    const steps = [];
+    for (let i = 0; i < 7; i++) steps.push({ at: .7 + i * .17, fn: () => {
+      const g = frozen.filter(x => x.alive)[i % Math.max(1, frozen.filter(x => x.alive).length)]; if (!g) return;
+      if (!f.remote) { const ang = rand(0, TAU); f.pos.set(g.pos.x + Math.cos(ang) * 1.5, g.pos.y, g.pos.z + Math.sin(ang) * 1.5); f.vel.set(0, 0, 0); f.yaw = yawTo(f, g); }
+      const c = chestOf(g); ghost(f, '#ffd23f', .5, .25); slashLine(front(f, .2, 1.2), c, '#ffffff', .12, .14); impactStar(c, i % 2 ? '#ffd23f' : '#ffffff', 1.5, .14); sfx('swing', f.pos, .5);
+      applyHit(f, g, { dmg: 2.4, kb: 0, stun: 2, color: '#ffd23f', hitstop: .02, noCounter: true });
+    } });
+    startAction(f, {
+      name: 'sonchaos', dur: 2.6, noControl: true, armor: true, speedMul: 0, anim: [[0, 'castUp', 500], [.45, 'charge', 700], [.7, 'dash', 800]],
+      start: () => { f.iframes = Math.max(f.iframes, 2.6); sfx('ult', f.pos); popText(chestOf(f), '¡CONTROL DEL CAOS!', '#ffd23f', 26); ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffd23f', 14, .8); ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffffff', 9, .6); for (const g of frozen) { g.frozen = Math.max(g.frozen, 2.1); burst(chestOf(g), 12, '#ffd23f', 4, .12, .5, 0); } },
+      steps: steps.concat([{ at: 2.0, fn: () => {
+        for (const g of frozen) { if (!g.alive) continue; g.frozen = 0; applyHit(f, g, { dmg: 9, kb: 17, up: 6, ragdoll: 1.2, color: '#ffd23f', hitstop: .14, shake: .8, guardBreak: true, noCounter: true }); const c = chestOf(g); impactStar(c, '#ffffff', 3, .3); ringAt(c, '#ffd23f', 4, .4); }
+        sfx('break', f.pos); G.hitstop = Math.max(G.hitstop, .12);
+      } }]),
+    });
+  },
+  sonBoost(f, o) {
+    const set = new Set();
+    startAction(f, {
+      name: 'sonboost', dur: 1.05, aim: true, noControl: true, lockYaw: true, ghost: true, speedMul: 0, anim: [[0, 'charge', 400], [.15, 'dash', 1100]],
+      start: () => { sfx('dash', f.pos, 1); popText(chestOf(f), '¡ACELERACIÓN SÓNICA!', '#ffd23f', 22); G.fovKick = Math.max(G.fovKick, 9); },
+      tick: (a, t) => {
+        const F = fwd(f.yaw);
+        if (t > .15 && t < .75) {
+          f.vel.x = F.x * 46; f.vel.z = F.z * 46; emit(f.pos.x, f.pos.y + rand(.2, 1.6), f.pos.z, rand(-1, 1), rand(0, 1), rand(-1, 1), Math.random() < .5 ? '#ffd23f' : '#ffffff', .28, .4, 0, 3);
+          if (hitArea(f, front(f, .8, 1), 1.5, { dmg: o.dmg || 10, kb: 11, up: 5, ragdoll: .8, color: '#ffd23f', set, hitstop: .06, shake: .4, guardBreak: true })) worldDamage(front(f, 1.4, 1), 3, 1, o.dmg || 10, 1.1);
+        } else if (t >= .75 && !a.fin) {
+          a.fin = true; a.ghost = false; f.vel.x *= .1; f.vel.z *= .1; const c = new V3(f.pos.x, f.pos.y + .6, f.pos.z);
+          ringAt(new V3(c.x, c.y - .4, c.z), '#ffd23f', 6, .5); impactStar(c, '#ffffff', 2.6, .3); sfx('break', f.pos, .8);
+          hitArea(f, c, 4.2, { dmg: 6, kb: 9, up: 6, ragdoll: .9, color: '#ffd23f', set: new Set(), shake: .5 }); a.anim = [[t, 'mega', 900]];
+        }
+      },
+      onEnd: () => { f.vel.x *= .2; f.vel.z *= .2; },
+    });
+  },
+  sonBlast(f, o) {
+    startAction(f, {
+      name: 'sonblast', dur: 1.7, aim: false, noControl: true, armor: true, speedMul: 0, anim: [[0, 'castUp', 500], [.4, 'lift', 900]],
+      start: () => { sfx('ult', f.pos); popText(chestOf(f), '¡EXPLOSIÓN DEL CAOS!', '#ffd23f', 26); f.iframes = Math.max(f.iframes, 1.4); },
+      tick: (a, t) => {
+        if (t < 1.0) {
+          f.vel.y = Math.max(f.vel.y, 0) + 0; if (t > .3) f.vel.y = 3;
+          for (let k = 0; k < 2; k++) { const an = rand(0, TAU), r = rand(2.5, 6) * (1 - t / 1.1); emit(f.pos.x + Math.cos(an) * r, f.pos.y + rand(0, 3), f.pos.z + Math.sin(an) * r, -Math.cos(an) * 6, rand(1, 3), -Math.sin(an) * 6, Math.random() < .5 ? '#ffd23f' : '#ffffff', .22, .5, 0, 2); }
+          G.shake = Math.max(G.shake, .15);
+        }
+      },
+      steps: [{ at: 1.05, fn: () => {
+        const c = new V3(f.pos.x, f.pos.y + 1, f.pos.z); sphereFlash(c, '#ffd23f', 5, .5); ringAt(new V3(c.x, c.y - .8, c.z), '#ffd23f', 11, .7); ringAt(new V3(c.x, c.y - .8, c.z), '#ffffff', 7, .5);
+        burst(c, 50, '#ffd23f', 14, .25, .7, 0); burst(c, 30, '#ffffff', 10, .2, .5, 0); impactStar(c, '#ffffff', 5, .4); sfx('break', f.pos); G.hitstop = Math.max(G.hitstop, .14);
+        explode(f, c, 9.5, { dmg: o.dmg || 18, kb: 20, up: 10, ragdoll: 1.6, color: '#ffd23f', guardBreak: true, shake: 1 }); worldDamage(c, 10, 2.4, 40, 2.2);
+      } }],
+    });
+  },
   spearThrow(f, o) {
     if (f.spearThrown) return false;
     startAction(f, {
@@ -8949,7 +9098,7 @@ function loseSpear(f) {
   if (!d) return;
   popText(chestOf(f), '¡PERDISTE LA LANZA!', '#ff8a5a', 24); sfx('break', f.pos, .7); burst(chestOf(f), 12, '#bce5f6', 6, .14, .4, .2); NET.sendT = 0;
 }
-function ownsMissingSpear(f){return !!(f.ch===CHARS.javi&&f.spearLost);}
+function ownsMissingSpear(f){return !!(f.ch===CHARS.javi&&(f.spearLost||f._fistKit));}
 function spearVector(values){return Array.isArray(values)&&values.length===3&&values.every(v=>Number.isFinite(v)&&Math.abs(v)<ARENA+80);}
 function validSpearRecord(e){return !!(e&&typeof e.id==='string'&&/^[a-zA-Z0-9_.:-]{1,100}$/.test(e.id)&&typeof e.owner==='string'&&typeof e.victim==='string'&&e.id.startsWith(e.owner+':')&&spearVector(e.at)&&spearVector(e.dir)&&Number.isFinite(e.n)&&Number.isFinite(e.yaw)&&Number.isFinite(e.age)&&e.age>=0&&e.age<7200);}
 function copySpearBody(d){
@@ -9055,6 +9204,7 @@ function serializeLostSpear(f){
 }
 function spearReceiptList(f){return(f.spearReceipts||[]).filter(e=>G.time-e.time<12).map(e=>({...e.data,age:r2(Math.max(0,G.time-e.time))}));}
 function synchronizeSpearDrops(peer,pr){
+  if(Array.isArray(pr.dx)&&pr.dx.length){let seen=peer.destSeen||0;const mx=Math.max(...pr.dx.map(e=>+e?.s||0));if(mx<seen)seen=0;let top=seen;for(const e of pr.dx.slice(-8)){if(e&&e.s>seen){top=Math.max(top,e.s);applyNetDest(e);}}peer.destSeen=top;}
   if(typeof pr.sr==='string'&&pr.sr.length<=100&&pr.sr.startsWith(spearActorId(peer)+':')){JAVI_SPEARS.settled.add(pr.sr);const d=JAVI_SPEARS.drops.get(pr.sr);if(d){if(d.owner.spearLost?.id===d.id)d.owner.spearLost=null;removeSpearDrop(d.id);}}
   for(const record of (Array.isArray(pr.jf)?pr.jf.slice(-4):[]))if(record?.victim===spearActorId(peer)&&validSpearRecord(record))createSpearDrop(record,true);
   if(pr.sd&&pr.sd.owner===spearActorId(peer)&&validSpearRecord(pr.sd)){
@@ -9158,6 +9308,7 @@ function updLoyal(p, i, dt) {
 // ================= Habilidades, ulti y cinemática =================
 // Destrucción de edificios por habilidad (0 = nada, 1 = normal, 2 = devastador). Cualquier habilidad puede fijar el suyo con `dest:`.
 const DEST_DEFAULT = {
+  sonSpin: .8, sonHoming: .5, sonBoom: .6, sonChaos: .3, sonBoost: 1.1, sonBlast: 2,
   fistDiv: .8, blackFlash: 1.4, manjiKick: .9, fistFlurry: .7, bf3: 1.6, groundBreak: 2.2, shoulderDash: 1.2, fistRain: 1.4,
   serious: 0, chore: 1.2, zone: .5, shoot: .3, orbitals: .3, slam: 1.5, beam: .9, rush: .8, airCombo: .6, dashCombo: .6, pillar: 1.3, blink: 0, wave: 1.3, illusion: 0, barrage: .5,
   slash: .7, lunge: .5, spearThrow: .6, whirl: .6, spearRain: 1.1, eyeBolts: .5, optoJump: .5, sekBoomerang: .4, sekDive: 1, sekParry: 0, sekUpdraft: .6, rkWeb: 0, rkZip: .2, rkBite: .3, rkTraps: .3,
@@ -9173,7 +9324,7 @@ function useSkill(f, i) {
   prepWeapon(f);
   f.destPow = s.dest != null ? s.dest : (DEST_DEFAULT[s.k] != null ? DEST_DEFAULT[s.k] : .6);   // cuánto rompe esta habilidad en los edificios
   const ok = MOVES[s.k](f, Object.assign({ color: f.ch.color, slot: i }, s.o));
-  if (ok !== false && f.isPlayer && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0 });   // las coreografías mandan su propio aviso ('c') al agarrar
+  if (ok !== false && f.isPlayer && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0, x: ownsMissingSpear(f) ? 1 : 0 });   // las coreografías mandan su propio aviso ('c') al agarrar
   f.cd[i] = ok === false ? .4 : s.cd;
   if (ok !== false && f.isPlayer) { const el = $('skills').children[i]; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
   if (ok === false && f.isPlayer) popText(chestOf(f), 'Sin objetivo', '#aab', 15);
@@ -10001,6 +10152,7 @@ function animate(f, dt) {
   const bbPlayed=bbSelection ? playJaviBB(f,bbSelection,dt) : false;
   if (!bbPlayed && !f.choreTrack) f.anim.bbR6=false;
   if (!bbPlayed && (f.frozen <= 0 || f.choreTrack)) { if (keyed) { if (!f.choreTrack || f.choreFrame !== G.time) f.anim.play(keyed, f.choreTrack ? f.choreTime : a.t, dt, !!f.choreTrack); } else f.anim.update(dt, pose, k, z, spin); }
+  if (a && a.spinX && !bbPlayed) { a.spinA = (a.spinA || 0) + a.spinX * dt; f.anim.x.ix = a.spinA; f.anim.apply(); }   // gira como una bola
   const m = f.model;
   if (m.gripRot) {
     if (!f.choreTrack || f.choreFrame !== G.time) f.twA = twirlAngle(f, dt);
@@ -11370,7 +11522,7 @@ function presenceOf(f, ch) {
   return {
     v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
-    vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
+    dx: f.isPlayer && NET.destOut ? NET.destOut.filter(e => G.time - e.t < 2.5) : undefined, vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0,
   };
 }
@@ -11395,15 +11547,16 @@ function replayAct(px, a) {
     return;
   }
   try {
+    NETREP.on = true;   // lo que rompe un jugador remoto llega en sus propios paquetes de destrucción
     if (px.action) endAction(px);
     if (a.k === 'm') { px.comboIdx = clamp(a.i | 0, 0, 3); px.comboTimer = 1; px.m1cd = 0; doM1(px, !!a.u); }
-    else if (a.k === 's') { const i = clamp(a.i | 0, 0, 3); px.cd[i] = 0; px.awak = a.w ? Math.max(px.awak, 1) : 0; useSkill(px, i); }
+    else if (a.k === 's') { const i = clamp(a.i | 0, 0, 3); px.cd[i] = 0; px.awak = a.w ? Math.max(px.awak, 1) : 0; px._fistKit = a.x ? 1 : 0; try { useSkill(px, i); } finally { px._fistKit = 0; } }   // x: usa el kit de puños (Javi sin lanza)
     else if (a.k === 'u') { px.ult = 100; runUlt(px); if (involvesPlayerNear(px)) miniCut(px); }
     else if (a.k === 'c') {
       const D = CHORE[a.d], vid = a.v, victim = vid === NET.myPeer ? G.player : NET.proxies.get(vid) || dummies().find(d => d.netId === vid);
       if (D && victim && victim.alive && victim !== px && !victim.cineLock && !px.cineLock && !(G.chore && (G.chore.f === victim || G.chore.tg === victim))) runChore(px, victim, D);
     }
-  } catch (e) { }
+  } catch (e) { } finally { NETREP.on = false; }
 }
 function removeProxy(peer) {
   const px = NET.proxies.get(peer); if (!px) return;
@@ -12268,7 +12421,7 @@ function bustPortrait(skin) {
   g.drawImage(skin, 8, 8, 8, 8, 4, 0, 8, 8); g.drawImage(skin, 40, 8, 8, 8, 4, 0, 8, 8); c.classList.add('px'); return c;
 }
 // Categoría de cada peleador (como el rango S o A de los agentes de Zenless Zone Zero). Cambia aquí o con `rank: 'S'` en el personaje.
-const CHAR_RANK = { javi: 'S', sebolla: 'S', randi: 'S', jesuluto: 'S', sekza: 'S', redbird: 'A', gato: 'A', rocket: 'A', ukyo: 'A' };
+const CHAR_RANK = { mattux: 'S', javi: 'S', sebolla: 'S', randi: 'S', jesuluto: 'S', sekza: 'S', redbird: 'A', gato: 'A', rocket: 'A', ukyo: 'A' };
 function renderRoster() {
   const r = $('roster'); r.innerHTML = '';
   for (const id of CHAR_IDS) {
