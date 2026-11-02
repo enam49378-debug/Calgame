@@ -402,6 +402,37 @@ tr.me td{color:var(--hot);font-weight:700}
 
 #tplay{position:absolute;right:5vw;bottom:15vh;z-index:3;background:#ffd400;color:#000;border:4px solid #000;padding:16px 38px;font:900 clamp(18px,2.2vw,30px)/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.08em;cursor:pointer;transform:skewX(-8deg);box-shadow:6px 6px 0 #000;animation:tPlayIn .8s 1.1s cubic-bezier(.2,1.4,.4,1) both,tPlayPulse 1.8s ease-in-out 2s infinite}
 @keyframes tPlayIn{from{opacity:0;transform:translateX(120px) skewX(-8deg)}}@keyframes tPlayPulse{0%,100%{box-shadow:6px 6px 0 #000}50%{box-shadow:6px 6px 0 #000,0 0 26px rgba(255,212,0,.8)}}
+#tmodal{position:absolute;inset:0;z-index:6;display:grid;place-items:center;background:#05060c99;padding:16px;cursor:default}
+#tmodal.hidden,#leavedlg.hidden{display:none}
+.tm-box{position:relative;width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#0d0f19f2;border:4px solid #000;border-top:6px solid #ffd400;box-shadow:10px 10px 0 #000;padding:22px 26px 24px;color:#fff;text-align:left;font-family:var(--body,'Chakra Petch',sans-serif)}
+.tm-box h2{margin:0 0 16px;font:italic 900 clamp(28px,4vw,40px)/1 var(--display,'Chakra Petch',sans-serif);color:#ffd400;letter-spacing:.04em;text-shadow:3px 3px 0 #000}
+.tm-x{position:absolute;right:12px;top:10px;background:none;border:0;color:#fff9;font-size:22px;cursor:pointer;padding:4px 8px}.tm-x:hover{color:#fff}
+.tm-view{display:flex;flex-direction:column;gap:12px}.tm-view.hidden{display:none}
+.tm-big{display:flex;flex-direction:column;gap:3px;text-align:left;background:#171a2a;color:#fff;border:0;border-left:6px solid #ffd400;padding:14px 18px;cursor:pointer;font:inherit;transition:transform .12s,background .12s}
+.tm-big b{font:italic 900 clamp(20px,2.4vw,26px)/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.05em}.tm-big small{color:#aab0cc;font-size:13px}
+.tm-big:hover,.tm-big:focus-visible{background:#ffd400;color:#000;transform:translateX(6px)}.tm-big:hover small,.tm-big:focus-visible small{color:#000b}
+.tm-field{display:flex;flex-direction:column;gap:5px}.tm-field label{font-size:13px;letter-spacing:.08em;color:#aab0cc;text-transform:uppercase;display:flex;justify-content:space-between}
+.tm-field input[type=range]{accent-color:#ffd400;width:100%}
+.tm-field input[type=text],.tm-field select{background:#05060c;border:2px solid #ffffff2e;color:#fff;font:700 16px var(--body,'Chakra Petch',sans-serif);padding:9px 12px}
+.tm-chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}.tm-chk small{display:block;color:#aab0cc;font-size:12px}.tm-chk input{margin-top:4px;accent-color:#ffd400}
+.tm-seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tm-seg button{display:flex;flex-direction:column;gap:3px;text-align:left;background:#171a2a;color:#fff;border:2px solid transparent;padding:11px 14px;cursor:pointer;font:inherit}.tm-seg button b{letter-spacing:.06em}.tm-seg small{color:#aab0cc;font-size:12px;line-height:1.3}
+.tm-seg button.on{border-color:#ffd400;background:#262611}
+.tm-row{display:flex;gap:10px;justify-content:space-between;margin-top:6px}
+.tm-sec{background:#1c2033;color:#fff;border:0;padding:11px 18px;font:700 15px var(--body,'Chakra Petch',sans-serif);cursor:pointer}.tm-sec:hover{background:#2a3050}
+.tm-go{background:#ffd400;color:#000;border:3px solid #000;padding:11px 26px;font:900 18px var(--display,'Chakra Petch',sans-serif);letter-spacing:.07em;cursor:pointer;box-shadow:4px 4px 0 #000}.tm-go:hover{background:#fff}.tm-go:disabled{opacity:.5;cursor:default}
+#tm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto}
+#tm-list li{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;background:#171a2a;border-left:5px solid #3ee07a;padding:10px 14px}
+#tm-list li b{font-size:16px}#tm-list li small{display:block;color:#aab0cc;font-size:12px}#tm-list li .n{font-variant-numeric:tabular-nums;color:#3ee07a;font-weight:700}
+#tm-list li.empty{display:block;border-left-color:#ffffff33;color:#aab0cc;font-size:14px}
+#tm-list .tm-go{padding:7px 16px;font-size:14px}
+#tm-msg{margin:12px 0 0;min-height:18px;font-size:13px;color:#ffb3b3}#tm-msg.ok{color:#9dffb6}
+#leavedlg{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#05060cc9;padding:16px}
+.ld-box{width:min(460px,100%)}.ld-box p{margin:0 0 16px;font-size:16px;line-height:1.5}.ld-go{background:#ff4d4d;color:#fff}.ld-go:hover{background:#fff;color:#000}
+#menuback{font:900 22px/1 var(--display,'Chakra Petch',sans-serif);background:var(--panel);color:var(--hot);border:1px solid var(--hot);padding:6px 16px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer}
+#menuback:hover{background:var(--hot);color:#000}
+#invbtn{font-family:var(--display);font-size:16px;letter-spacing:.06em;background:var(--panel);color:#9dffb6;border:1px solid #3ee07a;padding:8px 16px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer}
+#invbtn:hover{background:#3ee07a;color:#000}
 #tplay:hover{background:#fff;transform:skewX(-8deg) translate(-3px,-3px);box-shadow:9px 9px 0 #000}
 #tset{position:absolute;right:5vw;top:calc(12vh + 46px);z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg)}
 #tset:hover,#setbtn:hover{background:#ffd400;color:#000}
@@ -459,7 +490,7 @@ tr.me td{color:var(--hot);font-weight:700}
 <div id="hud" class="hidden">
   <div id="crosshair"></div>
   <div id="topl">
-    <div class="chip"><span id="ailbl">IA nivel</span> <b id="ailvl">5</b></div>
+    <div class="chip" id="ailchip"><span id="ailbl">IA nivel</span> <b id="ailvl">5</b></div>
     <div class="chip hidden" id="slchip"><b>SHIFT LOCK</b></div>
     <button class="chip" id="weatherbtn" type="button" aria-label="Abrir clima y hora"><span id="weatherstate">11:00 · Despejado</span></button>
     <button class="chip" id="panelbtn" type="button" style="pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer">Panel <b>H</b></button>
@@ -508,12 +539,46 @@ tr.me td{color:var(--hot);font-weight:700}
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
   <button type="button" id="tplay">▶ JUGAR</button>
   <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><div id="tspeed"></div>
+  <div id="tmodal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="tm-title">
+    <div class="tm-box">
+      <button type="button" class="tm-x" id="tm-x" aria-label="Cerrar">✕</button>
+      <h2 id="tm-title">JUGAR</h2>
+      <div id="tm-home" class="tm-view">
+        <button type="button" class="tm-big" id="tm-solo"><b>JUGAR SOLO</b><small>Peleá contra bots</small></button>
+        <button type="button" class="tm-big" id="tm-pub"><b>SALAS PÚBLICAS</b><small>Entrá a una sala con más gente</small></button>
+        <button type="button" class="tm-big" id="tm-new"><b>CREAR SALA</b><small>Privada con tus amigos o pública para todos</small></button>
+      </div>
+      <div id="tm-solo-v" class="tm-view hidden">
+        <div class="tm-field"><label for="tm-nbots">Rivales <output id="tm-nbots-o">5</output></label><input id="tm-nbots" type="range" min="1" max="9" value="5"></div>
+        <div class="tm-field"><label for="tm-lvl">Nivel de los bots <output id="tm-lvl-o">5</output></label><input id="tm-lvl" type="range" min="1" max="10" value="5"></div>
+        <div class="tm-field"><label for="tm-goal">Meta de K.O.</label><select id="tm-goal"><option>5</option><option>10</option><option>20</option></select></div>
+        <label class="tm-chk"><input id="tm-auto" type="checkbox" checked><span>Auto-equilibrio <small>los bots se adaptan a cómo juegues</small></span></label>
+        <div class="tm-row"><button type="button" class="tm-sec" data-tmback>← Volver</button><button type="button" class="tm-go" id="tm-solo-go">¡JUGAR!</button></div>
+      </div>
+      <div id="tm-create-v" class="tm-view hidden">
+        <div class="tm-field"><label for="tm-code">Código de la sala</label><input id="tm-code" type="text" maxlength="24" autocomplete="off" spellcheck="false"></div>
+        <div class="tm-seg" id="tm-vis"><button type="button" class="on" data-vis="private"><b>PRIVADA</b><small>Solo entra quien tenga el código o el link</small></button><button type="button" data-vis="public"><b>PÚBLICA</b><small>Aparece en Salas públicas para todos</small></button></div>
+        <div class="tm-row"><button type="button" class="tm-sec" data-tmback>← Volver</button><button type="button" class="tm-go" id="tm-create-go">CREAR SALA</button></div>
+      </div>
+      <div id="tm-public-v" class="tm-view hidden">
+        <ul id="tm-list"></ul>
+        <div class="tm-row"><button type="button" class="tm-sec" data-tmback>← Volver</button></div>
+      </div>
+      <p id="tm-msg" aria-live="polite"></p>
+    </div>
+  </div>
+</div>
+<div id="leavedlg" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="ld-text">
+  <div class="tm-box ld-box"><h2 id="ld-title">¿ABANDONAR?</h2><p id="ld-text"></p>
+    <div class="tm-row"><button type="button" class="tm-sec" id="ld-no">Cancelar</button><button type="button" class="tm-go ld-go" id="ld-yes">Abandonar</button></div></div>
 </div>
 
 <div id="menu">
   <header class="mtop">
     <h1 class="logo"><img src="assets/calfight_logo.png" alt="CalFight"></h1>
-    <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg">PARTIDA</button></nav>
+    <button type="button" id="menuback" aria-label="Volver al menú principal" title="Volver al menú principal">←</button>
+    <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg" class="hidden">PARTIDA</button></nav>
+    <button type="button" id="invbtn" class="hidden">INVITAR ▸</button>
     <button type="button" id="viewbtn">SALA DE CINEMÁTICAS ▸</button>
     <button type="button" id="feb">EDITOR DE EXPRESIONES ▸</button>
     <button type="button" id="animedbtn">EDITOR DE ANIMACIONES ▸</button>
@@ -10359,7 +10424,7 @@ function pingCell(f) {
 function scoreTable() {
   const rows = [...G.fighters].filter(f => !f.dummy).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
   const wrap = document.createElement('div');
-  const cap = document.createElement('div'); cap.className = 'bd-cap'; cap.textContent = G.mp ? 'Sala con amigos · ' + CITY.name : 'Primero en ' + G.goal + ' K.O. · ' + CITY.name; wrap.appendChild(cap);
+  const cap = document.createElement('div'); cap.className = 'bd-cap'; cap.textContent = G.mp ? 'Sala: ' + (NET.code || '').slice(3) : 'Primero en ' + G.goal + ' K.O. · ' + CITY.name; wrap.appendChild(cap);
   const tb = document.createElement('table');
   tb.innerHTML = '<thead><tr><th>Jugador</th><th>Peleador</th><th class="n">K.O.</th><th class="n">Muertes</th><th class="n">Ping</th></tr></thead>';
   const body = document.createElement('tbody');
@@ -10390,6 +10455,7 @@ function updateHUD(dt) {
   $('ultwrap').classList.toggle('full', p.ult >= 100);
   $('ulttxt').textContent = p.awak > 0 ? `DESPERTAR ${Math.ceil(p.awak)}s` : p.ult >= 100 ? '¡G PARA DESPERTAR!' : `${Math.floor(p.ult)}%`;
   $('ailvl').textContent = G.mp ? `${NET.code.slice(3)} · ${NET.proxies.size + 1} jugando${NET.named && NET.named.isHost ? ' · anfitrión' : ''}` : (Math.round(G.botLvl * 10) / 10) + (G.auto ? ' ⇅' : '');
+  $('ailchip').classList.toggle('hidden', !!G.mp);
   const slots = $('skills').children;
   const list = skillsOf(p); if (G.hudSet !== list) buildSkillBar(p);
   list.forEach((s, i) => { const el = slots[i]; if (!el) return; el.firstChild.style.height = (Math.min(1, p.cd[i] / s.cd) * 100) + '%'; el.lastChild.textContent = p.cd[i] > 0 ? Math.ceil(p.cd[i]) : ''; });
@@ -12805,6 +12871,128 @@ $('copylink').addEventListener('click', () => {
   const ok = () => { b.textContent = '¡Copiado!'; setTimeout(() => { b.textContent = 'Copiar link'; }, 1500); };
   try { navigator.clipboard.writeText(inp.value).then(ok, () => { inp.select(); }); } catch (e) { inp.select(); }
 });
+// ===== Menú principal =====
+const PUB = { base: 'calfight/pub1/', rooms: new Map(), watch: [], host: [], topic: '', pt: 0, rt: 0 };
+const NETPUB = () => !!(NET.public && NET.named);
+function pubWatch(on) {
+  if (!on) { PUB.watch.forEach(c => { try { c.end(true); } catch (e) { } }); PUB.watch = []; clearInterval(PUB.rt); return; }
+  if (PUB.watch.length || !window.mqtt) return; PUB.rooms.clear();
+  RELAYS.forEach((url, i) => {
+    try {
+      const c = mqtt.connect(url, { clientId: 'cfd_' + Math.random().toString(36).slice(2, 10) + '_' + i, clean: true, keepalive: 30, reconnectPeriod: 4000, connectTimeout: 8000 });
+      c.on('error', () => { }); c.on('connect', () => c.subscribe(PUB.base + '#', { qos: 0 }));
+      c.on('message', (topic, buf) => {
+        const code = topic.slice(PUB.base.length); if (!/^[a-z0-9][a-z0-9_.-]{0,39}$/.test(code) || buf.length > 600) return;
+        if (!buf.length) { PUB.rooms.delete(code); pubRender(); return; }
+        let o; try { o = JSON.parse(buf.toString()); } catch (e) { return; }
+        if (!o || o.v !== 1 || Math.abs(Date.now() - (+o.t || 0)) > 60000) { PUB.rooms.delete(code); return; }   // mensaje viejo que quedó retenido
+        PUB.rooms.set(code, { code, host: String(o.h || '').replace(/[<>&]/g, '').slice(0, 16) || 'Jugador', n: clamp(+o.n || 1, 1, 99), at: Date.now() }); pubRender();
+      });
+      PUB.watch.push(c);
+    } catch (e) { }
+  });
+  PUB.rt = setInterval(pubRender, 1500);
+}
+function pubRender() {
+  const ul = $('tm-list'); if (!ul || $('tm-public-v').classList.contains('hidden')) return;
+  const now = Date.now(), rows = [...PUB.rooms.values()].filter(r => now - r.at < 25000).sort((a, b) => b.n - a.n);
+  ul.innerHTML = '';
+  if (!rows.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = window.mqtt ? 'No hay salas públicas ahora mismo. ¡Creá una!' : 'No se pudo conectar para buscar salas.'; ul.appendChild(li); return; }
+  for (const r of rows) {
+    const li = document.createElement('li'), d = document.createElement('div'), b = document.createElement('b'), sm = document.createElement('small'), n = document.createElement('span'), go = document.createElement('button');
+    b.textContent = 'Sala de ' + r.host; sm.textContent = r.code; d.append(b, sm); n.className = 'n'; n.textContent = r.n + (r.n === 1 ? ' jugador' : ' jugadores');
+    go.type = 'button'; go.className = 'tm-go'; go.textContent = 'ENTRAR'; go.addEventListener('click', () => tmJoin(r.code, go)); li.append(d, n, go); ul.appendChild(li);
+  }
+}
+// la sala propia aparece en la lista mientras estés adentro; al salir (o cerrar la pestaña) desaparece
+function pubStop() {
+  clearInterval(PUB.pt); const t = PUB.topic; PUB.topic = '';
+  for (const c of PUB.host) { try { if (t) c.publish(t, '', { qos: 0, retain: true }); setTimeout(() => { try { c.end(true); } catch (e) { } }, 400); } catch (e) { } }
+  PUB.host = [];
+}
+function pubStart() {
+  pubStop(); const code = NET.code && NET.code.slice(3); if (!code || !window.mqtt) return;
+  const topic = PUB.base + code; PUB.topic = topic;
+  const put = () => {
+    if (!NET.named || NET.code !== 'bs-' + code || !NET.public) { pubStop(); return; }
+    const body = JSON.stringify({ v: 1, h: ($('pname-in').value || 'Jugador').trim().slice(0, 16), n: NET.named.peers().length, t: Date.now() });
+    PUB.host.forEach(c => { try { c.publish(topic, body, { qos: 0, retain: true }); } catch (e) { } });
+  };
+  RELAYS.forEach((url, i) => {
+    try {
+      const c = mqtt.connect(url, { clientId: 'cfp_' + Math.random().toString(36).slice(2, 10) + '_' + i, clean: true, keepalive: 20, reconnectPeriod: 4000, connectTimeout: 8000, will: { topic, payload: '', qos: 0, retain: true } });
+      c.on('error', () => { }); c.on('connect', put); PUB.host.push(c);
+    } catch (e) { }
+  });
+  PUB.pt = setInterval(put, 6000);
+}
+addEventListener('pagehide', () => { try { pubStop(); } catch (e) { } });
+const TM = { vis: 'private', busy: false };
+const tmMsg = (t, ok) => { const m = $('tm-msg'); m.textContent = t || ''; m.classList.toggle('ok', !!ok); };
+function tmView(v) {
+  for (const id of ['home', 'solo-v', 'create-v', 'public-v']) $('tm-' + (id === 'home' ? 'home' : id)).classList.toggle('hidden', id !== (v === 'home' ? 'home' : v));
+  $('tm-title').textContent = { home: 'JUGAR', 'solo-v': 'JUGAR SOLO', 'create-v': 'CREAR SALA', 'public-v': 'SALAS PÚBLICAS' }[v]; tmMsg('');
+  if (v === 'solo-v') {
+    $('tm-nbots').value = $('nbots').value; $('tm-lvl').value = $('lvl').value; $('tm-goal').value = $('goalsel').value; $('tm-auto').checked = $('auto').checked;
+    $('tm-nbots-o').textContent = $('tm-nbots').value; $('tm-lvl-o').textContent = $('tm-lvl').value;
+  }
+  if (v === 'create-v') { $('tm-code').value = cleanCode($('roomcode').value) === 'amigos' ? 'amigos-' + Math.random().toString(36).slice(2, 6) : cleanCode($('roomcode').value); }
+  if (v === 'public-v') { pubWatch(true); pubRender(); } else pubWatch(false);
+}
+function tmOpen() { initAudio(); $('tmodal').classList.remove('hidden'); TM.busy = false; tmView('home'); try { sfx('select'); } catch (e) { } setTimeout(() => $('tm-solo').focus({ preventScroll: true }), 30); }
+function tmClose() { $('tmodal').classList.add('hidden'); pubWatch(false); }
+function tmGo() { tmClose(); titleLeave(); }
+async function tmEnter(code, pub, btn) {
+  if (TM.busy) return; TM.busy = true; if (btn) btn.disabled = true; tmMsg('Conectando a la sala…', true);
+  $('roomcode').value = code; setMode('mp'); NET.public = pub;
+  let ok = false; try { ok = await joinRoom(); } catch (e) { }
+  TM.busy = false; if (btn) btn.disabled = false;
+  if (!ok) { NET.public = false; tmMsg($('netstat').textContent || 'No se pudo entrar a la sala. Probá de nuevo en unos segundos.'); return; }
+  if (pub) pubStart(); tmGo();
+}
+const tmJoin = (code, btn) => tmEnter(code, false, btn);
+function tmWire() {
+  $('tplay').addEventListener('click', e => { e.stopImmediatePropagation(); e.stopPropagation(); if (TITLE.on && TITLE.lt == null) tmOpen(); }, true);
+  $('tm-x').addEventListener('click', tmClose);
+  $('tm-solo').addEventListener('click', () => tmView('solo-v')); $('tm-pub').addEventListener('click', () => tmView('public-v')); $('tm-new').addEventListener('click', () => tmView('create-v'));
+  document.querySelectorAll('[data-tmback]').forEach(b => b.addEventListener('click', () => tmView('home')));
+  $('tm-nbots').addEventListener('input', () => { $('tm-nbots-o').textContent = $('tm-nbots').value; }); $('tm-lvl').addEventListener('input', () => { $('tm-lvl-o').textContent = $('tm-lvl').value; });
+  $('tm-solo-go').addEventListener('click', () => {
+    $('nbots').value = $('tm-nbots').value; $('nbots').dispatchEvent(new Event('input')); $('lvl').value = $('tm-lvl').value; $('lvl').dispatchEvent(new Event('input'));
+    $('goalsel').value = $('tm-goal').value; $('auto').checked = $('tm-auto').checked; $('auto').dispatchEvent(new Event('change')); try { saveCfg(); } catch (e) { }
+    setMode('bots'); NET.public = false; tmGo();
+  });
+  document.querySelectorAll('#tm-vis button').forEach(b => b.addEventListener('click', () => { TM.vis = b.dataset.vis; document.querySelectorAll('#tm-vis button').forEach(x => x.classList.toggle('on', x === b)); }));
+  $('tm-create-go').addEventListener('click', () => { const code = cleanCode($('tm-code').value); $('tm-code').value = code; tmEnter(code, TM.vis === 'public', $('tm-create-go')); });
+  $('tm-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('tm-create-go').click(); });
+  addEventListener('keydown', e => { if (e.code === 'Escape' && !$('tmodal').classList.contains('hidden')) { e.preventDefault(); e.stopImmediatePropagation(); if (!$('tm-home').classList.contains('hidden')) tmClose(); else tmView('home'); } }, true);
+}
+// selector de peleador: flecha para abandonar la sala (o volver al menú principal) con confirmación
+const inRoomNow = () => !!(NET.named && G.mode === 'mp');
+function leaveAsk() {
+  $('ld-title').textContent = inRoomNow() ? '¿ABANDONAR LA SALA?' : '¿VOLVER AL MENÚ?';
+  $('ld-text').textContent = inRoomNow() ? '¿Estás seguro de que quieres abandonar esta sala? Volverás al menú principal.' : '¿Estás seguro de que quieres volver al menú principal?';
+  $('ld-yes').textContent = inRoomNow() ? 'Abandonar' : 'Volver'; $('leavedlg').classList.remove('hidden'); $('ld-no').focus({ preventScroll: true });
+}
+async function leaveDo() {
+  $('leavedlg').classList.add('hidden'); pubStop(); NET.public = false;
+  if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
+  joinCode = ''; setMode('bots'); try { renderNetStatus(); } catch (e) { }
+  togglePanel(false); $('menu').classList.add('hidden'); titleStart(true);
+}
+$('menuback').addEventListener('click', () => { try { sfx('select'); } catch (e) { } leaveAsk(); });
+$('ld-no').addEventListener('click', () => $('leavedlg').classList.add('hidden')); $('ld-yes').addEventListener('click', leaveDo);
+addEventListener('keydown', e => { if (e.code === 'Escape' && !$('leavedlg').classList.contains('hidden')) { e.preventDefault(); e.stopImmediatePropagation(); $('leavedlg').classList.add('hidden'); } }, true);
+$('invbtn').addEventListener('click', () => {
+  const b = $('invbtn'), link = inviteLink(), ok = () => { b.textContent = '¡LINK COPIADO!'; setTimeout(() => { b.textContent = 'INVITAR ▸'; }, 1600); };
+  try { navigator.clipboard.writeText(link).then(ok, () => { prompt('Copiá este link:', link); }); } catch (e) { prompt('Copiá este link:', link); }
+});
+setInterval(() => { $('invbtn').classList.toggle('hidden', !(G.state === 'menu' && NET.named && NET.room === 'relay')); }, 800);
+// nombre, skin y teclas pasan al panel del peleador (la pestaña Partida ya no se usa)
+{
+  const sel = $('tab-sel'), nm = $('pname-in').closest('.field'), sk = $('skinbtn').closest('.field'), ky = document.querySelector('#tab-cfg .keys');
+  const wrap = document.createElement('div'); wrap.id = 'profilebox'; wrap.style.cssText = 'display:flex;flex-direction:column;gap:12px;margin-top:14px'; wrap.append(nm, sk); if (ky) wrap.append(ky); sel.appendChild(wrap);
+}
 function setMode(mode) { const b = document.querySelector(`#modesel button[data-mode="${mode}"]`); if (b) b.click(); }
 // link de invitación: #sala-codigo abre directo el modo amigos en esa sala
 {
@@ -12876,8 +13064,8 @@ function titleAudio(on) {
   const m = TITLE.mus, amb = TITLE.amb; TITLE.mus = null; TITLE.amb = [];
   let k = 1; const iv = setInterval(() => { k -= .05; if (m) m.volume = Math.max(0, titleVol(MUS.vol) * k); for (const e of amb) e.volume = Math.max(0, e.volume * .93); if (k <= 0) { clearInterval(iv); if (m) m.pause(); for (const e of amb) e.pause(); } }, 70);
 }
-function titleStart() {
-  if (TITLE.on || /[#?](sala|room|j=|join)|notitle/i.test(location.hash + location.search)) return;
+function titleStart(force) {
+  if (TITLE.on || (!force && /[#?](sala|room|j=|join)|notitle/i.test(location.hash + location.search))) return;
   if (!CHARS[G.charId]) G.charId = 'javi';
   let idx = 0; try { idx = (parseInt(localStorage.getItem('bsb_title_idx') || '-1') + 1) % 2; localStorage.setItem('bsb_title_idx', String(idx)); } catch (e) { }
   TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; G.state = 'title';
@@ -13217,6 +13405,7 @@ function titleUpdate(dt) {
   if (L != null && L > .95) { TITLE.thud = false; titleFinish(); }
 }
 $('tplay').addEventListener('click', e => { e.stopPropagation(); titleLeave(); });
+tmWire();
 $('tscene').addEventListener('click', e => { e.stopPropagation(); if (TITLE.lt != null) return; TITLE.idx = 1 - TITLE.idx; try { localStorage.setItem('bsb_title_idx', String(TITLE.idx)); } catch (x) { } });
 loadCharSkins().then(() => { ensureNormalAll(); renderRoster(); showSelect(G.charId, true); titleStart(); });
 if (!IS_GUIDE) netInit();
