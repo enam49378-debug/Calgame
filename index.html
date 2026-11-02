@@ -12,6 +12,8 @@
 <link rel="icon" type="image/png" href="assets/calfight_icon.png">
 <meta name="description" content="CalFight: peleas anime en una ciudad de bloques. Juega gratis en el navegador, solo o con amigos.">
 <meta name="theme-color" content="#3f266e">
+<script>if(!/^(localhost|127\.|\[::1\])/.test(location.hostname)||/[?&]csp=1/.test(location.search))document.write("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: blob: data:; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'\">");</script>
+<meta name="referrer" content="no-referrer">
 <meta property="og:type" content="website"><meta property="og:site_name" content="CalFight"><meta property="og:title" content="CalFight">
 <meta property="og:description" content="Peleas anime en una ciudad de bloques. Elige tu peleador, rompe la ciudad y juega con tus amigos. Gratis, en el navegador.">
 <meta property="og:url" content="https://enam49378-debug.github.io/Calgame/"><meta property="og:image" content="https://enam49378-debug.github.io/Calgame/assets/calfight_banner.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -787,6 +789,9 @@ tr.me td{color:var(--hot);font-weight:700}
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script>
+// protección: si otra página mete el juego en un marco (para robarle clics o copiarlo), se sale al sitio real; el marco de la guía es del mismo origen y se permite
+try { if (window.top !== window.self) { void window.parent.location.origin; } } catch (e) { try { window.top.location = window.self.location; } catch (x) { document.documentElement.innerHTML = ''; } }
+(() => {
 'use strict';
 const V3 = THREE.Vector3;
 const TAU = Math.PI * 2;
@@ -1411,7 +1416,7 @@ function cityGrassAt(x,z) {
   flat(0,66.5,8,9,'#46515d',.02);
   flat(0,76,6,12,'#a98255',.03);for(let zz=70.6;zz<82;zz+=.8)flat(0,zz,6,.06,'#7e5c38',.032);
   for(let x=-96;x<=96;x+=16){
-    if(Math.abs(x)<6)continue;
+    if(Math.abs(x)<6||Math.abs(x-64)<4)continue;   // la farola de x=64 caía justo encima de la plataforma de entrada del vóley
     CITY.lamps.push({x,z:71.4});
     box(x,1.9,71.4,.16,3.8,.16,'#435766');box(x,3.85,71.4,.55,.16,.55,'#435766');box(x,3.62,71.4,.38,.34,.38,'#fff0b1');solid(x,71.4,.22,.22,4);
   }
@@ -1464,8 +1469,14 @@ function cityGrassAt(x,z) {
   const PR=[];
   const addP=(m,x,z,ry=0,o={})=>{if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<3.4))return;PR.push(Object.assign({m,x,z,ry},o));};
   addP('muelle',0,78,0);
-  for(let x=-96;x<=96;x+=10){if(Math.abs(x)<7)continue;addP('palmera',x,73.4,rnd()*TAU);}
-  for(let i=0;i<16;i++){const x=-80+rnd()*160,z=77+rnd()*10;if(Math.abs(x)<9||z>SHORE(x)-8)continue;addP('palmera',x,z,rnd()*TAU);}
+  // huellas de los adornos fijos [x, z, medio ancho, medio largo]: las palmeras no se plantan encima ni con la copa tapándolos
+  const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,98,5.4,22],[-46,88,2.4,3.8],[50,89,2.4,3.8],
+    [-72,74.8,1.8,1.8],[-68.4,74.8,1.8,1.8],[-64.8,74.8,1.8,1.8],[-61.2,74.8,1.8,1.8],
+    [-70,80,2.4,3.8],[-58,84,2.4,3.8],[-34,86,2.4,3.8],[-10,83,2.4,3.8],[12,87,2.4,3.8],[40,85,2.4,3.8],[50,79,2.4,3.8],[78,85,2.4,3.8],
+    [-52,SHORE(-52)-6,1.4,1.4],[-12,SHORE(-12)-6,1.4,1.4],[34,SHORE(34)-6,1.4,1.4],[76,SHORE(76)-6,1.4,1.4]];
+  const nearProp=(x,z,m)=>FOOT.some(([cx,cz,hw,hd])=>Math.abs(x-cx)<hw+m&&Math.abs(z-cz)<hd+m);
+  for(let x=-96;x<=96;x+=10){const ry=rnd()*TAU;if(Math.abs(x)<7||nearProp(x,73.4,4.6))continue;addP('palmera',x,73.4,ry);}
+  for(let i=0;i<16;i++){const x=-80+rnd()*160,z=77+rnd()*10,ry=rnd()*TAU;if(Math.abs(x)<9||z>SHORE(x)-8||nearProp(x,z,4.6))continue;addP('palmera',x,z,ry);}
   [[-70,80],[-58,84],[-34,86],[-10,83],[12,87],[40,85],[50,79],[78,85]].forEach(([x,z],i)=>addP(['sombrilla_roja','sombrilla_azul','sombrilla_amarilla','sombrilla_verde'][i%4],x,z,(rnd()-.5)*.6));
   addP('torre_salvavidas',-46,88,0);addP('torre_salvavidas',50,89,0);
   addP('chiringuito',-22,78.5,0);addP('chiringuito',25,79.5,0);
@@ -10461,7 +10472,7 @@ function updateHUD(dt) {
   $('ultwrap').classList.toggle('full', p.ult >= 100);
   $('ulttxt').textContent = p.awak > 0 ? `DESPERTAR ${Math.ceil(p.awak)}s` : p.ult >= 100 ? '¡G PARA DESPERTAR!' : `${Math.floor(p.ult)}%`;
   $('ailvl').textContent = G.mp ? `${NET.code.slice(3)} · ${NET.proxies.size + 1} jugando${NET.named && NET.named.isHost ? ' · anfitrión' : ''}` : (Math.round(G.botLvl * 10) / 10) + (G.auto ? ' ⇅' : '');
-  $('ailchip').classList.toggle('hidden', !!G.mp);
+  $('ailchip').classList.toggle('hidden', !!G.mp); $('panelbtn').classList.toggle('hidden', !panelAllowed()); $('weatherbtn').style.pointerEvents = panelAllowed() ? '' : 'none';
   const slots = $('skills').children;
   const list = skillsOf(p); if (G.hudSet !== list) buildSkillBar(p);
   list.forEach((s, i) => { const el = slots[i]; if (!el) return; el.firstChild.style.height = (Math.min(1, p.cd[i] / s.cd) * 100) + '%'; el.lastChild.textContent = p.cd[i] > 0 ? Math.ceil(p.cd[i]) : ''; });
@@ -11893,8 +11904,23 @@ function presenceOf(f, ch) {
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
   };
 }
+// antitrampas: sin servidor no se puede impedir que alguien mande datos falsos, pero cada cliente se defiende de lo imposible:
+// golpes desde muy lejos, ráfagas de golpes o daño que ninguna habilidad puede hacer y teletransportes. Quien insiste queda ignorado un rato.
+function cheatOf(px) { return px.cheat || (px.cheat = { hit: [], dmg: [], tp: [], mute: 0, lx: null, lz: null, lt: 0 }); }
+function cheatStrike(px, why) {
+  const ck = cheatOf(px), now = performance.now(); ck.tp = ck.tp.filter(t => now - t < 15000); ck.tp.push(now);
+  if (ck.tp.length >= 4 && ck.mute < now) { ck.mute = now + 20000; ck.tp.length = 0; try { addFeedText(`⚠ ${px.name}: ${why} (ignorado 20 s)`, '#ffb020'); } catch (e) { } }
+}
 function applyNetHit(px, h, p = G.player) {
   if (!p || !p.alive || VB.on) return;
+  { const ck = cheatOf(px), now = performance.now();
+    if (ck.mute > now || !px.alive) return;
+    if (px.pos.distanceTo(p.pos) > 70) { cheatStrike(px, 'golpes desde muy lejos'); return; }
+    ck.hit = ck.hit.filter(t => now - t < 1000); ck.dmg = ck.dmg.filter(e => now - e.t < 2000);
+    const d0 = clamp(+h.dm || 0, 0, 60);
+    if (ck.hit.length >= 14) { cheatStrike(px, 'demasiados golpes por segundo'); return; }
+    if (ck.dmg.reduce((a, e) => a + e.d, 0) + d0 > 150) { cheatStrike(px, 'daño imposible'); return; }
+    ck.hit.push(now); ck.dmg.push({ t: now, d: d0 }); }
   const dmg=clamp(+h.dm||0,0,60),shot=px.ch===CHARS.javi&&dmg>0&&dmg<=16&&h.sf&&typeof h.sf.id==='string'&&h.sf.id.length<=100&&h.sf.id.startsWith(spearActorId(px)+':')&&spearVector(h.sf.dir)?h.sf:null;
   const lethal=shot&&p.hp<=dmg;
   const hit=applyHit(px, p, {
@@ -11970,6 +11996,9 @@ function proxyUpdate(px, dt) {
   // interpolación de instantáneas, como en un servidor normal: se guardan los últimos paquetes y cada jugador remoto se dibuja
   // ~100 ms en el pasado, entre dos paquetes reales, así los tirones de la red no se ven como saltos
   const nowMs = performance.now(), st = NET_OLD ? null : netInterp(px, pr, nowMs);
+  { const ck = cheatOf(px), nx = +pr.x || 0, nz = +pr.z || 0;
+    if (ck.lx != null && px.alive && !px.sceneLock && nowMs - ck.lt < 600 && Math.hypot(nx - ck.lx, nz - ck.lz) > 46) cheatStrike(px, 'teletransporte');
+    ck.lx = nx; ck.lz = nz; ck.lt = nowMs; }
   if (px.sceneLock) { px.flashT -= dt; return; }   // una escena lo está moviendo
   if (NET_OLD) {
     _tp.set(+pr.x || 0, +pr.y || 0, +pr.z || 0);
@@ -12088,7 +12117,7 @@ function rulesApply(r) {
   G.rulesSeen = Object.assign({}, n.p); G.rules = n; rulesUISync();
 }
 function netRulesSync() {
-  if (!G.mp || !NET.named || amHost()) return;
+  if (!G.mp || !NET.named || amHost() || NET.public) return;   // en salas públicas nadie cambia reglas
   let best = null, bj = Infinity; for (const pe of NET.named.peers()) { const pr = pe.presence; if (!pr || !pr.rl) continue; const jt = +pr.jt || Infinity; if (jt <= bj) { bj = jt; best = pr.rl; } }
   if (best) { const sig = JSON.stringify(best); if (sig !== G.rulesSig) { G.rulesSig = sig; rulesApply(best); } }
 }
@@ -12139,7 +12168,9 @@ function amHost() {
   for (const pe of NET.named.peers()) { const jt = pe.presence && +pe.presence.jt; if (jt && jt < min) min = jt; }
   return min === NET.joinT;
 }
-function canUsePanel() { return G.state === 'play' && G.player && amHost(); }
+// el panel (dummies, reglas, clima) es libre jugando solo, solo del anfitrión en salas privadas y nunca existe en las públicas
+const panelAllowed = () => !G.mp || (!NET.public && amHost());
+function canUsePanel() { return G.state === 'play' && G.player && panelAllowed(); }
 function spawnDummy(kind) {
   const p = G.player; if (!p || dummies().length >= 8) return;
   const n = dummies().length, F = fwd(cam.yaw), R = rightOf(cam.yaw), off = (n % 4 - 1.5) * 2.2;
@@ -12172,7 +12203,7 @@ function dummyCtl(f, dt) {
 function togglePanel(force) {
   const open = force != null ? force : $('dpanel').classList.contains('hidden');
   if (open) {
-    if (G.state !== 'play') return;
+    if (G.state !== 'play' || !panelAllowed()) return;
     G.panelOpen = true; unlock();
     const ok = canUsePanel(); rulesUI(ok);
     $('dpanel').querySelectorAll('[data-dummy],#dclear').forEach(b => { b.disabled = !ok; b.style.opacity = ok ? 1 : .4; });
@@ -12948,15 +12979,15 @@ function tmView(v) {
 function tmOpen() { initAudio(); $('tmodal').classList.remove('hidden'); TM.busy = false; tmView('home'); try { sfx('select'); } catch (e) { } setTimeout(() => $('tm-solo').focus({ preventScroll: true }), 30); }
 function tmClose() { $('tmodal').classList.add('hidden'); pubWatch(false); }
 function tmGo() { tmClose(); titleLeave(); }
-async function tmEnter(code, pub, btn) {
+async function tmEnter(code, pub, btn, creator = true) {
   if (TM.busy) return; TM.busy = true; if (btn) btn.disabled = true; tmMsg('Conectando a la sala…', true);
   $('roomcode').value = code; setMode('mp'); NET.public = pub;
   let ok = false; try { ok = await joinRoom(); } catch (e) { }
   TM.busy = false; if (btn) btn.disabled = false;
   if (!ok) { NET.public = false; tmMsg($('netstat').textContent || 'No se pudo entrar a la sala. Probá de nuevo en unos segundos.'); return; }
-  if (pub) pubStart(); tmGo();
+  if (pub && creator) pubStart(); tmGo();
 }
-const tmJoin = (code, btn) => tmEnter(code, false, btn);
+const tmJoin = (code, btn) => tmEnter(code, true, btn, false);
 function tmWire() {
   $('tplay').addEventListener('click', e => { e.stopImmediatePropagation(); e.stopPropagation(); if (TITLE.on && TITLE.lt == null) tmOpen(); }, true);
   $('tm-x').addEventListener('click', tmClose);
@@ -14255,6 +14286,10 @@ if (IS_GUIDE) {
 }
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás
 setInterval(()=>{if(G.mp&&G.state==='play'&&performance.now()-last>250)frameTask('red:segundo-plano',()=>guideNet(.1));},200);
+// el juego vive dentro de una función: desde la consola (o una extensión) no se puede tocar G, los peleadores ni las funciones para hacer trampa.
+// solo en tu equipo (localhost) queda una puerta para probar: __ev('código')
+if (/^(localhost|127\.|\[::1\])/.test(location.hostname)) window.__ev = s => eval(s);
+})();
 </script>
 
 </body>

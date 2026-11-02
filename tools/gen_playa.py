@@ -56,6 +56,7 @@ def sombrilla(m, rng, tile, towel):
                 m.cube(x + lx, 0, lz, .08, .24, .08, 'dark_planks')
         m.cube(x, .3, 1.0, .68, .09, 1.2, towel)
         m.cube(x, .42, 0.35, .68, .09, .85, towel, rot=[-48, 0, 0])
+    m.col(0, 0, .25, .25, 2.6); m.col(-1.4, 1.15, .8, 1.6, .5); m.col(1.4, 1.15, .8, 1.6, .5); m.col(0, 1.7, .55, .55, .5)
     m.cube(0, 0, 1.7, .5, .45, .5, 'oak_planks')
     m.cube(0, .45, 1.7, .52, .05, .52, 'trim_white')
     m.cube(.1, .5, 1.75, .12, .22, .12, 'hull_blue')
@@ -122,6 +123,7 @@ def chiringuito(m, rng):
         m.col(sx, 1.9, .5, .5, .85)
     for i in range(5): m.cube(-2.8 + i * 1.4, 1.25, 0.5, .14, .32, .14, ['hull_blue', 'sign_red', 'wool_green', 'wool_yellow', 'hull_white'][i])
     m.group('Trasera')
+    m.col(0, -2.8, 9.4, .4, 3.0)
     m.cube(0, .1, -2.8, 9.4, 2.9, .3, 'wall_wood')
     m.cube(0, 1.3, -2.6, 7.2, 1.5, .06, 'goods')
     for y in (1.2, 1.7, 2.2): m.cube(0, y, -2.55, 7.4, .08, .3, 'dark_planks')
@@ -131,6 +133,7 @@ def chiringuito(m, rng):
     m.cube(0, 2.6, 3.05, 4.6, .9, .14, 'sign_dark'); m.cube(0, 2.72, 3.14, 4.2, .66, .06, 'sign_gold')
     for i in range(14): m.cube(-4.5 + i * .7, 3.0, 3.1, .13, .13, .13, 'glow')
     m.group('Tablas de surf')
+    m.col(4.95, -.55, .5, 2.4, 2.5)
     for k, tl in enumerate(('hull_blue', 'sign_red', 'wool_yellow')):
         m.cube(4.95, .1, -1.3 + k * .75, .5, 2.6, .09, tl, rot=[0, 0, -9])
         m.cube(4.95, 1.1, -1.3 + k * .75, .08, 1.0, .1, 'trim_white', rot=[0, 0, -9])
@@ -148,6 +151,7 @@ def barca(m, rng, tile):
         m.cube(sx * .54, .54, 0, .16, .08, 3.6, 'trim_white')
     m.cube(0, .1, 2.35, .24, .5, .3, tile)
     m.cube(0, .1, -1.85, 1.2, .52, .14, tile)
+    m.col(0, 0, 1.3, 3.7, .7)
     m.group('Interior')
     for z in (-.9, .1, 1.0): m.cube(0, .38, z, 1.0, .08, .36, 'oak_planks')
     m.cube(0, .12, 0, .8, .04, 3.1, 'dark_planks')
@@ -164,6 +168,7 @@ def velero(m, rng):
         m.cube(sx * .62, .1, 3.0, .14, .65, 1.2, 'hull_white', rot=[0, sx * 25, 0])
     m.cube(0, .1, 3.6, .3, .6, .4, 'hull_white'); m.cube(0, .1, -2.95, 1.7, .7, .16, 'hull_white')
     m.cube(0, .5, 1.6, 1.4, .08, 2.0, 'oak_planks')
+    m.col(0, .2, 1.8, 5.6, .9)
     m.group('Mástil y vela')
     m.cube(0, .1, 1.0, .14, 6.8, .14, 'oak_planks')
     m.cube(0, 1.3, -.6, .1, .1, 3.4, 'oak_planks')
@@ -174,6 +179,16 @@ def velero(m, rng):
     m.cube(0, 1.0, -2.0, .06, 2.0, .06, 'steel')
     m.group('Cabina')
     m.cube(0, .7, 2.4, 1.2, .5, 1.1, 'hull_blue'); m.cube(0, 1.2, 2.4, 1.3, .08, 1.2, 'trim_white'); m.cube(0, .85, 2.97, .8, .22, .05, 'glass')
+
+
+# profundidad del fondo bajo el muelle (el muelle empieza en el mundo z = 78): los pilotes llegan hasta ahí
+_FONDO = [(96, .1), (99, .8), (102, 1.7), (105, 2.6), (108, 3.5), (111, 4.3), (114, 5.0), (117, 5.5), (120, 6.0), (124, 6.5)]
+def _hondo(zz):
+    zw = 78 + zz
+    if zw <= _FONDO[0][0]: return 2.0
+    for (z0, d0), (z1, d1) in zip(_FONDO, _FONDO[1:]):
+        if zw <= z1: return max(2.0, d0 + (d1 - d0) * (zw - z0) / (z1 - z0) + .6)
+    return _FONDO[-1][1] + .6
 
 
 def muelle(m, rng):
@@ -191,7 +206,7 @@ def muelle(m, rng):
     for i in range(0, int(L / 3) + 3):
         zz = i * 3.0 + .3
         for sx in (-1, 1):
-            m.cube(sx * 1.95, -2.0, zz, .3, 2.0, .3, 'bark')
+            m.cube(sx * 1.95, -_hondo(zz), zz, .3, _hondo(zz), .3, 'bark')
             m.cube(sx * 2.15, -.0, zz, .14, 1.1, .14, 'oak_planks')
     for sx in (-1, 1):
         m.cube(sx * 2.15, 1.0, L / 2, .12, .1, L, 'oak_planks'); m.cube(sx * 2.15, .55, L / 2, .06, .06, L, 'oak_planks')
@@ -202,13 +217,15 @@ def muelle(m, rng):
         for zz in (L + .5, L + 2.5, L + 4.5, L + 6.0): m.cube(sx * 4.5, 0, zz, .14, 1.1, .14, 'oak_planks')
         m.col(sx * 4.5, L + 3.0, .2, 6.0, 1.15)
     m.col(0, L + 6.0, 9.0, .2, 1.15)
+    for zz in (L + .6, L + 3.0, L + 5.6):   # la plataforma del final también se apoya en el fondo
+        for sx in (-1, 0, 1): m.cube(sx * 4.1 - .15, -_hondo(zz), zz - .15, .3, _hondo(zz), .3, 'bark')
     for zz in (L + 1, L + 3, L + 5): m.cube(0, -.0, zz, 8.8, .0, .0, 'oak_planks') if False else None
     m.group('Farolas y bancos')
     for zz in (4.0, 12.0, 20.0, 28.0):
         for sx in (-1, 1):
-            m.cube(sx * 2.15, 0, zz, .12, 2.3, .12, 'metal_dark'); m.cube(sx * 2.15, 2.3, zz, .34, .34, .34, 'glow')
+            m.cube(sx * 1.78, 0, zz, .12, 2.3, .12, 'metal_dark'); m.cube(sx * 1.78, 2.3, zz, .34, .34, .34, 'glow'); m.col(sx * 1.78, zz, .2, .2, 2.5)   # dentro de la baranda, sin atravesarla
     for sx in (-1, 1):
-        m.cube(sx * 4.3, 0, L + 5.0, .12, 2.3, .12, 'metal_dark'); m.cube(sx * 4.3, 2.3, L + 5.0, .34, .34, .34, 'glow')
+        m.cube(sx * 3.9, 0, L + 5.0, .12, 2.3, .12, 'metal_dark'); m.cube(sx * 3.9, 2.3, L + 5.0, .34, .34, .34, 'glow'); m.col(sx * 3.9, L + 5.0, .2, .2, 2.5)
     for sx in (-3.0, 3.0):
         m.cube(sx, .0, L + 3.2, 1.8, .45, .5, 'oak_planks'); m.cube(sx, .45, L + 3.45, 1.8, .6, .1, 'oak_planks')
         m.col(sx, L + 3.3, 1.8, .6, 1.0)
@@ -265,6 +282,7 @@ def castillo(m, rng):
     m.cube(0, .75, 0, .8, .8, .8, 'sand'); m.cube(0, 1.55, 0, .5, .15, .5, 'sand')
     m.cube(0, 1.7, 0, .05, .6, .05, 'trim_white'); m.cube(.15, 2.1, 0, .3, .2, .03, 'sign_red')
     m.cube(0, 0, 1.3, .6, .1, .8, 'wet_sand')
+    m.col(0, 0, 1.9, 1.9, 1.5)
 
 
 def voley(m, rng):
