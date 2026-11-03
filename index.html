@@ -725,6 +725,61 @@ html,body{overscroll-behavior:none}
   .pe-stage-label{margin-bottom:8px}
 }
 
+
+/* Las decoraciones se dibujan sobre la ficha y se limitan al banner. */
+.profile-showcase,.cardp[data-frame]{position:relative;isolation:isolate}
+[data-frame=ember],.pe-options [data-choice=ember]{--frame-light:#ffb667;--frame-dark:#f04b27}
+[data-frame=frost],.pe-options [data-choice=frost]{--frame-light:#ddfaff;--frame-dark:#53bff2}
+[data-frame=neon],.pe-options [data-choice=neon]{--frame-light:#bfff63;--frame-dark:#81a535}
+.profile-showcase[data-frame]:not([data-frame=none])::before,.cardp[data-frame]:not([data-frame=none])::before{
+  content:"";position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:inherit;
+  border:2px solid var(--frame-dark);
+  background:linear-gradient(var(--frame-light),var(--frame-light)) left top/30px 3px,
+    linear-gradient(var(--frame-light),var(--frame-light)) right top/3px 26px,
+    linear-gradient(var(--frame-light),var(--frame-light)) left bottom/3px 26px,
+    linear-gradient(var(--frame-light),var(--frame-light)) right bottom/30px 3px;
+  background-repeat:no-repeat;animation:profileFrameGlow 2.4s ease-in-out infinite alternate;
+}
+@keyframes profileFrameGlow{to{box-shadow:inset 0 0 18px var(--frame-dark);border-color:var(--frame-light)}}
+:is(.public-banner,.cardp .bn)[data-effect]:not([data-effect=none])::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background-repeat:repeat;
+}
+[data-effect=embers]::before{
+  background-image:radial-gradient(circle,#ffebaf 0 1px,#ff653166 2px,transparent 4px),radial-gradient(circle,#ff9a52 0 1px,transparent 3px);
+  background-size:59px 47px,83px 71px;animation:profileEmbers 3.8s linear infinite;
+}
+[data-effect=scan]::before{
+  background-image:linear-gradient(transparent 30%,#a9ff7722 48%,#bbff86b3 49%,#68f6d522 51%,transparent 72%),repeating-linear-gradient(transparent 0 4px,#74ffb81c 5px 6px);
+  background-size:100% 180px,100% 6px;animation:profileScan 3.4s linear infinite;
+}
+[data-effect=aurora]::before{
+  background-image:linear-gradient(105deg,transparent 10%,#61ffe946 34%,#ba69ff75 48%,transparent 68%);
+  background-size:175% 100%;animation:profileAurora 4s ease-in-out infinite alternate;
+}
+@keyframes profileEmbers{to{background-position:59px -94px,-83px -142px}}
+@keyframes profileScan{from{background-position:0 -150px,0 0}to{background-position:0 210px,0 12px}}
+@keyframes profileAurora{from{background-position:0 0;opacity:.55}to{background-position:100% 0;opacity:1}}
+.profile-decals{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none}
+.profile-decal{position:absolute;display:grid;place-items:center;transform:translate(-50%,-50%);padding:0;border:0;background:none;filter:drop-shadow(1px 2px 2px #000c);user-select:none}
+.profile-decal .profile-sticker{width:36px;height:36px;border:0;border-radius:0;background:transparent;font-size:28px;pointer-events:none}
+.profile-decal .profile-sticker img{width:35px;height:34px}
+.profile-editor button.profile-decal{pointer-events:auto;touch-action:none;cursor:grab}
+.profile-editor button.profile-decal:active{cursor:grabbing;z-index:1}
+.profile-editor button.profile-decal:focus-visible{outline:2px dashed #fff;outline-offset:-2px}
+.profile-showcase .public-head,.cardp .head{z-index:3}
+.profile-editor .public-head{pointer-events:none}
+#acctdlg .cardp .bn .edit{z-index:4}
+.pe-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.pe-options button{display:grid;grid-template-rows:27px auto;gap:5px;padding:5px 3px;border:1px solid #ffffff23;background:#232838;color:#f1f4ff;font:700 10px var(--body);overflow-wrap:anywhere}
+.pe-options button::before{content:"";height:27px;border:1px solid var(--frame-light,#ffffff39);background:linear-gradient(145deg,#151924,var(--frame-dark,#30374b))}
+.pe-options button[data-choice=embers]::before{background:radial-gradient(circle at 70% 30%,#ffd776 0 2px,transparent 4px),radial-gradient(circle at 30% 65%,#ffad5c 0 2px,transparent 4px),linear-gradient(#191922,#a83825)}
+.pe-options button[data-choice=scan]::before{background:repeating-linear-gradient(0deg,#132e23 0 4px,#71d985 5px 6px)}
+.pe-options button[data-choice=aurora]::before{background:linear-gradient(120deg,#15233f,#54c9af,#9059cc)}
+.pe-options button.on,.pe-options button:focus-visible{border-color:var(--hot);color:var(--hot)}
+#pe-decal-help{width:min(100%,480px);margin:0 auto 10px;color:#bcc4d8;font:12px/1.4 var(--body)}
+#pe-place{margin-top:8px;padding:7px 10px;background:#232838;border:1px solid #ffffff30;color:#e1ed9e;font:700 11px var(--body)}
+@media(prefers-reduced-motion:reduce){[data-frame]::before,[data-effect]::before{animation:none!important}}
+
 </style>
 
 <meta name="theme-color" content="#10131e">
@@ -12548,18 +12603,108 @@ async function acctChanged() {
 const PROFILE_THEMES = [['midnight','Medianoche'],['glass','Cristal'],['sakura','Sakura'],['ocean','Océano'],['ember','Ascua'],['mono','Monocromo']];
 const PROFILE_AURAS = [['none','Sin aura'],['gold','Dorada'],['aurora','Aurora'],['flame','Llama'],['electric','Eléctrica'],['sakura','Sakura'],['frost','Escarcha'],['void','Vacío']];
 const PROFILE_STICKERS = {cal:['','CAL'],star:['⭐','Estrella'],heart:['💜','Corazón'],bolt:['⚡','Rayo'],moon:['🌙','Luna'],crown:['👑','Corona'],sword:['⚔️','Espadas'],diamond:['💎','Diamante'],flower:['🌸','Flor'],ghost:['👻','Fantasma'],fire:['🔥','Fuego'],ice:['❄️','Hielo'],wave:['🌊','Ola'],clippy:['📎','Clippy'],javi:['🔱','Lanza'],gull:['🕊️','Gaviota'],onion:['🧅','Sebolla'],pixel:['👾','Píxel']};
+const PROFILE_FRAMES = [['none','Ninguno'],['ember','Forja'],['frost','Escarcha'],['neon','Circuito']];
+const PROFILE_EFFECTS = [['none','Ninguno'],['embers','Brasas'],['scan','Pulso digital'],['aurora','Aurora']];
+function cleanProfileDecor(decor, stickers) {
+  if (!decor || typeof decor !== 'object') return undefined;
+  const frame = PROFILE_FRAMES.some(([id]) => id === decor.frame) ? decor.frame : 'none';
+  const effect = PROFILE_EFFECTS.some(([id]) => id === decor.effect) ? decor.effect : 'none';
+  const positions = [];
+  if (Array.isArray(decor.positions)) {
+    for (const id of stickers) {
+      const point = decor.positions.slice(0, 6).find(p => p?.id === id);
+      if (point && Number.isInteger(point.x) && Number.isInteger(point.y)) {
+        positions.push({id, x: clamp(point.x, 0, 1000), y: clamp(point.y, 0, 1000)});
+      }
+    }
+  }
+  if (frame === 'none' && effect === 'none' && !positions.length) return undefined;
+  return {frame, effect, positions};
+}
 const PROFILE_MAP_BANNERS = [['plaza','Plaza Aurora'],['beach','Playa de Sekza'],['casino','Noche de casino'],['rooftops','Azoteas'],['raincity','Ciudad bajo la lluvia'],['forestpath','Parque tranquilo'],['sunsetpier','Atardecer en el muelle'],['arcade','Arcade neón']];
 const profileText=(s,n)=>typeof s==='string'?s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').slice(0,n):'';
 function compactProfileImage(src,w,h,max){return new Promise(resolve=>{const im=new Image();im.onload=()=>{try{const c=document.createElement('canvas'),g=c.getContext('2d');for(const scale of [1,.8,.6]){c.width=Math.round(w*scale);c.height=Math.round(h*scale);const r=Math.max(c.width/im.width,c.height/im.height);g.drawImage(im,(c.width-im.width*r)/2,(c.height-im.height*r)/2,im.width*r,im.height*r);for(const q of [.75,.55,.35,.2]){const d=c.toDataURL('image/jpeg',q);if(d.length<=max)return resolve(d);}}resolve('');}catch(e){resolve('');}};im.onerror=()=>resolve('');im.src=src;});}
 function cleanCosmetics(p={}) {
-  return {bio:profileText(p.bio,240),pronouns:profileText(p.pronouns,32),status:profileText(p.status,80),accent:/^#[\da-f]{6}$/i.test(p.accent||'')?p.accent:'#a5a0ff',theme:PROFILE_THEMES.some(x=>x[0]===p.theme)?p.theme:'midnight',aura:PROFILE_AURAS.some(x=>x[0]===p.aura)?p.aura:'none',stickers:Array.isArray(p.stickers)?[...new Set(p.stickers.filter(x=>Object.hasOwn(PROFILE_STICKERS,x)))].slice(0,6):[]};
+  const result = {bio:profileText(p.bio,240),pronouns:profileText(p.pronouns,32),status:profileText(p.status,80),accent:/^#[\da-f]{6}$/i.test(p.accent||'')?p.accent:'#a5a0ff',theme:PROFILE_THEMES.some(x=>x[0]===p.theme)?p.theme:'midnight',aura:PROFILE_AURAS.some(x=>x[0]===p.aura)?p.aura:'none',stickers:Array.isArray(p.stickers)?[...new Set(p.stickers.filter(x=>Object.hasOwn(PROFILE_STICKERS,x)))].slice(0,6):[]};
+  const decor = cleanProfileDecor(p.decor, result.stickers);
+  if (decor) result.decor = decor;
+  return result;
 }
 const cosmeticKey=()=> 'cf_profile_v2_'+(ACCT.user?.uid||'guest');
 function cosmeticsGet(){try{return cleanCosmetics(JSON.parse(localStorage.getItem(cosmeticKey())||'{}'));}catch(e){return cleanCosmetics();}}
 function avatarGet(){try{const a=localStorage.getItem(cosmeticKey()+'_avatar')||'';return a.length<=14000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(a)?a:'';}catch(e){return '';}}
 function cosmeticSave(p){try{localStorage.setItem(cosmeticKey(),JSON.stringify(cleanCosmetics(p)));return true;}catch(e){acctMsg('No hay espacio para guardar el perfil.');return false;}}
 function stickerNode(id){const el=document.createElement('span');el.className='profile-sticker';el.title=PROFILE_STICKERS[id]?.[1]||'';if(id==='cal'){const im=document.createElement('img');im.src='assets/cal-role.png';im.alt='CAL';el.appendChild(im);}else el.textContent=PROFILE_STICKERS[id]?.[0]||'';return el;}
-function decorateProfile(container,p){
+function bannerDecals(container, cosmetics, edit) {
+  const banner = container.querySelector('.public-banner, .cardp .bn');
+  if (!banner) return false;
+  const card = banner.parentElement;
+  card.dataset.frame = cosmetics.decor?.frame || 'none';
+  banner.dataset.effect = cosmetics.decor?.effect || 'none';
+  let layer = banner.querySelector('.profile-decals');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = 'profile-decals';
+    banner.append(layer);
+  }
+  layer.replaceChildren();
+  cosmetics.stickers.forEach((id, index) => {
+    const point = cosmetics.decor?.positions.find(p => p.id === id) || {x: 135 + index * 142, y: 380};
+    const item = document.createElement(edit ? 'button' : 'span');
+    item.className = 'profile-decal';
+    const label = PROFILE_STICKERS[id][1];
+    const stamp = stickerNode(id);
+    item.append(stamp);
+    const draw = () => {
+      item.style.left = point.x / 10 + '%';
+      item.style.top = point.y / 10 + '%';
+    };
+    draw();
+    if (edit) {
+      item.type = 'button';
+      item.setAttribute('aria-label', 'Mover ' + label);
+      item.setAttribute('aria-describedby', 'pe-decal-help');
+      enableDecalDrag(item, banner, point, draw, (x, y) => edit(id, x, y));
+    } else {
+      item.setAttribute('role', 'img');
+      item.setAttribute('aria-label', label);
+      stamp.setAttribute('aria-hidden', 'true');
+    }
+    layer.append(item);
+  });
+  return true;
+}
+function enableDecalDrag(item, banner, point, draw, save) {
+  let drag = null;
+  const move = (x, y) => {
+    const bounds = banner.getBoundingClientRect();
+    const marginX = Math.ceil(item.offsetWidth * 500 / bounds.width);
+    const marginY = Math.ceil(item.offsetHeight * 500 / bounds.height);
+    point.x = clamp(Math.round(x), marginX, 1000 - marginX);
+    point.y = clamp(Math.round(y), marginY, 1000 - marginY);
+    draw();
+    save(point.x, point.y);
+  };
+  item.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || drag) return;
+    const bounds = banner.getBoundingClientRect();
+    drag = {id: event.pointerId, x: event.clientX, y: event.clientY, startX: point.x, startY: point.y, width: bounds.width, height: bounds.height};
+    item.setPointerCapture(event.pointerId);
+  });
+  item.addEventListener('pointermove', event => {
+    if (drag?.id !== event.pointerId) return;
+    move(drag.startX + (event.clientX - drag.x) * 1000 / drag.width, drag.startY + (event.clientY - drag.y) * 1000 / drag.height);
+  });
+  item.addEventListener('lostpointercapture', () => { drag = null; });
+  item.addEventListener('keydown', event => {
+    const direction = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]}[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    event.stopPropagation();
+    move(point.x + 25 * direction[0], point.y + 25 * direction[1]);
+  });
+}
+function decorateProfile(container,p,editDecal){
   const c=cleanCosmetics(p);container.dataset.theme=c.theme;container.dataset.aura=c.aura;container.style.setProperty('--profile-accent',c.accent);
   const avatar=container.querySelector('.public-head img,.cardp .head img,.ab-av,.rp-avatar');if(avatar){avatar.dataset.aura=c.aura;avatar.classList.add('profile-avatar');}
   let area=container.querySelector('.profile-extras');if(!area){area=document.createElement('section');area.className='profile-extras';const before=container.querySelector('.public-stats,.stats');if(before)before.before(area);else container.appendChild(area);}
@@ -12573,7 +12718,7 @@ function decorateProfile(container,p){
     status.textContent = c.status;
     (statusSlot || area).appendChild(status);
   }
-  const stickers=document.createElement('div');stickers.className='profile-stickers';for(const id of c.stickers)stickers.appendChild(stickerNode(id));if(c.stickers.length)area.appendChild(stickers);
+  bannerDecals(container, c, editDecal);
   if(c.bio){const label=document.createElement('h4');label.textContent='SOBRE MÍ';const bio=document.createElement('p');bio.className='profile-bio';bio.textContent=c.bio;area.append(label,bio);}
 }
 function drawMapBanner(id,w,h){
@@ -12603,6 +12748,7 @@ async function uploadProfileAvatar(){
 let profileEditDraft=null;
 function acctCustomize(){
   const p = profileEditDraft || (profileEditDraft = cosmeticsGet());
+  p.decor ||= {frame: 'none', effect: 'none', positions: []};
   const body = $('acct-body');
   const profile = localPublicProfile();
   const fields = ['status', 'pronouns', 'bio', 'accent'];
@@ -12630,9 +12776,14 @@ function acctCustomize(){
           <label>Pronombres<input id="pe-pronouns" maxlength="32" placeholder="Opcional"></label>
           <label>Biografía<textarea id="pe-bio" maxlength="240" rows="3" placeholder="Contá algo sobre vos…"></textarea><small id="pe-count"></small></label>
         </fieldset>
-        <fieldset><legend>Stickers <small id="pe-sticker-count"></small></legend><div class="pe-stickers"></div></fieldset>
+        <fieldset><legend>Marco de perfil</legend><div class="pe-options pe-frames"></div></fieldset>
+        <fieldset><legend>Efecto animado</legend><div class="pe-options pe-effects"></div></fieldset>
+        <fieldset><legend>Pegatinas <small id="pe-sticker-count"></small></legend>
+          <div class="pe-stickers"></div><button type="button" id="pe-place">Ubicar en el banner ↗</button>
+        </fieldset>
       </div>
       <div class="pe-stage"><p class="pe-stage-label">VISTA PREVIA · PERFIL PÚBLICO</p>
+        <p id="pe-decal-help">Elegí pegatinas y arrastralas por el banner. También podés moverlas con las flechas.</p>
         <article class="pe-preview profile-showcase" aria-label="Vista previa de tu perfil">${profileCardContent()}</article>
       </div>
     </div>
@@ -12656,28 +12807,39 @@ function acctCustomize(){
     for (const key of fields) p[key] = $('pe-' + key).value;
     $('pe-count').textContent = p.bio.length + ' / 240';
     $('pe-sticker-count').textContent = p.stickers.length + ' / 6';
-    decorateProfile(card, p);
+    decorateProfile(card, p, (id, x, y) => {
+      const position = p.decor.positions.find(point => point.id === id);
+      if (position) Object.assign(position, {x, y});
+      else p.decor.positions.push({id, x, y});
+    });
   };
   const paneButtons = [...editor.querySelectorAll('[data-pe-pane]')];
-  for (const button of paneButtons) button.onclick = () => {
-    editor.dataset.pane = button.dataset.pePane;
-    for (const item of paneButtons) item.setAttribute('aria-pressed', item === button);
+  function showPane(pane) {
+    editor.dataset.pane = pane;
+    for (const item of paneButtons) item.setAttribute('aria-pressed', item.dataset.pePane === pane);
+  }
+  for (const button of paneButtons) button.onclick = () => showPane(button.dataset.pePane);
+  $('pe-place').onclick = () => {
+    showPane('preview');
+    editor.querySelector('.pe-stage').scrollTop = 0;
+    card.querySelector('.profile-decal')?.focus({preventScroll:true});
   };
   $('acctdlg').querySelector('.box').scrollTop = 0;
-  function choices(list, selector, key) {
+  function choices(list, selector, key, target = p) {
     const group = editor.querySelector(selector);
     const buttons = list.map(([id, name]) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = name;
       button.dataset.choice = id;
-      button.onclick = () => { p[key] = id; showSelection(); preview(); };
+      if (target === p.decor) button.dataset.decoration = key;
+      button.onclick = () => { target[key] = id; showSelection(); preview(); };
       group.appendChild(button);
       return button;
     });
     function showSelection() {
       for (const button of buttons) {
-        const selected = button.dataset.choice === p[key];
+        const selected = button.dataset.choice === target[key];
         button.classList.toggle('on', selected);
         button.setAttribute('aria-pressed', selected);
       }
@@ -12686,10 +12848,21 @@ function acctCustomize(){
   }
   choices(PROFILE_THEMES, '.pe-themes', 'theme');
   choices(PROFILE_AURAS, '.pe-auras', 'aura');
-  for(const[id,[_,n]]of Object.entries(PROFILE_STICKERS)){const bt=document.createElement('button');bt.type='button';bt.title=n;bt.setAttribute('aria-label',n);bt.setAttribute('aria-pressed',p.stickers.includes(id));bt.appendChild(stickerNode(id));bt.classList.toggle('on',p.stickers.includes(id));bt.onclick=()=>{if(p.stickers.includes(id))p.stickers=p.stickers.filter(x=>x!==id);else if(p.stickers.length<6)p.stickers.push(id);else return acctMsg('Podés elegir hasta 6 stickers.');bt.classList.toggle('on',p.stickers.includes(id));bt.setAttribute('aria-pressed',p.stickers.includes(id));preview();};body.querySelector('.pe-stickers').appendChild(bt);}
+  choices(PROFILE_FRAMES, '.pe-frames', 'frame', p.decor);
+  choices(PROFILE_EFFECTS, '.pe-effects', 'effect', p.decor);
+  for(const[id,[_,n]]of Object.entries(PROFILE_STICKERS)){const bt=document.createElement('button');bt.type='button';bt.title=n;bt.setAttribute('aria-label',n);bt.setAttribute('aria-pressed',p.stickers.includes(id));bt.appendChild(stickerNode(id));bt.classList.toggle('on',p.stickers.includes(id));bt.onclick=()=>{if(p.stickers.includes(id)){p.stickers=p.stickers.filter(x=>x!==id);p.decor.positions=p.decor.positions.filter(point=>point.id!==id);}else if(p.stickers.length<6)p.stickers.push(id);else return acctMsg('Podés elegir hasta 6 stickers.');bt.classList.toggle('on',p.stickers.includes(id));bt.setAttribute('aria-pressed',p.stickers.includes(id));preview();};body.querySelector('.pe-stickers').appendChild(bt);}
   for(const k of ['status','pronouns','bio','accent'])$('pe-'+k).oninput=preview;
   $('pe-back').onclick=()=>{profileEditDraft=null;acctRender();};$('pe-photo').onclick=uploadProfileAvatar;$('pe-photo-reset').onclick=()=>{localStorage.removeItem(cosmeticKey()+'_avatar');acctPaint();acctCustomize();netShareProfile();socialSaveProfile();};$('pe-banner').onclick=()=>{acctBannerPick();};
-  $('pe-save').onclick=async()=>{if(!cosmeticSave(p))return;acctPaint();netShareProfile();const synced=await socialSaveProfile();acctMsg(synced?'Perfil guardado y compartido.':'Perfil guardado en este equipo.'+(ACCT.user?.emailVerified?' Todavía no se pudo compartir.':''),true);};preview();
+  $('pe-save').onclick = async () => {
+    if (!cosmeticSave(p)) return;
+    acctPaint();
+    netShareProfile();
+    const synced = await socialSaveProfile();
+    if (synced === 'basic') acctMsg('Perfil guardado. Las decoraciones se guardaron en este equipo y se comparten en las salas.', true);
+    else if (synced) acctMsg('Perfil guardado y compartido.', true);
+    else acctMsg('Perfil guardado en este equipo.' + (ACCT.user?.emailVerified ? ' Todavía no se pudo compartir.' : ''), true);
+  };
+  preview();
 }
 
 
@@ -12842,7 +13015,23 @@ async function socialSaveProfile(force=false){
     // La imagen compacta de sala también limita el documento persistente.
     if(p.b.k==='img'&&p.b.d.length>PROFILE_IMAGE_MAX){const d=await compactProfileImage(p.b.d,600,172,PROFILE_IMAGE_MAX);p.b=d?{k:'img',d}:{k:'pre:sunset'};}
     const clean=cleanPublicProfile(p);if(!clean)return false;const key=JSON.stringify(clean);if(!force&&SOC.profileKey===key)return true;
-    await socialWait(SOC.db.collection('cf_profiles').doc(ACCT.user.uid).set({...clean,uid:ACCT.user.uid,updated:socialStamp()}));SOC.profileKey=key;SOC.profiles.set(ACCT.user.uid,clean);return true;
+    const uid = ACCT.user.uid;
+    const profileRef = SOC.db.collection('cf_profiles').doc(uid);
+    const write = data => socialWait(profileRef.set({...data, uid, updated: socialStamp()}));
+    try {
+      await write(clean);
+    } catch (error) {
+      if (error.code !== 'permission-denied' || !clean.decor || ACCT.user?.uid !== uid) throw error;
+      // Los servidores con las reglas anteriores aún pueden guardar el resto del perfil.
+      const legacy = {...clean};
+      delete legacy.decor;
+      await write(legacy);
+      return ACCT.user?.uid === uid ? 'basic' : false;
+    }
+    if (ACCT.user?.uid !== uid) return false;
+    SOC.profileKey = key;
+    SOC.profiles.set(uid, clean);
+    return true;
   }catch(e){return socialError(e);}
 }
 async function socialPublishSession(){

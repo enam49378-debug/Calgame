@@ -11,6 +11,10 @@ const profile=(uid,n=uid)=>({v:1,uid,n,a:'',b:{k:'pre:sunset'},acct:true,g:2,m:6
  for(const[db,id]of[[owner,'owner'],[a,'alice'],[b,'bob'],[spy,'spy']])await assertSucceeds(setDoc(doc(db,'cf_profiles',id),profile(id)));
  await assertFails(setDoc(doc(a,'cf_profiles','bob'),profile('bob')));await assertFails(setDoc(doc(unverified,'cf_profiles','unverified'),profile('unverified')));
  await assertFails(setDoc(doc(a,'cf_profiles','alice'),{...profile('alice'),role:'owner'}));await assertFails(setDoc(doc(a,'cf_profiles','alice'),{...profile('alice'),bio:'x'.repeat(241)}));
+ const decor={frame:'ember',effect:'scan',positions:[{id:'cal',x:800,y:250}]};
+ await assertSucceeds(setDoc(doc(a,'cf_profiles','alice'),{...profile('alice'),decor}));
+ await assertFails(setDoc(doc(a,'cf_profiles','alice'),{...profile('alice'),decor:{...decor,positions:[{id:'cal',x:1001,y:250}]}}));
+ await assertFails(setDoc(doc(a,'cf_profiles','alice'),{...profile('alice'),decor:{...decor,positions:[{id:'wave',x:800,y:250}]}}));
  await assertSucceeds(getDoc(doc(guest,'cf_profiles','alice')));
  const role={role:'calsito',by:'owner',updated:serverTimestamp()};await assertFails(setDoc(doc(a,'cf_roles','alice'),{...role,by:'alice'}));await assertFails(setDoc(doc(unverified,'cf_roles','bob'),{...role,by:'unverified'}));
  await assertSucceeds(setDoc(doc(owner,'cf_roles','bob'),role));await assertSucceeds(getDoc(doc(guest,'cf_roles','bob')));await assertFails(setDoc(doc(owner,'cf_roles','bob'),{...role,role:'owner'}));await assertSucceeds(setDoc(doc(owner,'cf_roles','owner'),{...role,role:'owner'}));

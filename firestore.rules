@@ -13,8 +13,24 @@ service cloud.firestore {
     }
     function member(d) { return signed() && request.auth.uid in d.members; }
     function friends(d) { return member(d) && d.status == 'accepted' && notBlocked(d.members[0], d.members[1]); }
+    function decal(point, stickers) {
+      return point is map && point.keys().hasOnly(['id','x','y']) && point.id in stickers
+        && point.x is int && point.x >= 0 && point.x <= 1000
+        && point.y is int && point.y >= 0 && point.y <= 1000;
+    }
+    function profileDecor(d, stickers) {
+      return d is map && d.keys().hasOnly(['frame','effect','positions'])
+        && d.frame in ['none','ember','frost','neon'] && d.effect in ['none','embers','scan','aurora']
+        && d.positions is list && d.positions.size() <= 6
+        && (d.positions.size() < 1 || decal(d.positions[0], stickers))
+        && (d.positions.size() < 2 || decal(d.positions[1], stickers))
+        && (d.positions.size() < 3 || decal(d.positions[2], stickers))
+        && (d.positions.size() < 4 || decal(d.positions[3], stickers))
+        && (d.positions.size() < 5 || decal(d.positions[4], stickers))
+        && (d.positions.size() < 6 || decal(d.positions[5], stickers));
+    }
     function profile(p, uid) {
-      return p.keys().hasOnly(['v','uid','n','a','b','acct','g','m','f','bio','pronouns','status','accent','theme','aura','stickers','updated'])
+      return p.keys().hasOnly(['v','uid','n','a','b','acct','g','m','f','bio','pronouns','status','accent','theme','aura','stickers','decor','updated'])
         && p.v == 1 && p.uid == uid && p.acct == true && p.n is string && p.n.size() > 0 && p.n.size() <= 32
         && p.a is string && p.a.size() <= 14000 && (p.a == '' || p.a.matches('https://lh3[.]googleusercontent[.]com/.*') || p.a.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'))
         && p.b is map && p.b.keys().hasOnly(['k','d']) && p.b.k is string && p.b.k.size() <= 32
@@ -24,6 +40,7 @@ service cloud.firestore {
         && p.theme in ['midnight','glass','sakura','ocean','ember','mono']
         && p.aura in ['none','gold','aurora','flame','electric','sakura','frost','void']
         && p.stickers is list && p.stickers.size() <= 6 && p.stickers.toSet().hasOnly(['cal','star','heart','bolt','moon','crown','sword','diamond','flower','ghost','fire','ice','wave','clippy','javi','gull','onion','pixel'])
+        && (!('decor' in p) || profileDecor(p.decor, p.stickers))
         && p.g is int && p.g >= 0 && p.g <= 10000000 && p.m is int && p.m >= 0 && p.m <= 100000000
         && p.f is string && p.f.size() <= 32 && p.updated == request.time;
     }
