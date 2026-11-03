@@ -1,0 +1,10 @@
+{
+  "name": "CalFight",
+  "short_name": "CalFight",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#10131e",
+  "theme_color": "#10131e",
+  "icons": [{"src": "assets/calfight_icon_192.png", "sizes": "192x192", "type": "image/png"}, {"src": "assets/calfight_icon_512.png", "sizes": "512x512", "type": "image/png"}]
+}

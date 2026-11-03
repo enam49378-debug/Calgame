@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>CalFight</title>
 <link rel="icon" type="image/png" href="assets/calfight_icon.png">
 <meta name="description" content="CalFight: peleas anime en una ciudad de bloques. Juega gratis en el navegador, solo o con amigos.">
@@ -563,8 +563,84 @@ body.touch-play #topl{top:8px;left:8px;max-width:40vw;gap:4px}body.touch-play #t
 
 .touch-actions button.touch-attack{color:#fff}body.touch-play #skills .slot.ult .key{font-size:0}body.touch-play #skills .slot.ult .key:after{content:"★";font-size:12px}
 
+
+/* Teléfonos y tabletas: la partida captura gestos; los menús conservan el desplazamiento. */
+html,body{overscroll-behavior:none}
+.mobile-fullscreen{display:none}
+@media(pointer:coarse){
+ #wrap canvas,body.touch-play #wrap,body.touch-play #hud{touch-action:none;overscroll-behavior:none}
+ .mobile-fullscreen{display:block}
+ #title-fullscreen{position:absolute;z-index:5;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));padding:10px;color:white;background:#111d;border:1px solid #ffffff77;border-radius:8px;font:700 11px var(--body)}
+ #pause-fullscreen{font-size:15px}
+ #tmodal,#pause,#over,#panel,#playerdlg,#acctdlg,#socialdlg,#uidlg,#leavedlg,#book{padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));box-sizing:border-box}
+ #tmodal .tm-box,#pause .obox,#over .obox,#panel .obox,#playerdlg .public-card,#acctdlg .box,#uidlg .box,#leavedlg .tm-box,#book .bk-box{box-sizing:border-box;max-width:100%;max-height:calc(100dvh - 20px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+ html body #menu{box-sizing:border-box;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;pointer-events:auto;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));gap:8px;align-content:start}
+ html body #menu .mtop{min-width:0;flex-wrap:wrap;gap:5px}
+ html body #menu #tab-sel,html body #menu #tab-cfg,html body #menu #roster{min-width:0;max-width:100%;box-sizing:border-box;touch-action:pan-y}
+ html body #menu #roster{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+ html body #menu #cinfo.swap{animation:none;transform:none}
+ html body #menu #play{writing-mode:horizontal-tb;min-height:44px;position:sticky;bottom:0;z-index:4;animation:none}
+ .social-shell{max-height:calc(100dvh - 20px)}
+}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:600px){
+ html body #menu{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;height:100dvh}
+ html body #menu #tab-sel{grid-column:1;grid-row:2 / 4;overflow-y:auto;max-height:100%}
+ html body #menu #roster{grid-column:2;grid-row:2;max-height:100%;overflow-y:auto}
+ html body #menu #play{grid-column:2;grid-row:3}
+ html body #menu[data-tab=cfg] #tab-cfg{grid-column:1 / 3;grid-row:2;overflow-y:auto;max-height:100%}
+ #tscene{display:none}
+}
+@media(pointer:coarse) and (orientation:portrait){
+ html body #menu{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto}
+ html body #menu #tab-sel,html body #menu[data-tab=cfg] #tab-cfg{grid-column:1;grid-row:2}
+ html body #menu #roster{grid-column:1;grid-row:3;max-height:38dvh;overflow-y:auto}
+ html body #menu #play{grid-column:1;grid-row:4}
+ #tscene{display:none}
+}
+
+
+/* Perfil y amigos: el mismo lenguaje visual de la arena CalFight. */
+#acctdlg .box:has(.cardp),#playerdlg .public-card{border-radius:2px;border:2px solid #06070b;border-top:5px solid #d7ff2f;box-shadow:9px 9px 0 #000a,0 20px 80px #000b;background:#10121b}
+#acctdlg .cardp .bn,.public-card .public-banner{position:relative;border-bottom:4px solid #080a0d}
+#acctdlg .cardp .bn:after,.public-card .public-banner:after{content:'CALFIGHT  /  PLAYER PROFILE';position:absolute;bottom:7px;right:10px;background:#090b12dc;color:#d7ff2f;padding:4px 9px;font:italic 700 10px var(--display);letter-spacing:.12em;transform:skewX(-8deg);pointer-events:none}
+#acctdlg .cardp .head .nm,.public-head h2{font:italic 700 clamp(24px,5vw,38px)/1 var(--display);letter-spacing:.02em;text-transform:uppercase;text-shadow:3px 3px #000}
+#acctdlg .cardp .head img,.public-head img{border-radius:5px!important;border:3px solid #08090d!important;box-shadow:3px 3px 0 #d7ff2f!important}
+#acctdlg .badges span,.public-card .account-role{border-radius:0;background:#252831;border:1px solid #ffffff24;color:#f5f5f6;transform:skewX(-7deg)}
+#acctdlg .stats div,.public-stats>div{border-radius:0;background:#1c2030;border:0;border-left:3px solid #d7ff2f;box-shadow:3px 3px #08090d}
+#acctdlg .stats b,.public-stats b{color:#d7ff2f;font-family:var(--display);font-size:24px}
+#acctdlg .cardp input,.profile-editor textarea,.profile-editor input{border-radius:0;background:#080a10;border:1px solid #ffffff38}
+#acctdlg .cardp .go,#acctdlg .profile-customize,.public-actions button,.public-back{border-radius:0;font:italic 700 16px var(--display);letter-spacing:.05em;text-transform:uppercase;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+#acctdlg .cardp .go,.public-back{background:#d7ff2f;color:#101109}
+#acctdlg .profile-customize{background:#252a36;color:#fff;border-left:4px solid #d7ff2f}
+#acctdlg .cardp .sec{border-radius:0;background:#202432;font:700 13px var(--body)}
+#acctdlg .x,#playerdlg .public-close{border-radius:0;background:#151821;border:1px solid #ffffff60}
+#acctdlg .box:has(.profile-editor){border-radius:2px;border-top:5px solid #d7ff2f;background:#11131b}
+.profile-editor .pe-top h3{font:italic 700 25px var(--display)!important;text-transform:uppercase;color:#d7ff2f}
+.profile-editor .pe-preview,.profile-editor .pe-preview .public-head img,.profile-editor fieldset{border-radius:0}
+.profile-editor .pe-themes button,.profile-editor .pe-auras button,.profile-editor .pe-stickers button,.profile-editor .pe-media button{border-radius:2px}
+.profile-editor .pe-themes button.on,.profile-editor .pe-auras button.on,.profile-editor .pe-stickers button.on{border-color:#d7ff2f;box-shadow:inset 0 -3px #d7ff2f}
+.social-shell{border:2px solid #050608;border-top:5px solid #d7ff2f;border-radius:2px;background:#10121a;box-shadow:9px 9px #000a,0 24px 90px #000b}
+.social-shell header{background:linear-gradient(110deg,#252a32,#10121a 70%);border-bottom:1px solid #ffffff15}
+.social-shell header small{color:#d7ff2f;letter-spacing:.16em}
+.social-shell h2{font:italic 700 36px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;text-shadow:3px 3px #000}
+.social-shell header button{border-radius:0;background:#20232c;border:1px solid #ffffff44}
+.social-layout aside{background:#1a1d28;border-right:1px solid #ffffff18}
+.social-layout input,.social-layout textarea,.social-layout button,.dm-message,.friend-row img{border-radius:2px}
+.social-layout button{background:#292d39;color:#fff}
+.social-layout #friend-form button,#dm-send{background:#d7ff2f;color:#111;border:0;font-weight:900}
+#friend-mycode,#friend-blocks{color:#d7ff2f;border-color:#ffffff30;background:#141722}
+.friend-row{border-bottom:1px solid #ffffff22}.friend-row .friend-info b{color:#fff}
+#dm-head{background:#171a24;border-bottom:2px solid #d7ff2f;font:italic 700 17px var(--display);letter-spacing:.03em;text-transform:uppercase}
+.dm-message{background:#282c38;border-left:3px solid #8ca8b0}.dm-message.mine{background:#333b22;border-left-color:#d7ff2f}
+#friendsbtn{border-radius:0;border:1px solid #d7ff2f;background:#161b20ed;color:#fff;font:italic 700 14px var(--display);letter-spacing:.05em;text-transform:uppercase;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);box-shadow:3px 3px #000}
+
 </style>
 
+<meta name="theme-color" content="#10131e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/calfight_icon.png">
 </head>
 <body>
 <div id="spear-recovery" class="hidden"></div>
@@ -636,6 +712,7 @@ body.touch-play #topl{top:8px;left:8px;max-width:40vw;gap:4px}body.touch-play #t
   <div class="tbar t1"></div><div class="tbar t2"></div>
   <div id="trays"></div><div id="tdof"></div><div id="tgrain"></div><i class="tfl a"></i><i class="tfl b"></i><i class="tfl c"></i><i class="tfl d"></i>
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
+  <button type="button" id="title-fullscreen" class="mobile-fullscreen">⛶ Pantalla completa</button>
   <button type="button" id="tplay">▶ JUGAR</button>
   <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><button type="button" id="acctbtn" aria-label="Tu cuenta"><span class="ab-bg"></span><img class="ab-av" alt="" src="assets/calfight_icon.png"><span class="ab-t"><b>INICIAR SESIÓN</b><small>CREÁ TU CUENTA</small></span></button><div id="tspeed"></div>
   <div id="tmodal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="tm-title">
@@ -790,6 +867,7 @@ body.touch-play #topl{top:8px;left:8px;max-width:40vw;gap:4px}body.touch-play #t
       <h2 id="pause-title">PAUSA</h2>
       <div class="pause-menu">
         <button class="big" id="resume" type="button">Reanudar</button>
+        <button class="big alt mobile-fullscreen" id="pause-fullscreen" type="button">⛶ Pantalla completa</button>
         <button class="big alt" id="pause-options" type="button">Opciones</button>
         <button class="big alt" id="tomenu" type="button">Menú</button>
       </div>
@@ -11384,9 +11462,12 @@ function touchInit(){
  const endMove=e=>{if(e.pointerId===TOUCH.moveId){TOUCH.moveId=null;TOUCH.x=TOUCH.y=0;$('touch-stick').style.transform='translate(-50%,-50%)';}};joy.addEventListener('pointerup',endMove);joy.addEventListener('pointercancel',endMove);joy.addEventListener('lostpointercapture',endMove);
  ui.addEventListener('pointerdown',e=>{const b=e.target.closest('button[data-touch]');if(!b||!touchActive())return;e.preventDefault();e.stopPropagation();initAudio();const key=b.dataset.touch;if(key==='pause'){touchReset();setPause(true);return;}if(key==='board'){touchReset();setRoomBoard(true);return;}if(key==='friends'){touchReset();socialOpen();return;}if(key==='special'){sekzaSpecialKey(G.player);return;}if(key==='dash'){pressed.add('KeyQ');return;}if(key==='attack')mouse.left=true;if(key==='block')mouse.right=true;if(key==='jump')keys.Space=true;if(key==='down')keys.KeyC=true;TOUCH.held.set(e.pointerId,key);b.classList.add('touch-held');b.setPointerCapture(e.pointerId);});
  const release=e=>{const key=TOUCH.held.get(e.pointerId);if(!key)return;TOUCH.held.delete(e.pointerId);if(![...TOUCH.held.values()].includes(key)){if(key==='attack')mouse.left=false;if(key==='block')mouse.right=false;if(key==='jump')keys.Space=false;if(key==='down')keys.KeyC=false;}e.target.closest('button')?.classList.remove('touch-held');};ui.addEventListener('pointerup',release);ui.addEventListener('pointercancel',release);ui.addEventListener('lostpointercapture',release);
- canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||!touchActive()||TOUCH.lookId!==null)return;e.preventDefault();TOUCH.lookId=e.pointerId;TOUCH.lx=e.clientX;TOUCH.ly=e.clientY;canvas.setPointerCapture(e.pointerId);});
- canvas.addEventListener('pointermove',e=>{if(e.pointerId!==TOUCH.lookId||!touchActive())return;e.preventDefault();cam.yaw-=(e.clientX-TOUCH.lx)*.006;cam.pitch=clamp(cam.pitch+(e.clientY-TOUCH.ly)*.006,-.35,1.2);TOUCH.lx=e.clientX;TOUCH.ly=e.clientY;});
- const endLook=e=>{if(e.pointerId===TOUCH.lookId)TOUCH.lookId=null;};canvas.addEventListener('pointerup',endLook);canvas.addEventListener('pointercancel',endLook);canvas.addEventListener('lostpointercapture',endLook);
+ // La zona libre de la pantalla mueve la cámara, incluso cuando hay capas del HUD encima.
+ const cameraTarget=t=>t instanceof Element&&!t.closest('#touch-controls button,#touch-joystick,#skills,button,input,select,textarea,a,[role="button"],[role="dialog"],#book,#board,#panel,#uidlg');
+ addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||!touchActive()||touchEdit||TOUCH.lookId!==null||!cameraTarget(e.target))return;e.preventDefault();TOUCH.lookId=e.pointerId;TOUCH.lx=e.clientX;TOUCH.ly=e.clientY;}, {capture:true,passive:false});
+ addEventListener('pointermove',e=>{if(e.pointerId!==TOUCH.lookId||!touchActive()||touchEdit)return;e.preventDefault();cam.yaw-=(e.clientX-TOUCH.lx)*.006;cam.pitch=clamp(cam.pitch+(e.clientY-TOUCH.ly)*.006,-.35,1.2);TOUCH.lx=e.clientX;TOUCH.ly=e.clientY;}, {capture:true,passive:false});
+ const endLook=e=>{if(e.pointerId===TOUCH.lookId)TOUCH.lookId=null;};addEventListener('pointerup',endLook,true);addEventListener('pointercancel',endLook,true);
+ document.addEventListener('touchmove',e=>{if(touchActive()&&!touchEdit&&cameraTarget(e.target))e.preventDefault();},{capture:true,passive:false});
  $('skills').addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||!touchActive())return;const slot=e.target.closest('.slot');if(!slot)return;const i=[...$('skills').children].indexOf(slot);if(i<0)return;e.preventDefault();e.stopPropagation();initAudio();pressed.add(i===4?'KeyG':'Digit'+(i+1));});
  addEventListener('blur',touchReset);addEventListener('visibilitychange',()=>{if(document.hidden)touchReset();});
 }
@@ -11396,7 +11477,7 @@ const TOUCH_LAYOUT_KEY='cf_touch_layout_v1';
 let touchEdit=false,touchDrag=null,touchPositions={};
 try{const p=JSON.parse(localStorage.getItem(TOUCH_LAYOUT_KEY)||'{}');if(p&&typeof p==='object'&&!Array.isArray(p))touchPositions=p;}catch(e){}
 function touchItem(id){return id==='joystick'?$('touch-joystick'):document.querySelector('#touch-controls [data-touch="'+id+'"]');}
-function touchApplyLayout(){for(const [id,p] of Object.entries(touchPositions)){if(!['joystick','attack','block','jump','dash','shift','special','down'].includes(id)||!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;const el=touchItem(id);if(!el)continue;el.style.position='fixed';el.style.left=(clamp(p.x,.04,.96)*100)+'vw';el.style.top=(clamp(p.y,.05,.95)*100)+'vh';el.style.right='auto';el.style.bottom='auto';el.style.transform='translate(-50%,-50%)';}}
+function touchApplyLayout(){for(const [id,p] of Object.entries(touchPositions)){if(!['joystick','attack','block','jump','dash','shift','special','down'].includes(id)||!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;const el=touchItem(id);if(!el)continue;el.style.position='fixed';const hw=(el.offsetWidth||54)/2,hh=(el.offsetHeight||54)/2;el.style.left=clamp(p.x*innerWidth,hw+4,innerWidth-hw-4)+'px';el.style.top=clamp(p.y*innerHeight,hh+4,innerHeight-hh-4)+'px';el.style.right='auto';el.style.bottom='auto';el.style.transform='translate(-50%,-50%)';}}
 function touchEditMode(on){touchReset();touchEdit=on;touchDrag=null;const ui=$('touch-controls');ui.classList.toggle('touch-editing',on);ui.querySelector('[data-touch=edit]').textContent=on?'Listo':'Ajustar';}
 function touchLayoutSetup(){
  const ui=$('touch-controls'),actions=ui.querySelector('.touch-actions'),top=ui.querySelector('.touch-top');
@@ -11417,7 +11498,13 @@ function touchLayoutSetup(){
  const end=e=>{if(!touchDrag||e.pointerId!==touchDrag.pointer)return;e.preventDefault();e.stopImmediatePropagation();touchDrag=null;try{localStorage.setItem(TOUCH_LAYOUT_KEY,JSON.stringify(touchPositions));}catch(err){}};ui.addEventListener('pointerup',end,true);ui.addEventListener('pointercancel',end,true);ui.addEventListener('lostpointercapture',end,true);
  addEventListener('resize',()=>{if(touchEdit)touchEditMode(false);touchApplyLayout();});
 }
-if(TOUCH.enabled)touchLayoutSetup();
+if(TOUCH.enabled){
+ touchLayoutSetup();
+ const fullscreenHelp=()=>uiAlert('Tu navegador no permite activar pantalla completa aquí. En iPhone, abrí el juego en Safari y elegí Compartir → Agregar a Inicio → Abrir como app web.');
+ const toggleFullscreen=()=>{try{const active=document.fullscreenElement||document.webkitFullscreenElement;const fn=active?(document.exitFullscreen||document.webkitExitFullscreen):(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);if(!fn){fullscreenHelp();return;}const result=fn.call(active?document:document.documentElement);if(result&&result.catch)result.catch(fullscreenHelp);}catch(e){fullscreenHelp();}};
+ for(const id of ['title-fullscreen','pause-fullscreen'])$(id).addEventListener('click',toggleFullscreen);
+ if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>touchApplyLayout());
+}
 
 
 addEventListener('pointerdown', () => initAudio(), { once: true });
