@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" href="assets/calfight_icon.png">
 <meta name="description" content="CalFight: peleas anime en una ciudad de bloques. Juega gratis en el navegador, solo o con amigos.">
 <meta name="theme-color" content="#3f266e">
-<script>if(!/^(localhost|127\.|\[::1\])/.test(location.hostname)||/[?&]csp=1/.test(location.search))document.write("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: blob: data:; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'\">");</script>
+<script>if(!/^(localhost|127\.|\[::1\])/.test(location.hostname)||/[?&]csp=1/.test(location.search))document.write("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://lh3.googleusercontent.com; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: blob: data:; frame-src 'self' https://calgame.firebaseapp.com https://accounts.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'\">");</script>
 <meta name="referrer" content="no-referrer">
 <meta property="og:type" content="website"><meta property="og:site_name" content="CalFight"><meta property="og:title" content="CalFight">
 <meta property="og:description" content="Peleas anime en una ciudad de bloques. Elige tu peleador, rompe la ciudad y juega con tus amigos. Gratis, en el navegador.">
@@ -442,6 +442,21 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
 #menuback:hover{background:var(--hot);color:#000}
 #invbtn{font-family:var(--display);font-size:16px;letter-spacing:.06em;background:var(--panel);color:#9dffb6;border:1px solid #3ee07a;padding:8px 16px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer}
 #invbtn:hover{background:#3ee07a;color:#000}
+#acctbtn{position:absolute;right:5vw;top:calc(12vh + 88px);z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg);max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#acctbtn:hover{background:#ffd400;color:#000}#title.leaving #acctbtn{opacity:0;transition:opacity .2s}
+#acctbtn2{font-family:var(--display);font-size:16px;letter-spacing:.06em;background:var(--panel);color:#cfd6ff;border:1px solid #7a86c8;padding:8px 16px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#acctbtn2:hover{background:#7a86c8;color:#000}
+#acctdlg{position:fixed;inset:0;z-index:150;display:grid;place-items:center;background:#05060ccc;padding:16px}#acctdlg.hidden{display:none}
+#acctdlg .box{position:relative;width:min(430px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#10131f;border:3px solid #000;border-top:6px solid #ffd400;box-shadow:8px 8px 0 #000;padding:20px 24px 22px;color:#fff;font:15px/1.5 system-ui,sans-serif}
+#acctdlg h3{margin:0 0 12px;font:italic 900 26px var(--display,sans-serif);color:#ffd400}#acctdlg .x{position:absolute;right:10px;top:8px;background:none;border:0;color:#fff9;font-size:22px;cursor:pointer}
+#acctdlg .tabs{display:flex;gap:6px;margin-bottom:14px}#acctdlg .tabs button{flex:1;background:#1c2033;color:#aab0cc;border:0;padding:9px;font:700 14px system-ui,sans-serif;cursor:pointer}#acctdlg .tabs button.on{background:#ffd400;color:#000}
+#acctdlg label{display:block;font-size:12px;letter-spacing:.08em;color:#aab0cc;text-transform:uppercase;margin:0 0 10px}#acctdlg input{display:block;width:100%;box-sizing:border-box;margin-top:4px;background:#05060c;border:2px solid #ffffff2e;color:#fff;font:600 15px system-ui,sans-serif;padding:9px 12px}
+#acctdlg .go{width:100%;background:#ffd400;color:#000;border:3px solid #000;padding:11px;font:900 17px var(--display,sans-serif);letter-spacing:.06em;cursor:pointer;margin-top:4px}#acctdlg .go:disabled{opacity:.5}
+#acctdlg .gg{width:100%;background:#fff;color:#222;border:0;padding:10px;font:700 15px system-ui,sans-serif;cursor:pointer;margin-top:10px;display:flex;gap:10px;align-items:center;justify-content:center}
+#acctdlg .sec{width:100%;background:#1c2033;color:#fff;border:0;padding:10px;font:700 14px system-ui,sans-serif;cursor:pointer;margin-top:10px}
+#acctdlg .lnk{background:none;border:0;color:#9fc4ff;cursor:pointer;font:13px system-ui,sans-serif;margin-top:10px;padding:0;text-decoration:underline}
+#acctdlg .msg{min-height:20px;margin-top:10px;font-size:13px;color:#ffb3b3}#acctdlg .msg.ok{color:#9dffb6}
+#acctdlg .who{display:flex;gap:12px;align-items:center;margin-bottom:14px}#acctdlg .who img{width:52px;height:52px;border-radius:50%;background:#222}#acctdlg .who small{display:block;color:#aab0cc}
 #tplay:hover{background:#fff;transform:skewX(-8deg) translate(-3px,-3px);box-shadow:9px 9px 0 #000}
 #tset{position:absolute;right:5vw;top:calc(12vh + 46px);z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg)}
 #tset:hover,#setbtn:hover{background:#ffd400;color:#000}
@@ -548,7 +563,7 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
   <div id="trays"></div><div id="tdof"></div><div id="tgrain"></div><i class="tfl a"></i><i class="tfl b"></i><i class="tfl c"></i><i class="tfl d"></i>
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
   <button type="button" id="tplay">▶ JUGAR</button>
-  <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><div id="tspeed"></div>
+  <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><button type="button" id="acctbtn">👤 INICIAR SESIÓN</button><div id="tspeed"></div>
   <div id="tmodal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="tm-title">
     <div class="tm-box">
       <button type="button" class="tm-x" id="tm-x" aria-label="Cerrar">✕</button>
@@ -589,6 +604,7 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
     <button type="button" id="menuback" aria-label="Volver al menú principal" title="Volver al menú principal">←</button>
     <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg" class="hidden">PARTIDA</button></nav>
     <button type="button" id="invbtn" class="hidden">INVITAR ▸</button>
+    <button type="button" id="acctbtn2">👤 CUENTA</button>
     <button type="button" id="viewbtn" class="devonly">SALA DE CINEMÁTICAS ▸</button>
     <button type="button" id="feb" class="devonly">EDITOR DE EXPRESIONES ▸</button>
     <button type="button" id="animedbtn" class="devonly">EDITOR DE ANIMACIONES ▸</button>
@@ -11988,6 +12004,88 @@ function ownerRender() {
   h += `<div class="ow-note">Datos anónimos: cada navegador es un código al azar (sin nombre ni IP). Se guardan como mensajes retenidos en los relays públicos de MQTT, que no garantizan guardarlos para siempre; este aparato quedó marcado como del dueño y no se cuenta. Relays conectados: ${OW.cl.filter(c => c.connected).length}/${OW.cl.length} · resúmenes recibidos: ${users.length}.</div>`;
   $('ow-body').innerHTML = h;
 }
+
+// ===== Cuentas (Firebase Authentication): correo y contraseña, o Google =====
+// El juego se puede jugar sin cuenta. La cuenta identifica al jugador (su nombre en las salas) y reconoce al dueño. Las contraseñas las maneja Google, el juego nunca las guarda.
+const ACCT = { cfg: { apiKey: 'AIzaSyBY4zI1ZpEFlNnotZ8_Yxe5hzT9Ks5jhCc', authDomain: 'calgame.firebaseapp.com', projectId: 'calgame', storageBucket: 'calgame.firebasestorage.app', messagingSenderId: '358897395123', appId: '1:358897395123:web:49d862e4e14b14cc4197c6' },
+  user: null, auth: null, loading: null, mode: 'in', busy: false, ownerH: [] };
+const ACCT_ERR = {
+  'auth/invalid-email': 'Ese correo no es válido.', 'auth/missing-email': 'Escribí tu correo.', 'auth/missing-password': 'Escribí tu contraseña.',
+  'auth/user-not-found': 'No hay ninguna cuenta con ese correo.', 'auth/wrong-password': 'Contraseña incorrecta.', 'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+  'auth/email-already-in-use': 'Ya existe una cuenta con ese correo: probá en “Entrar”.', 'auth/weak-password': 'La contraseña tiene que tener al menos 6 caracteres.',
+  'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.', 'auth/cancelled-popup-request': 'Ya hay una ventana de Google abierta.', 'auth/popup-blocked': 'El navegador bloqueó la ventana de Google: permití las ventanas emergentes de esta página.',
+  'auth/unauthorized-domain': 'Esta dirección web no está autorizada en Firebase (Authentication → Configuración → Dominios autorizados).', 'auth/network-request-failed': 'No hay conexión con el servidor de cuentas.',
+  'auth/too-many-requests': 'Demasiados intentos. Esperá un rato y probá de nuevo.', 'auth/operation-not-allowed': 'Ese método de acceso no está activado en Firebase.', 'auth/user-disabled': 'Esta cuenta está desactivada.'
+};
+const acctMsg = (t, ok) => { const m = $('acct-msg'); if (m) { m.textContent = t || ''; m.classList.toggle('ok', !!ok); } };
+const acctErr = e => ACCT_ERR[e && e.code] || ('No se pudo completar (' + ((e && (e.code || e.message)) || 'error') + ').');
+function acctLoad() {
+  if (IS_GUIDE) return Promise.reject(new Error('no'));
+  if (ACCT.loading) return ACCT.loading;
+  const add = (src, sri) => new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = src; sc.integrity = sri; sc.crossOrigin = 'anonymous'; sc.onload = ok; sc.onerror = () => no(new Error('No se pudo cargar el inicio de sesión (¿sin internet?)')); document.head.appendChild(sc); });
+  ACCT.loading = add('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js', 'sha384-AQ3POAMqIhwS81FrUH95ekxqBZHeP5tG2JfEL3+7GuTtfRLWnrRh32UxwzM+//A9')
+    .then(() => add('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js', 'sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1'))
+    .then(() => { firebase.initializeApp(ACCT.cfg); ACCT.auth = firebase.auth(); ACCT.auth.languageCode = 'es'; ACCT.auth.onAuthStateChanged(u => { ACCT.user = u; acctChanged(); }); })
+    .catch(e => { ACCT.loading = null; throw e; });
+  return ACCT.loading;
+}
+async function acctSha(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('calfight:' + t.toLowerCase().trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+async function acctChanged() {
+  const u = ACCT.user, nm = u ? (u.displayName || (u.email || '').split('@')[0] || 'Jugador') : '';
+  try { localStorage.setItem('bsb_acct', u ? '1' : '0'); } catch (e) { }
+  $('acctbtn').textContent = u ? '👤 ' + nm.toUpperCase() : '👤 INICIAR SESIÓN'; $('acctbtn2').textContent = u ? '👤 ' + nm : '👤 CUENTA';
+  if (u && (!localStorage.getItem('bsb_name') || localStorage.getItem('bsb_name') === 'Jugador')) { const inp = $('pname-in'); inp.value = nm.slice(0, 16); try { localStorage.setItem('bsb_name', inp.value); } catch (e) { } try { netMenuPresence(); } catch (e) { } }
+  // la cuenta del dueño (correo verificado) activa el modo desarrollador sin pedir la clave
+  if (u && u.emailVerified && u.email && ACCT.ownerH.length && ACCT.ownerH.includes(await acctSha(u.email)) && !DEV.on) { DEV.on = true; devApply(); stForget(); ST.owner = true; }
+  if ($('acctdlg') && !$('acctdlg').classList.contains('hidden')) acctRender();
+}
+function acctBuild() {
+  if ($('acctdlg')) return;
+  const d = document.createElement('div'); d.id = 'acctdlg'; d.className = 'hidden'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.innerHTML = '<div class="box"><button type="button" class="x" aria-label="Cerrar">✕</button><div id="acct-body"></div><div class="msg" id="acct-msg" aria-live="polite"></div></div>'; document.body.appendChild(d);
+  d.querySelector('.x').addEventListener('click', acctClose); d.addEventListener('click', e => { if (e.target === d) acctClose(); });
+  addEventListener('keydown', e => { if (e.code === 'Escape' && !d.classList.contains('hidden')) { e.preventDefault(); e.stopImmediatePropagation(); acctClose(); } }, true);
+}
+function acctClose() { $('acctdlg').classList.add('hidden'); }
+async function acctOpen() {
+  acctBuild(); $('acctdlg').classList.remove('hidden'); acctMsg('');
+  $('acct-body').innerHTML = '<h3>CUENTA</h3><p>Cargando…</p>';
+  try { await acctLoad(); acctRender(); } catch (e) { $('acct-body').innerHTML = '<h3>CUENTA</h3><p>' + (e.message || 'No se pudo cargar.') + '</p>'; }
+}
+function acctRender() {
+  const b = $('acct-body'), u = ACCT.user;
+  if (u) {
+    b.innerHTML = `<h3>TU CUENTA</h3><div class="who"><img alt="" src="${u.photoURL && /^https:\/\/lh3\.googleusercontent\.com\//.test(u.photoURL) ? u.photoURL : 'assets/calfight_icon.png'}"><div><b class="nm"></b><small class="em"></small><small>${u.emailVerified ? 'Correo verificado' : 'Correo sin verificar'}${DEV.on ? ' · MODO DESARROLLADOR' : ''}</small></div></div>
+      <label>Tu nombre<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
+      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button>'}<button type="button" class="sec" id="acct-out">Cerrar sesión</button>`;
+    b.querySelector('.nm').textContent = u.displayName || 'Jugador'; b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
+    $('acct-savename').addEventListener('click', async () => { const n = $('acct-name').value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); } catch (e) { acctMsg(acctErr(e)); } });
+    if ($('acct-verify')) $('acct-verify').addEventListener('click', async () => { try { await u.sendEmailVerification(); acctMsg('Te mandé el correo: abrilo y tocá el enlace.', true); } catch (e) { acctMsg(acctErr(e)); } });
+    $('acct-out').addEventListener('click', async () => { try { await ACCT.auth.signOut(); acctMsg('Sesión cerrada.', true); } catch (e) { acctMsg(acctErr(e)); } });
+    return;
+  }
+  const up = ACCT.mode === 'up';
+  b.innerHTML = `<h3>${up ? 'CREAR CUENTA' : 'INICIAR SESIÓN'}</h3><div class="tabs"><button type="button" data-m="in" class="${up ? '' : 'on'}">Entrar</button><button type="button" data-m="up" class="${up ? 'on' : ''}">Crear cuenta</button></div>
+    ${up ? '<label>Tu nombre<input id="acct-nm" maxlength="16" autocomplete="nickname"></label>' : ''}
+    <label>Correo<input id="acct-em" type="email" autocomplete="email" inputmode="email"></label><label>Contraseña<input id="acct-pw" type="password" autocomplete="${up ? 'new-password' : 'current-password'}"></label>
+    <button type="button" class="go" id="acct-go">${up ? 'CREAR CUENTA' : 'ENTRAR'}</button>
+    <button type="button" class="gg" id="acct-gg"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.2 5.5-4.7 7.2l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.6z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continuar con Google</button>
+    ${up ? '' : '<button type="button" class="lnk" id="acct-reset">Olvidé mi contraseña</button>'}`;
+  b.querySelectorAll('.tabs button').forEach(x => x.addEventListener('click', () => { ACCT.mode = x.dataset.m; acctMsg(''); acctRender(); }));
+  const run = async fn => { if (ACCT.busy) return; ACCT.busy = true; acctMsg('Un momento…', true); try { await fn(); acctMsg(''); } catch (e) { acctMsg(acctErr(e)); } ACCT.busy = false; };
+  const em = () => ($('acct-em').value || '').trim(), pw = () => $('acct-pw').value;
+  $('acct-go').addEventListener('click', () => run(async () => {
+    if (!em()) { const e = new Error(); e.code = 'auth/missing-email'; throw e; } if (!pw()) { const e = new Error(); e.code = 'auth/missing-password'; throw e; }
+    if (up) { const c = await ACCT.auth.createUserWithEmailAndPassword(em(), pw()), n = ($('acct-nm').value || '').trim().slice(0, 16); if (n) await c.user.updateProfile({ displayName: n }); try { await c.user.sendEmailVerification(); } catch (e) { } ACCT.user = ACCT.auth.currentUser; acctChanged(); }
+    else await ACCT.auth.signInWithEmailAndPassword(em(), pw());
+  }));
+  $('acct-gg').addEventListener('click', () => run(() => ACCT.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())));
+  if ($('acct-reset')) $('acct-reset').addEventListener('click', () => run(async () => { if (!em()) { const e = new Error(); e.code = 'auth/missing-email'; throw e; } await ACCT.auth.sendPasswordResetEmail(em()); acctMsg('Si ese correo tiene cuenta, te mandamos un enlace para cambiar la contraseña.', true); }));
+  for (const id of ['acct-nm', 'acct-em', 'acct-pw']) if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('acct-go').click(); });
+  setTimeout(() => ($(up ? 'acct-nm' : 'acct-em')).focus(), 30);
+}
+$('acctbtn').addEventListener('click', e => { e.stopPropagation(); acctOpen(); }); $('acctbtn2').addEventListener('click', () => { try { sfx('select'); } catch (e) { } acctOpen(); });
+try { if (!IS_GUIDE && localStorage.getItem('bsb_acct') === '1') acctLoad().catch(() => { }); } catch (e) { }   // si ya había una sesión, se restaura
+
 addEventListener('keydown', e => { if (e.code === 'F9' && e.ctrlKey && e.shiftKey) { e.preventDefault(); ownerOpen(); } });
 addEventListener('keydown', e => { if (e.code === 'F4' && DEV.on && !e.repeat) { e.preventDefault(); $('devhud').classList.toggle('off'); } });
 setInterval(() => {
