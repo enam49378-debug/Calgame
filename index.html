@@ -504,6 +504,16 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
 
 .tboom{position:absolute;z-index:4;transform:translate(-50%,-50%) rotate(-8deg);font:900 clamp(30px,5vw,70px)/1 Impact,'Arial Black',sans-serif;color:#ffd23f;-webkit-text-stroke:3px #000;text-shadow:5px 5px 0 #e0263a,8px 8px 0 #000;pointer-events:none;animation:tBoom 1.7s cubic-bezier(.2,1.6,.4,1) both}
 @keyframes tBoom{0%{transform:translate(-50%,-50%) rotate(-8deg) scale(.2);opacity:0}15%{transform:translate(-50%,-50%) rotate(-8deg) scale(1.25);opacity:1}30%{transform:translate(-50%,-50%) rotate(-5deg) scale(1)}80%{opacity:1}100%{transform:translate(-50%,-70%) rotate(-5deg) scale(1.05);opacity:0}}
+/* Tarjetas públicas de sala */
+#board{position:fixed;z-index:100;width:min(850px,calc(100vw - 32px));max-height:80vh;overflow:auto;pointer-events:auto;padding:20px;border:2px solid #000;border-top:5px solid var(--hot);box-shadow:8px 8px 0 #000b}
+body.room-browsing #hud{opacity:1}
+.room-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}.room-heading b{font:italic 32px var(--display);color:var(--hot)}.room-heading small{display:block;color:var(--muted);font-size:12px}.room-heading button{background:#252a3d;color:#fff;border:1px solid #ffffff26;padding:9px 12px;white-space:nowrap;font:700 12px var(--body)}
+.room-table table{width:100%;border-collapse:separate;border-spacing:0 6px}.room-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.room-table td{padding:6px 9px;background:#171b29}.room-table .n{text-align:right}.room-table tr.me td{background:#252c30}.room-table td.room-identity{padding:0;width:46%;min-width:180px}
+.room-player{position:relative;isolation:isolate;display:flex;align-items:center;gap:12px;width:100%;min-height:74px;overflow:hidden;text-align:left;border:1px solid #ffffff24;background:#141824;color:#fff;padding:10px 12px;font:inherit;cursor:pointer}.room-player:hover,.room-player:focus-visible{outline:2px solid var(--hot);outline-offset:-2px}.rp-banner{position:absolute;inset:0;z-index:-2;background-position:center;background-size:cover}.room-player:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#090e1eb3,#090e1ee6)}.rp-avatar{width:46px;height:46px;flex-shrink:0;object-fit:cover;border:2px solid #fff9;border-radius:50%;background:#151a28}.rp-avatar.pixel{image-rendering:pixelated}.rp-text{min-width:0}.rp-text b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 3px #000}.rp-text small{display:block;color:#e3e6f5;font-size:10px;letter-spacing:.06em;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rp-arrow{margin-left:auto;color:var(--hot)}
+#playerdlg{position:fixed;inset:0;z-index:150;display:grid;place-items:center;background:#05060ccc;padding:16px;pointer-events:auto}#playerdlg.hidden{display:none}.public-card{position:relative;width:min(510px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#10131f;border:3px solid #000;border-top:5px solid var(--hot);box-shadow:8px 8px 0 #000;color:#fff;font:14px/1.5 var(--body)}.public-banner{height:145px;background-size:cover;background-position:center}.public-close{position:absolute;z-index:1;right:10px;top:10px;border:1px solid #fff6;background:#090e1ecc;color:#fff;font-size:20px;width:34px;height:34px}.public-head{display:flex;align-items:flex-end;gap:15px;padding:0 24px;margin-top:-35px;position:relative}.public-head img{width:86px;height:86px;object-fit:cover;border:5px solid #10131f;border-radius:50%;background:#222}.public-head h2{font:26px/1.1 var(--display);margin:0;overflow-wrap:anywhere}.public-head p{color:#b2bad1;margin:5px 0 0;font-size:12px}.public-badges{padding:16px 24px 0;color:var(--hot);font-size:12px}.public-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:16px 24px}.public-stats div{background:#1b2031;padding:10px}.public-stats b{display:block;color:var(--hot);font-size:23px;overflow-wrap:anywhere}.public-stats small{font-size:10px;color:#b2bad1}.public-career{padding:0 24px 18px;color:#b2bad1;font-size:12px}.public-back{display:block;width:calc(100% - 48px);margin:0 24px 24px;padding:12px;background:var(--hot);color:#0b0e17;font:800 14px var(--body);border:0}.public-card button:focus-visible,.room-heading button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+body.room-browsing,body.room-browsing *{cursor:auto!important}body.room-browsing button{cursor:pointer!important}body.room-browsing #lockhint{display:none!important}
+@media(max-width:600px){#board{padding:12px;max-height:86vh}.room-heading b{font-size:26px}.room-heading{gap:8px}.room-heading button{font-size:10px;padding:8px}.room-table td,.room-table th{padding:4px;font-size:11px}.room-table td.room-identity{min-width:140px}.room-player{gap:7px;padding:8px;min-height:64px}.rp-avatar{width:34px;height:34px}.rp-text b{font-size:12px}.rp-text small{font-size:9px}.rp-arrow{display:none}.room-table th:nth-child(2),.room-table td:nth-child(2){display:none}.public-head{padding:0 16px}.public-stats{padding:16px;gap:5px}.public-stats div{padding:8px}.public-stats b{font-size:19px}}
+
 </style>
 
 </head>
@@ -9886,7 +9896,7 @@ function updateSekzaSpecialHud(f){
 
 function playerCtl() {
   if (G.viewer) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
-  if (G.paused) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
+  if (G.paused || roomInputBlocked()) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   const c = { mx: 0, mz: 0, jump: !!keys.Space, dash: pressed.has('KeyQ'), m1: mouse.left, block: !!keys.KeyF || mouse.right, skill: -1, ult: pressed.has('KeyG'), down:!!keys.KeyC, up: !!keys.Space };
   const ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
   if (ix || iz) { const d = fwd(cam.yaw).multiplyScalar(iz).add(rightOf(cam.yaw).multiplyScalar(ix)).normalize(); c.mx = d.x; c.mz = d.z; }
@@ -10571,21 +10581,175 @@ function pingCell(f) {
   td.innerHTML = '<span class="pg" style="--pc:' + col + '">' + [1, 2, 3, 4].map(i => '<i class="' + (i <= q ? 'on' : '') + '" style="height:' + (i * 25) + '%"></i>').join('') + '</span><small>' + (ms == null ? '…' : f.isPlayer && NET.named && NET.named.isHost ? 'anfitrión' : ms + ' ms') + '</small>';
   return td;
 }
+// Perfil público de sala: las imágenes viajan al cambiar, nunca con cada cuadro de combate.
+const ROOM_UI = { open: false, profile: null, signature: '', next: 0, focus: null };
+const PROFILE_MAX = 48000, PROFILE_IMAGE_MAX = 42000;
+const profileName = n => typeof n === 'string' ? n.replace(/[<>&\u0000-\u001f]/g, '').slice(0, 32) : '';
+function cleanPublicProfile(p) {
+  if (!p || typeof p !== 'object' || p.v !== 1) return null;
+  const num = (n, max) => Number.isFinite(n) ? Math.max(0, Math.min(max, Math.floor(n))) : 0;
+  let b = { k: 'pre:sunset' };
+  if (p.b && typeof p.b.k === 'string') {
+    if (p.b.k.startsWith('pre:') && BANNERS.some(([id]) => p.b.k === 'pre:' + id) || p.b.k.startsWith('char:') && CHAR_IDS.includes(p.b.k.slice(5))) b = { k: p.b.k };
+    else if (p.b.k === 'img' && typeof p.b.d === 'string' && p.b.d.length <= PROFILE_IMAGE_MAX && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(p.b.d)) b = { k: 'img', d: p.b.d };
+  }
+  const a = typeof p.a === 'string' && p.a.length <= 512 && /^https:\/\/lh3\.googleusercontent\.com\/[A-Za-z0-9_./=\-?&%]+$/.test(p.a) ? p.a : '';
+  return { v: 1, n: profileName(p.n), a, b, acct: p.acct === true, g: num(p.g, 1e7), m: num(p.m, 1e8), f: CHAR_IDS.includes(p.f) ? p.f : '' };
+}
+function localPublicProfile() {
+  let g = 0, m = 0, f = '', best = 0;
+  for (const [id, c] of Object.entries(ST.d?.c || {})) { g += +c[0] || 0; if (CHAR_IDS.includes(id) && c[0] > best) { best = c[0]; f = id; } }
+  for (const day of Object.values(ST.d?.dy || {})) m += +day[2] || 0;
+  const p = cleanPublicProfile({ v: 1, n: ACCT.user?.displayName || $('pname-in').value || 'Jugador', a: ACCT.user?.photoURL, b: bannerGet(), acct: !!ACCT.user, g, m, f });
+  p.b = bannerGet(); return p;
+}
+let publicBannerSource = '', publicBannerData = '', profileShareTicket = 0;
+async function netShareProfile() {
+  const room = NET.named; if (!room) return;
+  const ticket = ++profileShareTicket, p = localPublicProfile(), original = bannerGet();
+  if (original.k === 'img') {
+    if (original.d !== publicBannerSource) {
+      const data = await new Promise(resolve => {
+        const img = new Image(); img.onload = () => {
+          try {
+            const c = document.createElement('canvas'); c.width = 600; c.height = 172;
+            const g = c.getContext('2d'), s = Math.max(c.width / img.width, c.height / img.height);
+            g.drawImage(img, (c.width - img.width * s) / 2, (c.height - img.height * s) / 2, img.width * s, img.height * s);
+            let d = ''; for (const q of [.75, .55, .35, .2]) { d = c.toDataURL('image/jpeg', q); if (d.length <= PROFILE_IMAGE_MAX) break; }
+            resolve(d.length <= PROFILE_IMAGE_MAX ? d : '');
+          } catch (e) { resolve(''); }
+        }; img.onerror = () => resolve(''); img.src = original.d;
+      });
+      if (ticket !== profileShareTicket || room !== NET.named) return;
+      publicBannerSource = original.d; publicBannerData = data;
+    }
+    p.b = publicBannerData ? { k: 'img', d: publicBannerData } : { k: 'pre:sunset' };
+  }
+  if (ticket !== profileShareTicket || room !== NET.named) return;
+  if (room.setProfile) room.setProfile(p);
+  else { const small = { ...p, b: p.b.k === 'img' ? { k: 'pre:sunset' } : p.b }; room.presence({ pf: small }).catch(() => {}); }
+  ROOM_UI.signature = ''; if (ROOM_UI.open) refreshRoomBoard();
+}
+// Solo se conservan campos públicos conocidos. No se envían correo, UID ni credenciales.
+function receivePublicProfile(R, id, raw, notify) {
+  if (!id || typeof id !== 'string' || id.length > 80) return;
+  let p; try { if (typeof raw === 'string') { if (raw.length > PROFILE_MAX) return; raw = JSON.parse(raw); } p = cleanPublicProfile(raw); } catch (e) { return; }
+  if (!p) return;
+  if (!R.profiles) R.profiles = new Map();
+  if (!R.profiles.has(id) && R.profiles.size >= 128) {
+    const old = [...R.profiles.keys()].find(k => k !== R.myId && !R.states?.has(k));
+    if (old) R.profiles.delete(old); else return;
+  }
+  if (JSON.stringify(R.profiles.get(id)) === JSON.stringify(p)) return;
+  R.profiles.set(id, p); notify(); ROOM_UI.signature = '';
+}
+const roomBotKeys = new WeakMap(); let roomBotSequence = 0;
+function roomEntries() {
+  const entries = G.fighters.filter(f => !f.dummy).map(f => { if (!roomBotKeys.has(f)) roomBotKeys.set(f, 'bot-' + (++roomBotSequence)); return { key: f.isPlayer ? 'self' : f.peer || roomBotKeys.get(f), f, me: !!f.isPlayer, bot: !f.isPlayer && !f.remote, pr: f.net || {} }; });
+  if (G.mp && NET.named) for (const pe of NET.named.peers()) {
+    if (pe.sameTab || entries.some(e => e.key === pe.peer) || pe.presence?.ch === 'dummy' || !pe.presence?.nm) continue;
+    const pr = pe.presence;
+    entries.push({ key: pe.peer, me: false, bot: false, pr, f: { name: profileName(pr.nm).slice(0, 16), ch: CHARS[pr.ch] || CHARS.javi, kills: +pr.k || 0, deaths: +pr.d || 0, remote: true, peer: pe.peer, net: pr } });
+  }
+  return entries.sort((a, b) => b.f.kills - a.f.kills || a.f.deaths - b.f.deaths || a.key.localeCompare(b.key));
+}
+function entryProfile(e) {
+  if (e.me) return localPublicProfile();
+  return cleanPublicProfile(NET.named?.profiles?.get(e.key) || e.pr.pf) || { v: 1, n: e.f.name, a: '', b: { k: 'char:' + e.f.ch.id }, acct: false, g: 0, m: 0, f: '' };
+}
+function profileAvatar(img, p, e) {
+  img.alt = ''; img.referrerPolicy = 'no-referrer'; img.src = p.a || 'assets/calfight_icon.png';
+  img.onerror = () => { img.onerror = null; img.src = 'assets/calfight_icon.png'; };
+  if (!p.a && e.bot) { try { img.src = headPortrait(e.f.skin).toDataURL(); img.classList.add('pixel'); } catch (err) {} }
+}
+function profileButton(e) {
+  const p = entryProfile(e), bt = document.createElement('button'); bt.type = 'button'; bt.className = 'room-player'; bt.dataset.player = e.key;
+  bt.setAttribute('aria-label', 'Ver perfil de ' + e.f.name);
+  bt.innerHTML = '<span class="rp-banner"></span><img class="rp-avatar" alt=""><span class="rp-text"><b></b><small></small></span><span class="rp-arrow" aria-hidden="true">↗</span>';
+  bt.querySelector('.rp-banner').style.backgroundImage = `url("${bannerURL(p.b)}")`;
+  profileAvatar(bt.querySelector('img'), p, e); bt.querySelector('b').textContent = e.f.name;
+  bt.querySelector('small').textContent = e.bot ? 'BOT · VER FICHA' : (e.me ? 'VOS · ' : '') + (p.acct ? p.n || 'VER PERFIL' : 'INVITADO');
+  bt.addEventListener('click', () => playerProfileOpen(e.key, bt)); return bt;
+}
 function scoreTable() {
-  const rows = [...G.fighters].filter(f => !f.dummy).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
-  const wrap = document.createElement('div');
+  const wrap = document.createElement('div'); wrap.className = 'room-table';
   const cap = document.createElement('div'); cap.className = 'bd-cap'; cap.textContent = G.mp ? 'Sala: ' + (NET.code || '').slice(3) : 'Primero en ' + G.goal + ' K.O. · ' + CITY.name; wrap.appendChild(cap);
   const tb = document.createElement('table');
   tb.innerHTML = '<thead><tr><th>Jugador</th><th>Peleador</th><th class="n">K.O.</th><th class="n">Muertes</th><th class="n">Ping</th></tr></thead>';
   const body = document.createElement('tbody');
-  for (const f of rows) {
-    const tr = document.createElement('tr'); if (f.isPlayer) tr.className = 'me';
-    [f.name, f.ch.name, f.kills, f.deaths].forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i > 1) td.className = 'n'; if (i === 1) td.style.color = f.ch.color; tr.appendChild(td); });
-    tr.appendChild(pingCell(f));
-    body.appendChild(tr);
+  for (const e of roomEntries()) {
+    const f = e.f, tr = document.createElement('tr'); tr.dataset.player = e.key; if (e.me) tr.className = 'me';
+    const identity = document.createElement('td'); identity.className = 'room-identity'; identity.appendChild(profileButton(e)); tr.appendChild(identity);
+    [f.ch.name, f.kills, f.deaths].forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i > 0) td.className = 'n'; else td.style.color = f.ch.color; tr.appendChild(td); });
+    tr.appendChild(pingCell(f)); body.appendChild(tr);
   }
   tb.appendChild(body); wrap.appendChild(tb); return wrap;
 }
+function roomInputBlocked() { return ROOM_UI.open || !!ROOM_UI.profile; }
+function roomClearInput() { for (const k in keys) keys[k] = false; pressed.clear(); mouse.left = mouse.right = false; slTap = false; }
+function setRoomBoard(on, resume = true) {
+  ROOM_UI.open = on; $('board').classList.toggle('hidden', !on); document.body.classList.toggle('room-browsing', on || !!ROOM_UI.profile);
+  roomClearInput();
+  if (on) { ROOM_UI.signature = ''; refreshRoomBoard(); unlock(); $('board-close').focus({ preventScroll: true }); }
+  else { if (ROOM_UI.profile) playerProfileClose(false); if (resume && G.state === 'play' && !G.over && !G.paused) requestLock(); }
+}
+function refreshRoomBoard() {
+  if (!ROOM_UI.open) return;
+  const entries = roomEntries(), signature = JSON.stringify(entries.map(e => [e.key, e.f.name, e.f.ch.id, entryProfile(e)]));
+  const board = $('board');
+  if (signature !== ROOM_UI.signature) {
+    const old = document.activeElement?.dataset.player, scroll = board.scrollTop;
+    ROOM_UI.signature = signature;
+    board.innerHTML = '<div class="room-heading"><div><b>JUGADORES</b><small>Elegí una tarjeta para ver su perfil</small></div><button type="button" id="board-close">Volver · Tab / Esc</button></div>';
+    board.appendChild(scoreTable()); board.scrollTop = scroll;
+    $('board-close').addEventListener('click', () => setRoomBoard(false));
+    if (old) [...board.querySelectorAll('button[data-player]')].find(b => b.dataset.player === old)?.focus({ preventScroll: true });
+  }
+  // Actualizamos cifras sin reemplazar los botones debajo del cursor.
+  for (const tr of board.querySelectorAll('tbody tr')) {
+    const e = entries.find(e => e.key === tr.dataset.player); if (!e) continue;
+    tr.children[2].textContent = e.f.kills; tr.children[3].textContent = e.f.deaths; tr.lastChild.replaceWith(pingCell(e.f));
+  }
+}
+function playerProfileBuild() {
+  if ($('playerdlg')) return;
+  const d = document.createElement('div'); d.id = 'playerdlg'; d.className = 'hidden'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'public-name');
+  d.innerHTML = '<div class="public-card"><button type="button" class="public-close" aria-label="Cerrar perfil">✕</button><div class="public-banner"></div><div class="public-head"><img alt=""><div><h2 id="public-name"></h2><p></p></div></div><div class="public-badges"></div><div class="public-stats"></div><div class="public-career"></div><button type="button" class="public-back">← Volver a jugadores</button></div>';
+  document.body.appendChild(d); d.querySelector('.public-close').onclick = () => playerProfileClose(); d.querySelector('.public-back').onclick = () => playerProfileClose(); d.onclick = e => { if (e.target === d) playerProfileClose(); };
+}
+function playerProfileOpen(key, focus) {
+  const e = roomEntries().find(e => e.key === key); if (!e) return;
+  playerProfileBuild(); ROOM_UI.profile = key; ROOM_UI.focus = focus; roomClearInput();
+  const d = $('playerdlg'), p = entryProfile(e); d.classList.remove('hidden'); document.body.classList.add('room-browsing'); unlock();
+  d.querySelector('.public-banner').style.backgroundImage = `url("${bannerURL(p.b)}")`; profileAvatar(d.querySelector('img'), p, e);
+  $('public-name').textContent = p.n || e.f.name; d.querySelector('.public-head p').textContent = e.f.name + (e.me ? ' · Vos' : '');
+  d.querySelector('.public-badges').textContent = [e.bot ? 'Bot de entrenamiento' : p.acct ? 'Cuenta de jugador' : 'Invitado', e.f.ch.name, !e.me && !e.bot && e.pr.st === 'menu' ? 'En el menú' : 'En la arena'].join(' · ');
+  const stats = d.querySelector('.public-stats'); stats.replaceChildren();
+  for (const [value, label] of [[e.f.kills, 'K.O. en la partida'], [e.f.deaths, 'Muertes'], [e.f.ch.name, 'Peleador']]) { const el = document.createElement('div'), b = document.createElement('b'), small = document.createElement('small'); b.textContent = value; small.textContent = label; el.append(b, small); stats.appendChild(el); }
+  d.querySelector('.public-career').textContent = e.bot ? 'Rival controlado por el juego.' : `${p.g} partidas · ${(p.m / 60).toFixed(1)} h jugadas${p.f ? ' · Favorito: ' + CHARS[p.f].name : ''}`;
+  d.querySelector('.public-back').textContent = ROOM_UI.open ? '← Volver a jugadores' : 'Cerrar perfil'; d.querySelector('.public-close').focus({ preventScroll: true });
+}
+function playerProfileClose(restore = true) {
+  ROOM_UI.profile = null; $('playerdlg')?.classList.add('hidden'); document.body.classList.toggle('room-browsing', ROOM_UI.open); roomClearInput();
+  if (restore) { const f = ROOM_UI.focus; if (f?.isConnected) f.focus({ preventScroll: true }); else if (ROOM_UI.open) $('board-close')?.focus({ preventScroll: true }); }
+  ROOM_UI.focus = null;
+}
+// Tab abre/cierra la tabla. El juego en línea continúa, pero el cursor no dispara ni mueve la cámara.
+addEventListener('keydown', e => {
+  if (G.state !== 'play' || G.viewer) return;
+  if (ROOM_UI.profile) {
+    if (e.code === 'Escape') { e.preventDefault(); playerProfileClose(); }
+    if (e.code === 'Tab') { const buttons = [...$('playerdlg').querySelectorAll('button')], index = buttons.indexOf(document.activeElement); e.preventDefault(); buttons[(index + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length].focus(); }
+    e.stopImmediatePropagation(); return;
+  }
+  if (e.code === 'Tab' && (!G.paused && !G.panelOpen && !G.over || ROOM_UI.open)) { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) setRoomBoard(!ROOM_UI.open); return; }
+  if (ROOM_UI.open) {
+    if (e.code === 'Escape') { e.preventDefault(); setRoomBoard(false); }
+    if (e.code === 'ArrowDown' || e.code === 'ArrowUp') { const buttons = [...$('board').querySelectorAll('button')], index = buttons.indexOf(document.activeElement); e.preventDefault(); buttons[(index + (e.code === 'ArrowUp' ? buttons.length - 1 : 1)) % buttons.length].focus(); }
+    e.stopImmediatePropagation();
+  }
+}, true);
+
 function updateHUD(dt) {
   for (const f of G.fighters) {
     if (!f.plate) continue;
@@ -10615,7 +10779,7 @@ function updateHUD(dt) {
   $('combon').textContent = G.combo; $('combo').style.opacity = G.combo >= 2 ? 1 : 0;
   if (!p.alive) $('deatht').textContent = `Reaparecés en ${Math.max(0, Math.ceil(p.respawnT))}`;
   const board = $('board');
-  if (keys.Tab) { board.classList.remove('hidden'); board.innerHTML = ''; board.appendChild(scoreTable()); } else board.classList.add('hidden');
+  if (ROOM_UI.open && performance.now() >= ROOM_UI.next) { ROOM_UI.next = performance.now() + 250; refreshRoomBoard(); }
 }
 
 // ================= Líneas de velocidad =================
@@ -10998,6 +11162,7 @@ function updateShow(dt) {
 
 // ================= Partida =================
 function clearFighters() {
+  setRoomBoard(false, false);
   clearSekzaFlocks();
   clearSpearDrops();
   seqHud(null);
@@ -11048,7 +11213,7 @@ function toMenu() {
 }
 function endMatch(w) {
   if (G.over) return;
-  G.over = true; unlock(); w.victory = true; G.winner = w; statsEnd(!!w.isPlayer); javiSpeak(w, 'ev_victory'); for (const q of G.fighters) if (q !== w && q.isPlayer) javiSpeak(q, 'ev_defeat');
+  setRoomBoard(false, false); G.over = true; unlock(); w.victory = true; G.winner = w; statsEnd(!!w.isPlayer); javiSpeak(w, 'ev_victory'); for (const q of G.fighters) if (q !== w && q.isPlayer) javiSpeak(q, 'ev_defeat');
   $('overtitle').textContent = w.isPlayer ? '¡GANASTE!' : `GANÓ ${w.name.toUpperCase()}`;
   $('overtitle').style.color = w.isPlayer ? 'var(--hot)' : w.ch.color;
   const t = $('overtable'); t.innerHTML = ''; t.appendChild(scoreTable());
@@ -11075,8 +11240,9 @@ const canvas = renderer.domElement;
 let locked = false, lockFailed = false;
 // Captura del mouse robusta: movimiento sin aceleración del sistema y reintentos (el navegador rechaza el bloqueo si se pide justo después de soltarlo)
 function requestLock(tries = 0) {
+  if (roomInputBlocked()) return;
   if (document.pointerLockElement === canvas) return;
-  const retry = () => { if (tries < 8 && G.state === 'play' && !G.paused && !G.over) setTimeout(() => requestLock(tries + 1), 180 + tries * 120); else lockFailed = true; };
+  const retry = () => { if (tries < 8 && G.state === 'play' && !G.paused && !G.over && !roomInputBlocked()) setTimeout(() => requestLock(tries + 1), 180 + tries * 120); else lockFailed = true; };
   try {
     let r; try { r = canvas.requestPointerLock({ unadjustedMovement: true }); } catch (e) { r = canvas.requestPointerLock(); }
     if (r && r.catch) r.catch(() => { try { const r2 = canvas.requestPointerLock(); if (r2 && r2.catch) r2.catch(retry); } catch (e) { retry(); } });
@@ -11084,8 +11250,8 @@ function requestLock(tries = 0) {
 }
 function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 document.addEventListener('pointerlockchange', () => {
-  locked = document.pointerLockElement === canvas; if (locked) lockFailed = false;
-  if (!locked && G.state === 'play' && !G.over && !G.panelOpen) setPause(true);
+  locked = document.pointerLockElement === canvas; if (locked && roomInputBlocked()) { unlock(); return; } if (locked) lockFailed = false;
+  if (!locked && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked()) setPause(true);
 });
 document.addEventListener('pointerlockerror', () => { lockFailed = true; });
 function setPause(on) {
@@ -11135,7 +11301,7 @@ body.inplay,body.inplay *{cursor:none!important}
   document.head.appendChild(st);
   const hint = document.createElement('div'); hint.id = 'lockhint'; hint.textContent = 'Haz clic en el juego para recuperar el control del mouse'; document.body.appendChild(hint);
   setInterval(() => {
-    const play = G.state === 'play' && !G.paused && !G.over && !G.viewer;
+    const play = G.state === 'play' && !G.paused && !G.over && !G.viewer && !roomInputBlocked();
     document.body.classList.toggle('inplay', play && locked);
     hint.style.display = play && !locked ? 'block' : 'none';
   }, 200);
@@ -11143,7 +11309,7 @@ body.inplay,body.inplay *{cursor:none!important}
 addEventListener('pointerdown', () => initAudio(), { once: true });
 canvas.addEventListener('mousedown', e => {
   if (G.viewer) { VW.drag = true; return; }
-  if (G.state !== 'play' || G.paused || G.over) return;
+  if (G.state !== 'play' || G.paused || G.over || roomInputBlocked()) return;
   initAudio();
   if (!locked) { lockFailed = false; requestLock(); }
   slTap = false;
@@ -11152,7 +11318,7 @@ canvas.addEventListener('mousedown', e => {
 addEventListener('mouseup', e => { if (e.button === 0) mouse.left = false; if (e.button === 2) mouse.right = false; });
 addEventListener('contextmenu', e => { if (G.state === 'play') e.preventDefault(); });
 addEventListener('mousemove', e => {
-  if (G.state !== 'play' || G.paused || G.cine) return;
+  if (G.state !== 'play' || G.paused || G.cine || roomInputBlocked()) return;
   if (locked || (lockFailed && (mouse.left || mouse.right))) {
     cam.yaw -= e.movementX * .0026;
     cam.pitch = clamp(cam.pitch + e.movementY * .0022, -.35, 1.2);
@@ -12048,7 +12214,7 @@ async function acctSha(t) { const b = await crypto.subtle.digest('SHA-256', new 
 async function acctChanged() {
   const u = ACCT.user, nm = u ? (u.displayName || (u.email || '').split('@')[0] || 'Jugador') : '';
   try { localStorage.setItem('bsb_acct', u ? '1' : '0'); } catch (e) { }
-  acctPaint();
+  acctPaint(); netShareProfile();
   if (u && (!localStorage.getItem('bsb_name') || localStorage.getItem('bsb_name') === 'Jugador')) { const inp = $('pname-in'); inp.value = nm.slice(0, 16); try { localStorage.setItem('bsb_name', inp.value); } catch (e) { } try { netMenuPresence(); } catch (e) { } }
   // la cuenta del dueño (correo verificado) activa el modo desarrollador sin pedir la clave
   if (u && u.emailVerified && u.email && ACCT.ownerH.length && ACCT.ownerH.includes(await acctSha(u.email)) && !DEV.on) { DEV.on = true; devApply(); stForget(); ST.owner = true; }
@@ -12081,7 +12247,7 @@ function bannerDraw(id, w = 900, h = 256) {
 }
 const bannerKey = () => 'bsb_banner_' + (ACCT.user ? ACCT.user.uid : 'anon');
 function bannerGet() { try { const j = JSON.parse(localStorage.getItem(bannerKey()) || 'null'); if (j && (j.k === 'img' ? /^data:image\/jpeg;base64,/.test(j.d || '') : /^(pre|char):[a-z0-9_]{1,20}$/.test(j.k))) return j; } catch (e) { } return { k: 'pre:sunset' }; }
-function bannerSet(j) { try { localStorage.setItem(bannerKey(), JSON.stringify(j)); } catch (e) { acctMsg('No se pudo guardar el banner (¿poco espacio?).'); } acctPaint(); }
+function bannerSet(j) { try { localStorage.setItem(bannerKey(), JSON.stringify(j)); } catch (e) { acctMsg('No se pudo guardar el banner (¿poco espacio?).'); } acctPaint(); netShareProfile(); }
 function bannerURL(j) {
   if (j.k === 'img') return j.d;
   const key = j.k + (j.k.startsWith('char:') ? '' : ''); if (!BN_CACHE[key]) BN_CACHE[key] = bannerDraw(j.k.replace(/^(pre|char):/, (m, t) => (t === 'char' ? 'char:' : ''))).toDataURL('image/jpeg', .85); return BN_CACHE[key];
@@ -12103,7 +12269,7 @@ async function acctGate(pub) {   // salas públicas: cuenta obligatoria; salas p
 
 function acctBannerPick() {
   const b = $('acct-body'), cur = bannerGet(); acctMsg('');
-  b.innerHTML = '<div class="pad bnpick"><h3>ELEGÍ TU BANNER</h3><small>Se ve en tu tarjeta del menú principal y en tu perfil.</small><div class="bngrid"></div><button type="button" class="sec" id="bn-up">Subir mi propia imagen…</button><button type="button" class="sec" id="bn-back">← Volver a mi cuenta</button></div>';
+  b.innerHTML = '<div class="pad bnpick"><h3>ELEGÍ TU BANNER</h3><small>Se ve en tu tarjeta, en tu perfil y en la tabla de jugadores de la sala.</small><div class="bngrid"></div><button type="button" class="sec" id="bn-up">Subir mi propia imagen…</button><button type="button" class="sec" id="bn-back">← Volver a mi cuenta</button></div>';
   const grid = b.querySelector('.bngrid');
   const items = [...BANNERS.map(([id, n]) => ['pre:' + id, n]), ...CHAR_IDS.map(id => ['char:' + id, CHARS[id].name])];
   for (const [k, n] of items) { const bt = document.createElement('button'); bt.type = 'button'; bt.className = cur.k === k ? 'on' : ''; bt.style.backgroundImage = `url("${bannerURL({ k })}")`; bt.innerHTML = `<span>${n}</span>`; bt.addEventListener('click', () => { bannerSet({ k }); acctBannerPick(); acctMsg('Banner cambiado.', true); }); grid.appendChild(bt); }
@@ -12279,7 +12445,7 @@ function relayRoom(code, onStatus = () => { }) {
   return new Promise((resolve, reject) => {
     const base = 'blockstrike/v2/' + code + '/', STALE = 8000;
     const myId = 'u' + Math.random().toString(36).slice(2, 10);
-    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), cbs: [], ping: 0, pings: {}, mySkin: null, closed: false, lastSend: 0, timer: 0, clients: [], relay: 0 };
+    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), profiles: new Map(), cbs: [], ping: 0, pings: {}, mySkin: null, closed: false, lastSend: 0, timer: 0, clients: [], relay: 0 };
     let settled = false, sigN = 0; const sigSeen = new Set();
     const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
@@ -12300,13 +12466,14 @@ function relayRoom(code, onStatus = () => { }) {
       return Promise.resolve();
     };
     R.setSkin = d => { R.mySkin = d; pub('sk/' + myId, d || '', { qos: 0, retain: true }); };
+    R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (!R.myProfile) return; R.profiles.set(myId, R.myProfile); pub('pf/' + myId, JSON.stringify(R.myProfile), { qos: 0, retain: true }); R.profileAt = Date.now(); notify(); };
     // entidades extra del anfitrión (dummies): se publican como si fueran otros jugadores
     R.pubAs = (id, obj) => pub('p/' + id, JSON.stringify(obj));
     R.dropAs = id => pub('x/' + id, '1');
-    const forget = id => { mesh.drop(id); if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
+    const forget = id => { mesh.drop(id); R.profiles.delete(id); if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
     R.leave = () => {
       R.closed = true; clearInterval(R.timer); mesh.closeAll();
-      pub('x/' + myId, '1'); if (R.mySkin) pub('sk/' + myId, '', { qos: 0, retain: true });
+      pub('x/' + myId, '1'); pub('pf/' + myId, '', { qos: 0, retain: true }); if (R.mySkin) pub('sk/' + myId, '', { qos: 0, retain: true });
       for (const c of R.clients) { try { c.end(false); } catch (e) { } }
       return Promise.resolve();
     };
@@ -12330,8 +12497,9 @@ function relayRoom(code, onStatus = () => { }) {
         let d; try { d = JSON.parse(s); } catch (e) { return; }
         acceptState(R, id, d, notify, mesh, 'relay');
       } else if (kind === 'x') {
-        forget(id);
+        forget(id); pub('pf/' + id, '', { qos: 0, retain: true });
         if (R.skins.get(id)) pub('sk/' + id, '', { qos: 0, retain: true });
+      } else if (kind === 'pf') { if (!s) R.profiles.delete(id); else receivePublicProfile(R, id, s, notify);
       } else if (kind === 'sk') {
         const d = s && s.length < 24000 ? s : null;
         R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d);
@@ -12346,6 +12514,7 @@ function relayRoom(code, onStatus = () => { }) {
         client.subscribe(base + '#', { qos: 0 }, err => {
           if (err) { if (++failed >= RELAYS.length && !settled) { clearTimeout(failTo); done(false, { code: 'server' }); } return; }
           R.relay++;
+          if (R.myProfile) client.publish(base + 'pf/' + myId, JSON.stringify(R.myProfile), { qos: 0, retain: true });
           if (R.mySkin) client.publish(base + 'sk/' + myId, R.mySkin || '', { qos: 0, retain: true });
           if (Object.keys(R.my).length) client.publish(base + 'p/' + myId, JSON.stringify(R.my), { qos: 0 });
           if (!settled) { clearTimeout(failTo); done(true, R); }
@@ -12361,6 +12530,7 @@ function relayRoom(code, onStatus = () => { }) {
       if (R.closed || !settled) return;
       const now = Date.now();
       if (now - R.lastSend > 1500 && Object.keys(R.my).length) R.presence({});
+      if (R.myProfile && now - (R.profileAt || 0) > 15000) { pub('pf/' + myId, JSON.stringify(R.myProfile), { qos: 0, retain: true }); R.profileAt = now; }
       pub('pg/' + myId, String(now));
       for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) forget(id);
     }, 2000);
@@ -12370,7 +12540,7 @@ function relayRoom(code, onStatus = () => { }) {
 function localRoom(code, onStatus = () => { }) {
   return new Promise((resolve, reject) => {
     const myId = 'u' + Math.random().toString(36).slice(2, 10), STALE = 8000;
-    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, ws: null, local: true };
+    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), profiles: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, ws: null, local: true };
     let settled = false, opened = false;
     const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
@@ -12390,17 +12560,18 @@ function localRoom(code, onStatus = () => { }) {
       const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
       return Promise.resolve();
     };
+    R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (!R.myProfile) return; R.profiles.set(myId, R.myProfile); send({ t: 'pf', d: R.myProfile }); notify(); };
     R.weatherCommand = d => send({t:'wx',d});
     R.setSkin = d => { R.mySkin = d; send({ t: 'sk', d: d || '' }); };
     R.pubAs = (id, obj) => send({ t: 'pa', id, d: obj });
     R.dropAs = id => send({ t: 'xa', id });
-    const forget = id => { mesh.drop(id); if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
+    const forget = id => { mesh.drop(id); R.profiles.delete(id); if (!R.states.has(id)) return; R.states.delete(id); R.seen.delete(id); notify(); };
     R.leave = () => { R.closed = true; clearInterval(R.timer); mesh.closeAll(); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     function connect() {
       const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}`);
       const failTo = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { } } }, 5000);
-      ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.mySkin) R.setSkin(R.mySkin); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
+      ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.mySkin) R.setSkin(R.mySkin); if (R.myProfile) R.setProfile(R.myProfile); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
       ws.onerror = () => { };
       ws.onclose = () => {
         clearTimeout(failTo);
@@ -12417,6 +12588,7 @@ function localRoom(code, onStatus = () => { }) {
         else if (m.t === 'sig' && m.from && m.d) mesh.signal(Object.assign({ f: m.from }, m.d));
         else if (m.t === 'x' && id) { forget(id); R.skins.delete(id); }
         else if (m.t === 'sk' && id) { const d = m.d && m.d.length < 24000 ? m.d : null; R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d); }
+        else if (m.t === 'pf' && id) receivePublicProfile(R, id, m.d, notify);
         else if (m.t === 'po') R.ping = Math.max(0, Date.now() - (+m.ts || 0));
       };
     }
@@ -12435,7 +12607,7 @@ function localRoom(code, onStatus = () => { }) {
 function p2pRoom(code, tries = 0, onStatus = () => { }) {
   return new Promise((resolve, reject) => {
     const hostId = 'blockstrike-v1-' + code;
-    const R = { name: 'bs-' + code, my: {}, myId: null, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), conns: new Map(), host: null, cbs: [], peer: null, closed: false, settled: false, ping: 0, mySkin: null, lastSend: 0, timer: 0 };
+    const R = { name: 'bs-' + code, my: {}, myId: null, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), profiles: new Map(), conns: new Map(), host: null, cbs: [], peer: null, closed: false, settled: false, ping: 0, mySkin: null, lastSend: 0, timer: 0 };
     const STALE = 8000;
     const done = (ok, v) => { if (R.settled) return; R.settled = true; if (!ok) clearInterval(R.timer); ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
@@ -12454,8 +12626,9 @@ function p2pRoom(code, tries = 0, onStatus = () => { }) {
       const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
       return Promise.resolve();
     };
+    R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (R.myProfile && R.myId) { R.profiles.set(R.myId, R.myProfile); send({ t: 'pf', id: R.myId, d: R.myProfile }); notify(); } };
     R.setSkin = d => { R.mySkin = d; if (R.myId) { R.skins.set(R.myId, d); send({ t: 'sk', id: R.myId, d }); } };
-    const forget = id => { R.states.delete(id); R.seen.delete(id); R.skins.delete(id); if (R.isHost) { const c = R.conns.get(id); R.conns.delete(id); if (c) try { c.close(); } catch (e) { } toAll({ t: 'x', id }); } notify(); };
+    const forget = id => { R.profiles.delete(id); R.states.delete(id); R.seen.delete(id); R.skins.delete(id); if (R.isHost) { const c = R.conns.get(id); R.conns.delete(id); if (c) try { c.close(); } catch (e) { } toAll({ t: 'x', id }); } notify(); };
     R.leave = () => { R.closed = true; clearInterval(R.timer); try { R.peer.destroy(); } catch (e) { } return Promise.resolve(); };
     // latido: reenvía el estado, mide el ping y borra a quien dejó de responder (recargas, cortes)
     R.timer = setInterval(() => {
@@ -12476,6 +12649,7 @@ function p2pRoom(code, tries = 0, onStatus = () => { }) {
         if (R.isHost) toAll({ t: 'p', id, d: m.d }, fromId);
         if (!prev || prev.st !== m.d.st || prev.nm !== m.d.nm || prev.ch !== m.d.ch) notify();
       } else if (m.t === 'x' && !R.isHost) { forget(String(m.id)); }
+      else if (m.t === 'pf') { const id = R.isHost ? fromId : String(m.id); if (id !== R.myId) { receivePublicProfile(R, id, m.d, notify); if (R.isHost && R.profiles.has(id)) toAll({ t: 'pf', id, d: R.profiles.get(id) }, fromId); } }
       else if (m.t === 'sk') {
         const id = R.isHost ? fromId : String(m.id), d = typeof m.d === 'string' && m.d.length < 24000 ? m.d : null;
         if (id === R.myId) return;
@@ -12501,7 +12675,7 @@ function p2pRoom(code, tries = 0, onStatus = () => { }) {
         const c = R.peer.connect(hostId, { serialization: 'json' });
         R.host = c;
         const to = setTimeout(retry, 9000);
-        c.on('open', () => { clearTimeout(to); if (R.mySkin) c.send({ t: 'sk', id: R.myId, d: R.mySkin }); done(true, R); });
+        c.on('open', () => { clearTimeout(to); if (R.mySkin) c.send({ t: 'sk', id: R.myId, d: R.mySkin }); if (R.myProfile) c.send({ t: 'pf', id: R.myId, d: R.myProfile }); done(true, R); });
         c.on('data', m => onData(hostId, m));
         c.on('close', () => { R.states.clear(); R.seen.clear(); notify(); if (!R.closed && R.onLost) R.onLost(); });
       });
@@ -12515,6 +12689,7 @@ function p2pRoom(code, tries = 0, onStatus = () => { }) {
         if (Object.keys(R.my).length) c.send({ t: 'p', id: R.myId, d: R.my });
         const now = Date.now();
         for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) c.send({ t: 'p', id, d });
+        for (const [id, d] of R.profiles) c.send({ t: 'pf', id, d });
         for (const [id, d] of R.skins) if (d) c.send({ t: 'sk', id, d });
       });
       c.on('data', m => onData(c.peer, m));
@@ -12571,7 +12746,7 @@ async function doJoin(code) {
       for (const [id, d] of NET.named.skins) netSkin(id, d);
       netShareSkin();
     }
-    netMenuPresence(); renderLobby();
+    netMenuPresence(); netShareProfile(); renderLobby();
     return true;
   } catch (e) {
     if (joinCode !== code) return false;
@@ -13814,7 +13989,7 @@ try {
 ['nbots', 'lvl', 'auto'].forEach(id => $(id).addEventListener('change', saveCfg));
 function saveCfg() { try { localStorage.setItem('bsb_cfg', JSON.stringify({ n: $('nbots').value, l: $('lvl').value, a: $('auto').checked, c: G.charId })); } catch (e) { } }
 $('play').addEventListener('click', saveCfg);
-$('pname-in').addEventListener('change', e => { try { localStorage.setItem('bsb_name', e.target.value); } catch (err) { } netMenuPresence(); });
+$('pname-in').addEventListener('change', e => { try { localStorage.setItem('bsb_name', e.target.value); } catch (err) { } netMenuPresence(); netShareProfile(); });
 if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches) $('touchnote').classList.remove('hidden');
 
 // ================= Pantalla de inicio =================

@@ -13,7 +13,7 @@ const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const rooms = new Map();
 function getRoom(name) {
   let r = rooms.get(name);
-  if (!r) { r = { clients: new Map(), states: new Map(), skins: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now() }; rooms.set(name, r); }
+  if (!r) { r = { clients: new Map(), states: new Map(), skins: new Map(), profiles: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now() }; rooms.set(name, r); }
   return r;
 }
 function lanIps() {
@@ -79,6 +79,7 @@ function drop(c) {
   if (room.clients.get(c.id) === c) room.clients.delete(c.id);
   // se borran el jugador y las entidades que publicó (dummies del anfitrión)
   for (const [id, st] of [...room.states]) if (id === c.id || st.owner === c.id) { room.states.delete(id); broadcast(room, { t: 'x', id }); }
+  room.profiles.delete(c.id);
   if (room.skins.has(c.id)) { room.skins.delete(c.id); }
   if (!room.clients.size) rooms.delete(c.roomName);
   console.log(`[-] ${c.id} salió de "${c.roomName}" (${room.clients.size} en la sala)`);
@@ -98,6 +99,7 @@ function onMessage(c, text) {
     case 'pa': if (typeof m.id === 'string' && m.id.length < 80 && m.d && typeof m.d === 'object') { room.states.set(m.id, { d: m.d, owner: c.id }); broadcast(room, { t: 'p', id: m.id, d: m.d }, c.id); } break;
     case 'xa': if (typeof m.id === 'string' && room.states.get(m.id) && room.states.get(m.id).owner === c.id) { room.states.delete(m.id); broadcast(room, { t: 'x', id: m.id }); } break;
     case 'sk': if (typeof m.d === 'string' && m.d.length < 24000) { room.skins.set(c.id, m.d); broadcast(room, { t: 'sk', id: c.id, d: m.d }, c.id); } else { room.skins.delete(c.id); broadcast(room, { t: 'sk', id: c.id, d: '' }, c.id); } break;
+    case 'pf': if (m.d && typeof m.d === 'object' && m.d.v === 1 && JSON.stringify(m.d).length <= 48000) { room.profiles.set(c.id, m.d); broadcast(room, { t: 'pf', id: c.id, d: m.d }, c.id); } break;
     case 'pi': sendTo(c, { t: 'po', ts: m.ts }); break;
     // señales para que dos jugadores abran un canal directo (WebRTC): se reenvían tal cual al destinatario
     case 'sig': if (typeof m.to === 'string' && m.d && typeof m.d === 'object') sendTo(room.clients.get(m.to), { t: 'sig', from: c.id, d: m.d }); break;
@@ -138,6 +140,7 @@ server.on('upgrade', (req, socket) => {
   getRoom(roomName).clients.set(id, c);
   // al entrar recibe el estado y la skin de todos los que ya están
   for (const [sid, st] of room.states) if (sid !== id) sendTo(c, { t: 'p', id: sid, d: st.d });
+  for (const [sid, d] of room.profiles) if (sid !== id) sendTo(c, { t: 'pf', id: sid, d });
   for (const [sid, d] of room.skins) if (sid !== id) sendTo(c, { t: 'sk', id: sid, d });
   sendTo(c,{t:'wx',d:atmosphere.snapshot(room.environment),host:room.clients.keys().next().value});
   console.log(`[+] ${id} entró a "${roomName}" (${getRoom(roomName).clients.size} en la sala)`);

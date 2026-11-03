@@ -42,3 +42,11 @@ Clippy tiene voz para sus nueve bocadillos de Jesuluto: saludo, cinco comentario
 Las voces obedecen **Sonidos del juego** y **Volumen general**, son independientes del ambiente y se limpian al salir/reaparecer. La voz propia se mantiene clara durante las cinemáticas; las ajenas se atenúan por distancia.
 
 Comprobaciones: `npm run test:voces:javi` y `npm run test:voces:clippy` verifican las grabaciones, eventos, prioridades, volumen y sincronización con dos clientes locales.
+
+## Perfiles en la tabla de jugadores
+
+Tab abre y cierra la tabla con el cursor libre. Cada tarjeta muestra la foto de la cuenta y el banner elegido, incluidos los banners subidos. Un clic abre el perfil público: nombre, personaje, K.O. y muertes de la partida, partidas jugadas, horas y favorito. Esc vuelve a la tabla y después al juego; las flechas permiten recorrer las tarjetas. También aparecen los integrantes que siguen en el menú de la sala. Los bots tienen su propia ficha.
+
+Los perfiles se comparten por separado de los estados de combate: los banners subidos se reducen a JPEG de 600 × 172 y hasta 42 KB de texto, y se conservan en la sala para quienes entran tarde. Al cambiar de banner o cuenta se actualizan los demás jugadores. Los perfiles públicos incluyen únicamente nombre, imagen y estadísticas; nunca correo, UID ni credenciales. Las estadísticas de trayectoria corresponden al historial guardado por ese jugador en su navegador, sin rangos ni verificaciones adicionales.
+
+Comprobación: `npm run test:perfiles` (Chrome y Playwright). Prueba tres clientes locales, entrada tardía, cambios de banner, fotos, controles, salida de la sala, contenido inválido, bots, pantalla pequeña y el transporte de relays con un simulador aislado. Usa la puerta de pruebas que el juego ya habilita solo en localhost.
