@@ -61,3 +61,10 @@ Amigos incluye solicitudes, aceptación/rechazo, códigos de cuenta, conversacio
 Para activar la base real, seguí **ACTIVAR_COMUNIDAD.md** y publicá **firestore.rules** en el proyecto calgame. La integración se prueba en emuladores; no da por activada una base que todavía no exista. `test:perfiles:v2`, `test:social:reglas` y `test:social` cubren interfaz, permisos e intercambio entre cuentas.
 
 El modo Auto ahora reduce la calidad después de varios segundos de FPS bajos y respeta la selección manual. El compositor se crea solo al necesitar Alta y reduce buffers al salir de esa calidad. Los sistemas de partículas dibujan únicamente instancias vivas; la decoración submarina y las caras lejanas reducen trabajo visual sin cambiar física ni red.
+
+
+## Controles de celular
+
+En dispositivos táctiles aparece un joystick a la izquierda y se gira la cámara arrastrando el escenario. Los botones permiten golpear, bloquear, saltar, esquivar, activar habilidades y despertar, abrir Amigos, jugadores y pausa. Sekza tiene R para volar, doble toque en la playa para gaviotas y un botón para bajar durante el vuelo. Se recomienda la orientación horizontal. Auto comienza en calidad mínima y puede bajarla más según el rendimiento; la calidad elegida a mano se respeta.
+
+`npm run test:tactil` comprueba movimientos simultáneos, cámara, ataques, habilidades, vuelo, pausa y modo de escritorio en Chrome con pantalla táctil emulada.

@@ -538,6 +538,14 @@ body.lite-profiles .profile-avatar{animation:none!important;box-shadow:none!impo
 @media(prefers-reduced-motion:reduce){.profile-avatar{animation:none!important}}
 @media(max-width:650px){#socialdlg{padding:8px}.social-shell{height:calc(100dvh - 16px);border-radius:14px}.social-shell header{padding:16px 16px 8px}.social-layout{grid-template-columns:1fr;grid-template-rows:minmax(120px,35%) 1fr}.social-layout aside{padding:10px 14px}.social-layout #friend-list{display:flex;gap:10px;overflow-x:auto}.friend-row{min-width:200px}.social-shell #social-status{padding:0 16px}.dm-privacy{font-size:8px}#playerdlg{padding:10px}.public-banner{height:140px}.public-head,#acctdlg .cardp .head{padding:0 18px;gap:12px}.public-head img,#acctdlg .cardp .head img{width:85px;height:85px;border-radius:27px}.public-head h2{font-size:23px}.public-extras,.profile-extras,.public-actions{padding-left:18px;padding-right:18px}.public-stats{padding-left:18px;padding-right:18px}.public-back{width:calc(100% - 36px);margin-left:18px;margin-right:18px}.pe-top h3{font-size:17px!important}body.has-match #friendsbtn{top:173px;right:12px;padding:7px 10px;font-size:10px}.account-role{font-size:9px}}
 
+#touch-controls{display:none;position:fixed;inset:0;z-index:25;pointer-events:none;touch-action:none}body.touch-play #touch-controls{display:block}body.touch-play #wrap canvas{touch-action:none}body.touch-play #skills{pointer-events:auto;right:12px;bottom:118px;gap:4px;max-width:55vw}body.touch-play #skills .slot{pointer-events:auto;touch-action:none;min-width:48px;width:clamp(48px,8vw,72px);height:60px}body.touch-play #skills .slot .sn{font-size:9px}body.touch-play #lockhint{display:none!important}
+#touch-joystick{position:absolute;left:22px;bottom:24px;width:clamp(100px,19vw,150px);aspect-ratio:1;border:2px solid #ffffff65;background:#0c122075;border-radius:50%;pointer-events:auto;touch-action:none}#touch-stick{position:absolute;left:50%;top:50%;width:42%;height:42%;border:2px solid #ffffffa0;border-radius:50%;background:#d7ff2f8c;transform:translate(-50%,-50%);pointer-events:none}.touch-actions{position:absolute;right:14px;bottom:15px;display:grid;grid-template-columns:repeat(4,minmax(54px,1fr));gap:5px;pointer-events:auto}.touch-actions button,.touch-top button{border:1px solid #ffffff70;background:#111a2bd9;color:#fff;border-radius:12px;padding:10px 7px;font:800 10px var(--body);touch-action:none;min-height:46px}.touch-actions .touch-attack{background:#d7ff2fe0;color:#111}.touch-actions .touch-held{background:#fff;color:#111}.touch-actions #touch-special{grid-column:span 4;background:#315b8bdc}.touch-top{position:absolute;right:12px;top:14px;display:flex;gap:6px;pointer-events:auto}.touch-top button{min-height:36px;padding:6px 10px}.touch-hint{position:absolute;right:20px;top:58px;color:#fff9;font:11px var(--body);text-shadow:0 1px 3px #000}.touch-play #friendsbtn{display:none}
+@media(max-height:540px){body.touch-play #skills{bottom:80px}body.touch-play #skills .slot{height:48px}.touch-actions{bottom:8px}.touch-actions button{min-height:34px;padding:5px}.touch-actions #touch-special{grid-column:span 2}.touch-hint{display:none}#touch-joystick{bottom:10px;width:105px}.touch-top{top:6px}}
+@media(orientation:portrait) and (pointer:coarse){body.touch-play #touch-controls:after{content:'Para jugar más cómodo, girá el celular ↻';position:absolute;left:50%;top:12%;transform:translateX(-50%);background:#111c;color:#fff;padding:8px 12px;border-radius:8px;font:700 12px var(--body);white-space:nowrap;pointer-events:none;animation:touchTip 5s forwards}@keyframes touchTip{80%{opacity:1}100%{opacity:0}}}
+
+body.touch-play #vitals{bottom:140px;left:14px;width:min(220px,32vw);gap:5px}body.touch-play #hface{width:36px;height:36px;border-width:2px}body.touch-play #pname{font-size:15px}body.touch-play #pname small{display:none}body.touch-play #minimap{width:90px;height:90px;top:52px;right:12px}@media(max-height:540px){body.touch-play #vitals{bottom:120px}body.touch-play #minimap{width:70px;height:70px;top:48px}}
+.touch-actions #touch-special{grid-column:span 2}
+
 </style>
 
 </head>
@@ -674,7 +682,7 @@ body.lite-profiles .profile-avatar{animation:none!important;box-shadow:none!impo
     <ul id="cskills"></ul>
   </section>
   <section class="mpanel hidden" id="tab-cfg">
-    <p id="touchnote" class="hidden">Este juego necesita teclado y mouse.</p>
+    <p id="touchnote" class="hidden">En celular: usá el joystick y arrastrá la pantalla para mirar. Recomendamos jugar en horizontal.</p>
     <div class="field"><label for="pname-in">Tu nombre</label><input id="pname-in" type="text" maxlength="16" value="Jugador"></div>
     <div class="field">
       <span class="flabel">Tu skin de Minecraft</span>
@@ -9922,7 +9930,7 @@ function playerCtl() {
   if (G.viewer) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   if (G.paused || roomInputBlocked()) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   const c = { mx: 0, mz: 0, jump: !!keys.Space, dash: pressed.has('KeyQ'), m1: mouse.left, block: !!keys.KeyF || mouse.right, skill: -1, ult: pressed.has('KeyG'), down:!!keys.KeyC, up: !!keys.Space };
-  const ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  const ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + (touchActive() ? TOUCH.x : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) + (touchActive() ? TOUCH.y : 0);
   if (ix || iz) { const d = fwd(cam.yaw).multiplyScalar(iz).add(rightOf(cam.yaw).multiplyScalar(ix)).normalize(); c.mx = d.x; c.mz = d.z; }
   for (let i = 1; i <= 4; i++) if (pressed.has('Digit' + i)) c.skill = i - 1;
   return c;
@@ -10789,7 +10797,7 @@ function updateHUD(dt) {
     f.plate.classList.toggle('awk', f.awak > 0);
   }
   updateNums(dt);
-  const p = G.player; if (G.state !== 'play' || !p) return;
+  touchUpdate();const p = G.player; if (G.state !== 'play' || !p) return;
   $('hpbar').style.width = (Math.max(0, p.hp) / p.maxHp * 100) + '%';
   $('hpbar').style.background = p.hp < p.maxHp * .3 ? 'var(--hp-low)' : 'var(--hp)';
   $('hptxt').textContent = `${Math.max(0, Math.ceil(p.hp))} / ${p.maxHp}`;
@@ -10891,7 +10899,7 @@ function gfxSet(level, auto, save = true) {
   performanceDecorations();
   document.querySelectorAll('.gfxsel').forEach(el => { el.value = auto ? 'auto' : String(level); });
 }
-const gfxAutoLevel = () => GFX.soft ? 4 : WEAK_PC ? 3 : LOW_PC ? 2 : 0;
+const gfxAutoLevel = () => GFX.soft ? 4 : TOUCH.enabled ? 3 : WEAK_PC ? 3 : LOW_PC ? 2 : 0;
 function gfxInit() {
   let sv = null; try { sv = JSON.parse(localStorage.getItem('bsb_gfx_v3') || 'null'); } catch (e) { }
   const q = /[?&]q=([0-4])/.exec(location.search);
@@ -11278,7 +11286,7 @@ const canvas = renderer.domElement;
 let locked = false, lockFailed = false;
 // Captura del mouse robusta: movimiento sin aceleración del sistema y reintentos (el navegador rechaza el bloqueo si se pide justo después de soltarlo)
 function requestLock(tries = 0) {
-  if (roomInputBlocked()) return;
+  if (TOUCH.enabled || roomInputBlocked()) return;
   if (document.pointerLockElement === canvas) return;
   const retry = () => { if (tries < 8 && G.state === 'play' && !G.paused && !G.over && !roomInputBlocked()) setTimeout(() => requestLock(tries + 1), 180 + tries * 120); else lockFailed = true; };
   try {
@@ -11340,15 +11348,37 @@ body.inplay,body.inplay *{cursor:none!important}
   document.head.appendChild(st);
   const hint = document.createElement('div'); hint.id = 'lockhint'; hint.textContent = 'Haz clic en el juego para recuperar el control del mouse'; document.body.appendChild(hint);
   setInterval(() => {
-    const play = G.state === 'play' && !G.paused && !G.over && !G.viewer && !roomInputBlocked();
+    const play = G.state === 'play' && !G.paused && !G.over && !G.viewer && !roomInputBlocked() && !TOUCH.enabled;
     document.body.classList.toggle('inplay', play && locked);
     hint.style.display = play && !locked ? 'block' : 'none';
   }, 200);
 }
+// Controles táctiles: cada dedo tiene su propio identificador, por lo que se puede mover, mirar y atacar a la vez.
+const TOUCH = { enabled: matchMedia('(pointer: coarse)').matches, moveId: null, lookId: null, x: 0, y: 0, lx: 0, ly: 0, held: new Map() };
+function touchActive(){return TOUCH.enabled&&G.state==='play'&&!G.paused&&!G.over&&!G.viewer&&!G.cine&&!G.panelOpen&&!roomInputBlocked();}
+function touchReset(){TOUCH.moveId=TOUCH.lookId=null;TOUCH.x=TOUCH.y=0;for(const [id,key] of TOUCH.held){if(key==='attack')mouse.left=false;else if(key==='block')mouse.right=false;else if(key==='jump')keys.Space=false;if(key==='down')keys.KeyC=false;}TOUCH.held.clear();pressed.clear();document.querySelectorAll('.touch-held').forEach(b=>b.classList.remove('touch-held'));const stick=$('touch-stick');if(stick)stick.style.transform='translate(-50%,-50%)';}
+function touchUpdate(){const on=touchActive();document.body.classList.toggle('touch-play',on);if(!on&&(TOUCH.moveId!==null||TOUCH.lookId!==null||TOUCH.held.size))touchReset();const r=$('touch-special');if(r)r.hidden=!G.player||G.player.ch!==CHARS.sekza;const down=$('touch-down');if(down)down.hidden=!G.player||G.player.ch!==CHARS.sekza||G.player.rFlightT<=0;}
+function touchInit(){
+ if(!TOUCH.enabled)return;
+ const ui=document.createElement('div');ui.id='touch-controls';ui.innerHTML='<div id="touch-joystick" aria-label="Mover personaje"><span id="touch-stick"></span></div><div class="touch-actions"><button type="button" data-touch="attack" class="touch-attack">GOLPE</button><button type="button" data-touch="block">BLOQUEAR</button><button type="button" data-touch="jump">SALTAR</button><button type="button" data-touch="dash">ESQUIVAR</button><button type="button" data-touch="special" id="touch-special">R · VUELO / ×2 GAVIOTAS</button><button type="button" data-touch="down" id="touch-down" hidden>BAJAR</button></div><div class="touch-top"><button type="button" data-touch="friends">Amigos</button><button type="button" data-touch="board">Jugadores</button><button type="button" data-touch="pause">Pausa</button></div><div class="touch-hint">Arrastrá el lado derecho para mirar</div>';document.body.appendChild(ui);
+ const joy=$('touch-joystick');function move(e){const r=joy.getBoundingClientRect(),radius=r.width*.38,dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),len=Math.hypot(dx,dy),scale=len>radius?radius/len:1;TOUCH.x=dx*scale/radius;TOUCH.y=-dy*scale/radius;$('touch-stick').style.transform=`translate(calc(-50% + ${dx*scale}px),calc(-50% + ${dy*scale}px))`;}
+ joy.addEventListener('pointerdown',e=>{if(!touchActive()||TOUCH.moveId!==null)return;e.preventDefault();e.stopPropagation();TOUCH.moveId=e.pointerId;joy.setPointerCapture(e.pointerId);move(e);});
+ joy.addEventListener('pointermove',e=>{if(e.pointerId===TOUCH.moveId){e.preventDefault();move(e);}});
+ const endMove=e=>{if(e.pointerId===TOUCH.moveId){TOUCH.moveId=null;TOUCH.x=TOUCH.y=0;$('touch-stick').style.transform='translate(-50%,-50%)';}};joy.addEventListener('pointerup',endMove);joy.addEventListener('pointercancel',endMove);joy.addEventListener('lostpointercapture',endMove);
+ ui.addEventListener('pointerdown',e=>{const b=e.target.closest('button[data-touch]');if(!b||!touchActive())return;e.preventDefault();e.stopPropagation();initAudio();const key=b.dataset.touch;if(key==='pause'){touchReset();setPause(true);return;}if(key==='board'){touchReset();setRoomBoard(true);return;}if(key==='friends'){touchReset();socialOpen();return;}if(key==='special'){sekzaSpecialKey(G.player);return;}if(key==='dash'){pressed.add('KeyQ');return;}if(key==='attack')mouse.left=true;if(key==='block')mouse.right=true;if(key==='jump')keys.Space=true;if(key==='down')keys.KeyC=true;TOUCH.held.set(e.pointerId,key);b.classList.add('touch-held');b.setPointerCapture(e.pointerId);});
+ const release=e=>{const key=TOUCH.held.get(e.pointerId);if(!key)return;TOUCH.held.delete(e.pointerId);if(![...TOUCH.held.values()].includes(key)){if(key==='attack')mouse.left=false;if(key==='block')mouse.right=false;if(key==='jump')keys.Space=false;if(key==='down')keys.KeyC=false;}e.target.closest('button')?.classList.remove('touch-held');};ui.addEventListener('pointerup',release);ui.addEventListener('pointercancel',release);ui.addEventListener('lostpointercapture',release);
+ canvas.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||!touchActive()||TOUCH.lookId!==null)return;e.preventDefault();TOUCH.lookId=e.pointerId;TOUCH.lx=e.clientX;TOUCH.ly=e.clientY;canvas.setPointerCapture(e.pointerId);});
+ canvas.addEventListener('pointermove',e=>{if(e.pointerId!==TOUCH.lookId||!touchActive())return;e.preventDefault();cam.yaw-=(e.clientX-TOUCH.lx)*.006;cam.pitch=clamp(cam.pitch+(e.clientY-TOUCH.ly)*.006,-.35,1.2);TOUCH.lx=e.clientX;TOUCH.ly=e.clientY;});
+ const endLook=e=>{if(e.pointerId===TOUCH.lookId)TOUCH.lookId=null;};canvas.addEventListener('pointerup',endLook);canvas.addEventListener('pointercancel',endLook);canvas.addEventListener('lostpointercapture',endLook);
+ $('skills').addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'||!touchActive())return;const slot=e.target.closest('.slot');if(!slot)return;const i=[...$('skills').children].indexOf(slot);if(i<0)return;e.preventDefault();e.stopPropagation();initAudio();pressed.add(i===4?'KeyG':'Digit'+(i+1));});
+ addEventListener('blur',touchReset);addEventListener('visibilitychange',()=>{if(document.hidden)touchReset();});
+}
+touchInit();
+
 addEventListener('pointerdown', () => initAudio(), { once: true });
 canvas.addEventListener('mousedown', e => {
   if (G.viewer) { VW.drag = true; return; }
-  if (G.state !== 'play' || G.paused || G.over || roomInputBlocked()) return;
+  if (TOUCH.enabled || G.state !== 'play' || G.paused || G.over || roomInputBlocked()) return;
   initAudio();
   if (!locked) { lockFailed = false; requestLock(); }
   slTap = false;
