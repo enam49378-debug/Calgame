@@ -131,7 +131,7 @@ def add_eyes(model, eyes, texture_data):
                 return True
         return False
     assert attach(model['outliner'])
-    model['textures'].append({'name': 'Normal_mujer.png', 'uuid': uid('eye_texture'), 'id': '1',
+    model['textures'].append({'name': 'Pupilas verdes.png', 'uuid': uid('eye_texture'), 'id': '1',
         'width': 16, 'height': 16, 'uv_width': 64, 'uv_height': 64, 'internal': True, 'source': texture_data})
 
 
@@ -175,7 +175,8 @@ def main():
     project['textures'][0].update(internal=True, source=skin)
     for key in ('path', 'relative_path'):
         project['textures'][0].pop(key, None)
-    eye_groups = read_json(eye_dir / 'Jesuluto ojos rig mujer.bbs.json')['model']['groups']
+    # La variante base comparte las UV de las pupilas con la textura verde y no tiene pestañas.
+    eye_groups = read_json(eye_dir / 'Jesuluto ojos rig.bbs.json')['model']['groups']
     add_eyes(project, eye_groups, eyes)
     project['groups'].append({'name':'film_root', 'uuid':uid('film_root'), 'origin':[0,0,0], 'rotation':[0,0,0], 'export':True, 'visibility':True})
     project['outliner'] = [{'uuid':uid('film_root'), 'children':project['outliner']}]
