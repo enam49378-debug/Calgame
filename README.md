@@ -68,3 +68,6 @@ El modo Auto ahora reduce la calidad después de varios segundos de FPS bajos y 
 En dispositivos táctiles aparece un joystick a la izquierda y se gira la cámara arrastrando el escenario. Los botones permiten golpear, bloquear, saltar, esquivar, activar habilidades y despertar, abrir Amigos, jugadores y pausa. Sekza tiene R para volar, doble toque en la playa para gaviotas y un botón para bajar durante el vuelo. Se recomienda la orientación horizontal. Auto comienza en calidad mínima y puede bajarla más según el rendimiento; la calidad elegida a mano se respeta.
 
 `npm run test:tactil` comprueba movimientos simultáneos, cámara, ataques, habilidades, vuelo, pausa y modo de escritorio en Chrome con pantalla táctil emulada.
+
+
+La interfaz táctil dispone las habilidades abajo, y agrupa golpe, salto, bloqueo y esquiva a la derecha. El botón **Fijar** activa o desactiva el bloqueo de cámara. **Ajustar** permite arrastrar los controles; **Listo** guarda las posiciones en el navegador y **Restablecer** recupera la distribución original.
