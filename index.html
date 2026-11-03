@@ -285,6 +285,13 @@ tr.me td{color:var(--hot);font-weight:700}
 .big.alt{background:var(--panel-2);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
 #viewbtn{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:var(--hot);border:1px solid var(--hot);padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+body:not(.dev) .devonly{display:none!important}
+.devbtn{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:#ffb020;border:1px solid #ffb020;padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer}
+.devbtn:hover{background:#ffb020;color:#000}
+#devbadge{position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:70;background:#ffb020;color:#000;font:900 11px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.2em;padding:3px 14px 4px;clip-path:polygon(0 0,100% 0,calc(100% - 8px) 100%,8px 100%);pointer-events:none}
+body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
+#devhud{position:fixed;right:8px;bottom:8px;z-index:70;background:#000b;color:#ffd27a;font:700 12px/1.45 monospace;padding:6px 10px;border-left:3px solid #ffb020;pointer-events:none;white-space:pre}
+#devhud.off{display:none}
 #viewbtn:hover{background:var(--hot);color:#000}
 #viewer{position:fixed;left:50%;bottom:calc(7vh + 12px);transform:translateX(-50%);width:min(900px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--hot);padding:10px 14px;display:flex;flex-direction:column;gap:8px;z-index:30;font-size:14px}
 #viewer.hidden{display:none}
@@ -532,6 +539,7 @@ tr.me td{color:var(--hot);font-weight:700}
     </div>
   </div>
 </div>
+<div id="devbadge">MODO DESARROLLADOR</div><div id="devhud" class="off"></div>
 <div id="tfall"></div>
 <div id="uw"></div>
 <div id="airbar" class="hidden"><span>AIRE</span><i></i></div>
@@ -581,9 +589,13 @@ tr.me td{color:var(--hot);font-weight:700}
     <button type="button" id="menuback" aria-label="Volver al menú principal" title="Volver al menú principal">←</button>
     <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg" class="hidden">PARTIDA</button></nav>
     <button type="button" id="invbtn" class="hidden">INVITAR ▸</button>
-    <button type="button" id="viewbtn">SALA DE CINEMÁTICAS ▸</button>
-    <button type="button" id="feb">EDITOR DE EXPRESIONES ▸</button>
-    <button type="button" id="animedbtn">EDITOR DE ANIMACIONES ▸</button>
+    <button type="button" id="viewbtn" class="devonly">SALA DE CINEMÁTICAS ▸</button>
+    <button type="button" id="feb" class="devonly">EDITOR DE EXPRESIONES ▸</button>
+    <button type="button" id="animedbtn" class="devonly">EDITOR DE ANIMACIONES ▸</button>
+    <button type="button" id="mapedbtn" class="devonly devbtn">EDITOR DE MAPA ▸</button>
+    <button type="button" id="audedbtn" class="devonly devbtn">EDITOR DE AUDIO ▸</button>
+    <button type="button" id="devstat" class="devonly devbtn">ESTADÍSTICAS ▸</button>
+    <button type="button" id="devoff" class="devonly devbtn">SALIR DEV</button>
     <button type="button" id="setbtn">⚙ AJUSTES</button>
   </header>
   <section class="mpanel" id="tab-sel">
@@ -780,14 +792,14 @@ tr.me td{color:var(--hot);font-weight:700}
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js" integrity="sha384-nhO9toQuMo5osCuA0l+YFpSqscZWxDu251Bnho2gD3kSPv1neEwHg0LyEmrA+mPj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js" integrity="sha384-mY+ii969jnDCI2HjRHftH2NZVkIO5ZGUkcnGCg3oVJ3kVstWQXwerYWBg+nbUG4R" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js" integrity="sha384-GkidzTYmQg24v13sa3xhBBbvOLbVLO1QxfyKLdOWweQqNqS/iWwUst2T1fER2Xrg" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js" integrity="sha384-2EpLreWSFuZsk4hcSplXLhlHd/wzvDNF907bTGIXSXM0SlhJNzy4YK0DhBFvkFEs" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js" integrity="sha384-I3lsvPeDJYFrEAzn/TA0yhc/SCYKwpyfyq8lKzHYKohu43H9f7xc/Q9ZWgSVUDl3" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js" integrity="sha384-aVQ2QnWkoxhOefDB0YZB64OPVzujvccydpcC7UqMDJUK0ChwA382zOHmrWHGDRRa" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js" integrity="sha384-u4uqeACkFcoKl57rBQJHVGDd1pqhW4w8X3WjTu1ZksPdxoLqdt34jpoNkJisE25W" crossorigin="anonymous"></script>
 <script>
 // protección: si otra página mete el juego en un marco (para robarle clics o copiarlo), se sale al sitio real; el marco de la guía es del mismo origen y se permite
 try { if (window.top !== window.self) { void window.parent.location.origin; } } catch (e) { try { window.top.location = window.self.location; } catch (x) { document.documentElement.innerHTML = ''; } }
@@ -946,6 +958,40 @@ const CITY_MODEL_DIMS = {"apartamentos_ladrillo": [9.0, 9.0, 12.1], "apartamento
   for (const i in I) { const b = CITY_PLAN[i], q = I[i], dm = CITY_MODEL_DIMS[q.m]; b.model = q.m; b.x = q.x; b.z = q.z; b.w = dm[0]; b.d = dm[1]; b.h = dm[2]; b.acc = { kind: q.k, base: q.base, door: q.door }; b.accessible = true; }
   for (const i in M2) { CITY_PLAN[i].x = M2[i][0]; CITY_PLAN[i].z = M2[i][1]; } }
 CITY_PLAN.push({x:78,z:-30,w:26,d:22,h:10,color:'#c5a578',label:'CASINO AURORA',accent:'#684061',acc:{kind:'casino',base:6.2,door:4.4},accessible:true});
+
+// ===== Ediciones del mapa (las hace el editor de mapa en modo desarrollador y quedan en config/mapa.json) =====
+const MAP_ITEMS = [];
+const MAPED = (() => {
+  const E = { v: 1, mv: {}, del: [], add: [] }, num = (v, d = 0) => (Number.isFinite(+v) && Math.abs(+v) < 600 ? +v : d);
+  try {
+    let txt = null, dev = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+    try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); if (d && Date.now() - d.t < 30 * 864e5) dev = true; } catch (e) { }
+    if (dev) { try { txt = localStorage.getItem('bsb_mapedit'); } catch (e) { } }
+    if (!txt) { const x = new XMLHttpRequest(); x.open('GET', 'config/mapa.json?v=' + Date.now(), false); x.send(); if (x.status === 200) txt = x.responseText; }
+    const j = txt && JSON.parse(txt);
+    if (j && j.v === 1) {
+      for (const k in (j.mv || {})) if (typeof k === 'string' && k.length < 120) E.mv[k] = { x: num(j.mv[k].x), z: num(j.mv[k].z), ry: num(j.mv[k].ry) };
+      for (const k of (j.del || [])) if (typeof k === 'string' && k.length < 120) E.del.push(k);
+      for (const a of (j.add || [])) if (a && typeof a.id === 'string' && typeof a.from === 'string' && (a.kind === 'b' || a.kind === 'p')) E.add.push({ id: a.id.slice(0, 40), kind: a.kind, model: String(a.model || '').replace(/[^a-z0-9_]/g, '').slice(0, 40), from: a.from.slice(0, 120), x: num(a.x), z: num(a.z), ry: num(a.ry) });
+    }
+  } catch (e) { }
+  return E;
+})();
+{
+  const B = CITY_PLAN.slice();
+  for (const b of B) { b.k = 'b:' + (b.model || b.label || 'blq') + '@' + b.x + ',' + b.z; MAP_ITEMS.push({ key: b.k, kind: 'b', model: b.model || 'edificio', label: b.label || '', ox: b.x, oz: b.z, ory: 0, x: b.x, z: b.z, ry: 0, w: b.w, d: b.d, h: b.h, color: b.color, plan: b }); }
+  CITY_PLAN.length = 0;
+  for (const it of MAP_ITEMS) {
+    if (MAPED.del.includes(it.key) && it.label !== 'TORRE AURORA') { it.del = true; continue; }
+    const m = MAPED.mv[it.key]; if (m) { it.plan.x = it.x = m.x; it.plan.z = it.z = m.z; }
+    CITY_PLAN.push(it.plan);
+  }
+  for (const a of MAPED.add) if (a.kind === 'b') {
+    const f = MAP_ITEMS.find(q => q.key === a.from && q.kind === 'b'); if (!f) continue;
+    const plan = Object.assign({}, f.plan, { x: a.x, z: a.z, label: null, acc: undefined, accessible: false, k: a.id });   // la copia no tiene interior
+    CITY_PLAN.push(plan); MAP_ITEMS.push({ key: a.id, kind: 'b', model: f.model, label: '', ox: a.x, oz: a.z, ory: 0, x: a.x, z: a.z, ry: 0, w: f.w, d: f.d, h: f.h, color: f.color, plan, added: true, from: a.from });
+  }
+}
 const SPAWN_POINTS = [
   [0,-33], [33,0], [0,33], [-33,0], [-22,-29], [22,29], [-29,22], [29,-22],
   [-22,10], [22,-10], [-22,-3], [22,3], [0,-9], [9,0], [0,9], [-9,0],
@@ -1467,7 +1513,12 @@ function cityGrassAt(x,z) {
   }
   // adornos de la costa (modelos de Blockbench en ciudad/)
   const PR=[];
-  const addP=(m,x,z,ry=0,o={})=>{if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<3.4))return;PR.push(Object.assign({m,x,z,ry},o));};
+  const addP=(m,x,z,ry=0,o={})=>{
+    if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<3.4))return;
+    const k='p:'+m+'@'+x.toFixed(1)+','+z.toFixed(1), it={key:k,kind:'p',model:m,label:'',ox:x,oz:z,ory:ry,x,z,ry,added:false};MAP_ITEMS.push(it);
+    if(MAPED.del.includes(k)){it.del=true;return;}
+    const e=MAPED.mv[k];if(e){x=it.x=e.x;z=it.z=e.z;ry=it.ry=e.ry;}
+    PR.push(Object.assign({m,x,z,ry},o));};
   addP('muelle',0,78,0);
   // huellas de los adornos fijos [x, z, medio ancho, medio largo]: las palmeras no se plantan encima ni con la copa tapándolos
   const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,98,5.4,22],[-46,88,2.4,3.8],[50,89,2.4,3.8],
@@ -1485,6 +1536,7 @@ function cityGrassAt(x,z) {
   [-72,-68.4,-64.8,-61.2].forEach((x,i)=>addP(i%2?'caseta_azul':'caseta_roja',x,74.8,0));
   addP('barca_roja',-34,SHORE(-34)+9,.4,{y:-.12,bob:1});addP('barca_azul',22,SHORE(22)+13,-.5,{y:-.12,bob:1});addP('velero',-6,SHORE(-6)+19,.2,{y:-.1,bob:1});addP('barca_roja',46,SHORE(46)+8,1.2,{y:-.12,bob:1});
   addP('rocas_a',-78,SHORE(-78)-2,.5);addP('rocas_b',78,SHORE(78)-2,2.1);addP('faro',86,SHORE(86)-5,0);
+  for(const a of MAPED.add)if(a.kind==='p'&&a.model){MAP_ITEMS.push({key:a.id,kind:'p',model:a.model,label:'',ox:a.x,oz:a.z,ory:a.ry,x:a.x,z:a.z,ry:a.ry,added:true,from:a.from});PR.push({m:a.model,x:a.x,z:a.z,ry:a.ry});}
   for(const pr of PR)bbLoads.push(loadBBModel(pr.m).then(({geo,mat})=>{
     const mesh=new THREE.Mesh(geo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
     if(pr.bob)BEACH.boats.push({mesh,y0:pr.y,ph:rnd()*6});
@@ -3893,6 +3945,7 @@ function fePaintAt(ev) {
 }
 setInterval(() => { if ($('faceed').classList.contains('hidden')) return; const ex = FACE_LIB[FE.cid] && feExpr(); if (ex && ex.img) { const t = faceImageTex(ex.img, CHARS[FE.cid].color); if (faceAnimTick(t, performance.now() / 1000)) feDrawMain(); } }, 80);
 function feOpen() {
+  if (!DEV.on) return;
   const first = Object.keys(FACE_LIB).includes(G.charId) ? G.charId : 'javi';
   FE.cid = first; if (!feExpr()) FE.id = feLib().exprs[0].id;
   $('faceed').classList.remove('hidden'); SH.faceZoom = true; feSelect();
@@ -5317,10 +5370,38 @@ const HTML_AUDIO_LEVELS=new Set();
 const VOICE_PACKS={"javi":{"activate":["activar_ulti"],"kill":["baja_1","baja_2"],"near":["casi_baja_1","casi_baja_2"],"hurt":["dano_1","dano_2"],"death":["muerte_1","muerte_2","muerte_3","muerte_4"],"idle":["reposo_1","reposo_2","reposo_3"],"ready":["ulti_lista_1","ulti_lista_2"]},"randi":{"activate":["activar_ulti_1","activar_ulti_2","activar_ulti_3","activar_ulti_4"],"kill":["baja_1","baja_2","baja_3"],"near":["casi_baja_1","casi_baja_2","casi_baja_3"],"cerca_gato":["cerca_gato_1"],"cerca_jesuluto":["cerca_jesuluto_1"],"cerca_mattux":["cerca_mattux_1"],"cerca_redbird":["cerca_redbird_1"],"cerca_rocket_ulti":["cerca_rocket_ulti_1"],"cerca_sebolla":["cerca_sebolla_1"],"cerca_sekza":["cerca_sekza_1","cerca_sekza_2"],"hab_cuyes":["hab_cuyes_1"],"hab_paloma":["hab_paloma_1"],"hab_pisco":["hab_pisco_1"],"death":["muerte_1","muerte_2","muerte_3"],"reac_torbellino":["reac_torbellino_1"],"idle":["reposo_1","reposo_2","reposo_3","reposo_4","reposo_5","reposo_6"],"ready":["ulti_lista_1","ulti_lista_2"]},"redbird":{"skill":["habilidad_ulti_1"]},"rocket":{"activate":["activar_ulti_1"],"kill":["baja_1"],"near":["casi_baja_1"],"death":["muerte_1"],"idle":["reposo_1"],"ready":["ulti_lista_1"]},"sebolla":{"activate":["activar_ulti_1","activar_ulti_2","activar_ulti_3"],"kill":["baja_1","baja_2","baja_3","baja_4","baja_5","baja_6","baja_7","baja_8"],"near":["casi_baja_1","casi_baja_2","casi_baja_3","casi_baja_4","casi_baja_5","casi_baja_6","casi_baja_7"],"menu":["menu_1","menu_2","menu_3","menu_4"],"death":["muerte_1","muerte_2","muerte_3","muerte_4","muerte_5","muerte_6","muerte_7","muerte_8"],"idle":["reposo_1","reposo_2","reposo_3","reposo_4","reposo_5","reposo_6"],"ready":["ulti_lista_1"]},"sekza":{"activate":["activar_ulti_1"],"kill":["baja_1"],"near":["casi_baja_1","casi_baja_2"],"hurt":["dano_1","dano_2","dano_3","dano_4","dano_5"],"hit":["golpe_1","golpe_2","golpe_3","golpe_4","golpe_5","golpe_6","golpe_7"],"menu":["menu_1","menu_2","menu_3"],"death":["muerte_1","muerte_2","muerte_3"],"idle":["reposo_1"],"ready":["ulti_lista_1"]},"ukyo":{"activate":["activar_ulti_1"],"kill":["baja_1"],"near":["casi_baja_1"],"death":["muerte_1"],"idle":["reposo_1"],"ready":["ulti_lista_1"]}};
 const VOICE_DUR={"javi/activar_ulti":3.408,"javi/baja_1":1.8,"javi/baja_2":2.352,"javi/casi_baja_1":1.224,"javi/casi_baja_2":1.248,"javi/dano_1":1.464,"javi/dano_2":1.008,"javi/muerte_1":2.136,"javi/muerte_2":1.44,"javi/muerte_3":1.752,"javi/muerte_4":2.472,"javi/reposo_1":2.952,"javi/reposo_2":1.8,"javi/reposo_3":2.232,"javi/ulti_lista_1":2.472,"javi/ulti_lista_2":1.224,"randi/activar_ulti_1":3.696,"randi/activar_ulti_2":3.288,"randi/activar_ulti_3":3.312,"randi/activar_ulti_4":4.632,"randi/baja_1":1.752,"randi/baja_2":2.352,"randi/baja_3":2.328,"randi/casi_baja_1":2.352,"randi/casi_baja_2":3.312,"randi/casi_baja_3":2.352,"randi/cerca_gato_1":5.616,"randi/cerca_jesuluto_1":7.591,"randi/cerca_mattux_1":3.888,"randi/cerca_redbird_1":3.888,"randi/cerca_rocket_ulti_1":3.12,"randi/cerca_sebolla_1":3.888,"randi/cerca_sekza_1":3.888,"randi/cerca_sekza_2":3.312,"randi/hab_cuyes_1":4.464,"randi/hab_paloma_1":4.272,"randi/hab_pisco_1":3.312,"randi/muerte_1":2.328,"randi/muerte_2":2.328,"randi/muerte_3":1.56,"randi/reac_torbellino_1":3.888,"randi/reposo_1":3.864,"randi/reposo_2":5.04,"randi/reposo_3":4.056,"randi/reposo_4":3.288,"randi/reposo_5":7.944,"randi/reposo_6":2.736,"randi/ulti_lista_1":2.328,"randi/ulti_lista_2":2.544,"redbird/habilidad_ulti_1":4.471,"rocket/activar_ulti_1":3.648,"rocket/baja_1":2.429,"rocket/casi_baja_1":2.22,"rocket/muerte_1":1.944,"rocket/reposo_1":2.168,"rocket/ulti_lista_1":2.429,"sebolla/activar_ulti_1":4.32,"sebolla/activar_ulti_2":4.464,"sebolla/activar_ulti_3":4.584,"sebolla/baja_1":2.52,"sebolla/baja_2":1.704,"sebolla/baja_3":3.36,"sebolla/baja_4":2.952,"sebolla/baja_5":2.664,"sebolla/baja_6":2.4,"sebolla/baja_7":4.032,"sebolla/baja_8":2.664,"sebolla/casi_baja_1":3.031,"sebolla/casi_baja_2":3.031,"sebolla/casi_baja_3":3.031,"sebolla/casi_baja_4":2.999,"sebolla/casi_baja_5":2.52,"sebolla/casi_baja_6":3.072,"sebolla/casi_baja_7":2.952,"sebolla/menu_1":4.46,"sebolla/menu_2":3.542,"sebolla/menu_3":3.542,"sebolla/menu_4":4.198,"sebolla/muerte_1":1.704,"sebolla/muerte_2":2.112,"sebolla/muerte_3":2.52,"sebolla/muerte_4":2.112,"sebolla/muerte_5":2.112,"sebolla/muerte_6":1.992,"sebolla/muerte_7":2.256,"sebolla/muerte_8":1.992,"sebolla/reposo_1":4.722,"sebolla/reposo_2":4.722,"sebolla/reposo_3":4.923,"sebolla/reposo_4":2.918,"sebolla/reposo_5":1.718,"sebolla/reposo_6":5.13,"sebolla/ulti_lista_1":3.072,"sekza/activar_ulti_1":4.946,"sekza/baja_1":1.184,"sekza/casi_baja_1":2.856,"sekza/casi_baja_2":2.856,"sekza/dano_1":1.022,"sekza/dano_2":1.022,"sekza/dano_3":0.754,"sekza/dano_4":0.754,"sekza/dano_5":0.511,"sekza/golpe_1":0.841,"sekza/golpe_2":0.53,"sekza/golpe_3":0.53,"sekza/golpe_4":0.719,"sekza/golpe_5":0.841,"sekza/golpe_6":0.448,"sekza/golpe_7":0.519,"sekza/menu_1":1.638,"sekza/menu_2":3.466,"sekza/menu_3":2.277,"sekza/muerte_1":1.617,"sekza/muerte_2":2.184,"sekza/muerte_3":2.698,"sekza/reposo_1":2.09,"sekza/ulti_lista_1":3.622,"ukyo/activar_ulti_1":2.242,"ukyo/baja_1":0.68,"ukyo/casi_baja_1":1.687,"ukyo/muerte_1":4.969,"ukyo/reposo_1":1.911,"ukyo/ulti_lista_1":1.162};
 /* VOCES_END */
+
+// ===== Audio configurable: lo que el editor de audio (modo desarrollador) guarda en config/audio.json y vale para todos =====
+const AUDIO_CFG = (() => {
+  const E = { v: 1, voices: {}, clip: {}, dur: {}, evp: {}, sfx: {}, music: {}, amb: {}, up: {} };
+  try {
+    let txt = null, dev = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+    try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); if (d && Date.now() - d.t < 30 * 864e5) dev = true; } catch (e) { }
+    if (dev) { try { txt = localStorage.getItem('bsb_audiocfg'); } catch (e) { } }
+    if (!txt) { const x = new XMLHttpRequest(); x.open('GET', 'config/audio.json?v=' + Date.now(), false); x.send(); if (x.status === 200) txt = x.responseText; }
+    const j = txt && JSON.parse(txt);
+    if (j && j.v === 1) {
+      const num = (v, a, b, d) => (Number.isFinite(+v) && v !== null && v !== '' ? Math.min(b, Math.max(a, +v)) : d), path = s => typeof s === 'string' && /^[a-z0-9_\-\/\.]{1,120}$/i.test(s) && !s.includes('..') && /^(sonidos|musica)\//.test(s);
+      for (const ch in (j.voices || {})) if (/^[a-z0-9_]{1,24}$/.test(ch) && j.voices[ch] && typeof j.voices[ch] === 'object') {
+        const o = {}; for (const ev in j.voices[ch]) if (/^[a-z0-9_]{1,48}$/.test(ev) && Array.isArray(j.voices[ch][ev])) o[ev] = j.voices[ch][ev].filter(c => typeof c === 'string' && /^[a-z0-9_\-]{1,50}$/.test(c)); E.voices[ch] = o;
+      }
+      for (const k in (j.clip || {})) if (/^[a-z0-9_]{1,24}\/[a-z0-9_\-]{1,50}$/.test(k)) { const c = j.clip[k] || {}; E.clip[k] = {}; if (c.vol != null) E.clip[k].vol = num(c.vol, 0, 2, 1); if (c.chance != null) E.clip[k].chance = num(c.chance, 0, 1, 1); if (c.cd != null) E.clip[k].cd = num(c.cd, 0, 120, 0); }
+      for (const k in (j.dur || {})) if (/^[a-z0-9_]{1,24}\/[a-z0-9_\-]{1,50}$/.test(k)) E.dur[k] = num(j.dur[k], .05, 120, 2);
+      for (const k in (j.evp || {})) if (/^[a-z0-9_]{1,48}$/.test(k)) { const c = j.evp[k] || {}; E.evp[k] = {}; if (c.priority != null) E.evp[k].priority = num(c.priority, 0, 9, 1); if (c.cd != null) E.evp[k].cd = num(c.cd, 0, 300, 0); }
+      for (const grp of ['sfx', 'music', 'amb']) for (const k in (j[grp] || {})) if (/^[a-z0-9_]{1,40}$/.test(k)) { const c = j[grp][k] || {}, o = {}; if (path(c.file)) o.file = c.file; if (c.vol != null) o.vol = num(c.vol, 0, 2, 1); if (grp === 'sfx') { if (c.chance != null) o.chance = num(c.chance, 0, 1, 1); if (c.cd != null) o.cd = num(c.cd, 0, 60, 0); if (c.off) o.off = true; } E[grp][k] = o; }
+      for (const k in (j.up || {})) if (/^[a-z0-9_]{1,24}\/[a-z0-9_\-]{1,50}$/.test(k)) E.up[k] = 1;
+    }
+  } catch (e) { }
+  return E;
+})();
+for (const ch in AUDIO_CFG.voices) { const pk = VOICE_PACKS[ch] || (VOICE_PACKS[ch] = {}); for (const ev in AUDIO_CFG.voices[ch]) { if (AUDIO_CFG.voices[ch][ev].length) pk[ev] = AUDIO_CFG.voices[ch][ev]; else delete pk[ev]; } }
+Object.assign(VOICE_DUR, AUDIO_CFG.dur);
+const musFile = (id, d) => (AUDIO_CFG.music[id] && AUDIO_CFG.music[id].file) || d;
+const sndUrl = n => (AUDIO_CFG.amb[n] && AUDIO_CFG.amb[n].file) || 'sonidos/' + n + '.mp3';
 // evento -> prioridad y enfriamiento (los archivos se llaman <evento>_<n>.mp3 dentro de sonidos/<personaje>/; lo arma tools/voces.py)
 const VOICE_EVENTS={death:{priority:5,cd:0},ready:{priority:3,cd:0},near:{priority:2,cd:8},kill:{priority:3,cd:3},idle:{priority:0,cd:20},activate:{priority:4,cd:0},hurt:{priority:1,cd:2.8},skill:{priority:4,cd:0},hit:{priority:1,cd:2.2},gulls:{priority:3,cd:2},fly:{priority:2,cd:5},menu:{priority:5,cd:0}};
 // eventos con nombre propio: cerca_<personaje>[_ulti] (frase al estar cerca de alguien), hab_<habilidad> (al usarla), reac_<algo> (reacciones)
-const voiceEv=e=>VOICE_EVENTS[e]||(e.startsWith('cerca_')?{priority:2,cd:45}:e.startsWith('hab_')?{priority:3,cd:0}:e.startsWith('reac_')?{priority:3,cd:8}:null);
+const voiceEv=e=>{const b=VOICE_EVENTS[e]||(e.startsWith('cerca_')?{priority:2,cd:45}:e.startsWith('hab_')?{priority:3,cd:0}:e.startsWith('reac_')?{priority:3,cd:8}:e.startsWith('ev_')?{priority:1,cd:0}:null);return b&&AUDIO_CFG.evp[e]?Object.assign({},b,AUDIO_CFG.evp[e]):b;};
 const SKILL_VOICE={randiCuyes:'cuyes',randiPaloma:'paloma',randiPisco:'pisco'};
 const VOICE_DEFS=Object.fromEntries(Object.entries(VOICE_PACKS).map(([id,evs])=>[id,Object.fromEntries(Object.entries(evs).filter(([e])=>voiceEv(e)).map(([e,l])=>[e,{clips:l.map(n=>id+'/'+n),priority:voiceEv(e).priority,cd:voiceEv(e).cd}]))]));
 const JAVI_VOICES=VOICE_DEFS.javi||{};
@@ -5345,7 +5426,7 @@ const CHARACTER_VOICE_META=Object.fromEntries([
 const CHARACTER_VOICE_DURATION={"javi/muerte_1":2.136,"javi/muerte_2":1.44,"javi/muerte_3":1.752,"javi/muerte_4":2.472,"javi/ulti_lista_1":2.472,"javi/ulti_lista_2":1.224,"javi/casi_baja_1":1.224,"javi/casi_baja_2":1.248,"javi/baja_1":1.8,"javi/baja_2":2.352,"javi/reposo_1":2.952,"javi/reposo_2":1.8,"javi/reposo_3":2.232,"javi/activar_ulti":3.408,"javi/dano_1":1.464,"javi/dano_2":1.008,"clippy/hola":1.697875,"clippy/ayuda":1.645625,"clippy/peleando":2.559938,"clippy/por_ti":1.593375,"clippy/perdiendo":1.959125,"clippy/guardar":1.541125,"clippy/atacando":1.8285,"clippy/pantalla_azul":1.541125,"clippy/vas_a_perder":1.697875};
 Object.assign(CHARACTER_VOICE_DURATION,VOICE_DUR);
 let characterVoiceSequence=0;
-function characterVoiceVolume(f){return 1.1*(f.isPlayer?1:clamp(1-camera.position.distanceTo(f.pos)/40,0,1));}
+function characterVoiceVolume(f,key){return 1.1*(f.isPlayer?1:clamp(1-camera.position.distanceTo(f.pos)/40,0,1))*((key&&AUDIO_CFG.clip[key]&&AUDIO_CFG.clip[key].vol)??1);}
 function characterVoiceState(f){return f.voicePlayback||(f.voicePlayback={audio:null,cooldowns:{},lastChoice:{},ready:false,pendingReady:0,idleAfter:G.time+rand(12,20),cine:false,clippyNextAt:0});}
 function stopCharacterVoice(f){
   const s=f.voicePlayback,h=s?.audio;if(!h)return;s.audio=null;
@@ -5362,7 +5443,7 @@ function playCharacterClip(f,key,priority){
   if(!AC||AC.state==='closed'||G.state!=='play'||!CHARACTER_VOICE_KEYS.has(key)||CHARACTER_VOICE_META[key].character!==f.ch.id)return null;
   const s=characterVoiceState(f);stopCharacterVoice(f);
   const duration=SND.buf[key]?.duration||CHARACTER_VOICE_DURATION[key],h={key,priority,until:performance.now()+duration*1000};
-  const volume=characterVoiceVolume(f);
+  const volume=characterVoiceVolume(f,key);
   s.audio=h;
   if(f.ch.id==='javi'){const mv=/^javi\/reposo_(\d)$/.exec(key);f.idleVar=mv?{name:'idle_voz_'+mv[1],t0:G.time,until:G.time+Math.max(duration+.15,(bbSet('javi')['idle_voz_'+mv[1]]||{length:0}).length)}:null;}
   const finish=()=>{if(h.source){h.source.disconnect();h.gain.disconnect();}if(h.htmlRecord)HTML_AUDIO_LEVELS.delete(h.htmlRecord);if(s.audio===h)s.audio=null;};
@@ -5384,6 +5465,7 @@ function javiSpeak(f,event){
   if((s.cooldowns[event]??-Infinity)>G.time)return false;
   if(s.audio&&s.audio.priority>=def.priority){if(event==='ready')s.pendingReady=now+6000;return false;}
   const choices=def.clips.filter(k=>k!==s.lastChoice[event]),key=choices[Math.floor(Math.random()*choices.length)]||def.clips[0];
+  const cp=AUDIO_CFG.clip[key];if(cp){if(cp.chance!=null&&Math.random()>cp.chance)return false;if(cp.cd&&((s.clipCd||{})[key]||0)>G.time)return false;(s.clipCd||(s.clipCd={}))[key]=G.time+(cp.cd||0);}
   if(!playCharacterClip(f,key,def.priority))return false;
   s.lastChoice[event]=key;s.cooldowns[event]=G.time+def.cd;s.idleAfter=G.time+rand(20,32);
   if(event==='activate'||event==='death')s.pendingReady=0;
@@ -5400,10 +5482,11 @@ function updateCharacterVoices(){
     const s=f.voicePlayback;
     if(s?.audio){
       const h=s.audio;if(h.until<=performance.now())stopCharacterVoice(f);
-      else{const volume=characterVoiceVolume(f);if(h.gain)h.gain.gain.setTargetAtTime(volume,AC.currentTime,.08);if(h.htmlRecord){h.htmlRecord.base=volume*.5;refreshHtmlAudio(h.htmlRecord);}}
+      else{const volume=characterVoiceVolume(f,h.key);if(h.gain)h.gain.gain.setTargetAtTime(volume,AC.currentTime,.08);if(h.htmlRecord){h.htmlRecord.base=volume*.5;refreshHtmlAudio(h.htmlRecord);}}
     }
     if(!VOICE_DEFS[f.ch.id]||f.remote||!f.alive||G.viewer||(G.paused&&!G.mp))continue;
     const state=characterVoiceState(f),full=f.ult>=100&&f.awak<=0;
+    if(f.hp<f.maxHp*.25){if(!state.lowHp){state.lowHp=true;javiSpeak(f,'ev_low_hp');}}else if(f.hp>=f.maxHp*.4)state.lowHp=false;
     if(!full){state.ready=false;state.pendingReady=0;}
     else if(!state.ready){state.ready=true;if(!javiSpeak(f,'ready'))state.pendingReady=performance.now()+6000;}
     if(state.pendingReady&&full&&!state.audio){if(state.pendingReady>performance.now())javiSpeak(f,'ready');state.pendingReady=0;}
@@ -5528,9 +5611,24 @@ function tone(t, dur, f0, f1, type, gain) {
   o.connect(g); g.connect(soundChannel('game')); o.start(t); o.stop(t + dur + .05);
 }
 const UI_SFX = new Set(['select', 'drop', 'whoosh', 'draw']);
+let SFX_RAW = false, SFX_FORCE = false; const SFX_CD = {}, SFXF = {};
+function sfxFile(url, v) {
+  try {
+    const b = SFXF[url];
+    if (b && b.buf) { const src = AC.createBufferSource(); src.buffer = b.buf; const g = AC.createGain(); g.gain.value = v; src.connect(g); g.connect(soundChannel('game')); src.start(); return; }
+    if (!b) { SFXF[url] = {}; fetch(url).then(r => r.arrayBuffer()).then(ab => new Promise((ok, no) => AC.decodeAudioData(ab, ok, no))).then(buf => { SFXF[url].buf = buf; }).catch(() => { }); }
+    const el = new Audio(url); trackHtmlAudio(el, v * .5, 'game'); el.play().catch(() => { });
+  } catch (e) { }
+}
 function sfx(k, pos, mul = 1) {
-  if (!AC || (G.state !== 'play' && !UI_SFX.has(k))) return;
-  const v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 45, 0, 1) : 1) * mul;
+  if (!AC || (G.state !== 'play' && !UI_SFX.has(k) && !SFX_FORCE)) return;
+  let v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 45, 0, 1) : 1) * mul;
+  const so = !SFX_RAW && AUDIO_CFG.sfx[k];
+  if (so) {   // lo que se cambió en el editor de audio
+    if (so.off) return; if (so.chance != null && Math.random() > so.chance) return;
+    if (so.cd) { const n = performance.now(); if (n < (SFX_CD[k] || 0)) return; SFX_CD[k] = n + so.cd * 1000; }
+    v *= so.vol != null ? so.vol : 1; if (so.file && v >= .03) { sfxFile(so.file, v); return; }
+  }
   if (v < .03) return;
   const t = AC.currentTime;
   switch (k) {
@@ -5562,9 +5660,11 @@ function sfx(k, pos, mul = 1) {
 }
 
 // ================= Música: menú y peleas (archivos en musica/) =================
-const MUS = { tracks: { menu: 'musica/menu.mp3', fight: ['musica/pelea1.mp3', 'musica/pelea2.mp3', 'musica/pelea3.mp3'] }, el: null, old: null, want: '', idx: -1, vol: .32, on: true };
+const MUS = { tracks: { menu: musFile('menu', 'musica/menu.mp3'), fight: [musFile('fight1', 'musica/pelea1.mp3'), musFile('fight2', 'musica/pelea2.mp3'), musFile('fight3', 'musica/pelea3.mp3')] }, tv: 1, el: null, old: null, want: '', idx: -1, vol: .32, on: true };
 try { MUS.on = localStorage.getItem('bsb_music') !== '0'; const v = parseFloat(localStorage.getItem('bsb_music_vol')); if (v >= 0 && v <= 1) MUS.vol = v; } catch (e) { }
+const MUS_VOL = {}; for (const [id, d] of [['menu', 'musica/menu.mp3'], ['fight1', 'musica/pelea1.mp3'], ['fight2', 'musica/pelea2.mp3'], ['fight3', 'musica/pelea3.mp3']]) if (AUDIO_CFG.music[id] && AUDIO_CFG.music[id].vol != null) MUS_VOL[musFile(id, d)] = AUDIO_CFG.music[id].vol;
 function musicPlay(src, loop) {
+  MUS.tv = MUS_VOL[src] != null ? MUS_VOL[src] : 1;
   const el = new Audio(src); el.loop = !!loop; el.volume = 0; el.preload = 'auto';
   if (MUS.old) { MUS.old.pause(); MUS.old = null; }
   MUS.old = MUS.el; MUS.el = el;
@@ -5577,20 +5677,20 @@ function updateMusic(dt) {
   if (want !== MUS.want) { MUS.want = want; if (want === 'menu') musicPlay(MUS.tracks.menu, true); else if (want === 'fight') musicNextFight(); }
   const um = ULT_MUS.el;
   if (um && um.ended) { ULT_MUS.el = null; } else if (um && (G.state !== 'play' || G.over || !MUS.on)) ULT_MUS.fade = true;
-  if (um && ULT_MUS.el) { const ut = ULT_MUS.fade ? 0 : MUS.vol * 1.25 * (G.paused ? .45 : 1) * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100; um.volume = clamp(um.volume + clamp(clamp(ut, 0, 1) - um.volume, -dt * 1.2, dt), 0, 1); if (ULT_MUS.fade && um.volume <= .01) { um.pause(); ULT_MUS.el = null; } }
-  const duck = (G.paused ? .45 : 1) * ((G.cine || STAGE.on) && !ULT_MUS.el ? .4 : 1) * (ULT_MUS.el && !ULT_MUS.fade ? .12 : 1), target = MUS.on ? MUS.vol * duck * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100 : 0;
+  if (um && ULT_MUS.el) { const ut = ULT_MUS.fade ? 0 : MUS.vol * (ULT_MUS.k != null ? ULT_MUS.k : 1) * 1.25 * (G.paused ? .45 : 1) * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100; um.volume = clamp(um.volume + clamp(clamp(ut, 0, 1) - um.volume, -dt * 1.2, dt), 0, 1); if (ULT_MUS.fade && um.volume <= .01) { um.pause(); ULT_MUS.el = null; } }
+  const duck = (G.paused ? .45 : 1) * ((G.cine || STAGE.on) && !ULT_MUS.el ? .4 : 1) * (ULT_MUS.el && !ULT_MUS.fade ? .12 : 1), target = MUS.on ? MUS.vol * MUS.tv * duck * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100 : 0;
   if (MUS.el) { const d = target - MUS.el.volume; MUS.el.volume = clamp(MUS.el.volume + clamp(d, -dt * .6, dt * .35), 0, 1); }
   if (MUS.old) { MUS.old.volume = Math.max(0, MUS.old.volume - dt * .9); if (MUS.old.volume <= .01) { MUS.old.pause(); MUS.old = null; } }
 }
 // música de la ulti: tema propio de cada personaje encima de la pelea (la de pelea baja mientras suena)
 const ULT_MUS = { el: null, pre: null, fade: false };
-function ultMusicPreload(id) { try { const el = new Audio('musica/ulti/' + id + '.mp3'); el.preload = 'auto'; el.__id = id; ULT_MUS.pre = el; } catch (e) { } }
+function ultMusicPreload(id) { try { const el = new Audio(musFile('ult_' + id, 'musica/ulti/' + id + '.mp3')); el.preload = 'auto'; el.__id = id; ULT_MUS.pre = el; } catch (e) { } }
 function ultMusic(id) {
   if (!MUS.on || !CHARS[id]) return;
   if (ULT_MUS.el) { ULT_MUS.el.pause(); ULT_MUS.el = null; }
-  const el = ULT_MUS.pre && ULT_MUS.pre.__id === id ? ULT_MUS.pre : new Audio('musica/ulti/' + id + '.mp3');
-  ULT_MUS.pre = null; ultMusicPreload(id);   // la próxima ulti ya queda cargada
-  el.currentTime = 0; el.volume = clamp(MUS.vol * 1.25 * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100, 0, 1); ULT_MUS.fade = false;
+  const el = ULT_MUS.pre && ULT_MUS.pre.__id === id ? ULT_MUS.pre : new Audio(musFile('ult_' + id, 'musica/ulti/' + id + '.mp3'));
+  ULT_MUS.pre = null; ultMusicPreload(id); ULT_MUS.k = AUDIO_CFG.music['ult_' + id] && AUDIO_CFG.music['ult_' + id].vol != null ? AUDIO_CFG.music['ult_' + id].vol : 1;   // la próxima ulti ya queda cargada
+  el.currentTime = 0; el.volume = clamp(MUS.vol * (ULT_MUS.k != null ? ULT_MUS.k : 1) * 1.25 * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100, 0, 1); ULT_MUS.fade = false;
   const pr = el.play(); if (pr && pr.catch) pr.catch(() => { });
   el.addEventListener('ended', () => { if (ULT_MUS.el === el) ULT_MUS.el = null; });
   ULT_MUS.el = el;
@@ -5612,7 +5712,7 @@ const SND = { buf: {}, state: 'idle', base: 'sonidos/', els: {} };
 function loadSounds() {
   if (SND.state !== 'idle' || !AC) return;
   SND.state = 'loading';
-  Promise.allSettled(SND_LIST.map(n => fetch(SND.base + n + '.mp3').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+  Promise.allSettled(SND_LIST.map(n => fetch(sndUrl(n)).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
     .then(ab => new Promise((ok, no) => AC.decodeAudioData(ab, ok, no))).then(buf => { SND.buf[n] = buf; })))
     .then(() => { SND.state = Object.keys(SND.buf).length ? 'ready' : 'fallback'; initAmbience(); });
 }
@@ -5620,12 +5720,12 @@ function loadSounds() {
 function playSnd(name, vol = 1, pos = null, delay = 0) {
   const category=soundCategory(name);
   if (!AC || (category==='ambient'&&!WX.sound) || G.state !== 'play') return;
-  const v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 40, 0, 1) : 1) * vol;
+  const v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 40, 0, 1) : 1) * vol * (AUDIO_CFG.amb[name] && AUDIO_CFG.amb[name].vol != null ? AUDIO_CFG.amb[name].vol : 1);
   if (v < .02) return;
   if (SND.buf[name]) {
     const src = AC.createBufferSource(); src.buffer = SND.buf[name]; const g = AC.createGain(); g.gain.value = v; src.connect(g); g.connect(soundChannel(category)); src.start(AC.currentTime + delay);
   } else if (SND.state === 'fallback') {
-    setTimeout(() => { if(G.state!=='play')return;const el=new Audio(SND.base+name+'.mp3');trackHtmlAudio(el,v*.5,category);el.play().catch(()=>{}); },delay*1000);
+    setTimeout(() => { if(G.state!=='play')return;const el=new Audio(sndUrl(name));trackHtmlAudio(el,v*.5,category);el.play().catch(()=>{}); },delay*1000);
   }
 }
 const AMB = { ready: false, ins: 0, kind: '', t: {}, acc: 0, L: [] };
@@ -5634,6 +5734,7 @@ const AMB_KIND = { cafe: 'cafe', arcade: 'arcade', mercado: 'mercado', bibliotec
 const AMB_LAYERS = [['city', 'out', 1.5], ['breeze', 'out', 1.3], ['birds', 'out', .9], ['wind_strong', 'out', 1.6], ['night', 'out', 1.5], ['waves', 'out', 1.9],
   ['cafe', 'cafe', 1.7], ['arcade', 'arcade', 1.2], ['market', 'mercado', 1.7], ['library', 'biblioteca', 1.9], ['cafe', 'ramen', 1.3], ['sizzle', 'ramen', 1.1],
   ['workshop', 'taller', 1.6], ['mall', 'mall', 1.7], ['fountain', 'mall', 1.1], ['lobby', 'lobby', 2.2]];
+for (const L of AMB_LAYERS) { const o = AUDIO_CFG.amb[L[0]]; if (o && o.vol != null) L[2] *= o.vol; }
 function initAmbience() {
   if (!AC || !master) return;
   if (SND.state === 'idle') { loadSounds(); return; }
@@ -5775,7 +5876,7 @@ function applyHit(att, t, o) {
       } else {
         t.hp -= o.dmg * .12; t.vel.x += dir.x * 3; t.vel.z += dir.z * 3;
         t.ult = Math.min(100, t.ult + o.dmg * .5 * ULT_GAIN); att.ult = Math.min(100, att.ult + o.dmg * .2 * ULT_GAIN);
-        t.blockHitT = .3; burst(chest, 6, '#9fd3ff', 5, .12, .25); sfx('block', t.pos); impactStar(front(t, .5, 1.2), '#9fd3ff', .9, .15);
+        t.blockHitT = .3; burst(chest, 6, '#9fd3ff', 5, .12, .25); sfx('block', t.pos); javiSpeak(t, 'ev_block_hit'); impactStar(front(t, .5, 1.2), '#9fd3ff', .9, .15);
         if (involved) popText(chest, 'BLOQUEO', '#9fd3ff', 15);
         if (t.hp <= 0) kill(t, att);
         return 'blocked';
@@ -5793,7 +5894,7 @@ function applyHit(att, t, o) {
   t.hp -= dmg;
   if (dmg > 0 && !t.remote) javiSpeak(att, 'hit');
   if (t.ch === CHARS.javi && t.hp > 0 && t.spearOut && !t.spearLost && !t.remote && dmg > 0 && ((o.guardBreak && t.gbT === G.time && Math.random() < .5) || (dmg >= 14 && Math.random() < .35) || ((o.ragdoll || 0) >= 1.4 && dmg >= 9 && Math.random() < .25))) loseSpear(t);
-  if(dmg>0){if(t.hp>0)javiSpeak(t,'hurt');if(t.hp>0&&t.hp<t.maxHp*.22)javiSpeak(att,'near');}
+  if(dmg>0){if(t.hp>0)javiSpeak(t,'hurt');if(t.hp>0&&t.hp<t.maxHp*.22)javiSpeak(att,'near');javiSpeak(att,'ev_hit_land');}
   if (att.clippy && t !== att && !o.noAssist && dmg >= .4) clippyAssist(att, t);
   if (att.ch && att.ch.id === 'randi' && t !== att && t.hp > 0 && t.hp < t.maxHp * .22 && G.time - (att.voiceT || -9) > 7) { att.voiceT = G.time; playSnd('randi_voz1', 1.5, att.pos); }   // a punto de matar
   if (att.pisco > 0 && t !== att && dmg >= .4) att.hp = Math.min(att.maxHp, att.hp + dmg * .3);   // el pisco sour cura un poco con cada golpe
@@ -5924,6 +6025,7 @@ function respawn(f) {
   if (f.ai) { f.ai.cityPath=null; f.ai.cityThink=0; }
   burst(new V3(best.x,1,best.z),20,f.ch.color,6,.2,.6,-.2);
   if (f.isPlayer) { $('death').classList.add('hidden'); cam.yaw = f.yaw; }
+  javiSpeak(f, 'ev_spawn');
 }
 
 // ================= Apuntado =================
@@ -5988,7 +6090,7 @@ function doM1(f, upVariant) {
   const i = f.comboIdx, fin = i === 3;
   f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.1; f.m1cd = fin ? .9 : .29; f.atkT = 0;
   if (f.isPlayer && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0 });
-  sfx('swing', f.pos, .6);
+  sfx('swing', f.pos, .6); javiSpeak(f, 'ev_m1_' + (i + 1));
   const unarmed = ownsMissingSpear(f), set = unarmed ? null : f.ch.m1set;
   const def = set ? set[fin ? (upVariant ? 4 : 3) : i] : fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i];
   startAction(f, {
@@ -9542,7 +9644,7 @@ function useSkill(f, i) {
   prepWeapon(f);
   f.destPow = s.dest != null ? s.dest : (DEST_DEFAULT[s.k] != null ? DEST_DEFAULT[s.k] : .6);   // cuánto rompe esta habilidad en los edificios
   const ok = MOVES[s.k](f, Object.assign({ color: f.ch.color, slot: i }, s.o));
-  if (ok !== false) javiSpeak(f, 'hab_' + (SKILL_VOICE[s.k] || s.k.toLowerCase()));   // voz propia de esa habilidad (si el personaje la tiene)
+  if (ok !== false) { javiSpeak(f, 'hab_' + (SKILL_VOICE[s.k] || s.k.toLowerCase())); javiSpeak(f, 'ev_skill_' + (i + 1)); }   // voz propia de esa habilidad (si el personaje la tiene)
   if (ok !== false && f.isPlayer && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0, x: ownsMissingSpear(f) ? 1 : 0 });   // las coreografías mandan su propio aviso ('c') al agarrar
   f.cd[i] = ok === false ? .4 : s.cd;
   if (ok !== false && f.isPlayer) { const el = $('skills').children[i]; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
@@ -9963,7 +10065,7 @@ function applyCtl(f, c, dt) {
   const can = f.alive && f.stun <= 0 && f.ragdoll <= 0 && f.frozen <= 0 && !f.grabbed;
   if (f.action && f.action.name === 'flourish' && (c.mx || c.mz || c.jump || c.block || c.dash)) endAction(f);
   const a = f.action;
-  f.blocking = can && !a && c.block;
+  { const wb = f.blocking; f.blocking = can && !a && c.block; if (f.blocking && !wb) javiSpeak(f, 'ev_block'); }
   let sp = 9 * f.ch.spd * (f.awak > 0 ? 1.15 : 1) * (f.fireT > 0 ? 1.2 : 1) * (f.pisco > 0 ? 1.3 : 1) * (f.turbo > 0 ? 1.35 : 1) * (f.buf > 0 ? .3 : 1) * (f.isPlayer ? G.rules.spd : 1);
   if (f.blocking) sp *= .3; if (a) sp *= (a.speedMul != null ? a.speedMul : .4); if (f.swim) sp *= .55; else if (f.wade) sp *= .8; if (!can) sp = 0;
   const moving = c.mx || c.mz;
@@ -9983,12 +10085,12 @@ function applyCtl(f, c, dt) {
   if (!can) return;
   sekzaFlightControl(f,c,dt);
   if (f.ch.wings && f.awak > 0 && c.jump && !f.onGround && f.vel.y < -2.2 && !a) f.vel.y = -2.2;
-  if (c.jump && f.onGround && !a && !f.blocking) { f.vel.y = 11.5; f.onGround = false; sfx('jump', f.pos); f.anim.v.by -= 30; }
+  if (c.jump && f.onGround && !a && !f.blocking) { f.vel.y = 11.5; f.onGround = false; sfx('jump', f.pos); f.anim.v.by -= 30; javiSpeak(f, 'ev_jump'); }
   if (c.dash && f.dashCd <= 0 && !a && (f.onGround || f.airDash)) {
     let dx = c.mx, dz = c.mz; if (!dx && !dz) { const F = fwd(f.isPlayer ? cam.yaw : f.yaw); dx = F.x; dz = F.z; }
     f.vel.x = dx * 25; f.vel.z = dz * 25; if (!f.onGround) { f.airDash = false; f.vel.y = Math.max(f.vel.y, 2); }
     f.yaw = Math.atan2(dx, dz);
-    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false;
+    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; javiSpeak(f, 'ev_dash');
     sfx('dash', f.pos); burst(new V3(f.pos.x, .3, f.pos.z), 10, '#d8d0c0', 4, .2, .4, .2, 2);
     if (f.isPlayer) G.fovKick = Math.max(G.fovKick, 5);
   }
@@ -10180,7 +10282,7 @@ function physics(f, dt) {
       for (const j of ['alx', 'arx', 'llx', 'lrx', 'hx', 'tx']) f.anim.v[j] += rand(-22, 22);
     }
     else {
-      if (!f.onGround && f.alive && vy < -9 && f.ragdoll <= 0) { f.landHard = !!bbSet(f.ch.id) && vy < -16; f.landT = f.landHard ? .5 : .14; f.anim.v.by -= 25; if (vy < -16) burst(new V3(f.pos.x, gy + .1, f.pos.z), 6, '#d8d0c0', 3, .15, .35); if (f.ch === CHARS.javi) { ringAt(new V3(f.pos.x, gy + .05, f.pos.z), '#e6dfcf', 1 + Math.min(1.4, -vy / 20), .3); burst(new V3(f.pos.x, gy + .15, f.pos.z), 10, '#d8d0c0', 4, .16, .4, .3, 1); } }
+      if (!f.onGround && f.alive && vy < -9 && f.ragdoll <= 0) { f.landHard = !!bbSet(f.ch.id) && vy < -16; f.landT = f.landHard ? .5 : .14; javiSpeak(f, 'ev_land'); f.anim.v.by -= 25; if (vy < -16) burst(new V3(f.pos.x, gy + .1, f.pos.z), 6, '#d8d0c0', 3, .15, .35); if (f.ch === CHARS.javi) { ringAt(new V3(f.pos.x, gy + .05, f.pos.z), '#e6dfcf', 1 + Math.min(1.4, -vy / 20), .3); burst(new V3(f.pos.x, gy + .15, f.pos.z), 10, '#d8d0c0', 4, .16, .4, .3, 1); } }
       f.vel.y = 0; f.onGround = true; f.airDash = true;
     }
   } else f.onGround = f.pos.y - gy < .02;
@@ -10291,7 +10393,7 @@ function tickTimers(f, dt) {
   if (f.isPlayer) { if (G.rules.noCd) f.cd[0] = f.cd[1] = f.cd[2] = f.cd[3] = 0; if (G.rules.god && f.alive) f.hp = f.maxHp; }
   if (f.awak > 0) {
     if (!(G.rules.ultInf && f.isPlayer)) f.awak -= dt; f.ult = 0;   // regla: ulti infinita
-    if (f.awak <= 0) { f.cd = [0, 0, 0, 0]; if (f.isPlayer) showBanner('DESPERTAR TERMINADO', '#9ba1ba', 'Cargá la barra de nuevo'); }
+    if (f.awak <= 0) { f.cd = [0, 0, 0, 0]; javiSpeak(f, 'ev_awake_end'); if (f.isPlayer) showBanner('DESPERTAR TERMINADO', '#9ba1ba', 'Cargá la barra de nuevo'); }
     if (Math.random() < dt * 30) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(0, 2), f.pos.z + rand(-.5, .5), 0, rand(2, 4), 0, Math.random() < .3 ? '#ffffff' : f.ch.color, rand(.1, .2), .5, -.1, 1);
   }
   if (f.alive && (f.dashT > 0 || (f.action && f.action.ghost))) { f.ghostT -= dt; if (f.ghostT <= 0) { f.ghostT = .035; ghost(f, f.ch.color); } }
@@ -10915,7 +11017,7 @@ function toMenu() {
 }
 function endMatch(w) {
   if (G.over) return;
-  G.over = true; unlock(); w.victory = true; G.winner = w; statsEnd(!!w.isPlayer);
+  G.over = true; unlock(); w.victory = true; G.winner = w; statsEnd(!!w.isPlayer); javiSpeak(w, 'ev_victory'); for (const q of G.fighters) if (q !== w && q.isPlayer) javiSpeak(q, 'ev_defeat');
   $('overtitle').textContent = w.isPlayer ? '¡GANASTE!' : `GANÓ ${w.name.toUpperCase()}`;
   $('overtitle').style.color = w.isPlayer ? 'var(--hot)' : w.ch.color;
   const t = $('overtable'); t.innerHTML = ''; t.appendChild(scoreTable());
@@ -11165,6 +11267,7 @@ for (const [bk, bset] of [['javi', JAVI_BB_DATA], ['redbird', RED_BB_DATA], ['ga
 try { const saved = localStorage.getItem('bsb_impale'); if (IMPALE_VARIANTS.some(v => v.id === saved)) G.impaleVariant = saved; } catch (e) {}
 const SHOT_ES = { two: 'Plano de los dos', ots: 'Sobre el hombro', otsV: 'Contraplano', lowV: 'Contrapicado (víctima)', lowA: 'Contrapicado (atacante)', faceV: 'Primer plano víctima', faceA: 'Primer plano atacante', orbit: 'Órbita', top: 'Cenital', ground: 'A ras del piso', follow: 'Persecución', hero: 'Plano héroe', wide: 'General', up: 'Desde abajo' };
 function openViewer() {
+  if (!DEV.on) return;
   initAudio(); stageExit(); clearDummies(); clearFighters();
   G.state = 'play'; G.mp = false; G.over = false; G.paused = false; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
   G.viewer = VW; VW.on = true;
@@ -11313,7 +11416,7 @@ const RELAYS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/
 // Cada navegador guarda un resumen propio (código al azar, sin nombre ni IP) como mensaje retenido en los relays MQTT
 // y avisa cada 30 s que está conectado. El panel del dueño se suscribe a todos y los suma. Sin servidor propio:
 // si un relay borra lo retenido, se vuelve a llenar con los que entren después.
-const ST_BASE = 'calfight/st1/', ST_OWNER_H = 'fb17ef57e8280b11bee6b43b62abac9010b59f331474ec483838184412fe14b5';
+const ST_BASE = 'calfight/st1/', ST_OWNER_H = '';
 const ST = { id: '', d: null, on: true, owner: false, cl: [], push: 0 };
 const stDay = () => Math.floor(Date.now() / 864e5);
 function stLoad() {
@@ -11365,13 +11468,441 @@ addEventListener('visibilitychange', () => { if (document.hidden && stCount()) {
 // ---- panel del dueño ----
 const OW = { u: new Map(), on: new Map(), cl: [], el: null, tm: 0 };
 async function stHash(k) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-async function ownerOpen() {
-  if (!ST.owner) {
-    const k = prompt('Clave del dueño de CalFight:'); if (!k) return;
-    let h = ''; try { h = await stHash(k.trim()); } catch (e) { alert('Abrí el juego por https para usar el panel.'); return; }
-    if (h !== ST_OWNER_H) { alert('Clave incorrecta.'); return; }
-    stForget(); ST.owner = true; try { localStorage.setItem('bsb_owner', '1'); } catch (e) { }   // este aparato ya no cuenta como jugador
+// ===== Editor de mapa (modo desarrollador): mover, borrar y duplicar modelos, con deshacer/rehacer =====
+// Trabaja sobre un plano visto desde arriba. Lo que editás se guarda en config/mapa.json y el juego lo aplica al cargar (edificios con modelo y adornos de la costa).
+const PROP_DIMS = { palmera: [4, 4], sombrilla_roja: [4, 5], sombrilla_azul: [4, 5], sombrilla_amarilla: [4, 5], sombrilla_verde: [4, 5], torre_salvavidas: [4.2, 7], chiringuito: [10.4, 7.6],
+  barca_roja: [1.6, 5], barca_azul: [1.6, 5], velero: [2, 6.5], muelle: [9, 40, 0, 20], faro: [9, 9], rocas_a: [6, 5], rocas_b: [6, 5], castillo: [2, 2], voley: [9.2, 17.2], caseta_roja: [3.2, 3.2], caseta_azul: [3.2, 3.2] };
+const ME = { open: false, el: null, cv: null, g: null, cx: 0, cz: 20, sc: 4, sel: null, undo: [], redo: [], snap: true, showDel: false, drag: null, pan: null, dirty: false, filter: '', counter: 0, srv: null, msg: '' };
+const meSnap = () => JSON.stringify(MAP_ITEMS.filter(i => !i.virt).map(i => [i.key, i.x, i.z, i.ry, i.del ? 1 : 0, i.added ? 1 : 0, i.kind, i.model, i.label, i.from || '', i.w, i.d, i.h, i.color || '']));
+function meRestore(txt) {
+  const rows = JSON.parse(txt), by = new Map(MAP_ITEMS.map(i => [i.key, i])), keep = [];
+  for (const [key, x, z, ry, del, added, kind, model, label, from, w, d, h, color] of rows) {
+    let it = by.get(key);
+    if (!it) { if (!added) continue; it = { key, kind, model, label, ox: x, oz: z, ory: 0, w, d, h, color, added: true, from, lx: 0, lz: 0, plan: null }; }
+    it.x = x; it.z = z; it.ry = ry; it.del = !!del; keep.push(it);
   }
+  const fixed = MAP_ITEMS.filter(i => !i.added && !keep.includes(i)); MAP_ITEMS.length = 0; MAP_ITEMS.push(...keep, ...fixed);
+}
+function mePush() { ME.undo.push(meSnap()); if (ME.undo.length > 150) ME.undo.shift(); ME.redo = []; ME.dirty = true; }
+function meUndo() { if (!ME.undo.length) return; ME.redo.push(meSnap()); meRestore(ME.undo.pop()); ME.dirty = true; if (ME.sel && !MAP_ITEMS.includes(ME.sel)) ME.sel = null; meDraw(); meList(); }
+function meRedo() { if (!ME.redo.length) return; ME.undo.push(meSnap()); meRestore(ME.redo.pop()); ME.dirty = true; if (ME.sel && !MAP_ITEMS.includes(ME.sel)) ME.sel = null; meDraw(); meList(); }
+const meRect = it => {   // esquinas del modelo en el mundo (los adornos giran alrededor de su punto de origen)
+  const dm = it.kind === 'p' ? (PROP_DIMS[it.model] || [3, 3]) : [it.w, it.d], w = dm[0], d = dm[1], ox = dm[2] || 0, oz = dm[3] || 0, c = Math.cos(it.ry || 0), s = Math.sin(it.ry || 0);
+  return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([lx, lz]) => { lx += ox; lz += oz; return [it.x + lx * c + lz * s, it.z - lx * s + lz * c]; });
+};
+const meHit = (it, x, z) => {
+  const dm = it.kind === 'p' ? (PROP_DIMS[it.model] || [3, 3]) : [it.w, it.d], c = Math.cos(it.ry || 0), s = Math.sin(it.ry || 0), dx = x - it.x, dz = z - it.z;
+  const lx = dx * c - dz * s - (dm[2] || 0), lz = dx * s + dz * c - (dm[3] || 0);
+  return Math.abs(lx) <= dm[0] / 2 && Math.abs(lz) <= dm[1] / 2;
+};
+const meW2S = (x, z) => [(x - ME.cx) * ME.sc + ME.cv.width / 2, (z - ME.cz) * ME.sc + ME.cv.height / 2];
+const meS2W = (px, pz) => [(px - ME.cv.width / 2) / ME.sc + ME.cx, (pz - ME.cv.height / 2) / ME.sc + ME.cz];
+function meDraw() {
+  if (!ME.open) return; const g = ME.g, W = ME.cv.width, H = ME.cv.height; g.clearRect(0, 0, W, H);
+  g.fillStyle = '#2a4f33'; g.fillRect(0, 0, W, H);
+  // mar y arena
+  g.beginPath(); const x0 = ME.cx - W / 2 / ME.sc, x1 = ME.cx + W / 2 / ME.sc;
+  g.moveTo(...meW2S(x0, SHORE(x0))); for (let x = x0; x <= x1; x += 2) g.lineTo(...meW2S(x, SHORE(x))); g.lineTo(...meW2S(x1, 400)); g.lineTo(...meW2S(x0, 400)); g.closePath(); g.fillStyle = '#25638c'; g.fill();
+  g.beginPath(); g.moveTo(...meW2S(x0, SHORE(x0))); for (let x = x0; x <= x1; x += 2) g.lineTo(...meW2S(x, SHORE(x))); g.strokeStyle = '#d6c28c'; g.lineWidth = 6 * Math.min(1, ME.sc / 4); g.stroke();
+  g.beginPath(); g.arc(...meW2S(0, 0), CITY.core * ME.sc, 0, TAU); g.fillStyle = '#4c545e'; g.fill();
+  g.strokeStyle = '#ffffff22'; g.lineWidth = 2; g.beginPath(); g.arc(...meW2S(0, 0), CITY.bounds * ME.sc, 0, TAU); g.stroke();
+  g.fillStyle = '#2c3138'; const rd = (x, z, w, d) => { const [a, b] = meW2S(x - w / 2, z - d / 2); g.fillRect(a, b, w * ME.sc, d * ME.sc); };
+  rd(0, 0, 8, 2 * CITY.core); rd(0, 0, 2 * CITY.core, 8); for (const a of [-22, 22, -44, 44]) { const L = 2 * Math.floor(Math.sqrt(CITY.core * CITY.core - a * a) - 1.5); rd(a, 0, 5, L); rd(0, a, L, 5); }
+  g.fillStyle = '#6e9a62'; for (const pk of CITY.parks) rd(pk.x, pk.z, pk.w, pk.d);
+  // cuadrícula
+  g.strokeStyle = '#ffffff12'; g.lineWidth = 1; const gs = ME.sc > 6 ? 5 : 10;
+  for (let x = Math.ceil(x0 / gs) * gs; x <= x1; x += gs) { const [a] = meW2S(x, 0); g.beginPath(); g.moveTo(a, 0); g.lineTo(a, H); g.stroke(); }
+  const z0 = ME.cz - H / 2 / ME.sc, z1 = ME.cz + H / 2 / ME.sc; for (let z = Math.ceil(z0 / gs) * gs; z <= z1; z += gs) { const [, b] = meW2S(0, z); g.beginPath(); g.moveTo(0, b); g.lineTo(W, b); g.stroke(); }
+  // modelos
+  for (const it of MAP_ITEMS) {
+    if (it.del && !ME.showDel) continue;
+    const poly = meRect(it), sel = it === ME.sel;
+    g.beginPath(); poly.forEach(([x, z], i) => { const [a, b] = meW2S(x, z); i ? g.lineTo(a, b) : g.moveTo(a, b); }); g.closePath();
+    const base = it.kind === 'b' ? (it.color || '#b0a090') : /palm/.test(it.model) ? '#2f8f4a' : /sombrilla/.test(it.model) ? '#e0a040' : /barca|velero|muelle/.test(it.model) ? '#8a6a44' : '#c9b78a';
+    g.globalAlpha = it.del ? .35 : .92; g.fillStyle = base; g.fill(); g.globalAlpha = 1;
+    g.lineWidth = sel ? 3 : it.added ? 2 : 1; g.strokeStyle = sel ? '#ffe600' : it.del ? '#ff4d4d' : it.added ? '#5dff9a' : '#0008'; g.stroke();
+    if (it.del) { g.strokeStyle = '#ff4d4d'; g.beginPath(); const [a, b] = meW2S(poly[0][0], poly[0][1]), [c, d] = meW2S(poly[2][0], poly[2][1]); g.moveTo(a, b); g.lineTo(c, d); g.moveTo(...meW2S(poly[1][0], poly[1][1])); g.lineTo(...meW2S(poly[3][0], poly[3][1])); g.stroke(); }
+    if (ME.sc >= 3.2 || sel) { const [a, b] = meW2S(it.x, it.z); g.fillStyle = '#000c'; g.font = '11px sans-serif'; g.textAlign = 'center'; const t = it.label || it.model.replace(/_/g, ' '); g.fillText(t, a, b + 4); }
+  }
+  // ejes
+  g.fillStyle = '#fff9'; g.font = '11px monospace'; g.textAlign = 'left'; g.fillText(`x ${ME.cx.toFixed(0)}  z ${ME.cz.toFixed(0)}  ·  zoom ${ME.sc.toFixed(1)}`, 10, H - 10);
+}
+function meList() {
+  const ul = $('me-list'); if (!ul) return; ul.innerHTML = '';
+  const q = ME.filter.toLowerCase();
+  for (const it of MAP_ITEMS) {
+    const name = (it.label || it.model.replace(/_/g, ' ')) + (it.added ? ' (copia)' : '') + (it.del ? ' (borrado)' : '');
+    if (q && !name.toLowerCase().includes(q)) continue;
+    const li = document.createElement('li'); li.textContent = name; li.className = (it === ME.sel ? 'on ' : '') + (it.del ? 'del ' : '') + (it.added ? 'add' : '');
+    li.addEventListener('click', () => { ME.sel = it; ME.cx = it.x; ME.cz = it.z; meDraw(); meList(); meProps(); }); ul.appendChild(li);
+  }
+}
+function meProps() {
+  const s = ME.sel, box = $('me-props'); if (!box) return;
+  if (!s) { box.innerHTML = '<small>Tocá un modelo del mapa o de la lista.</small>'; return; }
+  box.innerHTML = `<b>${s.label || s.model.replace(/_/g, ' ')}</b><small>${s.kind === 'b' ? 'Edificio' : 'Adorno de la costa'}${s.added ? ' · copia' : ''}</small>
+    <label>X <input id="me-x" type="number" step="0.5" value="${s.x.toFixed(2)}"></label><label>Z <input id="me-z" type="number" step="0.5" value="${s.z.toFixed(2)}"></label>
+    ${s.kind === 'p' ? `<label>Giro <input id="me-ry" type="number" step="15" value="${Math.round((s.ry || 0) * 180 / Math.PI)}">°</label>` : ''}`;
+  const set = () => { mePush(); s.x = +$('me-x').value || 0; s.z = +$('me-z').value || 0; if ($('me-ry')) s.ry = (+$('me-ry').value || 0) * Math.PI / 180; meDraw(); };
+  for (const id of ['me-x', 'me-z', 'me-ry']) if ($(id)) $(id).addEventListener('change', set);
+}
+function meSelect(it) { ME.sel = it; meDraw(); meList(); meProps(); }
+function meDelete() {
+  const s = ME.sel; if (!s) return;
+  if (s.kind === 'b' && s.label === 'TORRE AURORA') { meMsg('La Torre Aurora no se puede borrar (tiene el ascensor), pero sí moverla.'); return; }
+  mePush(); if (s.added) { MAP_ITEMS.splice(MAP_ITEMS.indexOf(s), 1); ME.sel = null; } else s.del = !s.del; meDraw(); meList(); meProps();
+}
+function meDup() {
+  const s = ME.sel; if (!s) return; mePush();
+  const n = Object.assign({}, s, { key: 'a' + Date.now().toString(36) + (++ME.counter), added: true, del: false, from: s.added ? s.from : s.key, x: s.x + 3, z: s.z + 3, ox: s.x + 3, oz: s.z + 3 });
+  if (s.kind === 'b') { n.label = ''; } MAP_ITEMS.push(n); meSelect(n);
+}
+function meMsg(t) { ME.msg = t; const m = $('me-msg'); if (m) { m.textContent = t; clearTimeout(ME.mt); ME.mt = setTimeout(() => { m.textContent = ''; }, 5000); } }
+function meExportJSON() {
+  const E = { v: 1, mv: {}, del: [], add: [] };
+  for (const it of MAP_ITEMS) {
+    if (it.added) { if (!it.del) E.add.push({ id: it.key, kind: it.kind, model: it.model, from: it.from, x: +it.x.toFixed(2), z: +it.z.toFixed(2), ry: +(it.ry || 0).toFixed(3) }); continue; }
+    if (it.del) { E.del.push(it.key); continue; }
+    if (Math.abs(it.x - it.ox) > 1e-6 || Math.abs(it.z - it.oz) > 1e-6 || Math.abs((it.ry || 0) - (it.ory || 0)) > 1e-6) E.mv[it.key] = { x: +it.x.toFixed(2), z: +it.z.toFixed(2), ry: +(it.ry || 0).toFixed(3) };
+  }
+  return JSON.stringify(E, null, 1);
+}
+async function meSrv() { if (ME.srv != null) return ME.srv; try { const r = await fetch('/ping', { cache: 'no-store' }); ME.srv = r.ok && (await r.text()).startsWith('calfight-dev'); } catch (e) { ME.srv = false; } return ME.srv; }
+async function meSave(reload) {
+  const txt = meExportJSON(); try { localStorage.setItem('bsb_mapedit', txt); } catch (e) { }
+  let how = 'guardado en este navegador';
+  if (await meSrv()) { try { const r = await fetch('/save?p=config/mapa.json', { method: 'POST', body: txt }); if (r.ok) how = 'guardado en config/mapa.json'; } catch (e) { } }
+  else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = 'mapa.json'; a.click(); how = 'guardado en este navegador y descargado como mapa.json (ponelo en la carpeta config/ para publicarlo)'; }
+  ME.dirty = false; meMsg('Listo: ' + how + '.'); if (reload) setTimeout(() => location.reload(), 600);
+}
+async function meReset() {
+  if (!(await uiConfirm('¿Volver el mapa a como venía de fábrica? Se borran todos los cambios del editor.', true))) return;
+  try { localStorage.removeItem('bsb_mapedit'); } catch (e) { }
+  (async () => { if (await meSrv()) { try { await fetch('/save?p=config/mapa.json', { method: 'POST', body: '{"v":1,"mv":{},"del":[],"add":[]}' }); } catch (e) { } } location.reload(); })();
+}
+function meBuild() {
+  if (ME.el) return;
+  const st = document.createElement('style');
+  st.textContent = `#mapedit{position:fixed;inset:0;z-index:80;background:#0b0e16;color:#e8ecf4;font:14px/1.4 system-ui,sans-serif;display:grid;grid-template-columns:minmax(0,1fr) 270px;grid-template-rows:auto minmax(0,1fr)}
+#mapedit.hidden{display:none}#mapedit .me-top{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#121726;border-bottom:1px solid #263050}
+#mapedit h2{margin:0 12px 0 0;font:italic 900 20px var(--display,sans-serif);color:#ffb020;letter-spacing:.04em}
+#mapedit button{background:#1c2234;color:#e8ecf4;border:1px solid #333c55;border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit}#mapedit button:hover:not(:disabled){background:#2a3452}#mapedit button:disabled{opacity:.4;cursor:default}
+#mapedit button.pri{background:#ffb020;color:#000;border-color:#ffb020;font-weight:700}#mapedit button.on{background:#3a4a7a}
+#mapedit .me-sp{flex:1}#me-msg{color:#9dffb6;font-size:13px;min-width:140px}
+#mapedit canvas{width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}#mapedit .me-cv{position:relative;min-height:0;overflow:hidden}
+#mapedit .me-side{display:flex;flex-direction:column;min-height:0;border-left:1px solid #263050;background:#0f1320}
+#me-props{padding:10px 12px;border-bottom:1px solid #263050;display:grid;gap:6px;font-size:13px}#me-props label{display:flex;gap:8px;align-items:center}#me-props input{width:90px;background:#05060c;border:1px solid #333c55;color:#fff;padding:4px 6px;border-radius:4px}
+#me-props small{color:#8a96b0}
+#me-filter{margin:8px 10px;background:#05060c;border:1px solid #333c55;color:#fff;padding:6px 8px;border-radius:4px}
+#me-list{list-style:none;margin:0;padding:0 6px 10px;overflow:auto;flex:1}#me-list li{padding:4px 8px;cursor:pointer;border-radius:4px;font-size:13px}#me-list li:hover{background:#1c2234}#me-list li.on{background:#3a4a7a}#me-list li.del{color:#ff8a8a;text-decoration:line-through}#me-list li.add{color:#5dff9a}
+#mapedit .me-help{padding:8px 12px;font-size:12px;color:#8a96b0;border-top:1px solid #263050}`;
+  document.head.appendChild(st);
+  const el = document.createElement('div'); el.id = 'mapedit'; el.className = 'hidden';
+  el.innerHTML = `<div class="me-top"><h2>EDITOR DE MAPA</h2>
+    <button id="me-undo" title="Deshacer (Ctrl+Z)">↶ Deshacer</button><button id="me-redo" title="Rehacer (Ctrl+Y)">↷ Rehacer</button>
+    <button id="me-dup" title="Duplicar (Ctrl+D)">⧉ Duplicar</button><button id="me-del" title="Borrar (Supr)">🗑 Borrar</button><button id="me-rot" title="Girar 90° (R)">⟳ Girar</button>
+    <button id="me-snap" class="on" title="Imán a la cuadrícula">▦ Cuadrícula</button><button id="me-showdel" title="Ver los borrados">👁 Borrados</button><button id="me-center" title="Centrar">⌖ Centrar</button>
+    <span class="me-sp"></span><span id="me-msg"></span>
+    <button id="me-import">Importar</button><button id="me-export">Exportar</button><button id="me-reset">Restablecer</button><button id="me-save">Guardar</button><button id="me-apply" class="pri">Guardar y probar ▸</button><button id="me-close">Cerrar</button></div>
+    <div class="me-cv"><canvas id="me-cv"></canvas></div>
+    <div class="me-side"><div id="me-props"></div><input id="me-filter" placeholder="Buscar modelo…"><ul id="me-list"></ul>
+      <div class="me-help">Clic: elegir · arrastrar: mover · rueda: zoom · botón del medio o espacio+arrastrar: desplazar · flechas: mover de a poco · Supr: borrar · Ctrl+D: duplicar · Ctrl+Z / Ctrl+Y: deshacer / rehacer · Ctrl+S: guardar. Los cambios se ven al probar (se recarga el juego).</div></div>`;
+  document.body.appendChild(el); ME.el = el; ME.cv = $('me-cv'); ME.g = ME.cv.getContext('2d');
+  $('me-undo').addEventListener('click', meUndo); $('me-redo').addEventListener('click', meRedo); $('me-dup').addEventListener('click', meDup); $('me-del').addEventListener('click', meDelete);
+  $('me-rot').addEventListener('click', () => { const s = ME.sel; if (s && s.kind === 'p') { mePush(); s.ry = ((s.ry || 0) + Math.PI / 2) % TAU; meDraw(); meProps(); } else meMsg('Los edificios no se giran: siempre miran hacia la plaza.'); });
+  $('me-snap').addEventListener('click', e => { ME.snap = !ME.snap; e.currentTarget.classList.toggle('on', ME.snap); });
+  $('me-showdel').addEventListener('click', e => { ME.showDel = !ME.showDel; e.currentTarget.classList.toggle('on', ME.showDel); meDraw(); });
+  $('me-center').addEventListener('click', () => { if (ME.sel) { ME.cx = ME.sel.x; ME.cz = ME.sel.z; } else { ME.cx = 0; ME.cz = 20; ME.sc = 4; } meDraw(); });
+  $('me-save').addEventListener('click', () => meSave(false)); $('me-apply').addEventListener('click', () => meSave(true)); $('me-reset').addEventListener('click', meReset); $('me-close').addEventListener('click', meClose);
+  $('me-export').addEventListener('click', () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([meExportJSON()], { type: 'application/json' })); a.download = 'mapa.json'; a.click(); });
+  $('me-import').addEventListener('click', () => { const f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json'; f.onchange = () => { const r = new FileReader(); r.onload = () => { try { const j = JSON.parse(r.result); if (j.v !== 1) throw 0; localStorage.setItem('bsb_mapedit', r.result); location.reload(); } catch (e) { meMsg('Ese archivo no es un mapa válido.'); } }; if (f.files[0]) r.readAsText(f.files[0]); }; f.click(); });
+  $('me-filter').addEventListener('input', e => { ME.filter = e.target.value; meList(); });
+  const cv = ME.cv, pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('wheel', e => { e.preventDefault(); const [px, pz] = pos(e), [wx, wz] = meS2W(px, pz); ME.sc = clamp(ME.sc * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 30); const [wx2, wz2] = meS2W(px, pz); ME.cx += wx - wx2; ME.cz += wz - wz2; meDraw(); }, { passive: false });
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId); const [px, pz] = pos(e), [wx, wz] = meS2W(px, pz);
+    if (e.button === 1 || e.button === 2 || ME.space) { ME.pan = { px, pz, cx: ME.cx, cz: ME.cz }; return; }
+    let hit = null; for (let i = MAP_ITEMS.length - 1; i >= 0; i--) { const it = MAP_ITEMS[i]; if (it.del && !ME.showDel) continue; if (meHit(it, wx, wz)) { hit = it; if (it.kind === 'b' || /^(palmera|sombrilla)/.test(it.model)) break; } }
+    if (hit) { meSelect(hit); ME.drag = { dx: hit.x - wx, dz: hit.z - wz, moved: false }; } else { ME.sel = null; meDraw(); meList(); meProps(); ME.pan = { px, pz, cx: ME.cx, cz: ME.cz }; }
+  });
+  cv.addEventListener('pointermove', e => {
+    const [px, pz] = pos(e);
+    if (ME.pan) { ME.cx = ME.pan.cx - (px - ME.pan.px) / ME.sc; ME.cz = ME.pan.cz - (pz - ME.pan.pz) / ME.sc; meDraw(); return; }
+    if (ME.drag && ME.sel) {
+      const [wx, wz] = meS2W(px, pz); let x = wx + ME.drag.dx, z = wz + ME.drag.dz;
+      if (!ME.drag.moved) { mePush(); ME.drag.moved = true; } if (ME.snap && !e.altKey) { x = Math.round(x * 2) / 2; z = Math.round(z * 2) / 2; }
+      ME.sel.x = x; ME.sel.z = z; meDraw(); meProps();
+    }
+  });
+  const up = () => { ME.drag = null; ME.pan = null; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  addEventListener('keyup', e => { if (e.code === 'Space') ME.space = false; });
+  addEventListener('keydown', e => {
+    if (!ME.open) return; const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+    if (e.code === 'Space' && !typing) { ME.space = true; e.preventDefault(); }
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !typing) { e.preventDefault(); e.shiftKey ? meRedo() : meUndo(); }
+    else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY' && !typing) { e.preventDefault(); meRedo(); }
+    else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD' && !typing) { e.preventDefault(); meDup(); }
+    else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') { e.preventDefault(); meSave(false); }
+    else if (!typing && (e.code === 'Delete' || e.code === 'Backspace')) { e.preventDefault(); meDelete(); }
+    else if (!typing && e.code === 'KeyR') { $('me-rot').click(); }
+    else if (!typing && e.code === 'Escape') meClose();
+    else if (!typing && ME.sel && /^Arrow/.test(e.code)) { e.preventDefault(); mePush(); const st = e.shiftKey ? 2 : .5; ME.sel.x += e.code === 'ArrowRight' ? st : e.code === 'ArrowLeft' ? -st : 0; ME.sel.z += e.code === 'ArrowDown' ? st : e.code === 'ArrowUp' ? -st : 0; meDraw(); meProps(); }
+    if (ME.open) e.stopImmediatePropagation();
+  }, true);
+  addEventListener('resize', () => { if (ME.open) meFit(); });
+}
+function meFit() { const r = ME.cv.parentElement.getBoundingClientRect(); ME.cv.width = Math.max(200, Math.round(r.width)); ME.cv.height = Math.max(200, Math.round(r.height)); meDraw(); }
+function meOpen() {
+  if (!DEV.on) return; meBuild(); ME.open = true; ME.el.classList.remove('hidden'); document.body.classList.add('guide-on'); ME.undo = []; ME.redo = []; ME.dirty = false;
+  ME.sel = null; meFit(); meList(); meProps(); $('me-msg').textContent = '';
+}
+async function meClose() {
+  if (!ME.open) return; if (ME.dirty && !(await uiConfirm('Hay cambios sin guardar. ¿Cerrar igual?', true))) return;
+  ME.open = false; ME.el.classList.add('hidden'); document.body.classList.remove('guide-on');
+}
+$('mapedbtn').addEventListener('click', () => { sfx('select'); meOpen(); });
+
+// ===== Ventanitas propias: prompt/alert/confirm no existen en algunos navegadores (el integrado de la app, por ejemplo) =====
+function uiDialog(o) {
+  return new Promise(res => {
+    if (!$('uidlg')) {
+      const st = document.createElement('style');
+      st.textContent = `#uidlg{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:#05060ccc;padding:16px}#uidlg.hidden{display:none}
+#uidlg .box{width:min(440px,100%);background:#10131f;border:3px solid #000;border-top:6px solid #ffd400;box-shadow:8px 8px 0 #000;padding:20px 22px;color:#fff;font:15px/1.5 system-ui,sans-serif}
+#uidlg h3{margin:0 0 10px;font:italic 900 24px var(--display,sans-serif);color:#ffd400}#uidlg p{margin:0 0 14px;white-space:pre-line}
+#uidlg input{width:100%;box-sizing:border-box;background:#05060c;border:2px solid #ffffff33;color:#fff;font:700 16px monospace;padding:9px 12px;margin-bottom:14px}
+#uidlg .row{display:flex;gap:10px;justify-content:flex-end}#uidlg button{border:0;padding:9px 20px;font:700 15px system-ui,sans-serif;cursor:pointer;background:#222842;color:#fff}
+#uidlg button.ok{background:#ffd400;color:#000}#uidlg button.danger{background:#ff4d4d;color:#fff}`;
+      document.head.appendChild(st);
+      const d = document.createElement('div'); d.id = 'uidlg'; d.className = 'hidden'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+      d.innerHTML = '<div class="box"><h3></h3><p></p><input type="password" autocomplete="off" spellcheck="false"><div class="row"><button type="button" class="no"></button><button type="button" class="ok"></button></div></div>'; document.body.appendChild(d);
+    }
+    const d = $('uidlg'), h = d.querySelector('h3'), pp = d.querySelector('p'), inp = d.querySelector('input'), ok = d.querySelector('.ok'), no = d.querySelector('.no');
+    h.textContent = o.title || ''; h.style.display = o.title ? '' : 'none'; pp.textContent = o.msg || ''; inp.style.display = o.input ? '' : 'none'; inp.type = o.input === 'text' ? 'text' : 'password'; inp.value = '';
+    ok.textContent = o.ok || 'Aceptar'; ok.className = 'ok' + (o.danger ? ' danger' : ''); no.textContent = o.cancel || 'Cancelar'; no.style.display = o.cancel === false ? 'none' : '';
+    d.classList.remove('hidden');
+    const done = v => { d.classList.add('hidden'); ok.onclick = no.onclick = null; removeEventListener('keydown', key, true); res(v); };
+    const key = e => { if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); done(o.input ? null : false); } else if (e.code === 'Enter' && (e.target === inp || e.target === ok)) { e.preventDefault(); e.stopImmediatePropagation(); done(o.input ? inp.value : true); } };
+    addEventListener('keydown', key, true);
+    ok.onclick = () => done(o.input ? inp.value : true); no.onclick = () => done(o.input ? null : false);
+    setTimeout(() => (o.input ? inp : ok).focus(), 30);
+  });
+}
+const uiPrompt = (msg, secret = true, title = '') => uiDialog({ title, msg, input: secret ? 'password' : 'text', ok: 'Entrar' });
+const uiConfirm = (msg, danger = false, title = '') => uiDialog({ title, msg, danger, ok: danger ? 'Sí, seguir' : 'Aceptar' });
+const uiAlert = (msg, title = '') => uiDialog({ title, msg, cancel: false });
+// ===== Editor de audio (modo desarrollador): sonidos del juego, música, ambiente y voces con su lógica =====
+// Lo que se edita queda en config/audio.json (y los audios nuevos en sonidos/ y musica/): el juego lo lee al cargar y vale para todos los jugadores.
+const SFX_NAMES = ['swing', 'hit', 'heavy', 'boom', 'block', 'break', 'dash', 'tp', 'zap', 'beam', 'slash', 'jump', 'select'];
+const AE_ACTIONS = [
+  ['Combate', [['ev_m1_1', 'Golpe 1 del combo'], ['ev_m1_2', 'Golpe 2 del combo'], ['ev_m1_3', 'Golpe 3 del combo'], ['ev_m1_4', 'Remate (golpe 4)'], ['ev_hit_land', 'Al conectar un golpe o habilidad'],
+    ['ev_block', 'Al empezar a bloquear'], ['ev_block_hit', 'Al recibir un golpe bloqueado'], ['ev_dash', 'Al esquivar'], ['ev_jump', 'Al saltar'], ['ev_land', 'Al caer de golpe'],
+    ['ev_skill_1', 'Al usar habilidad 1'], ['ev_skill_2', 'Al usar habilidad 2'], ['ev_skill_3', 'Al usar habilidad 3'], ['ev_skill_4', 'Al usar habilidad 4']]],
+  ['Ulti y despertar', [['activate', 'Al activar la ulti'], ['ready', 'Cuando la ulti está lista'], ['ev_awake_end', 'Al terminar el despertar']]],
+  ['Estado del personaje', [['hurt', 'Al recibir daño'], ['ev_low_hp', 'Con poca vida'], ['death', 'Al morir'], ['kill', 'Al eliminar a alguien'], ['near', 'A punto de eliminar a alguien'], ['ev_spawn', 'Al aparecer / reaparecer'], ['idle', 'Estando quieto un rato'], ['menu', 'Al elegirlo en el menú']]],
+  ['Partida', [['ev_victory', 'Al ganar la partida'], ['ev_defeat', 'Al perder la partida']]],
+];
+const AE_LABEL = Object.fromEntries(AE_ACTIONS.flatMap(([, l]) => l));
+const aeLabel = e => AE_LABEL[e] || (e.startsWith('cerca_') ? 'Al estar cerca de ' + e.slice(6).replace('_ulti', ' (despierto)') : e.startsWith('hab_') ? 'Al usar: ' + e.slice(4) : e.startsWith('reac_') ? 'Reacción: ' + e.slice(5) : e);
+const AE = { open: false, el: null, tab: 'voices', char: null, sel: null, cfg: null, dirty: false, srv: null, filter: '', aud: null, ev: {}, files: {} };
+const aeDef = () => ({ v: 1, voices: {}, clip: {}, dur: {}, evp: {}, sfx: {}, music: {}, amb: {}, up: {} });
+const aeClone = o => JSON.parse(JSON.stringify(o));
+async function aeSrv() { if (AE.srv != null) return AE.srv; try { const r = await fetch('/ping', { cache: 'no-store' }); AE.srv = r.ok && (await r.text()).startsWith('calfight-dev'); } catch (e) { AE.srv = false; } return AE.srv; }
+// eventos -> clips de un personaje, tal como están ahora (lo del juego + lo que se cambió acá)
+function aeEvents(ch) {
+  if (AE.cfg.voices[ch]) return AE.cfg.voices[ch];
+  const o = {}; for (const [e, l] of Object.entries(VOICE_PACKS[ch] || {})) o[e] = l.slice(); return (AE.cfg.voices[ch] = o);
+}
+function aeClips(ch) {   // todos los audios del personaje: los que tienen acción + los que hay en la carpeta
+  const set = new Set(); for (const l of Object.values(aeEvents(ch))) for (const c of l) set.add(c);
+  for (const f of (AE.files[ch] || [])) set.add(f.replace(/\.mp3$/, ''));
+  return [...set].sort();
+}
+const aeActionsOf = (ch, clip) => Object.entries(aeEvents(ch)).filter(([, l]) => l.includes(clip)).map(([e]) => e);
+function aeItems() {
+  const t = AE.tab, q = AE.filter.toLowerCase(), out = [];
+  if (t === 'sfx') for (const n of SFX_NAMES) out.push({ id: n, label: n, sub: AE.cfg.sfx[n] && AE.cfg.sfx[n].file ? 'archivo propio' : 'sintetizado', url: AE.cfg.sfx[n] && AE.cfg.sfx[n].file, kind: 'sfx' });
+  else if (t === 'music') {
+    const def = { menu: ['Música del menú', 'musica/menu.mp3'], fight1: ['Pelea 1', 'musica/pelea1.mp3'], fight2: ['Pelea 2', 'musica/pelea2.mp3'], fight3: ['Pelea 3', 'musica/pelea3.mp3'], intro: ['Pantalla de inicio', 'musica/calfight_intro.mp3'] };
+    for (const [id, [l, f]] of Object.entries(def)) out.push({ id, label: l, sub: (AE.cfg.music[id] && AE.cfg.music[id].file) || f, url: (AE.cfg.music[id] && AE.cfg.music[id].file) || f, kind: 'music', dflt: f });
+    for (const id of CHAR_IDS) out.push({ id: 'ult_' + id, label: 'Ulti de ' + CHARS[id].name, sub: (AE.cfg.music['ult_' + id] && AE.cfg.music['ult_' + id].file) || 'musica/ulti/' + id + '.mp3', url: (AE.cfg.music['ult_' + id] && AE.cfg.music['ult_' + id].file) || 'musica/ulti/' + id + '.mp3', kind: 'music', dflt: 'musica/ulti/' + id + '.mp3' });
+  } else if (t === 'amb') for (const n of SND_LIST.filter(n => !CHARACTER_VOICE_KEYS.has(n) && !/^randi_/.test(n))) out.push({ id: n, label: n.replace(/_/g, ' '), sub: (AE.cfg.amb[n] && AE.cfg.amb[n].file) || 'sonidos/' + n + '.mp3', url: (AE.cfg.amb[n] && AE.cfg.amb[n].file) || 'sonidos/' + n + '.mp3', kind: 'amb', dflt: 'sonidos/' + n + '.mp3' });
+  else if (t === 'voices' && AE.char) for (const c of aeClips(AE.char)) { const key = AE.char + '/' + c, acts = aeActionsOf(AE.char, c); out.push({ id: key, label: c, sub: acts.length ? acts.map(aeLabel).join(' · ') : 'sin acción asignada', url: 'sonidos/' + key + '.mp3', kind: 'voice', clip: c }); }
+  return out.filter(i => !q || (i.label + ' ' + i.sub).toLowerCase().includes(q));
+}
+function aeStop() { if (AE.aud) { try { AE.aud.pause(); } catch (e) { } AE.aud = null; } }
+function aePlay(url) { aeStop(); const a = new Audio(url + (url.startsWith('blob:') ? '' : '?t=' + Date.now())); a.volume = .9; AE.aud = a; a.addEventListener('timeupdate', () => { const p = $('ae-prog'); if (p && a.duration) p.value = a.currentTime / a.duration * 100; }); a.addEventListener('ended', () => { const p = $('ae-prog'); if (p) p.value = 0; }); a.addEventListener('error', () => aeMsg('No se pudo reproducir ese archivo.')); a.play().catch(() => aeMsg('El navegador bloqueó el audio: tocá de nuevo.')); }
+function aeMsg(t) { const m = $('ae-msg'); if (m) { m.textContent = t; clearTimeout(AE.mt); AE.mt = setTimeout(() => { m.textContent = ''; }, 6000); } }
+function aeRender() {
+  if (!AE.open) return;
+  document.querySelectorAll('#audedit .ae-tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === AE.tab));
+  const side = $('ae-side'), body = $('ae-body');
+  if (AE.tab === 'voices' && !AE.char) {   // primero elegir personaje (aunque no tenga audios)
+    side.innerHTML = '<div class="ae-h">Elegí el personaje</div><div class="ae-chars"></div>'; const box = side.querySelector('.ae-chars');
+    for (const id of CHAR_IDS) { const ch = CHARS[id], n = Object.values(aeEvents(id)).flat().length; const b = document.createElement('button'); b.type = 'button'; b.style.setProperty('--cc', ch.color); const cv = document.createElement('canvas'); cv.className = 'px'; headPortrait(charSkin(id), cv); b.appendChild(cv); b.insertAdjacentHTML('beforeend', `<b>${ch.name}</b><small>${n ? n + ' acciones con audio' : 'sin audios todavía'}</small>`); b.addEventListener('click', async () => { AE.char = id; AE.sel = null; await aeLs(id); aeRender(); }); box.appendChild(b); }
+    body.innerHTML = '<div class="ae-empty">Elegí un personaje para ver y editar sus voces.</div>'; return;
+  }
+  const items = aeItems(); side.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'ae-h';
+  if (AE.tab === 'voices') { head.innerHTML = `<button type="button" id="ae-back">← Personajes</button> <b>${CHARS[AE.char].name}</b>`; }
+  else head.innerHTML = `<b>${{ sfx: 'Sonidos del juego (golpes, saltos…)', music: 'Música', amb: 'Sonido ambiente' }[AE.tab]}</b>`;
+  side.appendChild(head);
+  const fi = document.createElement('input'); fi.id = 'ae-filter'; fi.placeholder = 'Buscar…'; fi.value = AE.filter; fi.addEventListener('input', e => { AE.filter = e.target.value; const p = e.target.selectionStart; aeRender(); const n = $('ae-filter'); n.focus(); n.setSelectionRange(p, p); }); side.appendChild(fi);
+  const ul = document.createElement('ul'); ul.className = 'ae-list';
+  for (const it of items) { const li = document.createElement('li'); li.className = AE.sel && AE.sel.id === it.id ? 'on' : ''; li.innerHTML = `<b>${it.label}</b><small>${it.sub}</small>`; li.addEventListener('click', () => { AE.sel = it; aeStop(); aeRender(); }); ul.appendChild(li); }
+  if (!items.length) ul.innerHTML = '<li class="empty">' + (AE.tab === 'voices' ? 'Este personaje todavía no tiene audios. Subí el primero con “＋ Subir audio”.' : 'Nada para mostrar.') + '</li>';
+  side.appendChild(ul);
+  if (AE.tab === 'voices') { const up = document.createElement('button'); up.type = 'button'; up.className = 'ae-add'; up.textContent = '＋ Subir audio'; up.addEventListener('click', () => aeUpload(null)); side.appendChild(up); const b = $('ae-back'); if (b) b.addEventListener('click', () => { AE.char = null; AE.sel = null; aeStop(); aeRender(); }); }
+  else { const hint = document.createElement('div'); hint.className = 'ae-hint'; hint.textContent = AE.tab === 'sfx' ? 'Cada sonido se puede reemplazar por un archivo tuyo y ajustar su volumen y frecuencia.' : 'Elegí uno y reemplazalo por tu archivo; el volumen vale para todos.'; side.appendChild(hint); }
+  aeDetail();
+}
+async function aeLs(ch) { AE.files[ch] = []; if (await aeSrv()) { try { const r = await fetch('/ls?p=sonidos/' + ch); const j = await r.json(); AE.files[ch] = j.files.filter(f => /\.mp3$/.test(f.name)).map(f => f.name); } catch (e) { } } }
+function aeSlider(id, label, min, max, step, val, fmt) { return `<label class="ae-sl"><span>${label} <output id="${id}-o">${fmt(val)}</output></span><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${val}"></label>`; }
+function aeDetail() {
+  const body = $('ae-body'), it = AE.sel; if (!it) { body.innerHTML = '<div class="ae-empty">Elegí un audio de la lista.</div>'; return; }
+  const cfgKey = it.kind === 'voice' ? 'clip' : it.kind, cur = (cfgKey === 'clip' ? AE.cfg.clip[it.id] : AE.cfg[cfgKey][it.id]) || {};
+  const set = (k, v) => { const store = cfgKey === 'clip' ? AE.cfg.clip : AE.cfg[cfgKey]; (store[it.id] || (store[it.id] = {}))[k] = v; AE.dirty = true; };
+  let h = `<h3>${it.label}</h3><div class="ae-src">${it.kind === 'sfx' && !it.url ? 'Sonido sintetizado por el juego' : it.url}</div>
+    <div class="ae-player"><button type="button" id="ae-play">▶ Escuchar</button><button type="button" id="ae-stop">■</button><progress id="ae-prog" max="100" value="0"></progress></div>`;
+  h += aeSlider('ae-vol', 'Volumen', 0, 200, 5, Math.round((cur.vol ?? 1) * 100), v => v + ' %');
+  if (it.kind === 'sfx' || it.kind === 'voice') { h += aeSlider('ae-chance', 'Frecuencia (probabilidad de sonar)', 0, 100, 5, Math.round((cur.chance ?? 1) * 100), v => v + ' %'); h += aeSlider('ae-cd', 'Espera entre veces', 0, 60, .5, cur.cd ?? 0, v => v + ' s'); }
+  if (it.kind === 'sfx') h += `<label class="ae-chk"><input type="checkbox" id="ae-off" ${cur.off ? 'checked' : ''}> Silenciar este sonido</label>`;
+  h += '<div class="ae-btns">';
+  h += `<button type="button" id="ae-rep">${it.kind === 'voice' ? 'Reemplazar el archivo…' : 'Usar mi propio archivo…'}</button>`;
+  if (it.kind !== 'voice' && cur.file) h += '<button type="button" id="ae-orig">Volver al original</button>';
+  if (it.kind === 'voice') h += `<button type="button" id="ae-delclip" class="danger">${AE.cfg.up[it.id] ? 'Borrar este audio' : 'Quitar de las acciones'}</button>`;
+  h += '</div>';
+  if (it.kind === 'voice') {   // lógica: en qué acciones del juego suena
+    const acts = new Set(aeActionsOf(AE.char, it.clip)), extra = Object.keys(aeEvents(AE.char)).filter(e => !AE_LABEL[e]);
+    h += '<div class="ae-logic"><h4>Lógica · cuándo suena este audio</h4><small>Marcá las acciones del jugador. Si marcás varias, suena en cualquiera de ellas. Varios audios en la misma acción: el juego elige uno al azar.</small>';
+    for (const [g, list] of [...AE_ACTIONS, ...(extra.length ? [['Especiales de este personaje', extra.map(e => [e, aeLabel(e)])]] : [])]) {
+      h += `<div class="ae-grp"><b>${g}</b>`; for (const [e, l] of list) h += `<label><input type="checkbox" data-act="${e}" ${acts.has(e) ? 'checked' : ''}> ${l}</label>`; h += '</div>';
+    }
+    h += '</div>';
+  }
+  body.innerHTML = h;
+  $('ae-play').addEventListener('click', () => { if (it.kind === 'sfx' && !it.url) { SFX_RAW = true; SFX_FORCE = true; sfx(it.id); SFX_RAW = false; SFX_FORCE = false; } else aePlay(it.url); });
+  $('ae-stop').addEventListener('click', aeStop);
+  const bindS = (id, key, mul, fmt) => { const el = $(id); if (!el) return; el.addEventListener('input', () => { $(id + '-o').textContent = fmt(+el.value); set(key, +el.value / mul); }); };
+  bindS('ae-vol', 'vol', 100, v => v + ' %'); bindS('ae-chance', 'chance', 100, v => v + ' %'); bindS('ae-cd', 'cd', 1, v => v + ' s');
+  if ($('ae-off')) $('ae-off').addEventListener('change', e => set('off', e.target.checked));
+  $('ae-rep').addEventListener('click', () => aeUpload(it));
+  if ($('ae-orig')) $('ae-orig').addEventListener('click', () => { delete AE.cfg[cfgKey][it.id].file; AE.dirty = true; aeRender(); });
+  if ($('ae-delclip')) $('ae-delclip').addEventListener('click', async () => {
+    const ok = await uiConfirm(AE.cfg.up[it.id] ? '¿Borrar este audio de la carpeta del juego?' : '¿Quitar este audio de todas sus acciones? (El archivo queda en la carpeta.)', true); if (!ok) return;
+    for (const e of Object.keys(aeEvents(AE.char))) aeEvents(AE.char)[e] = aeEvents(AE.char)[e].filter(c => c !== it.clip);
+    if (AE.cfg.up[it.id] && await aeSrv()) { try { await fetch('/del?p=sonidos/' + it.id + '.mp3', { method: 'DELETE' }); } catch (e) { } delete AE.cfg.up[it.id]; AE.files[AE.char] = (AE.files[AE.char] || []).filter(f => f !== it.clip + '.mp3'); }
+    AE.sel = null; AE.dirty = true; aeRender();
+  });
+  body.querySelectorAll('[data-act]').forEach(c => c.addEventListener('change', () => {
+    const ev = aeEvents(AE.char), e = c.dataset.act; ev[e] = ev[e] || [];
+    if (c.checked) { if (!ev[e].includes(it.clip)) ev[e].push(it.clip); } else ev[e] = ev[e].filter(x => x !== it.clip);
+    if (!ev[e].length) ev[e] = [];   // evento vacío = sin audio
+    AE.dirty = true; const li = document.querySelector('#ae-side li.on small'); if (li) { const a = aeActionsOf(AE.char, it.clip); li.textContent = a.length ? a.map(aeLabel).join(' · ') : 'sin acción asignada'; }
+  }));
+}
+async function aeDecodeDur(buf) { try { const c = new (window.AudioContext || window.webkitAudioContext)(); const d = await c.decodeAudioData(buf.slice(0)); c.close(); return d.duration; } catch (e) { return 0; } }
+async function aeUpload(it) {
+  if (!(await aeSrv())) { await uiAlert('Para subir o reemplazar audios abrí el editor con el servidor del modo desarrollador: doble clic en Iniciar_Editor.bat (o python tools/dev-server.py).', 'SERVIDOR LOCAL'); return; }
+  const f = document.createElement('input'); f.type = 'file'; f.accept = 'audio/*,.mp3,.wav,.ogg,.m4a';
+  f.onchange = async () => {
+    const file = f.files[0]; if (!file) return; const buf = await file.arrayBuffer(), dur = await aeDecodeDur(buf);
+    let name = file.name.replace(/\.[^.]+$/, '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'audio';
+    const ext = (file.name.match(/\.[^.]+$/) || ['.mp3'])[0].toLowerCase();
+    let rel;
+    if (it && it.kind === 'voice') rel = 'sonidos/' + it.id + '.mp3'; else if (it && it.kind === 'sfx') rel = 'sonidos/general/' + it.id + '.mp3'; else if (it && it.kind === 'music') rel = 'musica/' + (it.id.startsWith('ult_') ? 'ulti/' + it.id.slice(4) : it.id) + '_propia.mp3'; else if (it && it.kind === 'amb') rel = 'sonidos/ambiente/' + it.id + '.mp3'; else rel = 'sonidos/' + AE.char + '/' + name + '.mp3';
+    if (!(it && it.kind === 'voice') && AE.tab === 'voices') { let n = 2, base = name; while ((AE.files[AE.char] || []).includes(name + '.mp3') || aeClips(AE.char).includes(name)) name = base + '_' + n++; rel = 'sonidos/' + AE.char + '/' + name + '.mp3'; }
+    aeMsg('Subiendo…');
+    try {
+      const r = await fetch('/upload?p=' + encodeURIComponent(rel.replace(/\.mp3$/, ext)), { method: 'POST', body: buf }), j = await r.json();
+      if (!r.ok) { aeMsg(j.error || 'No se pudo subir.'); return; }
+      rel = j.file;
+      if (it && it.kind !== 'voice') { const st = AE.cfg[it.kind][it.id] || (AE.cfg[it.kind][it.id] = {}); st.file = rel; }
+      else if (it && it.kind === 'voice') { AE.cfg.dur[it.id] = dur || AE.cfg.dur[it.id]; }
+      else { const key = AE.char + '/' + name; AE.cfg.up[key] = 1; AE.cfg.dur[key] = dur || 2; AE.files[AE.char] = [...(AE.files[AE.char] || []), name + '.mp3']; AE.sel = { id: key, label: name, kind: 'voice', clip: name, url: rel, sub: 'sin acción asignada' }; }
+      AE.dirty = true; aeMsg('Subido: ' + rel); aeRender();
+    } catch (e) { aeMsg('No se pudo subir (¿está abierto el servidor?).'); }
+  };
+  f.click();
+}
+async function aeSave(reload) {
+  const cfg = aeClone(AE.cfg); cfg.v = 1;
+  for (const ch in cfg.voices) { for (const e in cfg.voices[ch]) if (!cfg.voices[ch][e].length) cfg.voices[ch][e] = []; }
+  const txt = JSON.stringify(cfg, null, 1); try { localStorage.setItem('bsb_audiocfg', txt); } catch (e) { }
+  let how = 'guardado en este navegador';
+  if (await aeSrv()) { try { const r = await fetch('/save?p=config/audio.json', { method: 'POST', body: txt }); if (r.ok) how = 'guardado en config/audio.json'; } catch (e) { } }
+  else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = 'audio.json'; a.click(); how = 'descargado como audio.json (ponelo en la carpeta config/ para que valga para todos)'; }
+  AE.dirty = false; aeMsg('Listo: ' + how + '.'); if (reload) setTimeout(() => location.reload(), 700);
+}
+function aeBuild() {
+  if (AE.el) return;
+  const st = document.createElement('style');
+  st.textContent = `#audedit{position:fixed;inset:0;z-index:80;background:#0b0e16;color:#e8ecf4;font:14px/1.4 system-ui,sans-serif;display:grid;grid-template-columns:340px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}#audedit.hidden{display:none}
+#audedit .ae-top{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#121726;border-bottom:1px solid #263050}
+#audedit h2{margin:0 12px 0 0;font:italic 900 20px var(--display,sans-serif);color:#ffb020}#audedit .ae-tabs{display:flex;gap:4px}
+#audedit button{background:#1c2234;color:#e8ecf4;border:1px solid #333c55;border-radius:6px;padding:7px 13px;cursor:pointer;font:inherit}#audedit button:hover{background:#2a3452}
+#audedit .ae-tabs button.on{background:#ffb020;color:#000;border-color:#ffb020;font-weight:700}#audedit button.pri{background:#ffb020;color:#000;border-color:#ffb020;font-weight:700}#audedit button.danger{background:#5a2330;border-color:#8a3346}
+#audedit .ae-sp{flex:1}#ae-msg{color:#9dffb6;font-size:13px}
+#ae-side{display:flex;flex-direction:column;min-height:0;border-right:1px solid #263050;background:#0f1320}#ae-body{overflow:auto;padding:18px 24px;min-height:0}
+#ae-side .ae-h{padding:10px 12px;border-bottom:1px solid #263050;display:flex;gap:8px;align-items:center}#ae-filter{margin:8px 10px;background:#05060c;border:1px solid #333c55;color:#fff;padding:7px 9px;border-radius:4px}
+.ae-list{list-style:none;margin:0;padding:0 6px;overflow:auto;flex:1}.ae-list li{padding:7px 10px;border-radius:5px;cursor:pointer;display:flex;flex-direction:column}.ae-list li:hover{background:#1c2234}.ae-list li.on{background:#3a4a7a}.ae-list li small{color:#8a96b0;font-size:12px}.ae-list li.empty{cursor:default;color:#8a96b0}
+.ae-add{margin:8px 10px 10px!important}.ae-hint{padding:8px 12px;font-size:12px;color:#8a96b0;border-top:1px solid #263050}
+.ae-chars{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;overflow:auto}.ae-chars button{display:flex;flex-direction:column;align-items:center;gap:4px;border-bottom:3px solid var(--cc)!important;padding:10px 6px!important}.ae-chars canvas{width:48px;height:48px;image-rendering:pixelated}.ae-chars small{color:#8a96b0;font-size:11px;text-align:center}
+.ae-empty{color:#8a96b0;padding:40px}#ae-body h3{margin:0 0 4px;font:italic 900 28px var(--display,sans-serif)}.ae-src{color:#8a96b0;font-size:12px;margin-bottom:12px;word-break:break-all}
+.ae-player{display:flex;gap:8px;align-items:center;margin-bottom:16px}#ae-prog{flex:1;height:10px}
+.ae-sl{display:block;margin:0 0 12px;max-width:520px}.ae-sl span{display:flex;justify-content:space-between;color:#aab4cc;font-size:13px}.ae-sl input{width:100%;accent-color:#ffb020}
+.ae-chk{display:block;margin:0 0 12px}.ae-btns{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
+.ae-logic{max-width:760px;border-top:1px solid #263050;padding-top:12px}.ae-logic h4{margin:0 0 4px;font-size:16px;color:#ffb020}.ae-logic>small{color:#8a96b0}
+.ae-grp{margin-top:12px}.ae-grp b{display:block;color:#aab4cc;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.ae-grp label{display:inline-flex;gap:6px;align-items:center;margin:2px 14px 2px 0;font-size:14px;cursor:pointer}.ae-grp input{accent-color:#ffb020}`;
+  document.head.appendChild(st);
+  const el = document.createElement('div'); el.id = 'audedit'; el.className = 'hidden';
+  el.innerHTML = `<div class="ae-top"><h2>EDITOR DE AUDIO</h2><div class="ae-tabs"><button type="button" data-t="sfx">Sonidos generales</button><button type="button" data-t="music">Música</button><button type="button" data-t="amb">Sonido ambiente</button><button type="button" data-t="voices" class="on">Voces</button></div>
+    <span class="ae-sp"></span><span id="ae-msg"></span><button type="button" id="ae-save">Guardar</button><button type="button" id="ae-apply" class="pri">Guardar y probar ▸</button><button type="button" id="ae-close">Cerrar</button></div>
+    <div id="ae-side"></div><div id="ae-body"></div>`;
+  document.body.appendChild(el); AE.el = el;
+  el.querySelectorAll('.ae-tabs button').forEach(b => b.addEventListener('click', () => { AE.tab = b.dataset.t; AE.sel = null; AE.filter = ''; aeStop(); aeRender(); }));
+  $('ae-save').addEventListener('click', () => aeSave(false)); $('ae-apply').addEventListener('click', () => aeSave(true)); $('ae-close').addEventListener('click', aeClose);
+  addEventListener('keydown', e => { if (!AE.open) return; const dl = $('uidlg'), dlg = dl && !dl.classList.contains('hidden'); if (dlg) return; if (e.code === 'Escape' && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) aeClose(); e.stopImmediatePropagation(); }, true);
+}
+async function aeOpen() {
+  if (!DEV.on) return; aeBuild(); AE.cfg = aeClone(AUDIO_CFG); for (const k of Object.keys(aeDef())) if (!AE.cfg[k]) AE.cfg[k] = aeDef()[k];
+  AE.open = true; AE.el.classList.remove('hidden'); AE.dirty = false; AE.sel = null; AE.char = null; AE.srv = null; document.body.classList.add('guide-on'); initAudio(); aeRender(); aeSrv();
+}
+async function aeClose() {
+  if (!AE.open) return; if (AE.dirty && !(await uiConfirm('Hay cambios sin guardar. ¿Cerrar igual?', true))) return;
+  aeStop(); AE.open = false; AE.el.classList.add('hidden'); document.body.classList.remove('guide-on');
+}
+$('audedbtn').addEventListener('click', () => { sfx('select'); aeOpen(); });
+
+// ===== Modo desarrollador: lo ve y lo usa solo el dueño =====
+// Se activa en tu PC (localhost) o con la clave del dueño (guardada como PBKDF2 con sal; la clave en sí no está en el juego).
+// Ojo: esto es una puerta en tu navegador, no seguridad de servidor: las herramientas solo cambian tu copia y lo que publicás lo decidís vos.
+const DEV = { on: false, p: { salt: 'e1223a6e5d5ce1833853cbce67103fe2', iter: 150000, hash: '21dda3739d45c30713ac3333f8a0a349d17115890e2d965a0f95c7a5d28e7e28' } };
+async function devHash(k) {
+  const enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(k), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(DEV.p.salt), iterations: DEV.p.iter }, key, 256);
+  return [...new Uint8Array(bits)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function devApply() { document.body.classList.toggle('dev', DEV.on); }
+{
+  let flag = false; try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); flag = !!(d && d.h === DEV.p.hash.slice(0, 16) && Date.now() - d.t < 30 * 864e5); } catch (e) { }
+  DEV.on = /^(localhost|127\.|\[::1\])/.test(location.hostname) || flag; devApply();
+}
+async function devUnlock() {
+  if (DEV.on) return true;
+  let t = { n: 0, until: 0 }; try { t = JSON.parse(localStorage.getItem('bsb_dev_try') || 'null') || t; } catch (e) { }
+  if (t.until > Date.now()) { await uiAlert('Demasiados intentos. Probá en ' + Math.ceil((t.until - Date.now()) / 60000) + ' min.'); return false; }
+  const k = await uiPrompt('Clave del dueño de CalFight (modo desarrollador):', true, 'MODO DESARROLLADOR'); if (!k) return false;
+  let h = ''; try { h = await devHash(k.trim()); } catch (e) { await uiAlert('Abrí el juego por https para usar el modo desarrollador.'); return false; }
+  if (h !== DEV.p.hash) { t.n++; if (t.n >= 5) { t.until = Date.now() + 15 * 60000; t.n = 0; } try { localStorage.setItem('bsb_dev_try', JSON.stringify(t)); } catch (e) { } await uiAlert('Clave incorrecta.'); return false; }
+  try { localStorage.removeItem('bsb_dev_try'); localStorage.setItem('bsb_dev', JSON.stringify({ h: DEV.p.hash.slice(0, 16), t: Date.now() })); } catch (e) { }
+  DEV.on = true; devApply(); stForget(); ST.owner = true; try { localStorage.setItem('bsb_owner', '1'); } catch (e) { }   // este aparato ya no cuenta como jugador
+  return true;
+}
+function devLock() { DEV.on = false; try { localStorage.removeItem('bsb_dev'); localStorage.removeItem('bsb_owner'); } catch (e) { } ST.owner = false; devApply(); }
+async function ownerOpen() {
+  if (!(await devUnlock())) return;
   ownerUI(); OW.el.classList.remove('hidden'); ownerConnect(); ownerRender(); clearInterval(OW.tm); OW.tm = setInterval(ownerRender, 2000);
 }
 function ownerClose() { if (OW.el) OW.el.classList.add('hidden'); clearInterval(OW.tm); }
@@ -11458,6 +11989,14 @@ function ownerRender() {
   $('ow-body').innerHTML = h;
 }
 addEventListener('keydown', e => { if (e.code === 'F9' && e.ctrlKey && e.shiftKey) { e.preventDefault(); ownerOpen(); } });
+addEventListener('keydown', e => { if (e.code === 'F4' && DEV.on && !e.repeat) { e.preventDefault(); $('devhud').classList.toggle('off'); } });
+setInterval(() => {
+  const h = $('devhud'); if (!DEV.on || h.classList.contains('off')) return;
+  const p = G.player;
+  h.textContent = `FPS ${Math.round(GFX.fps || 0)}  ·  calidad ${GFX.names[GFX.level]}\n` + (p ? `pos ${p.pos.x.toFixed(1)}, ${p.pos.y.toFixed(1)}, ${p.pos.z.toFixed(1)}\n` : '') + `peleadores ${G.fighters.length}  proy ${PROJ.length}  fx ${FX.length}\nestado ${G.state}${G.mp ? ' · online' : ''}${G.guide ? ' · guía' : ''}`;
+}, 400);
+$('devstat').addEventListener('click', () => { sfx('select'); ownerOpen(); });
+$('devoff').addEventListener('click', () => { sfx('select'); if (/^(localhost|127\.|\[::1\])/.test(location.hostname)) uiAlert('En localhost el modo desarrollador siempre está activo. Para verlo como jugador abrí la página por la web publicada.'); else devLock(); });
 const ownerHash = () => { if (/^#(dueno|due%C3%B1o|dueño|owner)$/i.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); ownerOpen(); } };
 addEventListener('hashchange', ownerHash); setTimeout(ownerHash, 600);
 { const o = $('st-opt'); if (o) { o.checked = ST.on; o.addEventListener('change', () => { ST.on = o.checked; try { localStorage.setItem('bsb_st_off', ST.on ? '0' : '1'); } catch (e) { } if (!ST.on) stForget(); else stPush(); }); } }
@@ -11906,6 +12445,14 @@ function presenceOf(f, ch) {
 }
 // antitrampas: sin servidor no se puede impedir que alguien mande datos falsos, pero cada cliente se defiende de lo imposible:
 // golpes desde muy lejos, ráfagas de golpes o daño que ninguna habilidad puede hacer y teletransportes. Quien insiste queda ignorado un rato.
+function sanePr(pr) {   // lo que manda otro jugador nunca se usa tal cual: números dentro de rango y nombres limpios
+  const c = (v, a, b, d = 0) => { v = +v; return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d; };
+  if (pr.x != null) { pr.x = c(pr.x, -420, 420); pr.z = c(pr.z, -420, 420); pr.y = c(pr.y, -60, 500); }
+  pr.hp = c(pr.hp, 0, 600); pr.mh = c(pr.mh, 1, 600, 100); pr.k = c(pr.k, 0, 9999); pr.d = c(pr.d, 0, 9999);
+  if (typeof pr.nm === 'string') pr.nm = pr.nm.replace(/[<>&\u0000-\u001f]/g, '').slice(0, 16);
+  if (pr.jt != null) { const j = +pr.jt; pr.jt = Number.isFinite(j) && j > Date.now() - 864e5 && j < Date.now() + 120000 ? j : Date.now(); }
+  return pr;
+}
 function cheatOf(px) { return px.cheat || (px.cheat = { hit: [], dmg: [], tp: [], mute: 0, lx: null, lz: null, lt: 0 }); }
 function cheatStrike(px, why) {
   const ck = cheatOf(px), now = performance.now(); ck.tp = ck.tp.filter(t => now - t < 15000); ck.tp.push(now);
@@ -12048,7 +12595,7 @@ function netTick(dt) {
   const me = peers.find(pe => pe.sameTab); if (me) NET.myPeer = me.peer;
   for (const pe of peers) {
     if (pe.sameTab) continue;
-    const pr = pe.presence || {};
+    const pr = sanePr(pe.presence || {});
     const chDef = pr.ch === 'dummy' ? DUMMY_CH : (CHARS[pr.ch] || CHARS.javi);
     if (pr.st !== 'play' || !chDef || typeof pr.x !== 'number') continue;
     seen.add(pe.peer);
@@ -12454,6 +13001,7 @@ function edRebuild() {
   edProps(); edTree();
 }
 function edOpen() {
+  if (!DEV.on) return;
   if (G.state !== 'menu') return; edBuild(); edComicInit(); const id = ED_SETS().includes(G.charId) ? G.charId : ED_SETS()[0];
   ED.on = true; $('menu').style.display = 'none'; $('animed').classList.remove('hidden'); SH.landed = true; SH.kf = null; ED.camZ = Math.max(ED.camZ, 9.8);
   if (G.charId !== id) { G.charId = id; showSelect(id, true); } edOpenClip(id, bbSet(id).idle ? 'idle' : Object.keys(bbSet(id))[0]);
@@ -13022,7 +13570,7 @@ $('ld-no').addEventListener('click', () => $('leavedlg').classList.add('hidden')
 addEventListener('keydown', e => { if (e.code === 'Escape' && !$('leavedlg').classList.contains('hidden')) { e.preventDefault(); e.stopImmediatePropagation(); $('leavedlg').classList.add('hidden'); } }, true);
 $('invbtn').addEventListener('click', () => {
   const b = $('invbtn'), link = inviteLink(), ok = () => { b.textContent = '¡LINK COPIADO!'; setTimeout(() => { b.textContent = 'INVITAR ▸'; }, 1600); };
-  try { navigator.clipboard.writeText(link).then(ok, () => { prompt('Copiá este link:', link); }); } catch (e) { prompt('Copiá este link:', link); }
+  try { navigator.clipboard.writeText(link).then(ok, () => { uiDialog({ title: 'LINK DE INVITACIÓN', msg: link, cancel: false }); }); } catch (e) { uiDialog({ title: 'LINK DE INVITACIÓN', msg: link, cancel: false }); }
 });
 setInterval(() => { $('invbtn').classList.toggle('hidden', !(G.state === 'menu' && NET.named && NET.room === 'relay')); }, 800);
 // nombre, skin y teclas pasan al panel del peleador (la pestaña Partida ya no se usa)
@@ -13089,11 +13637,11 @@ if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').ma
 // El último peleador que usaste, de espaldas, en una de dos escenas con el atardecer (apoyado en la barandilla del muelle o sentado en la arena).
 // Cámara fija con un leve temblor. Al pulsar algo: el personaje nota que estamos detrás, gira, la cámara se cae, todo negro y el menú cae poco a poco.
 const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4 };
-const titleVol = k => k * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100;
+const titleVol = k => k * (AUDIO_CFG.music.intro && AUDIO_CFG.music.intro.vol != null ? AUDIO_CFG.music.intro.vol : 1) * AUDIO_LEVELS.general / 100 * AUDIO_LEVELS.music / 100;
 function titleAudio(on) {
   if (on) {
     try {
-      const m = new Audio('musica/calfight_intro.mp3'); m.loop = true; m.volume = titleVol(MUS.vol); m.play().catch(() => { }); TITLE.mus = m;
+      const m = new Audio(musFile('intro', 'musica/calfight_intro.mp3')); m.loop = true; m.volume = titleVol(MUS.vol); m.play().catch(() => { }); TITLE.mus = m;
       for (const [n, v] of [['waves', .3], ['breeze', .14]]) { const e = new Audio('sonidos/' + n + '.mp3'); e.loop = true; trackHtmlAudio(e, v, 'ambient'); e.play().catch(() => { }); TITLE.amb.push(e); }
     } catch (e) { }
     return;
