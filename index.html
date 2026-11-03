@@ -442,8 +442,13 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
 #menuback:hover{background:var(--hot);color:#000}
 #invbtn{font-family:var(--display);font-size:16px;letter-spacing:.06em;background:var(--panel);color:#9dffb6;border:1px solid #3ee07a;padding:8px 16px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer}
 #invbtn:hover{background:#3ee07a;color:#000}
-#acctbtn{position:absolute;right:5vw;top:calc(12vh + 88px);z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg);max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#acctbtn:hover{background:#ffd400;color:#000}#title.leaving #acctbtn{opacity:0;transition:opacity .2s}
+#acctbtn{position:absolute;left:3vw;top:calc(9vh + 18px);z-index:3;width:min(340px,62vw);height:96px;border:3px solid #000;box-shadow:5px 5px 0 #000;padding:0;overflow:hidden;cursor:pointer;background:#16182a;color:#fff;transform:skewX(-4deg);text-align:left;transition:transform .15s,box-shadow .15s}
+#acctbtn:hover{transform:skewX(-4deg) translate(-2px,-2px);box-shadow:8px 8px 0 #000}#title.leaving #acctbtn{opacity:0;transition:opacity .2s}
+#acctbtn .ab-bg{position:absolute;inset:0;background-size:cover;background-position:center}#acctbtn .ab-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#000c 0%,#0006 55%,#0002 100%)}
+#acctbtn .ab-av{position:absolute;left:16px;top:50%;transform:translateY(-50%) skewX(4deg);width:64px;height:64px;border-radius:50%;border:3px solid #fff;object-fit:cover;background:#222;box-shadow:0 0 0 3px #000}
+#acctbtn .ab-t{position:absolute;left:96px;right:12px;top:50%;transform:translateY(-50%) skewX(4deg);display:flex;flex-direction:column;gap:3px}
+#acctbtn .ab-t b{font:900 21px/1.1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.04em;text-shadow:2px 2px 0 #000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#acctbtn .ab-t small{font:700 11px var(--display,'Chakra Petch',sans-serif);letter-spacing:.16em;color:#ffd400;text-shadow:1px 1px 0 #000}
 #acctbtn2{font-family:var(--display);font-size:16px;letter-spacing:.06em;background:var(--panel);color:#cfd6ff;border:1px solid #7a86c8;padding:8px 16px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #acctbtn2:hover{background:#7a86c8;color:#000}
 #acctdlg{position:fixed;inset:0;z-index:150;display:grid;place-items:center;background:#05060ccc;padding:16px}#acctdlg.hidden{display:none}
@@ -457,6 +462,16 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
 #acctdlg .lnk{background:none;border:0;color:#9fc4ff;cursor:pointer;font:13px system-ui,sans-serif;margin-top:10px;padding:0;text-decoration:underline}
 #acctdlg .msg{min-height:20px;margin-top:10px;font-size:13px;color:#ffb3b3}#acctdlg .msg.ok{color:#9dffb6}
 #acctdlg .who{display:flex;gap:12px;align-items:center;margin-bottom:14px}#acctdlg .who img{width:52px;height:52px;border-radius:50%;background:#222}#acctdlg .who small{display:block;color:#aab0cc}
+#acctdlg .box{width:min(500px,100%)}#acctdlg .box.card{padding:0}#acctdlg .box.card .msg{padding:0 24px 14px}#acctdlg .pad{padding:20px 24px 22px}
+#acctdlg .cardp .bn{height:128px;background-size:cover;background-position:center;position:relative}
+#acctdlg .cardp .bn .edit{position:absolute;right:10px;top:10px;background:#000a;color:#fff;border:1px solid #fff5;padding:6px 12px;font:700 13px system-ui,sans-serif;cursor:pointer}#acctdlg .cardp .bn .edit:hover{background:#ffd400;color:#000}
+#acctdlg .cardp .head{display:flex;gap:14px;align-items:flex-end;padding:0 24px;margin-top:-42px;position:relative}
+#acctdlg .cardp .head img{width:92px;height:92px;border-radius:50%;border:5px solid #10131f;background:#222;object-fit:cover}
+#acctdlg .cardp .head .nm{font:900 26px/1.1 var(--display,sans-serif);margin-bottom:4px}#acctdlg .cardp .head small{display:block;color:#aab0cc;font-size:13px}
+#acctdlg .badges{display:flex;gap:6px;flex-wrap:wrap;padding:10px 24px 0}#acctdlg .badges span{background:#1c2033;border:1px solid #ffffff22;padding:3px 10px;font-size:12px;border-radius:99px}#acctdlg .badges span.gold{background:#ffd400;color:#000;border-color:#000;font-weight:800}
+#acctdlg .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 24px 0}#acctdlg .stats div{background:#171a2a;padding:8px 10px}#acctdlg .stats b{display:block;font-size:20px;color:#ffd400}#acctdlg .stats small{color:#aab0cc;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#acctdlg .bnpick h3{margin-bottom:6px}#acctdlg .bngrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:46vh;overflow:auto;margin:10px 0}
+#acctdlg .bngrid button{height:62px;border:3px solid transparent;background-size:cover;background-position:center;cursor:pointer;position:relative;padding:0}#acctdlg .bngrid button.on{border-color:#ffd400}#acctdlg .bngrid button span{position:absolute;left:0;right:0;bottom:0;background:#000a;font:700 11px system-ui,sans-serif;padding:2px 4px;text-align:left}
 #tplay:hover{background:#fff;transform:skewX(-8deg) translate(-3px,-3px);box-shadow:9px 9px 0 #000}
 #tset{position:absolute;right:5vw;top:calc(12vh + 46px);z-index:3;background:#0009;color:#fff;border:2px solid #fff6;padding:8px 14px;font:700 12px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.12em;cursor:pointer;transform:skewX(-8deg)}
 #tset:hover,#setbtn:hover{background:#ffd400;color:#000}
@@ -563,7 +578,7 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
   <div id="trays"></div><div id="tdof"></div><div id="tgrain"></div><i class="tfl a"></i><i class="tfl b"></i><i class="tfl c"></i><i class="tfl d"></i>
   <div class="tlogo"><img src="assets/calfight_logo.png" alt="CalFight"><p id="tchar"></p></div><div id="tsun"></div>
   <button type="button" id="tplay">▶ JUGAR</button>
-  <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><button type="button" id="acctbtn">👤 INICIAR SESIÓN</button><div id="tspeed"></div>
+  <button type="button" id="tscene">CAMBIAR ESCENA ⟳</button><button type="button" id="tset">⚙ AJUSTES</button><button type="button" id="acctbtn" aria-label="Tu cuenta"><span class="ab-bg"></span><img class="ab-av" alt="" src="assets/calfight_icon.png"><span class="ab-t"><b>INICIAR SESIÓN</b><small>CREÁ TU CUENTA</small></span></button><div id="tspeed"></div>
   <div id="tmodal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="tm-title">
     <div class="tm-box">
       <button type="button" class="tm-x" id="tm-x" aria-label="Cerrar">✕</button>
@@ -12008,7 +12023,7 @@ function ownerRender() {
 // ===== Cuentas (Firebase Authentication): correo y contraseña, o Google =====
 // El juego se puede jugar sin cuenta. La cuenta identifica al jugador (su nombre en las salas) y reconoce al dueño. Las contraseñas las maneja Google, el juego nunca las guarda.
 const ACCT = { cfg: { apiKey: 'AIzaSyBY4zI1ZpEFlNnotZ8_Yxe5hzT9Ks5jhCc', authDomain: 'calgame.firebaseapp.com', projectId: 'calgame', storageBucket: 'calgame.firebasestorage.app', messagingSenderId: '358897395123', appId: '1:358897395123:web:49d862e4e14b14cc4197c6' },
-  user: null, auth: null, loading: null, mode: 'in', busy: false, ownerH: [] };
+  user: null, auth: null, loading: null, mode: 'in', busy: false, ownerH: ['9d146dbc10561ea319eaa1854c3852babfd5bb58c4082f7309a6f5b9d9073146'] };
 const ACCT_ERR = {
   'auth/invalid-email': 'Ese correo no es válido.', 'auth/missing-email': 'Escribí tu correo.', 'auth/missing-password': 'Escribí tu contraseña.',
   'auth/user-not-found': 'No hay ninguna cuenta con ese correo.', 'auth/wrong-password': 'Contraseña incorrecta.', 'auth/invalid-credential': 'Correo o contraseña incorrectos.',
@@ -12033,11 +12048,76 @@ async function acctSha(t) { const b = await crypto.subtle.digest('SHA-256', new 
 async function acctChanged() {
   const u = ACCT.user, nm = u ? (u.displayName || (u.email || '').split('@')[0] || 'Jugador') : '';
   try { localStorage.setItem('bsb_acct', u ? '1' : '0'); } catch (e) { }
-  $('acctbtn').textContent = u ? '👤 ' + nm.toUpperCase() : '👤 INICIAR SESIÓN'; $('acctbtn2').textContent = u ? '👤 ' + nm : '👤 CUENTA';
+  acctPaint();
   if (u && (!localStorage.getItem('bsb_name') || localStorage.getItem('bsb_name') === 'Jugador')) { const inp = $('pname-in'); inp.value = nm.slice(0, 16); try { localStorage.setItem('bsb_name', inp.value); } catch (e) { } try { netMenuPresence(); } catch (e) { } }
   // la cuenta del dueño (correo verificado) activa el modo desarrollador sin pedir la clave
   if (u && u.emailVerified && u.email && ACCT.ownerH.length && ACCT.ownerH.includes(await acctSha(u.email)) && !DEV.on) { DEV.on = true; devApply(); stForget(); ST.owner = true; }
   if ($('acctdlg') && !$('acctdlg').classList.contains('hidden')) acctRender();
+}
+
+// ---- banners del perfil: dibujados por el juego, o una imagen tuya (se guarda en este navegador)
+const BANNERS = [['sunset', 'Atardecer'], ['night', 'Ciudad de noche'], ['aurora', 'Aurora'], ['pixels', 'Píxeles'], ['lava', 'Lava'], ['ice', 'Hielo'], ['forest', 'Bosque'], ['sea', 'Mar'], ['candy', 'Caramelo'], ['void', 'Vacío']];
+const BN_CACHE = {};
+function bannerDraw(id, w = 900, h = 256) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'), L = (a, b) => { const r = g.createLinearGradient(0, 0, 0, h); r.addColorStop(0, a); r.addColorStop(1, b); return r; };
+  let seed = 7; const rn = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  if (id.startsWith('char:')) {
+    const ch = CHARS[id.slice(5)] || CHARS.javi, gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#0c0e18'); gr.addColorStop(.55, ch.color); gr.addColorStop(1, '#0c0e18'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.globalAlpha = .12; g.fillStyle = '#fff'; for (let i = 0; i < 40; i++) g.fillRect(rn() * w, rn() * h, 8 + rn() * 26, 8 + rn() * 26); g.globalAlpha = 1;
+    const hc = document.createElement('canvas'); hc.width = hc.height = 8; try { headPortrait(charSkin(id.slice(5)), hc); g.imageSmoothingEnabled = false; g.globalAlpha = .95; g.drawImage(hc, w - h * 1.05, h * .06, h * .9, h * .9); g.globalAlpha = 1; } catch (e) { }
+    return c;
+  }
+  if (id === 'sunset') { g.fillStyle = L('#ff9a5a', '#4a2a6e'); g.fillRect(0, 0, w, h); g.fillStyle = '#ffe9a8'; g.beginPath(); g.arc(w * .68, h * .56, h * .22, 0, 7); g.fill(); g.fillStyle = '#24437a'; g.fillRect(0, h * .6, w, h * .4); g.fillStyle = '#ffffff55'; for (let i = 0; i < 14; i++) g.fillRect(w * .5 + (rn() - .5) * w * .3, h * .62 + i * h * .03, 30 + rn() * 90, 3); }
+  else if (id === 'night') { g.fillStyle = L('#080d1c', '#2a4170'); g.fillRect(0, 0, w, h); g.fillStyle = '#fff8'; for (let i = 0; i < 50; i++) g.fillRect(rn() * w, rn() * h * .5, 2, 2); for (let x = -10; x < w; x += 54) { const bh = 60 + rn() * 130; g.fillStyle = '#10182c'; g.fillRect(x, h - bh, 48, bh); g.fillStyle = '#ffd27a'; for (let y = h - bh + 8; y < h - 8; y += 16) for (let k = 0; k < 3; k++) if (rn() > .45) g.fillRect(x + 6 + k * 14, y, 8, 8); } }
+  else if (id === 'aurora') { g.fillStyle = L('#050912', '#10223a'); g.fillRect(0, 0, w, h); for (const [col, off] of [['#3dff9a66', 0], ['#7a5cff55', 24], ['#35e0ff44', 48]]) { g.strokeStyle = col; g.lineWidth = 46; g.beginPath(); for (let x = 0; x <= w; x += 10) { const y = h * .45 + off + Math.sin(x * .012 + off) * 34 + Math.sin(x * .031) * 14; x ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); } }
+  else if (id === 'pixels') { for (let y = 0; y < h; y += 32) for (let x = 0; x < w; x += 32) { g.fillStyle = `hsl(${250 + rn() * 70},60%,${22 + rn() * 22}%)`; g.fillRect(x, y, 32, 32); } }
+  else if (id === 'lava') { g.fillStyle = L('#160606', '#5a1405'); g.fillRect(0, 0, w, h); for (let i = 0; i < 90; i++) { g.fillStyle = `hsl(${10 + rn() * 30},95%,${40 + rn() * 25}%)`; const s = 8 + rn() * 30; g.fillRect(rn() * w, h * .35 + rn() * h * .65, s, s); } }
+  else if (id === 'ice') { g.fillStyle = L('#bfe9ff', '#3b78b8'); g.fillRect(0, 0, w, h); for (let i = 0; i < 22; i++) { const x = rn() * w, s = 20 + rn() * 70; g.fillStyle = '#ffffff55'; g.beginPath(); g.moveTo(x, h); g.lineTo(x + s / 2, h - s * 2); g.lineTo(x + s, h); g.fill(); } }
+  else if (id === 'forest') { g.fillStyle = L('#a8e0ff', '#5aa860'); g.fillRect(0, 0, w, h); for (let x = -20; x < w; x += 46) { const th = 70 + rn() * 90; g.fillStyle = '#5a3b22'; g.fillRect(x + 16, h - th * .5, 12, th * .5); g.fillStyle = `hsl(${105 + rn() * 25},55%,${24 + rn() * 14}%)`; g.fillRect(x, h - th, 44, th * .6); } }
+  else if (id === 'sea') { g.fillStyle = L('#8fd8ff', '#0d4f8c'); g.fillRect(0, 0, w, h); g.strokeStyle = '#ffffff66'; g.lineWidth = 3; for (let y = h * .3; y < h; y += 22) { g.beginPath(); for (let x = 0; x <= w; x += 8) { const yy = y + Math.sin(x * .03 + y) * 5; x ? g.lineTo(x, yy) : g.moveTo(x, yy); } g.stroke(); } }
+  else if (id === 'candy') { g.fillStyle = '#ff7ac8'; g.fillRect(0, 0, w, h); g.fillStyle = '#7af0ff'; for (let x = -h; x < w; x += 80) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 40, h); g.lineTo(x + 40 + h, 0); g.lineTo(x + h, 0); g.fill(); } }
+  else { g.fillStyle = L('#07040f', '#26124a'); g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; for (let i = 0; i < 90; i++) { g.globalAlpha = .3 + rn() * .7; g.fillRect(rn() * w, rn() * h, 2, 2); } g.globalAlpha = 1; }
+  return c;
+}
+const bannerKey = () => 'bsb_banner_' + (ACCT.user ? ACCT.user.uid : 'anon');
+function bannerGet() { try { const j = JSON.parse(localStorage.getItem(bannerKey()) || 'null'); if (j && (j.k === 'img' ? /^data:image\/jpeg;base64,/.test(j.d || '') : /^(pre|char):[a-z0-9_]{1,20}$/.test(j.k))) return j; } catch (e) { } return { k: 'pre:sunset' }; }
+function bannerSet(j) { try { localStorage.setItem(bannerKey(), JSON.stringify(j)); } catch (e) { acctMsg('No se pudo guardar el banner (¿poco espacio?).'); } acctPaint(); }
+function bannerURL(j) {
+  if (j.k === 'img') return j.d;
+  const key = j.k + (j.k.startsWith('char:') ? '' : ''); if (!BN_CACHE[key]) BN_CACHE[key] = bannerDraw(j.k.replace(/^(pre|char):/, (m, t) => (t === 'char' ? 'char:' : ''))).toDataURL('image/jpeg', .85); return BN_CACHE[key];
+}
+function acctPaint() {
+  const u = ACCT.user, nm = u ? (u.displayName || (u.email || '').split('@')[0] || 'Jugador') : '';
+  const av = u && u.photoURL && /^https:\/\/lh3\.googleusercontent\.com\//.test(u.photoURL) ? u.photoURL : 'assets/calfight_icon.png';
+  const bt = $('acctbtn'); bt.querySelector('.ab-bg').style.backgroundImage = `url("${bannerURL(bannerGet())}")`; bt.querySelector('.ab-av').src = av;
+  bt.querySelector('b').textContent = u ? nm : 'INICIAR SESIÓN'; bt.querySelector('small').textContent = u ? (DEV.on ? 'DUEÑO · VER CUENTA' : 'VER TU CUENTA') : 'CREÁ TU CUENTA';
+  $('acctbtn2').textContent = u ? '👤 ' + nm : '👤 CUENTA';
+}
+async function acctGate(pub) {   // salas públicas: cuenta obligatoria; salas privadas: se recomienda; jugar solo: libre
+  try { if (localStorage.getItem('bsb_acct') === '1' && !ACCT.user) await Promise.race([acctLoad().then(() => new Promise(r => setTimeout(r, 1200))), new Promise(r => setTimeout(r, 3500))]); } catch (e) { }
+  if (ACCT.user) return true;
+  if (pub) { const go = await uiDialog({ title: 'SALAS PÚBLICAS', msg: 'Para entrar a una sala pública necesitás una cuenta. Así cuidamos las partidas de las trampas y de quienes molestan.', ok: 'Iniciar sesión o crear cuenta', cancel: 'Ahora no' }); if (go) { tmClose(); acctOpen(); } return false; }
+  const mk = await uiDialog({ title: 'TE RECOMENDAMOS UNA CUENTA', msg: 'Podés jugar en una sala privada sin cuenta, pero con una cuenta tu nombre queda tuyo y las salas son más seguras para todos.', ok: 'Crear cuenta', cancel: 'Seguir sin cuenta' });
+  if (mk) { tmClose(); acctOpen(); return false; } return true;
+}
+
+function acctBannerPick() {
+  const b = $('acct-body'), cur = bannerGet(); acctMsg('');
+  b.innerHTML = '<div class="pad bnpick"><h3>ELEGÍ TU BANNER</h3><small>Se ve en tu tarjeta del menú principal y en tu perfil.</small><div class="bngrid"></div><button type="button" class="sec" id="bn-up">Subir mi propia imagen…</button><button type="button" class="sec" id="bn-back">← Volver a mi cuenta</button></div>';
+  const grid = b.querySelector('.bngrid');
+  const items = [...BANNERS.map(([id, n]) => ['pre:' + id, n]), ...CHAR_IDS.map(id => ['char:' + id, CHARS[id].name])];
+  for (const [k, n] of items) { const bt = document.createElement('button'); bt.type = 'button'; bt.className = cur.k === k ? 'on' : ''; bt.style.backgroundImage = `url("${bannerURL({ k })}")`; bt.innerHTML = `<span>${n}</span>`; bt.addEventListener('click', () => { bannerSet({ k }); acctBannerPick(); acctMsg('Banner cambiado.', true); }); grid.appendChild(bt); }
+  $('bn-back').addEventListener('click', acctRender);
+  $('bn-up').addEventListener('click', () => {
+    const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/png,image/jpeg,image/webp,image/gif';
+    f.onchange = () => {
+      const file = f.files[0]; if (!file) return; if (file.size > 8 * 1024 * 1024) return acctMsg('La imagen pesa demasiado (máximo 8 MB).');
+      const img = new Image(); img.onload = () => {
+        const W = 1000, H = 286, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), r = Math.max(W / img.width, H / img.height), w = img.width * r, h = img.height * r;
+        g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h); bannerSet({ k: 'img', d: c.toDataURL('image/jpeg', .82) }); URL.revokeObjectURL(img.src); acctBannerPick(); acctMsg('Banner cambiado.', true);
+      }; img.onerror = () => acctMsg('No se pudo leer esa imagen.'); img.src = URL.createObjectURL(file);
+    }; f.click();
+  });
 }
 function acctBuild() {
   if ($('acctdlg')) return;
@@ -12054,10 +12134,16 @@ async function acctOpen() {
 function acctRender() {
   const b = $('acct-body'), u = ACCT.user;
   if (u) {
-    b.innerHTML = `<h3>TU CUENTA</h3><div class="who"><img alt="" src="${u.photoURL && /^https:\/\/lh3\.googleusercontent\.com\//.test(u.photoURL) ? u.photoURL : 'assets/calfight_icon.png'}"><div><b class="nm"></b><small class="em"></small><small>${u.emailVerified ? 'Correo verificado' : 'Correo sin verificar'}${DEV.on ? ' · MODO DESARROLLADOR' : ''}</small></div></div>
-      <label>Tu nombre<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
-      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button>'}<button type="button" class="sec" id="acct-out">Cerrar sesión</button>`;
+    const av = u.photoURL && /^https:\/\/lh3\.googleusercontent\.com\//.test(u.photoURL) ? u.photoURL : 'assets/calfight_icon.png';
+    let games = 0, mins = 0, fav = '', fv = 0; try { for (const id in ST.d.c) { const c = ST.d.c[id]; games += c[0] || 0; if (CHARS[id] && c[0] > fv) { fv = c[0]; fav = CHARS[id].name; } } for (const k in ST.d.dy) mins += (ST.d.dy[k][2] || 0); } catch (e) { }
+    b.innerHTML = `<div class="cardp"><div class="bn" style="background-image:url('${bannerURL(bannerGet())}')"><button type="button" class="edit" id="acct-bn">✎ Cambiar banner</button></div>
+      <div class="head"><img alt="" src="${av}"><div><div class="nm"></div><small class="em"></small></div></div>
+      <div class="badges"><span>${u.emailVerified ? '✓ Correo verificado' : 'Correo sin verificar'}</span>${DEV.on ? '<span class="gold">DUEÑO · MODO DESARROLLADOR</span>' : ''}<span>${(u.providerData[0] && u.providerData[0].providerId === 'google.com') ? 'Google' : 'Correo y contraseña'}</span></div>
+      <div class="stats"><div><b>${games || '—'}</b><small>Partidas</small></div><div><b>${mins ? (mins / 60).toFixed(1) + ' h' : '—'}</b><small>Jugadas</small></div><div><b>${fav || '—'}</b><small>Favorito</small></div></div>
+      <div class="pad"><label>Tu nombre en el juego<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
+      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button>'}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
     b.querySelector('.nm').textContent = u.displayName || 'Jugador'; b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
+    $('acct-bn').addEventListener('click', acctBannerPick);
     $('acct-savename').addEventListener('click', async () => { const n = $('acct-name').value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); } catch (e) { acctMsg(acctErr(e)); } });
     if ($('acct-verify')) $('acct-verify').addEventListener('click', async () => { try { await u.sendEmailVerification(); acctMsg('Te mandé el correo: abrilo y tocá el enlace.', true); } catch (e) { acctMsg(acctErr(e)); } });
     $('acct-out').addEventListener('click', async () => { try { await ACCT.auth.signOut(); acctMsg('Sesión cerrada.', true); } catch (e) { acctMsg(acctErr(e)); } });
@@ -13626,7 +13712,7 @@ function tmOpen() { initAudio(); $('tmodal').classList.remove('hidden'); TM.busy
 function tmClose() { $('tmodal').classList.add('hidden'); pubWatch(false); }
 function tmGo() { tmClose(); titleLeave(); }
 async function tmEnter(code, pub, btn, creator = true) {
-  if (TM.busy) return; TM.busy = true; if (btn) btn.disabled = true; tmMsg('Conectando a la sala…', true);
+  if (TM.busy) return; if (!(await acctGate(pub))) return; TM.busy = true; if (btn) btn.disabled = true; tmMsg('Conectando a la sala…', true);
   $('roomcode').value = code; setMode('mp'); NET.public = pub;
   let ok = false; try { ok = await joinRoom(); } catch (e) { }
   TM.busy = false; if (btn) btn.disabled = false;
