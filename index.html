@@ -503,6 +503,9 @@ body:not(.dev) #devbadge,body:not(.dev) #devhud{display:none}
 #tclippy::after{content:'';position:absolute;left:30px;bottom:-14px;border:8px solid transparent;border-top:14px solid #000}
 
 .tboom{position:absolute;z-index:4;transform:translate(-50%,-50%) rotate(-8deg);font:900 clamp(30px,5vw,70px)/1 Impact,'Arial Black',sans-serif;color:#ffd23f;-webkit-text-stroke:3px #000;text-shadow:5px 5px 0 #e0263a,8px 8px 0 #000;pointer-events:none;animation:tBoom 1.7s cubic-bezier(.2,1.6,.4,1) both}
+.trepair{position:absolute;z-index:4;left:50%;bottom:19%;transform:translateX(-50%);width:max-content;max-width:min(74vw,440px);padding:8px 20px;text-align:center;background:#10121bf2;border-left:4px solid #ef3d4d;box-shadow:4px 4px 0 #0008;color:#fff;pointer-events:none;font:600 clamp(12px,1.7vw,16px)/1.2 var(--body)}
+.trepair strong{display:block;color:#ff626a;font:italic 900 clamp(16px,2.4vw,25px)/1.1 var(--display);margin-bottom:3px}
+#title.leaving .trepair{display:none}
 @keyframes tBoom{0%{transform:translate(-50%,-50%) rotate(-8deg) scale(.2);opacity:0}15%{transform:translate(-50%,-50%) rotate(-8deg) scale(1.25);opacity:1}30%{transform:translate(-50%,-50%) rotate(-5deg) scale(1)}80%{opacity:1}100%{transform:translate(-50%,-70%) rotate(-5deg) scale(1.05);opacity:0}}
 /* Tarjetas públicas de sala */
 #board{position:fixed;z-index:100;width:min(850px,calc(100vw - 32px));max-height:80vh;overflow:auto;pointer-events:auto;padding:20px;border:2px solid #000;border-top:5px solid var(--hot);box-shadow:8px 8px 0 #000b}
@@ -15141,7 +15144,7 @@ if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').ma
 // ================= Pantalla de inicio =================
 // El último peleador que usaste, de espaldas, en una de dos escenas con el atardecer (apoyado en la barandilla del muelle o sentado en la arena).
 // Cámara fija con un leve temblor. Al pulsar algo: el personaje nota que estamos detrás, gira, la cámara se cae, todo negro y el menú cae poco a poco.
-const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4, wrecks: new Map() };
+const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4, wreck: null };
 function titleAudio(on){
   if(on){
     TITLE.mus=makeMusicTrack(musFile('intro','musica/calfight_intro.mp3'),'intro',true);
@@ -15188,8 +15191,7 @@ function titleFinish() {
   WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
   if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0; titleSekzaEnd(); cameoEnd();
-  for (const wreck of TITLE.wrecks.values()) poseTitleTower(wreck, 0);
-  TITLE.wrecks.clear();
+  finishTitleRepair();
   titleAudio(false);
   $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); showSelect(G.charId);
   camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix(); gfxSet(GFX.level, GFX.auto, false);
@@ -15204,7 +15206,7 @@ function sekzaTarget(cp) {
   camera.updateMatrixWorld();
   let best = null, bestScore = -Infinity;
   for (const b of CITY.skyline) {
-    if (b.h < 11 || TITLE.wrecks.has(b)) continue;
+    if (b.h < 11) continue;
     const dx = cp.x - b.x, dz = cp.z - b.z;
     const p = new V3(b.x, b.h * .72, b.z);
     if (Math.abs(dx) / b.w > Math.abs(dz) / b.d) p.x += Math.sign(dx) * (b.w / 2 + .04);
@@ -15229,14 +15231,14 @@ function startTitleTowerFall(target) {
     mesh.getMatrixAt(index, rest);
     groups.get(mesh).push({ index, rest });
   }
-  const fall = { b, groups, dir, pivot, axis: new V3(dir.z, 0, -dir.x), transform: new THREE.Matrix4(), matrix: new THREE.Matrix4(), offset: new V3(), landed: false };
-  TITLE.wrecks.set(b, fall);
-  return fall;
+  return { b, groups, dir, pivot, axis: new V3(dir.z, 0, -dir.x), transform: new THREE.Matrix4(), matrix: new THREE.Matrix4(), offset: new V3(), landed: false };
 }
-function poseTitleTower(fall, angle) {
-  const { axis, pivot, transform, offset, matrix, groups } = fall;
+function poseTitleTower(fall, angle, lift = 0, slide = 0) {
+  const { axis, pivot, dir, transform, offset, matrix, groups } = fall;
   transform.makeRotationAxis(axis, angle);
-  transform.setPosition(offset.copy(pivot).applyMatrix4(transform).negate().add(pivot));
+  offset.copy(pivot).applyMatrix4(transform).negate().add(pivot).addScaledVector(dir, slide);
+  offset.y += lift;
+  transform.setPosition(offset);
   for (const [mesh, parts] of groups) {
     for (const { index, rest } of parts) mesh.setMatrixAt(index, matrix.multiplyMatrices(transform, rest));
     mesh.instanceMatrix.needsUpdate = true;
@@ -15249,6 +15251,7 @@ function updateTitleTowerFall(fall, t) {
   poseTitleTower(fall, (Math.PI / 2) * k ** 2 + wobble * (1 - k));
   if (k < 1) return;
   fall.landed = true;
+  fall.repairAt = TITLE.t + 10;
   const { b, pivot, dir } = fall;
   const impact = pivot.clone().addScaledVector(dir, b.h * .8).setY(.4);
   for (const span of [.2, .48, .76, .98]) {
@@ -15264,7 +15267,10 @@ function updateTitleTowerFall(fall, t) {
 const bez = (p0, p1, p2, k) => p0.clone().multiplyScalar((1 - k) * (1 - k)).addScaledVector(p1, 2 * (1 - k) * k).addScaledVector(p2, k * k);
 function titleSky(dt, t, cp, yaw) {
   const K = TITLE.sek;
-  if (!K) { if (t > (TITLE.nextSek == null ? 7 : TITLE.nextSek) && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw); return; }
+  if (!K) {
+    if (!TITLE.wreck && TITLE.lt == null && t >= TITLE.nextSek && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw);
+    return;
+  }
   K.t += dt; const T = K.t, m = K.model, x = K.anim.x;
   const T1 = 8.5, T2 = T1 + 1.2, T3 = T2 + 1.7;   // vuelo tranquilo dando vueltas a la vista · se distrae · picada descontrolada hasta el choque
   let pos, roll = 0, flail = 0;
@@ -15305,7 +15311,7 @@ function titleSky(dt, t, cp, yaw) {
 }
 function sekzaBoom(K) {
   K.boom = true; K.boomT = K.t; K.model.root.visible = false; if (K.bang) { scene.remove(K.bang); K.bang = null; }
-  K.fall = startTitleTowerFall(K.target);
+  K.fall = TITLE.wreck = startTitleTowerFall(K.target);
   const c = K.tgt; K.out = c.clone().sub(K.mid).setY(0).normalize().multiplyScalar(-1);
   sphereFlash(c, '#ffb347', 6, .55); sphereFlash(c, '#ffffff', 3.2, .3); ringAt(c, '#ff7a3a', 9, .6); ringAt(c, '#ffffff', 6, .45); impactStar(c, '#fff3c0', 6, .45);
   burst(c, 60, '#ff7a3a', 14, .35, .8, .4); burst(c, 40, '#ffd23f', 11, .28, .7, .3); burst(c, 30, '#8a8a8a', 9, .4, 1.4, 1.2); burst(c, 20, '#b9a07a', 7, .3, 1.6, 1.6);
@@ -15368,6 +15374,109 @@ function cmGo(c, f, from, to, z, speed, style, u, py) {
 const legT = (a, b, sp) => Math.abs(b - a) / sp;
 // sitio donde actúa: el preferido si se ve bien; si no, el punto de la playa más cercano que quede dentro del cuadro
 function cmStage(x0, z) { const ok = x => { if (!cmVisible(x, z) || !cmVisible(x, z, 2)) return false; const v = new V3(x, groundAt(x, z, 4) + 1, z).project(camera); return Math.abs(v.x) < .75; }; if (ok(x0)) return x0; for (let d = 2; d < 70; d += 2) { if (ok(x0 - d)) return x0 - d; if (ok(x0 + d)) return x0 + d; } return x0; }
+const TITLE_LIFT = [
+  [0, { ix: .28, llx: -.35, lrx: .25, alx: -.6, arx: -.6 }],
+  [.34, { by: -4, ix: .5, hx: -.36, llx: -.65, lrx: .35, alx: -1.25, arx: -1.25, sy: .94 }],
+  [.54, { by: -3.4, ix: .32, hx: -.25, alx: -1.85, arx: -1.85, alz: -.19, arz: .19, sy: .97 }, 'hold'],
+  [1.04, { hx: -.28, alx: -2.85, arx: -2.85, alz: -.2, arz: .2 }, 'out'],
+];
+const TITLE_THROW = [
+  [0, { hx: -.28, alx: -2.85, arx: -2.85, alz: -.2, arz: .2 }],
+  [.4, { by: -3.6, ix: -.28, hx: -.45, llx: -.6, lrx: .32, alx: -2.4, arx: -2.4, alz: -.28, arz: .28, sy: .91 }],
+  [.52, { by: .6, ix: .2, hx: -.52, alx: -3.12, arx: -3.12, alz: -.22, arz: .22, sy: 1.07 }, 'snap'],
+  [.72, { ix: .23, alx: -1.7, arx: -1.65, llx: -.65, lrx: .48 }],
+  [1.05, { by: -2, llx: -.55, lrx: .35, alx: -.7, arx: -.5 }],
+  [1.42, { hx: -.42, alx: -.12, arx: -.22 }],
+  [2.05, { hx: -.42, arx: -1.55, arz: .5 }],
+  [2.48, { arx: .1, alx: -.15 }],
+  [2.72, {}],
+];
+function startTitleRepair(wreck) {
+  const { b, dir, pivot } = wreck;
+  const grip = new V3(b.x + Math.sign(dir.x) * b.w / 2, b.h * .58, b.z + Math.sign(dir.z) * b.d / 2)
+    .applyMatrix4(wreck.transform).setY(0);
+  const side = new V3(-dir.z, 0, dir.x);
+  if (side.dot(grip.clone().sub(pivot)) < 0) side.negate();
+  const start = grip.clone().addScaledVector(side, 9).addScaledVector(dir, 3);
+  const fig = cmSpawn('capitan');
+  const label = document.createElement('div'); label.className = 'trepair';
+  const name = document.createElement('strong'); name.textContent = CHARS.capitan.name.toUpperCase();
+  const line = document.createElement('span'); line.textContent = 'Otra vez, Sekza…';
+  label.append(name, line); $('title').appendChild(label);
+  cameoEnd();
+  wreck.repair = { t: 0, fig, grip, side, start, label, line, placed: false };
+}
+function finishTitleRepair() {
+  const wreck = TITLE.wreck;
+  if (!wreck) return;
+  poseTitleTower(wreck, 0);
+  if (wreck.repair) {
+    const { fig, label } = wreck.repair;
+    scene.remove(fig.model.root); disposeModel(fig.model); label.remove();
+  }
+  TITLE.wreck = null;
+  TITLE.nextSek = TITLE.t + 12;
+}
+function updateTitleRepair(dt) {
+  const w = TITLE.wreck;
+  if (!w?.landed || TITLE.sek || TITLE.lt != null || TITLE.t < w.repairAt) return;
+  if (!w.repair) startTitleRepair(w);
+  const r = w.repair;
+  const t = r.t += dt, x = r.fig.anim.x, dir = w.dir, carry = smoothK(2.6, 4, t);
+  const pos = r.grip.clone().addScaledVector(r.side, .36);
+  let yaw = Math.atan2(-dir.x, -dir.z), sy = 1;
+  if (t < 1.55) {
+    pos.lerp(r.start, 1 - EZ.out(t / 1.55));
+    const approach = Math.atan2(r.grip.x - r.start.x, r.grip.z - r.start.z);
+    yaw = angLerp(approach, yaw, smoothK(1.15, 1.55, t));
+    sy = cmRun(x, t * 13, 1 - smoothK(1.15, 1.55, t), .34);
+  } else if (t < 2.6) {
+    sy = cmKeys(x, TITLE_LIFT, t - 1.55);
+    x.alx += Math.sin(t * 37) * .07; x.arx -= Math.sin(t * 37) * .07;
+    poseTitleTower(w, Math.PI / 2, 1.92 * smoothK(2.07, 2.6, t));
+  } else if (t < 4) {
+    const step = Math.sin(carry * Math.PI * 6);
+    cmReset(x);
+    Object.assign(x, { ix: .06, hx: -.28, llx: step * .6, lrx: -step * .6, alx: -2.87, arx: -2.87, alz: -.18, arz: .18, by: -.9 * Math.abs(step) });
+    pos.addScaledVector(dir, -6 * carry);
+    poseTitleTower(w, Math.PI / 2, 1.92 - .07 * Math.abs(step), -6 * carry);
+  } else {
+    const u = t - 4;
+    sy = cmKeys(x, TITLE_THROW, u);
+    const away = smoothK(.55, 1.16, u);
+    pos.addScaledVector(dir, -6).addScaledVector(r.side, away * 6.3);
+    pos.y += Math.sin(away * Math.PI) * 1.05;
+    yaw = angLerp(yaw, Math.atan2(dir.x, dir.z), smoothK(1.14, 1.7, u));
+    if (u < .52) poseTitleTower(w, Math.PI / 2, 1.92 - .37 * Math.sin(u / .52 * Math.PI), -6);
+    else if (!r.placed) {
+      const k = clamp((u - .52) / 1.54, 0, 1);
+      if (!r.thrown) { r.thrown = true; sfx('heavy', pos, .8, { range: 120, title: true }); }
+      poseTitleTower(w, Math.PI / 2 * (1 - EZ.io(k)), 1.92 * (1 - k) + 8 * k * (1 - k), -6 * (1 - k));
+      if (k >= 1) {
+        r.placed = true;
+        r.line.textContent = 'Y que no se repita.';
+        const p = new V3(w.b.x, .4, w.b.z);
+        burst(p, 38, '#d7b8a0', 12, .8, 1.5, .1, 2.5);
+        ringAt(p, '#fff0d4', 10, .48);
+        TITLE.boomShake = .5;
+        sfx('boom', p, .72, { range: 140, title: true });
+      }
+    }
+  }
+  cmPlace(r.fig, pos.x, pos.z, yaw, pos.y, sy);
+  if (t >= 7.15) finishTitleRepair();
+}
+function titleRepairCamera(cam, look) {
+  const w = TITLE.wreck, r = w?.repair;
+  if (!r || TITLE.lt != null) return null;
+  const widen = smoothK(3.35, 5.68, r.t);
+  const close = r.grip.clone().addScaledVector(r.side, 8.6).addScaledVector(w.dir, 3.5).setY(3.4);
+  const wide = w.pivot.clone().addScaledVector(r.side, Math.max(45, w.b.h * 1.62, w.b.h * .88 / camera.aspect)).addScaledVector(w.dir, 8).setY(13);
+  const closeLook = r.grip.clone().addScaledVector(w.dir, -2.6 * smoothK(2.6, 4, r.t)).setY(1.65);
+  const wideLook = w.pivot.clone().addScaledVector(w.dir, w.b.h * .21).setY(w.b.h * .46);
+  cam.copy(close.lerp(wide, widen)); look.copy(closeLook.lerp(wideLook, widen));
+  return 52;
+}
 const CAMEOS = {
   // Mattux: entra corriendo desde fuera, frena derrapando, espera impaciente y sale disparado hacia el sol
   mattux: { init(c) { c.f = [cmSpawn('mattux')]; c.z = 89; c.S = cmStage(-16, c.z); c.from = cmOff(c.S, c.z, 1); c.tIn = legT(c.from, c.S, 26) + .25; c.dur = c.tIn + 1.0 + 2.2; c.last = null; }, upd(c, t) {
@@ -15534,18 +15643,21 @@ function titleUpdate(dt) {
   const B = TITLE.base;
   const cam = B.cam.clone(), look = B.look.clone(); let roll = sn(t * .55 + 50) * .006;
   { const ci = clamp(t / 5, 0, 1), ce = 1 - ci * ci * (3 - 2 * ci), dv = look.clone().sub(cam).setY(0).normalize(); cam.addScaledVector(dv, -ce * 2.2); cam.y += ce * .6; look.y += ce * .15; }   // travelling y grúa de entrada; luego la cámara queda fija
+  updateTitleRepair(dt);
+  const repairFov = titleRepairCamera(cam, look);
   if (TITLE.boomShake > 0) { cam.x += sn(t * 28 + 3) * .2 * TITLE.boomShake; cam.y += sn(t * 31 + 9) * .16 * TITLE.boomShake; roll += sn(t * 25) * .02 * TITLE.boomShake; TITLE.boomShake = Math.max(0, TITLE.boomShake - dt * 1.3); }
   cam.x += (sn(t * .7) + .5 * sn(t * 1.9 + 10)) * .05 + shake * sn(t * 24) * .12; cam.y += (sn(t * .8 + 20) + .5 * sn(t * 2.3 + 30)) * .04 + Math.sin(t * 1.25) * .008 + shake * sn(t * 21 + 7) * .1; look.y += sn(t * .6 + 40) * .09; look.x += sn(t * .5 + 60) * .09; look.z += sn(t * .45 + 80) * .09;
   if (L != null && L > .4) {   // la cámara se cae cuando el personaje termina de girar
     const fl = L - .4, drop = .5 * 9.8 * fl * fl * 2.4; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 3.4; look.y -= fl * 5 * (1 + fl * 2);
     if (!TITLE.thud && cam.y <= B.gy + .09) { TITLE.thud = true; sfx('break', cam, 1); $('tfall').classList.add('black'); }
   }
-  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = B.fov - 9 * zoom; camera.updateProjectionMatrix();
+  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = (repairFov ?? B.fov) - 9 * zoom; camera.updateProjectionMatrix();
   // ---- Sekza cruza el cielo con las gaviotas y se va hacia el sol
-  titleSky(dt, t, camera.position, yaw); titleCameo(dt, t);
+  titleSky(dt, t, camera.position, yaw);
+  if (!TITLE.wreck?.repair) titleCameo(dt, t);
   // ---- polvo flotando en la luz, rayos, destello de lente y grano
   if (Math.random() < dt * 14) { const F2 = fwd(yaw), R2 = rightOf(yaw), d = rand(3, 20), sd2 = rand(-9, 9); emit(camera.position.x + F2.x * d + R2.x * sd2, camera.position.y + rand(-1, 2.8), camera.position.z + F2.z * d + R2.z * sd2, rand(-.06, .06), rand(.03, .18), rand(-.06, .06), Math.random() < .3 ? '#ffffff' : '#ffd9a0', rand(.025, .06), rand(5, 9), 0, .5); }
-  { const v = CITY.sunDisc.position.clone().project(camera), vis = v.z < 1 && Math.abs(v.x) < 1.6 && Math.abs(v.y) < 1.6, sx = (v.x * .5 + .5) * 100, sy = (-v.y * .5 + .5) * 100;
+  { const v = CITY.sunDisc.position.clone().project(camera), vis = repairFov == null && v.z < 1 && Math.abs(v.x) < 1.6 && Math.abs(v.y) < 1.6, sx = (v.x * .5 + .5) * 100, sy = (-v.y * .5 + .5) * 100;
     const ry = $('trays'); ry.style.setProperty('--sx', sx.toFixed(1) + '%'); ry.style.setProperty('--sy', sy.toFixed(1) + '%'); ry.style.opacity = vis ? .55 : 0;
     const fls = document.querySelectorAll('.tfl'), mx = 50 - sx, my = 50 - sy;
     fls.forEach((el, i) => { const k = [.35, .7, 1.15, 1.5][i]; el.style.left = (sx + mx * k).toFixed(1) + '%'; el.style.top = (sy + my * k).toFixed(1) + '%'; el.style.opacity = vis && !TITLE.lt ? .85 : 0; }); }
