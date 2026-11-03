@@ -657,6 +657,74 @@ html,body{overscroll-behavior:none}
 .dm-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 18px 12px;color:#a7adbd;font-size:10px}.dm-footer .dm-privacy{padding:0}.dm-footer #dm-count{white-space:nowrap}
 @media(max-width:650px){#socialdlg .social-layout aside{min-height:0}.dm-footer{padding:0 10px 8px}#acctdlg .profile-editor .pe-top h3{font-size:20px!important}}
 
+
+/* Vista pública y espacio de personalización. */
+#playerdlg .public-card.profile-showcase,#acctdlg .profile-editor .pe-preview.profile-showcase{
+  --showcase-pad:24px;
+  background:linear-gradient(158deg,#08090e 17%,var(--profile-bg) 60%,color-mix(in srgb,var(--profile-bg) 88%,var(--profile-accent)));
+  border:1px solid #ffffff2b;border-top:4px solid var(--profile-accent);border-radius:10px;
+  box-shadow:6px 8px 0 #0008;
+}
+.profile-showcase .public-banner{height:clamp(114px,20vh,174px);border-radius:0;border-bottom:0;position:relative;background-size:cover;background-position:center}
+.profile-showcase .public-banner::after{content:"";position:absolute;inset:auto 0 0;height:58%;transform:none;background:linear-gradient(transparent,#090a1080);pointer-events:none}
+.profile-showcase .public-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px 12px;margin-top:-45px;padding:0 var(--showcase-pad)}
+.profile-showcase .public-head>img{width:96px;height:96px;grid-column:1;grid-row:1;border:5px solid #0c0e14!important;border-radius:50%!important;box-shadow:0 0 0 1px var(--profile-accent)}
+.profile-showcase .public-status-slot{grid-column:2;grid-row:1;align-self:end;padding-bottom:2px}
+.profile-showcase .public-status-slot:empty,.profile-showcase .public-identity p:empty,.profile-showcase .public-badges:empty,.profile-showcase .public-career:empty{display:none}
+.profile-showcase .public-status-slot .profile-status{width:fit-content;max-width:100%;margin:0 0 8px;padding:6px 10px;border-radius:10px;background:#141722;color:#eef0fa;font:600 12px/1.4 var(--body)}
+.profile-showcase .profile-status::before{content:'✦';color:var(--profile-accent);margin-right:6px}
+.profile-showcase .public-identity{grid-column:1/-1;min-width:0}
+.profile-showcase .public-head h2{display:inline-block;margin-top:4px;font-size:clamp(26px,4vw,38px);line-height:1.1}
+.profile-showcase :is(.public-badges,.public-actions,.profile-extras,.public-stats,.public-career){padding-inline:var(--showcase-pad)}
+.profile-showcase .public-badges{padding-top:9px;font:700 10px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--profile-muted)}
+.profile-showcase .public-actions{padding-top:12px}
+.profile-showcase .profile-extras{padding-top:10px}
+.profile-showcase .profile-stickers{margin:7px 0 0}
+.profile-showcase .profile-sticker{border:1px solid #ffffff14;border-radius:6px}
+.profile-showcase .profile-extras h4{color:var(--profile-accent);margin-top:15px}
+.profile-showcase .public-stats{padding-block:16px}
+.profile-showcase .public-stats>div{background:var(--profile-panel);border-left:2px solid var(--profile-accent);padding:9px}
+.profile-showcase .public-stats b{color:var(--profile-accent);font-size:clamp(16px,3vw,22px);line-height:1.2}
+#playerdlg .profile-showcase .public-back{margin:0 var(--showcase-pad) 16px;width:calc(100% - 2 * var(--showcase-pad))}
+
+#acctdlg .box:has(.profile-editor){width:min(960px,100%);max-height:min(780px,calc(100dvh - 24px));padding:0;overflow:hidden;display:flex;flex-direction:column}
+#acctdlg .box:has(.profile-editor)>#acct-body,.profile-editor{display:flex;flex-direction:column;min-height:0}
+#acctdlg .profile-editor .pe-top{flex:none;margin:0;padding:10px 56px 10px 18px;border-left:0;border-bottom:1px solid #ffffff25}
+.profile-editor .pe-top small,.pe-stage-label{font:700 10px var(--body);letter-spacing:.13em;color:#afb7cd}
+#acctdlg .profile-editor .pe-top h3{margin:3px 0 0;line-height:1.1}
+.pe-switch{display:none}
+.pe-workspace{display:grid;grid-template-columns:minmax(270px,.9fr) minmax(0,1.1fr);grid-template-rows:minmax(0,1fr);min-height:0}
+.pe-controls,.pe-stage{overflow:auto;overscroll-behavior:contain;min-width:0;min-height:0;scrollbar-width:thin}
+.pe-controls{padding:4px 16px 16px;background:#181c26;border-right:1px solid #ffffff25}
+#acctdlg .pe-controls fieldset{margin:14px 0 0;min-width:0;border:1px solid #ffffff20;background:#11151e}
+#acctdlg .pe-controls fieldset legend{padding:0 7px}
+.pe-caption{margin:12px 0 6px;font:700 11px var(--body);color:#b8bfd0}
+#pe-sticker-count{margin-left:6px;font:700 10px var(--body);color:#bac2d5}
+.profile-editor .pe-media.pe-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
+.profile-editor .pe-tiles button{display:grid;justify-items:center;gap:5px;padding:6px;background:#222838;min-width:0;min-height:75px;text-align:center}
+.pe-tiles button:hover,.pe-tiles button:focus-visible{border-color:var(--hot)}
+.pe-tiles img{height:46px;width:46px;border-radius:50%;object-fit:cover}
+.pe-banner-thumb{display:block;width:100%;height:46px;background-position:center;background-size:cover}
+.pe-subtle{border:0;background:none;color:#cbd4e8;text-decoration:underline;padding:4px;font:700 11px var(--body)}
+.pe-stage{padding:16px 22px 24px;background:radial-gradient(ellipse at 55% 15%,#272e3b,#0e1118 76%)}
+.pe-stage-label{margin:0 auto 10px;width:min(100%,480px)}
+#acctdlg .profile-editor .pe-preview{width:min(100%,480px);margin:0 auto;overflow:hidden}
+.pe-footer{padding:6px 16px 8px;background:#151a25;border-top:1px solid #ffffff1f}
+#acctdlg .pe-footer #pe-save{margin:0;min-height:42px}
+#acctdlg .box:has(.profile-editor) .msg{flex:none;margin:0;padding:3px 16px 6px;min-height:0;background:#151a25}
+#acctdlg .box:has(.profile-editor) .msg:empty{display:none}
+@media(max-width:680px){
+  .profile-showcase{--showcase-pad:16px!important}
+  .profile-showcase .public-head>img{width:80px;height:80px}
+  .pe-switch{display:flex;gap:6px;padding:6px 8px;background:#181c26}
+  .pe-switch button{flex:1;min-height:39px;border:1px solid #ffffff30;background:#202633;color:#e4e8f4;font:700 12px var(--body)}
+  .pe-switch button[aria-pressed=true]{border-color:var(--hot);color:var(--hot)}
+  .pe-workspace{grid-template-columns:minmax(0,1fr)}
+  .profile-editor[data-pane=controls] .pe-stage,.profile-editor[data-pane=preview] .pe-controls{display:none}
+  .pe-controls,.pe-stage{padding-inline:10px}
+  .pe-stage-label{margin-bottom:8px}
+}
+
 </style>
 
 <meta name="theme-color" content="#10131e">
@@ -10863,10 +10931,34 @@ function refreshRoomBoard() {
     tr.children[2].textContent = e.f.kills; tr.children[3].textContent = e.f.deaths; tr.lastChild.replaceWith(pingCell(e.f));
   }
 }
+function profileCardContent(nameId = '') {
+  return `<div class="public-banner"></div>
+    <div class="public-head"><img alt=""><div class="public-status-slot"></div>
+      <div class="public-identity"><h2${nameId ? ` id="${nameId}"` : ''}></h2><span class="public-role"></span><p></p></div>
+    </div>
+    <div class="public-badges"></div><div class="public-actions"></div>
+    <section class="profile-extras"></section><div class="public-stats"></div><div class="public-career"></div>`;
+}
+function profileCardStats(card, items) {
+  const stats = card.querySelector('.public-stats');
+  stats.replaceChildren();
+  for (const [value, label] of items) {
+    const item = document.createElement('div');
+    const number = document.createElement('b');
+    const caption = document.createElement('small');
+    number.textContent = value;
+    caption.textContent = label;
+    item.append(number, caption);
+    stats.appendChild(item);
+  }
+}
+function profileCareerStats(p) {
+  return [[p.g, 'Partidas'], [(p.m / 60).toFixed(1) + ' h', 'Tiempo de juego'], [CHARS[p.f]?.name || '—', 'Peleador favorito']];
+}
 function playerProfileBuild() {
   if ($('playerdlg')) return;
   const d = document.createElement('div'); d.id = 'playerdlg'; d.className = 'hidden'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'public-name');
-  d.innerHTML = '<div class="public-card"><button type="button" class="public-close" aria-label="Cerrar perfil">✕</button><div class="public-banner"></div><div class="public-head"><img alt=""><div><h2 id="public-name"></h2><span class="public-role"></span><p></p></div></div><div class="public-badges"></div><div class="public-actions"></div><div class="public-stats"></div><div class="public-career"></div><button type="button" class="public-back">← Volver a jugadores</button></div>';
+  d.innerHTML = `<div class="public-card profile-showcase"><button type="button" class="public-close" aria-label="Cerrar perfil">✕</button>${profileCardContent('public-name')}<button type="button" class="public-back"></button></div>`;
   document.body.appendChild(d); d.querySelector('.public-close').onclick = () => playerProfileClose(); d.querySelector('.public-back').onclick = () => playerProfileClose(); d.onclick = e => { if (e.target === d) playerProfileClose(); };
 }
 function playerProfileOpen(key, focus) {
@@ -10874,18 +10966,25 @@ function playerProfileOpen(key, focus) {
   playerProfileBuild(); ROOM_UI.profile = key; ROOM_UI.focus = focus; roomClearInput();
   const d = $('playerdlg'), p = entryProfile(e); d.classList.remove('hidden'); document.body.classList.add('room-browsing'); unlock();
   d.querySelector('.public-banner').style.backgroundImage = `url("${bannerURL(p.b)}")`; profileAvatar(d.querySelector('img'), p, e);
-  $('public-name').textContent = p.n || e.f.name; d.querySelector('.public-head p').textContent = e.f.name + (e.me ? ' · Vos' : '');
-  d.querySelector('.public-badges').textContent = [e.bot ? 'Bot de entrenamiento' : p.acct ? 'Cuenta de jugador' : 'Invitado', e.f.ch.name, !e.me && !e.bot && e.pr.st === 'menu' ? 'En el menú' : 'En la arena'].join(' · ');
-  const stats = d.querySelector('.public-stats'); stats.replaceChildren();
-  for (const [value, label] of [[e.f.kills, 'K.O. en la partida'], [e.f.deaths, 'Muertes'], [e.f.ch.name, 'Peleador']]) { const el = document.createElement('div'), b = document.createElement('b'), small = document.createElement('small'); b.textContent = value; small.textContent = label; el.append(b, small); stats.appendChild(el); }
-  d.querySelector('.public-career').textContent = e.bot ? 'Rival controlado por el juego.' : `${p.g} partidas · ${(p.m / 60).toFixed(1)} h jugadas${p.f ? ' · Favorito: ' + CHARS[p.f].name : ''}`;
+  $('public-name').textContent = p.n || e.f.name;
+  d.querySelector('.public-identity p').textContent = e.me ? 'Vos' : p.n && p.n !== e.f.name ? e.f.name : '';
+  const fromFriends = SOC.viewEntry?.key === key;
+  d.querySelector('.public-badges').textContent = fromFriends ? 'PERFIL DE JUGADOR' :
+    [e.bot ? 'Bot de entrenamiento' : p.acct ? 'Cuenta de jugador' : 'Invitado', !e.me && !e.bot && e.pr.st === 'menu' ? 'En el menú' : 'En la arena'].join(' · ');
+  profileCardStats(d, fromFriends ? profileCareerStats(p) : [[e.f.kills, 'K.O. en la partida'], [e.f.deaths, 'Muertes'], [e.f.ch.name, 'Peleador']]);
+  d.querySelector('.public-career').textContent = fromFriends ? '' : e.bot ? 'Rival controlado por el juego.' :
+    `${p.g} partidas · ${(p.m / 60).toFixed(1)} h jugadas${p.f ? ' · Favorito: ' + CHARS[p.f].name : ''}`;
   decorateProfile(d.querySelector('.public-card'),p);socialCheckEntry(e);socialProfileActions(e);const roleArea=d.querySelector('.public-role');roleArea.replaceChildren();const role=roleOfEntry(e);if(role)roleArea.appendChild(roleBadge(role));
-  d.querySelector('.public-back').textContent = ROOM_UI.open ? '← Volver a jugadores' : 'Cerrar perfil'; d.querySelector('.public-close').focus({ preventScroll: true });
+  d.querySelector('.public-back').textContent = fromFriends ? '← Volver a amigos' : ROOM_UI.open ? '← Volver a jugadores' : 'Cerrar perfil';
+  d.querySelector('.public-card').scrollTop = 0;
+  d.querySelector('.public-close').focus({ preventScroll: true });
 }
 function playerProfileClose(restore = true) {
+  const returnToFriends = restore && ROOM_UI.profile && ROOM_UI.profile === SOC.viewEntry?.key;
   ROOM_UI.profile = null; $('playerdlg')?.classList.add('hidden'); document.body.classList.toggle('room-browsing', ROOM_UI.open); roomClearInput();
   if (restore) { const f = ROOM_UI.focus; if (f?.isConnected) f.focus({ preventScroll: true }); else if (ROOM_UI.open) $('board-close')?.focus({ preventScroll: true }); }
   ROOM_UI.focus = null;
+  if (returnToFriends) socialOpen();
 }
 // Tab abre/cierra la tabla. El juego en línea continúa, pero el cursor no dispara ni mueve la cámara.
 addEventListener('keydown', e => {
@@ -12466,7 +12565,14 @@ function decorateProfile(container,p){
   let area=container.querySelector('.profile-extras');if(!area){area=document.createElement('section');area.className='profile-extras';const before=container.querySelector('.public-stats,.stats');if(before)before.before(area);else container.appendChild(area);}
   area.replaceChildren();
   if(c.pronouns){const t=document.createElement('small');t.className='profile-pronouns';t.textContent=c.pronouns;area.appendChild(t);}
-  if(c.status){const t=document.createElement('p');t.className='profile-status';t.textContent='💬 '+c.status;area.appendChild(t);}
+  const statusSlot = container.querySelector('.public-status-slot');
+  if (statusSlot) statusSlot.replaceChildren();
+  if (c.status) {
+    const status = document.createElement('p');
+    status.className = 'profile-status';
+    status.textContent = c.status;
+    (statusSlot || area).appendChild(status);
+  }
   const stickers=document.createElement('div');stickers.className='profile-stickers';for(const id of c.stickers)stickers.appendChild(stickerNode(id));if(c.stickers.length)area.appendChild(stickers);
   if(c.bio){const label=document.createElement('h4');label.textContent='SOBRE MÍ';const bio=document.createElement('p');bio.className='profile-bio';bio.textContent=c.bio;area.append(label,bio);}
 }
@@ -12496,10 +12602,90 @@ async function uploadProfileAvatar(){
 }
 let profileEditDraft=null;
 function acctCustomize(){
-  const p=profileEditDraft||(profileEditDraft=cosmeticsGet()),body=$('acct-body');body.innerHTML='<div class="profile-editor"><div class="pe-top"><h3>HACÉLO TUYO</h3><button type="button" id="pe-back">← Mi cuenta</button></div><div class="pe-preview"></div><label>Estado<input id="pe-status" maxlength="80" placeholder="Hoy toca pelear ✨"></label><label>Pronombres<input id="pe-pronouns" maxlength="32" placeholder="Opcional"></label><label>Sobre mí<textarea id="pe-bio" maxlength="240" rows="3" placeholder="Contá algo sobre vos…"></textarea><small id="pe-count"></small></label><label>Color de acento<input id="pe-accent" type="color"></label><fieldset><legend>Estilo del perfil</legend><div class="pe-themes"></div></fieldset><fieldset><legend>Aura del avatar</legend><div class="pe-auras"></div></fieldset><fieldset><legend>Stickers · elegí hasta 6</legend><div class="pe-stickers"></div></fieldset><div class="pe-media"><button type="button" id="pe-photo">Cambiar foto</button><button type="button" id="pe-photo-reset">Usar foto de la cuenta</button><button type="button" id="pe-banner">Elegir banner</button></div><button type="button" class="go" id="pe-save">GUARDAR PERFIL</button><p class="pe-note">Tu aura y tus stickers son decorativos. Los roles los concede el dueño.</p></div>';
-  for(const k of ['status','pronouns','bio','accent'])$('pe-'+k).value=p[k];
-  const preview=()=>{for(const k of ['status','pronouns','bio','accent'])p[k]=$('pe-'+k).value;$('pe-count').textContent=p.bio.length+' / 240';const el=body.querySelector('.pe-preview');el.innerHTML='<div class="public-banner"></div><div class="public-head"><img alt=""><div><h2></h2><p>Así te ve la sala</p></div></div><div class="public-stats"></div>';el.querySelector('.public-banner').style.backgroundImage=`url("${bannerURL(bannerGet())}")`;el.querySelector('img').src=avatarGet()||ACCT.user?.photoURL||'assets/calfight_icon.png';el.querySelector('h2').textContent=ACCT.user?.displayName||$('pname-in').value||'Jugador';decorateProfile(el,p);};
-  const choices=(list,cls,key)=>{for(const[id,n]of list){const bt=document.createElement('button');bt.type='button';bt.textContent=n;bt.dataset.choice=id;bt.classList.toggle('on',p[key]===id);bt.onclick=()=>{p[key]=id;body.querySelectorAll('.'+cls+' button').forEach(b=>b.classList.toggle('on',b.dataset.choice===id));preview();};body.querySelector('.'+cls).appendChild(bt);}};choices(PROFILE_THEMES,'pe-themes','theme');choices(PROFILE_AURAS,'pe-auras','aura');
+  const p = profileEditDraft || (profileEditDraft = cosmeticsGet());
+  const body = $('acct-body');
+  const profile = localPublicProfile();
+  const fields = ['status', 'pronouns', 'bio', 'accent'];
+  body.innerHTML = `<div class="profile-editor" data-pane="controls">
+    <div class="pe-top"><div><small>CUENTA / APARIENCIA</small><h3>Tu perfil</h3></div><button type="button" id="pe-back">← Mi cuenta</button></div>
+    <div class="pe-switch" role="group" aria-label="Vista del editor">
+      <button type="button" data-pe-pane="controls" aria-pressed="true">Personalizar</button>
+      <button type="button" data-pe-pane="preview" aria-pressed="false">Vista previa</button>
+    </div>
+    <div class="pe-workspace">
+      <div class="pe-controls" aria-label="Personalizar perfil">
+        <fieldset><legend>Avatar y decoración</legend>
+          <div class="pe-media pe-tiles">
+            <button type="button" id="pe-photo"><img alt=""><span>Cambiar foto</span></button>
+            <button type="button" id="pe-banner"><span class="pe-banner-thumb" aria-hidden="true"></span><span>Elegir banner</span></button>
+          </div>
+          <button type="button" id="pe-photo-reset" class="pe-subtle">Usar foto de la cuenta</button>
+          <p class="pe-caption">Aura del avatar</p><div class="pe-auras"></div>
+        </fieldset>
+        <fieldset><legend>Tema y color</legend>
+          <div class="pe-themes"></div><label>Color de acento<input id="pe-accent" type="color"></label>
+        </fieldset>
+        <fieldset><legend>Identidad</legend>
+          <label>Estado<input id="pe-status" maxlength="80" placeholder="Hoy toca pelear"></label>
+          <label>Pronombres<input id="pe-pronouns" maxlength="32" placeholder="Opcional"></label>
+          <label>Biografía<textarea id="pe-bio" maxlength="240" rows="3" placeholder="Contá algo sobre vos…"></textarea><small id="pe-count"></small></label>
+        </fieldset>
+        <fieldset><legend>Stickers <small id="pe-sticker-count"></small></legend><div class="pe-stickers"></div></fieldset>
+      </div>
+      <div class="pe-stage"><p class="pe-stage-label">VISTA PREVIA · PERFIL PÚBLICO</p>
+        <article class="pe-preview profile-showcase" aria-label="Vista previa de tu perfil">${profileCardContent()}</article>
+      </div>
+    </div>
+    <div class="pe-footer"><button type="button" class="go" id="pe-save">GUARDAR PERFIL</button></div>
+  </div>`;
+  const editor = body.querySelector('.profile-editor');
+  const card = editor.querySelector('.pe-preview');
+  const avatar = profile.a || 'assets/calfight_icon.png';
+  const banner = `url("${bannerURL(profile.b)}")`;
+  card.querySelector('.public-banner').style.backgroundImage = banner;
+  card.querySelector('.public-head img').src = avatar;
+  card.querySelector('h2').textContent = profile.n;
+  card.querySelector('.public-identity p').textContent = 'Perfil de jugador';
+  const role = SOC.owner ? 'owner' : SOC.roles.get(ACCT.user?.uid);
+  if (role) card.querySelector('.public-role').appendChild(roleBadge(role));
+  profileCardStats(card, profileCareerStats(profile));
+  $('pe-photo').querySelector('img').src = avatar;
+  editor.querySelector('.pe-banner-thumb').style.backgroundImage = banner;
+  for (const key of fields) $('pe-' + key).value = p[key];
+  const preview = () => {
+    for (const key of fields) p[key] = $('pe-' + key).value;
+    $('pe-count').textContent = p.bio.length + ' / 240';
+    $('pe-sticker-count').textContent = p.stickers.length + ' / 6';
+    decorateProfile(card, p);
+  };
+  const paneButtons = [...editor.querySelectorAll('[data-pe-pane]')];
+  for (const button of paneButtons) button.onclick = () => {
+    editor.dataset.pane = button.dataset.pePane;
+    for (const item of paneButtons) item.setAttribute('aria-pressed', item === button);
+  };
+  $('acctdlg').querySelector('.box').scrollTop = 0;
+  function choices(list, selector, key) {
+    const group = editor.querySelector(selector);
+    const buttons = list.map(([id, name]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = name;
+      button.dataset.choice = id;
+      button.onclick = () => { p[key] = id; showSelection(); preview(); };
+      group.appendChild(button);
+      return button;
+    });
+    function showSelection() {
+      for (const button of buttons) {
+        const selected = button.dataset.choice === p[key];
+        button.classList.toggle('on', selected);
+        button.setAttribute('aria-pressed', selected);
+      }
+    }
+    showSelection();
+  }
+  choices(PROFILE_THEMES, '.pe-themes', 'theme');
+  choices(PROFILE_AURAS, '.pe-auras', 'aura');
   for(const[id,[_,n]]of Object.entries(PROFILE_STICKERS)){const bt=document.createElement('button');bt.type='button';bt.title=n;bt.setAttribute('aria-label',n);bt.setAttribute('aria-pressed',p.stickers.includes(id));bt.appendChild(stickerNode(id));bt.classList.toggle('on',p.stickers.includes(id));bt.onclick=()=>{if(p.stickers.includes(id))p.stickers=p.stickers.filter(x=>x!==id);else if(p.stickers.length<6)p.stickers.push(id);else return acctMsg('Podés elegir hasta 6 stickers.');bt.classList.toggle('on',p.stickers.includes(id));bt.setAttribute('aria-pressed',p.stickers.includes(id));preview();};body.querySelector('.pe-stickers').appendChild(bt);}
   for(const k of ['status','pronouns','bio','accent'])$('pe-'+k).oninput=preview;
   $('pe-back').onclick=()=>{profileEditDraft=null;acctRender();};$('pe-photo').onclick=uploadProfileAvatar;$('pe-photo-reset').onclick=()=>{localStorage.removeItem(cosmeticKey()+'_avatar');acctPaint();acctCustomize();netShareProfile();socialSaveProfile();};$('pe-banner').onclick=()=>{acctBannerPick();};
