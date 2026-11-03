@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function verified() { return signed() && request.auth.token.email_verified == true; }
+    function owner() {
+      return verified() && hashing.sha256(('calfight:' + request.auth.token.email.lower()).toUtf8()).toHexString().lower()
+        == '9d146dbc10561ea319eaa1854c3852babfd5bb58c4082f7309a6f5b9d9073146';
+    }
+    function notBlocked(a, b) {
+      return !exists(/databases/$(database)/documents/cf_blocks/$(a)/users/$(b))
+        && !exists(/databases/$(database)/documents/cf_blocks/$(b)/users/$(a));
+    }
+    function member(d) { return signed() && request.auth.uid in d.members; }
+    function friends(d) { return member(d) && d.status == 'accepted' && notBlocked(d.members[0], d.members[1]); }
+    function profile(p, uid) {
+      return p.keys().hasOnly(['v','uid','n','a','b','acct','g','m','f','bio','pronouns','status','accent','theme','aura','stickers','updated'])
+        && p.v == 1 && p.uid == uid && p.acct == true && p.n is string && p.n.size() > 0 && p.n.size() <= 32
+        && p.a is string && p.a.size() <= 14000 && (p.a == '' || p.a.matches('https://lh3[.]googleusercontent[.]com/.*') || p.a.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'))
+        && p.b is map && p.b.keys().hasOnly(['k','d']) && p.b.k is string && p.b.k.size() <= 32
+        && (p.b.k != 'img' || (p.b.d is string && p.b.d.size() <= 42000 && p.b.d.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')))
+        && p.bio is string && p.bio.size() <= 240 && p.pronouns is string && p.pronouns.size() <= 32
+        && p.status is string && p.status.size() <= 80 && p.accent.matches('#[0-9a-fA-F]{6}')
+        && p.theme in ['midnight','glass','sakura','ocean','ember','mono']
+        && p.aura in ['none','gold','aurora','flame','electric','sakura','frost','void']
+        && p.stickers is list && p.stickers.size() <= 6 && p.stickers.toSet().hasOnly(['cal','star','heart','bolt','moon','crown','sword','diamond','flower','ghost','fire','ice','wave','clippy','javi','gull','onion','pixel'])
+        && p.g is int && p.g >= 0 && p.g <= 10000000 && p.m is int && p.m >= 0 && p.m <= 100000000
+        && p.f is string && p.f.size() <= 32 && p.updated == request.time;
+    }
+    match /cf_profiles/{uid} {
+      allow get: if true;
+      allow list: if signed() && request.query.limit <= 20;
+      allow create, update: if verified() && request.auth.uid == uid && profile(request.resource.data, uid);
+    }
+    match /cf_roles/{uid} {
+      allow read: if true;
+      allow create, update: if owner() && request.resource.data.keys().hasOnly(['role','by','updated'])
+        && request.resource.data.by == request.auth.uid && request.resource.data.updated == request.time
+        && (request.resource.data.role in ['calsito','none'] || (request.resource.data.role == 'owner' && uid == request.auth.uid));
+    }
+    match /cf_sessions/{peer} {
+      allow get: if true;
+      allow create, update: if verified() && peer.matches('u[a-z0-9]{6,16}')
+        && request.resource.data.keys().hasOnly(['uid','expires']) && request.resource.data.uid == request.auth.uid
+        && (!exists(/databases/$(database)/documents/cf_sessions/$(peer)) || resource.data.uid == request.auth.uid || resource.data.expires < request.time)
+        && request.resource.data.expires > request.time && request.resource.data.expires <= request.time + duration.value(6, 'm');
+    }
+    match /cf_links/{link} {
+      allow read: if member(resource.data);
+      allow create: if verified() && request.resource.data.keys().hasOnly(['members','by','status','updated'])
+        && request.resource.data.members is list && request.resource.data.members.size() == 2
+        && request.resource.data.members[0] is string && request.resource.data.members[1] is string
+        && request.resource.data.members[0] != request.resource.data.members[1]
+        && link == request.resource.data.members[0] + '~' + request.resource.data.members[1]
+        && member(request.resource.data) && request.resource.data.by == request.auth.uid
+        && request.resource.data.status == 'pending' && request.resource.data.updated == request.time
+        && exists(/databases/$(database)/documents/cf_profiles/$(request.resource.data.members[0]))
+        && exists(/databases/$(database)/documents/cf_profiles/$(request.resource.data.members[1]))
+        && notBlocked(request.resource.data.members[0], request.resource.data.members[1]);
+      allow update: if verified() && member(resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['by','status','updated'])
+        && request.resource.data.updated == request.time
+        && ((resource.data.status == 'pending' && request.resource.data.by == resource.data.by
+             && (request.resource.data.status == 'declined' || (request.resource.data.status == 'accepted' && resource.data.by != request.auth.uid && notBlocked(resource.data.members[0], resource.data.members[1]))))
+          || (resource.data.status == 'accepted' && request.resource.data.by == resource.data.by && request.resource.data.status == 'removed')
+          || (resource.data.status in ['declined','removed'] && request.resource.data.status == 'pending' && request.resource.data.by == request.auth.uid && notBlocked(resource.data.members[0], resource.data.members[1])));
+      match /messages/{message} {
+        function linkData() { return get(/databases/$(database)/documents/cf_links/$(link)).data; }
+        allow read: if friends(linkData());
+        allow create: if verified() && friends(linkData())
+          && request.resource.data.keys().hasOnly(['from','text','at']) && request.resource.data.from == request.auth.uid
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+          && request.resource.data.at == request.time;
+      }
+    }
+    match /cf_blocks/{uid}/users/{other} {
+      allow read: if signed() && request.auth.uid == uid;
+      allow create, update: if verified() && request.auth.uid == uid && other != uid
+        && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+      allow delete: if verified() && request.auth.uid == uid;
+    }
+  }
+}

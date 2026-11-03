@@ -47,6 +47,17 @@ Comprobaciones: `npm run test:voces:javi` y `npm run test:voces:clippy` verifica
 
 Tab abre y cierra la tabla con el cursor libre. Cada tarjeta muestra la foto de la cuenta y el banner elegido, incluidos los banners subidos. Un clic abre el perfil público: nombre, personaje, K.O. y muertes de la partida, partidas jugadas, horas y favorito. Esc vuelve a la tabla y después al juego; las flechas permiten recorrer las tarjetas. También aparecen los integrantes que siguen en el menú de la sala. Los bots tienen su propia ficha.
 
-Los perfiles se comparten por separado de los estados de combate: los banners subidos se reducen a JPEG de 600 × 172 y hasta 42 KB de texto, y se conservan en la sala para quienes entran tarde. Al cambiar de banner o cuenta se actualizan los demás jugadores. Los perfiles públicos incluyen únicamente nombre, imagen y estadísticas; nunca correo, UID ni credenciales. Las estadísticas de trayectoria corresponden al historial guardado por ese jugador en su navegador, sin rangos ni verificaciones adicionales.
+Los perfiles se comparten por separado de los estados de combate: los banners subidos se reducen a JPEG de 600 × 172 y hasta 42 KB de texto, y se conservan en la sala para quienes entran tarde. Al cambiar de banner o cuenta se actualizan los demás jugadores. Los perfiles públicos incluyen únicamente nombre, imagen y estadísticas; nunca correo ni credenciales. Las estadísticas de trayectoria corresponden al historial guardado por ese jugador en su navegador, sin rangos ni verificaciones adicionales.
 
 Comprobación: `npm run test:perfiles` (Chrome y Playwright). Prueba tres clientes locales, entrada tardía, cambios de banner, fotos, controles, salida de la sala, contenido inválido, bots, pantalla pequeña y el transporte de relays con un simulador aislado. Usa la puerta de pruebas que el juego ya habilita solo en localhost.
+
+
+## Comunidad: perfiles, Calsito y amigos
+
+Los perfiles tienen foto propia, biografía, estado, pronombres, acento, seis estilos, ocho auras de avatar y 18 stickers (hasta seis visibles). El catálogo añade ocho fondos ilustrados de la ciudad: plaza, playa, casino, azoteas, lluvia, parque, muelle y arcade. La cuenta verificada del dueño puede conceder y retirar Calsito desde el perfil; los títulos Owner (blanco) y Calsito (amarillo) se comparten con los demás, incluidos invitados, mediante identidad de sala comprobada en Firestore. El logo CAL fue proporcionado por el dueño y se conserva sin cambios.
+
+Amigos incluye solicitudes, aceptación/rechazo, códigos de cuenta, conversaciones privadas persistentes, eliminación de amistad y bloqueo. Los datos se guardan en Firebase y las reglas exigen amistad aceptada para leer o escribir mensajes. Los roles se guardan separados de la apariencia. Las contraseñas y tokens no se comparten con los relays. Los perfiles públicos ahora incluyen el ID necesario para relacionar cuentas, además de su apariencia y estadísticas.
+
+Para activar la base real, seguí **ACTIVAR_COMUNIDAD.md** y publicá **firestore.rules** en el proyecto calgame. La integración se prueba en emuladores; no da por activada una base que todavía no exista. `test:perfiles:v2`, `test:social:reglas` y `test:social` cubren interfaz, permisos e intercambio entre cuentas.
+
+El modo Auto ahora reduce la calidad después de varios segundos de FPS bajos y respeta la selección manual. El compositor se crea solo al necesitar Alta y reduce buffers al salir de esa calidad. Los sistemas de partículas dibujan únicamente instancias vivas; la decoración submarina y las caras lejanas reducen trabajo visual sin cambiar física ni red.

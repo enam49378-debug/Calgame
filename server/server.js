@@ -99,7 +99,7 @@ function onMessage(c, text) {
     case 'pa': if (typeof m.id === 'string' && m.id.length < 80 && m.d && typeof m.d === 'object') { room.states.set(m.id, { d: m.d, owner: c.id }); broadcast(room, { t: 'p', id: m.id, d: m.d }, c.id); } break;
     case 'xa': if (typeof m.id === 'string' && room.states.get(m.id) && room.states.get(m.id).owner === c.id) { room.states.delete(m.id); broadcast(room, { t: 'x', id: m.id }); } break;
     case 'sk': if (typeof m.d === 'string' && m.d.length < 24000) { room.skins.set(c.id, m.d); broadcast(room, { t: 'sk', id: c.id, d: m.d }, c.id); } else { room.skins.delete(c.id); broadcast(room, { t: 'sk', id: c.id, d: '' }, c.id); } break;
-    case 'pf': if (m.d && typeof m.d === 'object' && m.d.v === 1 && JSON.stringify(m.d).length <= 48000) { room.profiles.set(c.id, m.d); broadcast(room, { t: 'pf', id: c.id, d: m.d }, c.id); } break;
+    case 'pf': if (m.d && typeof m.d === 'object' && m.d.v === 1 && JSON.stringify(m.d).length <= 80000) { room.profiles.set(c.id, m.d); broadcast(room, { t: 'pf', id: c.id, d: m.d }, c.id); } break;
     case 'pi': sendTo(c, { t: 'po', ts: m.ts }); break;
     // señales para que dos jugadores abran un canal directo (WebRTC): se reenvían tal cual al destinatario
     case 'sig': if (typeof m.to === 'string' && m.d && typeof m.d === 'object') sendTo(room.clients.get(m.to), { t: 'sig', from: c.id, d: m.d }); break;

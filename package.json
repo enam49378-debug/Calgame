@@ -16,9 +16,14 @@
     "test:combate": "node tests/combate-prolongado.cjs",
     "test:voces:javi": "node tests/voces-javi.cjs",
     "test:voces:clippy": "node tests/voces-clippy.cjs",
-    "test:perfiles": "node tests/perfiles-sala.cjs"
+    "test:perfiles": "node tests/perfiles-sala.cjs",
+    "test:perfiles:v2": "node tests/perfiles-v2.cjs",
+    "test:social:reglas": "node tests/social-reglas.cjs",
+    "test:social": "node tests/social.cjs"
   },
   "devDependencies": {
-    "playwright": "1.64.1"
+    "playwright": "1.64.1",
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.2.0"
   }
 }
