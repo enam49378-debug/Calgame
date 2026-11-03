@@ -1244,7 +1244,7 @@ function cityAnimeMaterial(material,opts={}){
 // ================= Mundo: Ciudad Aurora =================
 // Calles de 8 m, plaza abierta y manzanas bajas; la distribución es fija en todas las partidas.
 const B = 1.1, ARENA = 118, COL = [], CLOUDS = [], ELEVATORS = [];
-const CITY = { name: 'Ciudad Aurora', buildings: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], core: 62, bounds: 116 };
+const CITY = { name: 'Ciudad Aurora', buildings: [], skyline: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], core: 62, bounds: 116 };
 // Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
 const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
 const inSea = (x, z) => z > SHORE(x) - 1.2;
@@ -1330,10 +1330,10 @@ function cityGrassAt(x,z) {
   const asphalt=pixTex(64,64,g=>{noiseRect(g,0,0,64,64,'#d0d4d5',17);g.fillStyle='rgba(65,72,80,.16)';g.fillRect(4,18,20,1);g.fillRect(24,18,1,15);g.fillRect(24,33,13,1);});
   const facadeColors=['#f0bf7b','#e49aab','#77beaa','#e9cd83','#b9a0db','#eda777','#88b8dc','#dda19b','#deca8b','#a9cd86','#87c8d0','#dcc080'];
   const batches = new Map(), matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), xyz = new V3(), size = new V3();
-  const box = (x,y,z,w,h,d,color,tex=null) => {
+  const box = (x,y,z,w,h,d,color,tex=null,tower=null) => {
     const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44);   // un lote por color y por zona de 44 m
     if (!batches.has(key)) batches.set(key, { color, tex, items: [] });
-    batches.get(key).items.push([x,y,z,w,h,d]);
+    batches.get(key).items.push([x,y,z,w,h,d,tower]);
   };
   const solid = (x,z,w,d,h,y0=0,ceiling=false) => COL.push({x,z,hx:w/2,hz:d/2,h,y0,ceiling});
   const flat = (x,z,w,d,color,y=.013) => box(x,y,z,w,.018,d,color);
@@ -1773,10 +1773,12 @@ function cityGrassAt(x,z) {
   }
   for(let i=0;i<64;i++){
     const a=i/64*TAU,r=136+(i%4)*10,h=10+(i*7%30),x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.sin(a)>.3)continue;
-    box(x,h/2,z,8,h,7,['#8ea6b6','#a5b5bf','#9aaeb5'][i%3]);box(x,h+.12,z,8.4,.25,7.4,'#b5c4ca');
+    const tower={x,z,w:8,d:7,h,parts:[]};CITY.skyline.push(tower);
+    const piece=(x,y,z,w,h,d,color)=>box(x,y,z,w,h,d,color,null,tower);
+    piece(x,h/2,z,8,h,7,['#8ea6b6','#a5b5bf','#9aaeb5'][i%3]);piece(x,h+.12,z,8.4,.25,7.4,'#b5c4ca');
     for(let yy=2;yy<h-1;yy+=2.5)for(const xx of [-2.5,0,2.5])for(const side of [-1,1]){
-      box(x+xx,yy,z+side*3.52,1.15,1.25,.06,'#aac5d1');
-      box(x+side*4.02,yy,z+xx,.06,1.25,1.15,'#aac5d1');
+      piece(x+xx,yy,z+side*3.52,1.15,1.25,.06,'#aac5d1');
+      piece(x+side*4.02,yy,z+xx,.06,1.25,1.15,'#aac5d1');
     }
   }
   // ===== Costa: paseo marítimo, playa, mar, bosque y adornos (todo determinista: igual para todos los jugadores) =====
@@ -1925,7 +1927,7 @@ function cityGrassAt(x,z) {
     if(['#77b3c6','#7fb5c5','#aac5d1'].includes(batch.color))CITY.windowMaterials.push(mat);
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
-    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
+    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);const tower=p.pop();if(tower)tower.parts.push({mesh,index:i});if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
     cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;scene.add(mesh);
     {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
     mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
@@ -6167,9 +6169,9 @@ function sfxFile(url, volume, pos) {
   }
   playHtmlEffect(url,volume*.5,'game');
 }
-function sfx(k, pos, mul = 1) {
-  if (!AC || AC.state!=='running' || AUDIO_LEVELS.general===0 || AUDIO_LEVELS.game===0 || (G.state !== 'play' && !UI_SFX.has(k) && !SFX_FORCE)) return;
-  let v = (pos ? clamp(1 - camera.position.distanceTo(pos) / 45, 0, 1) : 1) * mul;
+function sfx(k, pos, mul = 1, { range = 45, title = false } = {}) {
+  if (!AC || AC.state!=='running' || AUDIO_LEVELS.general===0 || AUDIO_LEVELS.game===0 || (G.state !== 'play' && !(title && G.state === 'title') && !UI_SFX.has(k) && !SFX_FORCE)) return;
+  let v = (pos ? clamp(1 - camera.position.distanceTo(pos) / range, 0, 1) : 1) * mul;
   const so = !SFX_RAW && AUDIO_CFG.sfx[k];
   if (so) {   // lo que se cambió en el editor de audio
     if (so.off) return; if (so.chance != null && Math.random() > so.chance) return;
@@ -15139,7 +15141,7 @@ if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').ma
 // ================= Pantalla de inicio =================
 // El último peleador que usaste, de espaldas, en una de dos escenas con el atardecer (apoyado en la barandilla del muelle o sentado en la arena).
 // Cámara fija con un leve temblor. Al pulsar algo: el personaje nota que estamos detrás, gira, la cámara se cae, todo negro y el menú cae poco a poco.
-const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4 };
+const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4, wrecks: new Map() };
 function titleAudio(on){
   if(on){
     TITLE.mus=makeMusicTrack(musFile('intro','musica/calfight_intro.mp3'),'intro',true);
@@ -15163,7 +15165,7 @@ function titleStart(force) {
   if (TITLE.on || (!force && /[#?](sala|room|j=|join)|notitle/i.test(location.hash + location.search))) return;
   if (!CHARS[G.charId]) G.charId = 'javi';
   let idx = 0; try { idx = (parseInt(localStorage.getItem('bsb_title_idx') || '-1') + 1) % 2; localStorage.setItem('bsb_title_idx', String(idx)); } catch (e) { }
-  TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; G.state = 'title';
+  TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; TITLE.nextSek = 7; TITLE.boomShake = 0; G.state = 'title';
   $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(GFX.post?innerWidth:16, GFX.post?innerHeight:16); }   // el inicio siempre a máxima nitidez
    $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
   TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode }; if (bloomPass) { TITLE.bloom = bloomPass.enabled; bloomPass.enabled = false; }   // sin bloom en el inicio: difuminaba las siluetas
@@ -15186,6 +15188,8 @@ function titleFinish() {
   WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
   if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0; titleSekzaEnd(); cameoEnd();
+  for (const wreck of TITLE.wrecks.values()) poseTitleTower(wreck, 0);
+  TITLE.wrecks.clear();
   titleAudio(false);
   $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); showSelect(G.charId);
   camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix(); gfxSet(GFX.level, GFX.auto, false);
@@ -15197,17 +15201,65 @@ function titleLeave() {
 }
 // Sekza volando con una bandada de gaviotas: entra desde detrás de la cámara, se distrae, se desvía y se estrella contra un edificio alto (cada ~50 s)
 function sekzaTarget(cp) {
-  let best = null, bs = -1e9;
-  // edificios de la ciudad y los altos del horizonte (el anillo de torres de fondo)
-  const list = (CITY.buildings || []).slice();
-  for (let i = 0; i < 64; i++) { const an = i / 64 * TAU, r = 136 + (i % 4) * 10, h = 10 + (i * 7 % 30); if (Math.sin(an) > .3) continue; list.push({ x: Math.cos(an) * r, z: Math.sin(an) * r, w: 8, d: 7, h }); }
-  for (const b of list) {
-    if (b.h < 11) continue; const pt = new V3(b.x, b.h * .72, b.z), d = pt.distanceTo(cp); if (d < 28 || d > 210) continue;
-    const v = pt.clone().project(camera); if (v.z > 1 || Math.abs(v.x) > .97 || v.y > .9 || v.y < -.5) continue;
-    const sc = b.h - Math.abs(v.x) * 12 - d * .05; if (sc > bs) { bs = sc; best = { b, p: pt }; }
+  camera.updateMatrixWorld();
+  let best = null, bestScore = -Infinity;
+  for (const b of CITY.skyline) {
+    if (b.h < 11 || TITLE.wrecks.has(b)) continue;
+    const dx = cp.x - b.x, dz = cp.z - b.z;
+    const p = new V3(b.x, b.h * .72, b.z);
+    if (Math.abs(dx) / b.w > Math.abs(dz) / b.d) p.x += Math.sign(dx) * (b.w / 2 + .04);
+    else p.z += Math.sign(dz) * (b.d / 2 + .04);
+    const v = p.clone().project(camera), dist = p.distanceTo(cp);
+    if (v.z < -1 || v.z > 1 || Math.abs(v.x) > .95 || v.y > .9 || v.y < -.5 || dist > 220) continue;
+    const score = b.h - Math.abs(v.x) * 16 - dist * .05;
+    if (score > bestScore) { bestScore = score; best = { b, p, screenX: v.x }; }
   }
-  if (best) { const b = best.b, dx = cp.x - b.x, dz = cp.z - b.z; if (Math.abs(dx) / b.w > Math.abs(dz) / b.d) best.p.x = b.x + Math.sign(dx) * (b.w / 2 + .3); else best.p.z = b.z + Math.sign(dz) * (b.d / 2 + .3); }   // punto en la fachada que mira a la cámara
   return best;
+}
+function startTitleTowerFall(target) {
+  const { b, screenX } = target;
+  // Se vence hacia el centro de la toma, girando sobre el borde de su base.
+  const dir = new V3().setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize().multiplyScalar(screenX > 0 ? -1 : 1);
+  const edge = (b.w * Math.abs(dir.x) + b.d * Math.abs(dir.z)) / 2;
+  const pivot = new V3(b.x, 0, b.z).addScaledVector(dir, edge);
+  const groups = new Map();
+  for (const { mesh, index } of b.parts) {
+    if (!groups.has(mesh)) groups.set(mesh, []);
+    const rest = new THREE.Matrix4();
+    mesh.getMatrixAt(index, rest);
+    groups.get(mesh).push({ index, rest });
+  }
+  const fall = { b, groups, dir, pivot, axis: new V3(dir.z, 0, -dir.x), transform: new THREE.Matrix4(), matrix: new THREE.Matrix4(), offset: new V3(), landed: false };
+  TITLE.wrecks.set(b, fall);
+  return fall;
+}
+function poseTitleTower(fall, angle) {
+  const { axis, pivot, transform, offset, matrix, groups } = fall;
+  transform.makeRotationAxis(axis, angle);
+  transform.setPosition(offset.copy(pivot).applyMatrix4(transform).negate().add(pivot));
+  for (const [mesh, parts] of groups) {
+    for (const { index, rest } of parts) mesh.setMatrixAt(index, matrix.multiplyMatrices(transform, rest));
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+function updateTitleTowerFall(fall, t) {
+  if (fall.landed) return;
+  const k = clamp((t - .5) / 1.6, 0, 1);
+  const wobble = Math.sin(t * 20) * Math.exp(-t * 6) * .075;
+  poseTitleTower(fall, (Math.PI / 2) * k ** 2 + wobble * (1 - k));
+  if (k < 1) return;
+  fall.landed = true;
+  const { b, pivot, dir } = fall;
+  const impact = pivot.clone().addScaledVector(dir, b.h * .8).setY(.4);
+  for (const span of [.2, .48, .76, .98]) {
+    const p = pivot.clone().addScaledVector(dir, b.h * span).setY(1.4);
+    for (let i = 0; i < 14; i++) {
+      emit(p.x + rand(-2, 2), p.y, p.z + rand(-2, 2), rand(-5, 5), rand(4, 10), rand(-5, 5), '#d7b8a0', rand(1.4, 2.8), rand(1.3, 2.4), -.06, 1);
+    }
+    burst(p, 10, '#9c8884', 13, .7, 1.3, .6, 3.5);
+  }
+  TITLE.boomShake = .7;
+  sfx('boom', impact, 1.1, { range: 260, title: true });
 }
 const bez = (p0, p1, p2, k) => p0.clone().multiplyScalar((1 - k) * (1 - k)).addScaledVector(p1, 2 * (1 - k) * k).addScaledVector(p2, k * k);
 function titleSky(dt, t, cp, yaw) {
@@ -15237,6 +15289,7 @@ function titleSky(dt, t, cp, yaw) {
   } else {
     // después del choque: humo, plumas y Sekza cae girando desde la fachada
     const u = T - K.boomT;
+    updateTitleTowerFall(K.fall, u);
     if (u < 4 && Math.random() < .8) emit(K.tgt.x + rand(-1, 1), K.tgt.y + rand(-.5, 1), K.tgt.z + rand(-1, 1), rand(-.4, .4), rand(1, 2.4), rand(-.4, .4), Math.random() < .5 ? '#3a3540' : '#6b6470', rand(.35, .7), rand(2, 3.5), -.25, .8);
     if (u > .3 && u < 3.5 && Math.random() < .5) emit(K.tgt.x + rand(-3, 3), K.tgt.y + rand(-1, 2), K.tgt.z + rand(-3, 3), rand(-.5, .5), rand(-.3, .2), rand(-.5, .5), '#ffffff', .12, rand(3, 5), .08, 1.5);
     if (u > .7 && u < 3.6) { const k = u - .7; m.root.visible = true; m.root.position.set(K.tgt.x + K.out.x * k * 2.5, K.tgt.y + 2 * k - 4.9 * k * k, K.tgt.z + K.out.z * k * 2.5); m.root.rotation.x = k * 9; m.root.rotation.z = k * 6;
@@ -15252,11 +15305,12 @@ function titleSky(dt, t, cp, yaw) {
 }
 function sekzaBoom(K) {
   K.boom = true; K.boomT = K.t; K.model.root.visible = false; if (K.bang) { scene.remove(K.bang); K.bang = null; }
+  K.fall = startTitleTowerFall(K.target);
   const c = K.tgt; K.out = c.clone().sub(K.mid).setY(0).normalize().multiplyScalar(-1);
   sphereFlash(c, '#ffb347', 6, .55); sphereFlash(c, '#ffffff', 3.2, .3); ringAt(c, '#ff7a3a', 9, .6); ringAt(c, '#ffffff', 6, .45); impactStar(c, '#fff3c0', 6, .45);
   burst(c, 60, '#ff7a3a', 14, .35, .8, .4); burst(c, 40, '#ffd23f', 11, .28, .7, .3); burst(c, 30, '#8a8a8a', 9, .4, 1.4, 1.2); burst(c, 20, '#b9a07a', 7, .3, 1.6, 1.6);
   K.gv = K.gulls.map(() => new V3(rand(-1, 1), rand(.4, 1.2), rand(-1, 1)).normalize().multiplyScalar(rand(9, 16)));
-  TITLE.boomShake = 1; sfx('break', c, 1.3); sfx('ult', c, .6);
+  TITLE.boomShake = 1; sfx('break', c, 1.2, { range: 260, title: true });
   // ¡KABOOM! en pantalla, estilo cómic
   const v = c.clone().project(camera), d = document.createElement('div'); d.className = 'tboom'; d.textContent = '¡KABOOM!'; d.style.left = ((v.x * .5 + .5) * 100).toFixed(1) + '%'; d.style.top = ((-v.y * .5 + .5) * 100).toFixed(1) + '%'; $('title').appendChild(d); setTimeout(() => d.remove(), 1700);
 }
@@ -15273,7 +15327,7 @@ function titleSekzaStart(cp, yaw) {
   const tg = sekzaTarget(cp), tgt = tg ? tg.p : cp.clone().addScaledVector(F, 150).addScaledVector(R, 34).add(new V3(0, 30, 0));
   const dir0 = curve.getTangent(1).normalize(), ctrl = mid.clone().addScaledVector(dir0, 18).add(new V3(0, 4, 0)).lerp(tgt, .25);
   const gulls = []; for (let i = 0; i < 6; i++) { const g = BEACH.gulls[0].g.clone(true); scene.add(g); gulls.push(g); }
-  TITLE.sek = { t: 0, dur: tg ? 15 : 11.5, a, mid, curve, dir0, ctrl, tgt, crash: !!tg, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
+  TITLE.sek = { t: 0, dur: tg ? 15 : 11.5, a, mid, curve, dir0, ctrl, tgt, target: tg, crash: !!tg, model, anim: new Animator(model), gulls }; TITLE.sek.anim.bbR6 = true; for (const j of JOINTS) TITLE.sek.anim.x[j] = JDEF[j] || 0;
   playHtmlEffect('sonidos/sekza/vuelo_1.mp3',.35,'voices');
 }
 // ===== Cameos: otros personajes que pasan por la playa haciendo lo suyo =====
