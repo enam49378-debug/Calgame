@@ -28,68 +28,262 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/calfight_icon.png">
-<!-- Estilos críticos inmediatos para pantalla de carga con estilo CalFight -->
+<!-- Estilos críticos inmediatos para pantalla de carga super artística anime -->
 <style>
-#loading-screen{position:fixed;inset:0;z-index:99999;background:#07080d;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;font-family:'Chakra Petch',system-ui,sans-serif;color:#f3f4f8;overflow:hidden;transition:opacity .5s cubic-bezier(.2,.9,.3,1),transform .5s ease}
-#loading-screen.loader-done{opacity:0;transform:scale(1.06);pointer-events:none}
-.loader-backdrop{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,rgba(215,255,47,.12) 0,rgba(79,195,255,.06) 42%,transparent 75%);pointer-events:none}
-.loader-halftone{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1.2px,transparent 1.6px);background-size:12px 12px;pointer-events:none;opacity:.65}
-.loader-shell{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;max-width:480px;width:90%;gap:14px}
-.loader-logo-zone{position:relative;perspective:900px;display:flex;align-items:center;justify-content:center;padding:12px 0 6px}
-.loader-energy-ring{position:absolute;width:min(260px,74vw);height:min(260px,74vw);border:2px dashed rgba(215,255,47,.5);border-radius:50%;box-shadow:0 0 35px rgba(215,255,47,.35),inset 0 0 25px rgba(79,195,255,.25);animation:spinAura 6s linear infinite;pointer-events:none}
-.loader-logo-spin{width:min(290px,78vw);height:auto;transform-style:preserve-3d;animation:spinLogo3D 2.8s cubic-bezier(.45,.05,.25,.95) infinite;filter:drop-shadow(0 0 22px rgba(215,255,47,.55))}
-.loader-text-block{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
-.loader-title{margin:0;font-family:'Anton',Impact,sans-serif;font-size:clamp(34px,7.5vw,56px);font-style:italic;line-height:1;letter-spacing:.08em;color:#fff;text-shadow:4px 4px 0 #000,0 0 24px rgba(215,255,47,.7);transform:skewX(-10deg);text-transform:uppercase}
-.loader-dots i{font-style:normal;color:#d7ff2f;display:inline-block;animation:blinkDot 1.4s infinite}
-.loader-dots i:nth-child(2){animation-delay:.2s}
-.loader-dots i:nth-child(3){animation-delay:.4s}
-.loader-meta-row{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:2px}
-.loader-status-text{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ba1ba}
-.loader-pct-badge{background:#d7ff2f;color:#07080d;font-family:'Anton',Impact,sans-serif;font-size:20px;font-style:italic;line-height:1;padding:3px 10px;border-radius:2px;transform:skewX(-14deg);box-shadow:0 0 14px rgba(215,255,47,.6);letter-spacing:.04em}
-.loader-bar-shell{width:100%;height:18px;background:rgba(0,0,0,.85);border:2px solid #000;box-shadow:0 0 0 2px rgba(255,255,255,.16),0 8px 24px rgba(0,0,0,.8);transform:skewX(-16deg);position:relative;overflow:hidden;margin-top:4px}
-.loader-bar-core{height:100%;background:linear-gradient(90deg,#d7ff2f,#3ee07a,#4fc3ff);transition:width .22s ease-out;box-shadow:0 0 16px rgba(215,255,47,.7);position:relative}
-.loader-bar-core::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(255,255,255,.35) 10px,rgba(255,255,255,.35) 20px);animation:barStripes 1.2s linear infinite}
-.loader-comic-tip{display:flex;align-items:center;gap:12px;background:rgba(12,14,22,.92);border:2px solid #000;border-left:5px solid #d7ff2f;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 10px 25px rgba(0,0,0,.6);transform:skewX(-8deg);padding:9px 15px;width:100%;margin-top:6px}
-.tip-flag{background:#d7ff2f;color:#07080d;font-family:'Anton',Impact,sans-serif;font-size:13px;font-style:italic;padding:3px 8px;letter-spacing:.08em;font-weight:900;flex-shrink:0;transform:skewX(-4deg)}
-.tip-msg{margin:0;font-family:'Chakra Petch',sans-serif;font-size:12.5px;font-weight:600;color:#bcc4d8;line-height:1.35;text-align:left;transform:skewX(8deg)}
-.tip-msg b{color:#fff;text-shadow:1px 1px 0 #000}
-@keyframes spinLogo3D{0%{transform:perspective(900px) rotateY(0deg) scale(1);filter:drop-shadow(0 0 18px rgba(215,255,47,.45))}50%{transform:perspective(900px) rotateY(180deg) scale(1.05);filter:drop-shadow(0 0 35px rgba(79,195,255,.8))}100%{transform:perspective(900px) rotateY(360deg) scale(1);filter:drop-shadow(0 0 18px rgba(215,255,47,.45))}}
-@keyframes spinAura{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes blinkDot{0%,20%{opacity:0;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}100%{opacity:0;transform:translateY(0)}}
-@keyframes barStripes{0%{background-position:0 0}100%{background-position:40px 0}}
+#loading-screen{
+  position:fixed;inset:0;z-index:99999;
+  background:radial-gradient(ellipse at 50% 25%, #261f46 0%, #16122c 50%, #0a0817 100%);
+  display:flex;align-items:center;justify-content:center;
+  user-select:none;-webkit-user-select:none;
+  font-family:'Chakra Petch',system-ui,sans-serif;color:#fff6ea;
+  overflow:hidden;
+  transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1),filter .75s ease;
+}
+#loading-screen.loader-done{
+  opacity:0;
+  transform:scale(1.12);
+  filter:blur(8px);
+  pointer-events:none;
+}
+#loading-flash{
+  position:fixed;inset:0;z-index:100000;
+  background:#fffdfa;opacity:0;pointer-events:none;
+  transition:opacity .5s ease;
+}
+.art-bg-sky{
+  position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 12%,rgba(255,215,165,.18) 0%,rgba(179,136,255,.09) 36%,transparent 72%);
+  pointer-events:none;
+}
+.art-bg-stars{
+  position:absolute;inset:0;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255,255,255,.75) 1px, transparent 1.6px),
+    radial-gradient(circle at 85% 15%, rgba(255,240,200,.85) 1.2px, transparent 1.8px),
+    radial-gradient(circle at 35% 65%, rgba(255,255,255,.55) 1px, transparent 1.6px),
+    radial-gradient(circle at 75% 75%, rgba(255,200,230,.65) 1.2px, transparent 1.8px),
+    radial-gradient(circle at 50% 85%, rgba(200,230,255,.55) 1px, transparent 1.6px);
+  background-size:240px 240px;
+  opacity:.65;
+  pointer-events:none;
+  animation:starsTwinkle 4s ease-in-out infinite alternate;
+}
+.art-bg-aurora{
+  position:absolute;bottom:-12%;left:-10%;right:-10%;height:45%;
+  background:radial-gradient(ellipse at 50% 100%,rgba(255,143,163,.15) 0%,rgba(179,136,255,.09) 45%,transparent 75%);
+  pointer-events:none;
+}
+.art-loader-shell{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  max-width:460px;width:88%;gap:16px;
+}
+.art-logo-stage{
+  position:relative;perspective:900px;
+  display:flex;align-items:center;justify-content:center;
+  padding:14px 0;
+}
+.art-halo-ring{
+  position:absolute;
+  width:min(280px,76vw);height:min(280px,76vw);
+  border:2px solid rgba(255,218,160,.4);
+  border-radius:50%;
+  box-shadow:0 0 45px rgba(255,190,120,.28),inset 0 0 35px rgba(180,140,255,.22);
+  animation:spinHalo 14s linear infinite;
+  pointer-events:none;
+}
+.art-halo-ring.inner{
+  width:min(235px,64vw);height:min(235px,64vw);
+  border:1px dashed rgba(255,180,210,.35);
+  animation:spinHaloRev 10s linear infinite;
+}
+.art-sparkle{
+  position:absolute;color:#ffe6a3;font-size:14px;
+  text-shadow:0 0 10px #ffe6a3;
+  animation:sparkleFloat 3s ease-in-out infinite alternate;
+  pointer-events:none;
+}
+.art-sparkle.s1{top:4%;right:12%;animation-delay:0s}
+.art-sparkle.s2{bottom:10%;left:8%;animation-delay:1s;font-size:16px;color:#ffc2d1}
+.art-sparkle.s3{top:45%;left:2%;animation-delay:2s;font-size:11px}
+.art-spinning-logo{
+  width:min(290px,78vw);height:auto;
+  transform-style:preserve-3d;
+  animation:artLogoSpin 3.2s cubic-bezier(.45,.05,.25,.95) infinite;
+  filter:drop-shadow(0 15px 30px rgba(70,40,120,.45)) drop-shadow(0 0 20px rgba(255,200,140,.4));
+}
+.art-info-panel{
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;gap:10px;
+}
+.art-title-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+.art-subtitle{
+  font-size:9.5px;letter-spacing:.32em;color:#bcaecb;
+  font-weight:700;text-transform:uppercase;
+}
+.art-loading-header{
+  margin:0;
+  font-family:'Anton',Impact,sans-serif;
+  font-size:clamp(28px,6vw,44px);
+  letter-spacing:.22em;color:#fff8ee;
+  text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 24px rgba(255,210,150,.45);
+}
+.art-dots i{
+  font-style:normal;color:#ffd166;
+  display:inline-block;animation:dotFade 1.4s infinite;
+}
+.art-dots i:nth-child(2){animation-delay:.22s}
+.art-dots i:nth-child(3){animation-delay:.44s}
+.art-bar-shell{
+  width:100%;height:10px;
+  background:rgba(18,14,32,.85);
+  border-radius:20px;
+  border:1px solid rgba(255,225,175,.35);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.8),0 0 16px rgba(255,180,120,.2);
+  position:relative;overflow:hidden;
+  margin-top:2px;
+}
+.art-bar-fill{
+  height:100%;
+  background:linear-gradient(90deg,#a084dc,#ff8fa3,#ffd166,#fff3b0);
+  border-radius:20px;
+  transition:width .25s ease-out;
+  box-shadow:0 0 16px rgba(255,209,102,.7);
+  position:relative;
+}
+.art-bar-head{
+  position:absolute;right:-4px;top:50%;transform:translateY(-50%);
+  color:#fff;font-size:10px;text-shadow:0 0 8px #fff;
+  line-height:1;
+}
+.art-meta-row{
+  display:flex;justify-content:space-between;align-items:center;
+  width:100%;font-size:12px;font-weight:700;
+  color:#cec1dc;letter-spacing:.04em;
+}
+.art-status-text{
+  color:#ffd9a8;text-shadow:0 1px 4px rgba(0,0,0,.6);
+}
+.art-pct-text{
+  font-family:'Anton',Impact,sans-serif;
+  font-size:18px;color:#fff8ee;letter-spacing:.05em;
+  text-shadow:0 0 12px rgba(255,209,102,.6);
+}
+.art-tip-card{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(25,20,44,.75);
+  border:1px solid rgba(255,215,160,.22);
+  border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+  backdrop-filter:blur(6px);
+  padding:8px 14px;width:100%;margin-top:4px;
+}
+.art-tip-tag{
+  background:linear-gradient(135deg,#ffd166,#ff8fa3);
+  color:#15102a;
+  font-family:'Anton',Impact,sans-serif;
+  font-size:11px;font-style:italic;
+  padding:2px 7px;border-radius:4px;
+  font-weight:900;letter-spacing:.06em;
+  flex-shrink:0;
+}
+.art-tip-body{
+  margin:0;font-size:12px;font-weight:600;
+  color:#dfd6ea;line-height:1.35;text-align:left;
+}
+.art-tip-body b{color:#ffe4aa}
+@keyframes artLogoSpin{
+  0%{transform:perspective(900px) rotateY(0deg) translateY(0px);filter:drop-shadow(0 12px 25px rgba(70,40,120,.4)) drop-shadow(0 0 18px rgba(255,200,140,.4))}
+  50%{transform:perspective(900px) rotateY(180deg) translateY(-6px) scale(1.03);filter:drop-shadow(0 18px 35px rgba(255,140,180,.5)) drop-shadow(0 0 32px rgba(255,220,150,.6))}
+  100%{transform:perspective(900px) rotateY(360deg) translateY(0px);filter:drop-shadow(0 12px 25px rgba(70,40,120,.4)) drop-shadow(0 0 18px rgba(255,200,140,.4))}
+}
+@keyframes spinHalo{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes spinHaloRev{from{transform:rotate(360deg)}to{transform:rotate(0deg)}}
+@keyframes sparkleFloat{0%{transform:scale(.8) translateY(0);opacity:.5}100%{transform:scale(1.2) translateY(-4px);opacity:1}}
+@keyframes starsTwinkle{from{opacity:.45}to{opacity:.85}}
+@keyframes dotFade{0%,20%{opacity:0}50%{opacity:1}100%{opacity:0}}
 </style>
 </head>
 <body>
 <!-- ==================================================================== -->
-<!-- PANTALLA DE CARGA ANIME ESTILO CALFIGHT (Logo girando y texto de carga) -->
+<!-- PANTALLA DE CARGA SUPER ARTÍSTICA ANIME (Makoto Shinkai / Pastel Ghibli)-->
 <!-- ==================================================================== -->
 <div id="loading-screen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="15" aria-label="Cargando CalFight">
-  <div class="loader-backdrop"></div>
-  <div class="loader-halftone"></div>
+  <div class="art-bg-sky"></div>
+  <div class="art-bg-stars"></div>
+  <div class="art-bg-aurora"></div>
 
-  <div class="loader-shell">
-    <div class="loader-logo-zone">
-      <div class="loader-energy-ring"></div>
-      <img src="assets/calfight_logo.png" alt="CalFight Logo" class="loader-logo-spin">
+  <div class="art-loader-shell">
+    <!-- Logo central con halo celestial anime girando -->
+    <div class="art-logo-stage">
+      <div class="art-halo-ring"></div>
+      <div class="art-halo-ring inner"></div>
+      <div class="art-sparkle s1">✦</div>
+      <div class="art-sparkle s2">✦</div>
+      <div class="art-sparkle s3">✦</div>
+      <img src="assets/calfight_logo.png" alt="CalFight" class="art-spinning-logo">
     </div>
 
-    <div class="loader-text-block">
-      <h2 class="loader-title">CARGANDO<span class="loader-dots"><i>.</i><i>.</i><i>.</i></span></h2>
-      <div class="loader-meta-row">
-        <span id="loading-status" class="loader-status-text">Iniciando motor 3D...</span>
-        <span id="loading-pct" class="loader-pct-badge">15%</span>
+    <!-- Título artístico y texto de carga -->
+    <div class="art-info-panel">
+      <div class="art-title-wrap">
+        <span class="art-subtitle">PELEAS ANIME · CIUDAD DE BLOQUES</span>
+        <h2 class="art-loading-header">C A R G A N D O<span class="art-dots"><i>.</i><i>.</i><i>.</i></span></h2>
       </div>
-      <div class="loader-bar-shell">
-        <div id="loading-bar-fill" class="loader-bar-core" style="width: 15%"></div>
-      </div>
-    </div>
 
-    <div class="loader-comic-tip">
-      <span class="tip-flag">CONSEJO</span>
-      <p id="loading-tip" class="tip-msg">Presiona <b>SHIFT</b> durante el combate para activar <b>Shift Lock</b> y fijar la cámara en tu rival.</p>
+      <!-- Barra de energía anime celestial -->
+      <div class="art-bar-shell">
+        <div id="loading-bar-fill" class="art-bar-fill" style="width: 15%">
+          <div class="art-bar-head">✦</div>
+        </div>
+      </div>
+
+      <div class="art-meta-row">
+        <span id="loading-status" class="art-status-text">Invocando el mundo de bloques...</span>
+        <span id="loading-pct" class="art-pct-text">15%</span>
+      </div>
+
+      <!-- Tarjeta artística de consejo con pergamino anime -->
+      <div class="art-tip-card">
+        <div class="art-tip-tag">✦ CONSEJO ✦</div>
+        <p id="loading-tip" class="art-tip-body">Presiona <b>SHIFT</b> durante el combate para activar <b>Shift Lock</b> y fijar la cámara en tu rival.</p>
+      </div>
     </div>
   </div>
 </div>
+<div id="loading-flash"></div>
+
+<script>
+// Animación fluida de precarga mientras descargan los scripts pesados de red
+(function(){
+  var p = 15;
+  var bar = document.getElementById('loading-bar-fill');
+  var pct = document.getElementById('loading-pct');
+  var status = document.getElementById('loading-status');
+  var steps = [
+    { target: 35, text: "Despertando la ciudad de bloques..." },
+    { target: 60, text: "Cargando peleadores y animaciones 3D..." },
+    { target: 82, text: "Sintonizando shaders y auras cel-shaded..." },
+    { target: 94, text: "Preparando escenario anime..." }
+  ];
+  var sIdx = 0;
+  window.__artBootTimer = setInterval(function() {
+    if (window.__loaderReady) { clearInterval(window.__artBootTimer); return; }
+    if (sIdx < steps.length) {
+      if (p < steps[sIdx].target) {
+        p += 1.8;
+        if (bar) bar.style.width = p.toFixed(0) + '%';
+        if (pct) pct.textContent = p.toFixed(0) + '%';
+        if (status && steps[sIdx].text) status.textContent = steps[sIdx].text;
+      } else {
+        sIdx++;
+      }
+    }
+  }, 90);
+})();
+</script>
 
 <div id="spear-recovery" class="hidden"></div>
 <div id="spear-marker" class="hidden">▼ Tu lanza</div>

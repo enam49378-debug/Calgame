@@ -67,14 +67,48 @@ const LOADER = {
   finish() {
     if (this.done) return;
     this.done = true;
-    this.setProgress(100, '¡A PELEAR!');
+    window.__loaderReady = true;
+    this.setProgress(100, '¡BIENVENIDO A CALFIGHT!');
     if (this.tipTimer) clearInterval(this.tipTimer);
+    if (window.__artBootTimer) clearInterval(window.__artBootTimer);
+
     setTimeout(() => {
-      if (this.el) {
-        this.el.classList.add('loader-done');
-        setTimeout(() => { if (this.el) this.el.style.display = 'none'; }, 500);
+      // 1. Destello suave anime
+      const fl = $('loading-flash');
+      if (fl) {
+        fl.style.opacity = '0.90';
+        fl.style.transition = 'opacity 0.4s ease';
       }
-    }, 320);
+
+      // 2. Transición cinematográfica directa al MENÚ (Selección de Personajes)
+      setTimeout(() => {
+        if (typeof titleFinish === 'function' && TITLE.on) {
+          titleFinish();
+        } else {
+          $('title').classList.add('hidden');
+          $('menu').classList.remove('hidden');
+          G.state = 'menu';
+          if (typeof showSelect === 'function') showSelect(G.charId);
+        }
+
+        // 3. Desvanecer la pantalla de carga con zoom y desenfoque
+        if (this.el) {
+          this.el.classList.add('loader-done');
+        }
+
+        // 4. Disolver el destello suavemente
+        setTimeout(() => {
+          if (fl) {
+            fl.style.transition = 'opacity 0.7s ease';
+            fl.style.opacity = '0';
+          }
+          setTimeout(() => {
+            if (this.el) this.el.style.display = 'none';
+            if (fl) fl.style.display = 'none';
+          }, 750);
+        }, 150);
+      }, 350);
+    }, 450);
   }
 };
 LOADER.init();
