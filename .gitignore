@@ -1,6 +1,8 @@
 node_modules/
 tests/artifacts/
 CLAVE_DUENO.txt
+*.zip
+.npm-cache/
 
 .firebase/
 *-debug.log
