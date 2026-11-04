@@ -80,16 +80,15 @@ const LOADER = {
         fl.style.transition = 'opacity 0.4s ease';
       }
 
-      // 2. Transición cinematográfica directa al MENÚ (Selección de Personajes)
+      // 2. Transición cinematográfica directa al MENÚ PRINCIPAL 3D (Escena de inicio: Personaje, Ciudad, Sol y Mar)
       setTimeout(() => {
-        if (typeof titleFinish === 'function' && TITLE.on) {
-          titleFinish();
-        } else {
-          $('title').classList.add('hidden');
-          $('menu').classList.remove('hidden');
-          G.state = 'menu';
-          if (typeof showSelect === 'function') showSelect(G.charId);
+        // El Menú Principal es la escena 3D inicial (titleStart) con el personaje contemplando la ciudad, Cambiar Escena, Ajustes y Jugar
+        if (typeof titleStart === 'function') {
+          titleStart(true);
         }
+        $('menu').classList.add('hidden');
+        $('title').classList.remove('hidden', 'leaving');
+        G.state = 'title';
 
         // 3. Desvanecer la pantalla de carga con zoom y desenfoque
         if (this.el) {
@@ -130,9 +129,9 @@ scene.background = new THREE.Color(SKY);
 scene.fog = new THREE.Fog(0x82bcf2, 80, 240);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 400);
 
-// Luz hemisférica vibrante: cielo azul anime + rebote dorado del suelo
-scene.add(new THREE.HemisphereLight(0x9fd5ff, 0x5a4836, 1.08));
-const sun = new THREE.DirectionalLight(0xfffae8, 1.25);
+// Iluminación cel-shaded equilibrada (evita quemar los edificios blancos)
+scene.add(new THREE.HemisphereLight(0xaad8ff, 0x483e32, 0.88));
+const sun = new THREE.DirectionalLight(0xfff6e6, 0.98);
 sun.position.set(30, 55, 18); sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -78, right: 78, top: 78, bottom: -78, far: 260 });
@@ -142,7 +141,7 @@ scene.add(sun, sun.target);
 // Cúpula celeste anime con gradiente vertical (Zenit índigo Shinkai -> Horizonte cálido)
 const ANIME_SKY_TEX = (() => {
   const c = document.createElement('canvas'); c.width = 128; c.height = 512;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   const gr = g.createLinearGradient(0, 0, 0, 512);
   gr.addColorStop(0.00, '#153c78'); // Zenit: índigo profundo
   gr.addColorStop(0.32, '#2872cb'); // Cielo superior: azul anime vibrante
@@ -170,7 +169,7 @@ function noiseRect(g, x, y, w, h, col, amt = 16) {
 }
 function pixTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
+  draw(c.getContext('2d', { willReadFrequently: true }), w, h);
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
   return t;
@@ -853,7 +852,7 @@ function cityGrassAt(x,z) {
           float f2=(1.-smoothstep(0.,.8,abs(dd-(4.2+1.4*sin(uTime*.6+vWP.x*.05+2.)))))*step(0.,dd)*.55;
           float foam=clamp(f1+f2,0.,1.)*(.55+.45*spk);
           // destellos anime (diamond glints) en la cresta de las olas
-          float glint=pow(max(0.,dot(reflect(-normalize(vViewPosition),normal),uSunV)),50.);
+          vec3 seaN=normalize(vNormal);float glint=pow(max(0.,dot(reflect(-normalize(vViewPosition),seaN),uSunV)),50.);
           float sparkle=step(0.82,glint)*spk*uSunK;
           diffuseColor.rgb=mix(wc,vec3(1.),foam*.88)+uSunC*sparkle*1.2;
           diffuseColor.a=mix(.55,.97,smoothstep(0.,16.,dd));`)
@@ -959,7 +958,10 @@ function cityGrassAt(x,z) {
   for(const batch of batches.values()){
     const road=['#46515d','#56616a','#958e7c'].includes(batch.color),facade=facadeColors.includes(batch.color);
     const texture=batch.tex?BLOCK_TEX[batch.tex]:road?asphalt:facade?plaster:null;
-    const mat=new THREE.MeshPhongMaterial({color:batch.color,map:texture,shininess:road?8:12,specular:0x15202a,bumpMap:facade?plaster:road?asphalt:null,bumpScale:facade?.025:.018,emissive:batch.tex==='lamp'?batch.color:0x000000});
+    const matOpts={color:batch.color,shininess:road?8:12,specular:0x15202a,bumpScale:facade?.025:.018,emissive:batch.tex==='lamp'?batch.color:0x000000};
+    if(texture) matOpts.map=texture;
+    const bump=facade?plaster:road?asphalt:null; if(bump) matOpts.bumpMap=bump;
+    const mat=new THREE.MeshPhongMaterial(matOpts);
     if(road)CITY.wetMaterials.push(mat);
     if(['#77b3c6','#7fb5c5','#aac5d1'].includes(batch.color))CITY.windowMaterials.push(mat);
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
@@ -1473,12 +1475,12 @@ function initStage() {
   STAGE.hemi = new THREE.HemisphereLight(0xffffff, 0x101018, .45); S.add(STAGE.hemi);
   STAGE.rim = new THREE.PointLight(0xffffff, 3, 10); STAGE.key = new THREE.PointLight(0xffffff, .8, 8); R.add(STAGE.rim, STAGE.key);
   // fondo con degradé del color del personaje
-  const bc = document.createElement('canvas'); bc.width = 8; bc.height = 256; const bg = bc.getContext('2d');
+  const bc = document.createElement('canvas'); bc.width = 8; bc.height = 256; const bg = bc.getContext('2d', { willReadFrequently: true });
   const gr = bg.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#000'); gr.addColorStop(.45, '#fff'); gr.addColorStop(.62, '#555'); gr.addColorStop(1, '#000'); bg.fillStyle = gr; bg.fillRect(0, 0, 8, 256);
   STAGE.skyMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bc), side: THREE.BackSide, fog: false, depthWrite: false });
   R.add(new THREE.Mesh(new THREE.SphereGeometry(60, 24, 12), STAGE.skyMat));
   // remolino de energía (cilindro con rayas que giran)
-  const sc = document.createElement('canvas'); sc.width = 256; sc.height = 64; const sg = sc.getContext('2d');
+  const sc = document.createElement('canvas'); sc.width = 256; sc.height = 64; const sg = sc.getContext('2d', { willReadFrequently: true });
   for (let i = 0; i < 18; i++) { sg.fillStyle = `rgba(255,255,255,${rand(.15, .6)})`; const x = rand(0, 256), w = rand(3, 14); sg.beginPath(); sg.moveTo(x, 0); sg.lineTo(x + w, 0); sg.lineTo(x + w - 40, 64); sg.lineTo(x - 40, 64); sg.fill(); }
   STAGE.swirlTex = new THREE.CanvasTexture(sc); STAGE.swirlTex.wrapS = STAGE.swirlTex.wrapT = THREE.RepeatWrapping; STAGE.swirlTex.repeat.set(3, 2);
   STAGE.swirlMat = new THREE.MeshBasicMaterial({ map: STAGE.swirlTex, transparent: true, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false, fog: false });
@@ -1613,7 +1615,7 @@ const burst = (...a) => PS.burst(...a);
 // ================= Skins estilo Minecraft =================
 const faceRects = (u, v, w, h, d) => ({ right: [u, v + d, d, h], front: [u + d, v + d, w, h], left: [u + d + w, v + d, d, h], back: [u + 2 * d + w, v + d, w, h], top: [u + d, v, w, d], bottom: [u + d + w, v, w, d] });
 function makeSkinCanvas(d) {
-  const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d');
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d', { willReadFrequently: true });
   const N = (x, y, w, h, col, amt = 16) => noiseRect(g, x, y, w, h, col, amt);
   const P = (x, y, col) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); };
   const SIDES = ['front', 'left', 'right', 'back'];
@@ -1677,18 +1679,18 @@ function normalizeSkin(img) {
   const w = img.naturalWidth, h = img.naturalHeight;
   if (w < 64 || (h !== w && h !== w / 2)) return null;
   const c = document.createElement('canvas'); c.width = 64; c.height = h === w ? 64 : 32;
-  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0, 64, c.height);
+  const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0, 64, c.height);
   return c;
 }
 function detectSlim(c) {
   if (c.height !== 64) return false;
-  const d = c.getContext('2d').getImageData(54, 20, 2, 12).data;
+  const d = c.getContext('2d', { willReadFrequently: true }).getImageData(54, 20, 2, 12).data;
   for (let i = 3; i < d.length; i += 4) if (d[i] > 0) return false;
   return true;
 }
 function headPortrait(skin, out) {
   const c = out || document.createElement('canvas'); c.width = 8; c.height = 8;
-  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, 8, 8);
+  const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; g.clearRect(0, 0, 8, 8);
   g.drawImage(skin, 8, 8, 8, 8, 0, 0, 8, 8); g.drawImage(skin, 40, 8, 8, 8, 0, 0, 8, 8);
   c.classList.add('px'); return c;
 }
@@ -2008,7 +2010,7 @@ function drawClippy(g, mood) {
 function makeClippy(owner) {
   const g = new THREE.Group(), cv = document.createElement('canvas'); cv.width = 192; cv.height = 256; const ctx = cv.getContext('2d'); drawClippy(ctx, 'happy');
   const tex = new THREE.CanvasTexture(cv), mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), body = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.4), mat);
-  const bc = document.createElement('canvas'); bc.width = 256; bc.height = 96; const bctx = bc.getContext('2d'), btex = new THREE.CanvasTexture(bc);
+  const bc = document.createElement('canvas'); bc.width = 256; bc.height = 96; const bctx = bc.getContext('2d', { willReadFrequently: true }), btex = new THREE.CanvasTexture(bc);
   const bmat = new THREE.MeshBasicMaterial({ map: btex, transparent: true, depthWrite: false, side: THREE.DoubleSide }), bub = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .9), bmat); bub.position.set(0, 1.25, 0); bub.visible = false;
   g.add(body, bub);
   return { owner, g, body, bub, ctx, tex, mat, bmat, bctx, btex, mood: 'happy', pos: new V3(), ov: null, sc: 1, cd: 1.5, say(t,fromNet=false) { if(!fromNet&&!clippySpeak(this.owner,t))return false;this.sayT=Math.max(2.4,CHARACTER_VOICE_DURATION[CLIPPY_VOICES[t]?.clip]||0); const c = this.bctx; c.clearRect(0, 0, 256, 96); c.fillStyle = '#ffffe1'; c.fillRect(2, 2, 252, 70); c.strokeStyle = '#000'; c.lineWidth = 3; c.strokeRect(2, 2, 252, 70); c.fillStyle = '#ffffe1'; c.beginPath(); c.moveTo(110, 70); c.lineTo(128, 94); c.lineTo(138, 70); c.fill(); c.stroke(); c.fillRect(112, 68, 24, 5); c.fillStyle = '#000'; c.font = 'bold 17px Tahoma,Arial,sans-serif'; c.textAlign = 'center'; const w = t.split(' '); let l1 = '', l2 = ''; for (const x of w) (l1.length < 17 ? l1 += (l1 ? ' ' : '') + x : l2 += (l2 ? ' ' : '') + x); c.fillText(l1, 128, l2 ? 30 : 42); if (l2) c.fillText(l2, 128, 54); this.btex.needsUpdate = true; this.bub.visible = true; }, sayT: 0 };
@@ -2299,7 +2301,7 @@ function randiTinku(f) {
 }
 // ===== Destrucción temporal del escenario: marcas de quemado/grietas en el piso y las paredes y piezas pequeñas (ventanas, adornos, árboles) que saltan y se reparan solas =====
 const SCAR_TEX = (() => {
-  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d', { willReadFrequently: true });
   const gr = g.createRadialGradient(64, 64, 4, 64, 64, 58); gr.addColorStop(0, 'rgba(8,6,4,.92)'); gr.addColorStop(.55, 'rgba(18,13,8,.7)'); gr.addColorStop(1, 'rgba(18,13,8,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   g.strokeStyle = 'rgba(8,6,4,.95)'; g.lineCap = 'round';
   for (let i = 0; i < 13; i++) {
@@ -2542,13 +2544,13 @@ const DOM_ANIMALS = [
   () => bxg([[.9, 1.2, .7, '#5a3a22', 0, 1.6, 0], [.7, .7, .7, '#5a3a22', 0, 2.6, .1], [.5, .4, .3, '#d9b48c', 0, 2.5, .5], [.2, 1.1, .2, '#5a3a22', -.65, 1.5, 0], [.2, 1.1, .2, '#5a3a22', .65, 1.5, 0], [.25, .9, .25, '#5a3a22', -.25, .45, 0], [.25, .9, .25, '#5a3a22', .25, .45, 0], [.15, .15, 1.4, '#5a3a22', 0, 1.1, -.9]]),
 ];
 function domFloorTex() {
-  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.translate(256, 256); g.lineCap = 'round'; g.shadowColor = '#d6222c'; g.shadowBlur = 16;
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d', { willReadFrequently: true }); g.translate(256, 256); g.lineCap = 'round'; g.shadowColor = '#d6222c'; g.shadowBlur = 16;
   g.strokeStyle = '#ffffff'; g.lineWidth = 6; g.beginPath(); g.arc(0, 0, 170, 0, TAU); g.stroke(); g.beginPath(); g.arc(0, 0, 36, 0, TAU); g.stroke();
   g.strokeStyle = '#d6222c'; g.lineWidth = 5; for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; g.beginPath(); g.moveTo(Math.cos(a) * 36, Math.sin(a) * 36); g.lineTo(Math.cos(a) * 170, Math.sin(a) * 170); g.stroke(); }
   return new THREE.CanvasTexture(c);
 }
 function domFlagTex() {
-  const c = document.createElement('canvas'); c.width = 384; c.height = 256; const g = c.getContext('2d');
+  const c = document.createElement('canvas'); c.width = 384; c.height = 256; const g = c.getContext('2d', { willReadFrequently: true });
   g.fillStyle = '#d91023'; g.fillRect(0, 0, 128, 256); g.fillRect(256, 0, 128, 256); g.fillStyle = '#ffffff'; g.fillRect(128, 0, 128, 256);
   g.fillStyle = '#2e7d32'; g.beginPath(); g.arc(192, 128, 34, 0, TAU); g.fill(); g.fillStyle = '#e9c13a'; g.beginPath(); g.arc(192, 128, 16, 0, TAU); g.fill(); g.strokeStyle = '#ffffff'; g.lineWidth = 6; g.strokeRect(3, 3, 378, 250);
   return new THREE.CanvasTexture(c);
@@ -2908,7 +2910,7 @@ function buildWebDisc(R, nr, ns, op) {
   return { grp, mat, dispose: () => { geos.forEach(g => g.dispose()); mat.dispose(); } };
 }
 // ===== Expresiones procedurales: el juego encuentra ojos y boca en la cara de la skin y los redibuja =====
-function copyCanvas(src) { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); return c; }
+function copyCanvas(src) { const c = document.createElement('canvas'); c.width = src.width; c.height = src.height; c.getContext('2d', { willReadFrequently: true }).drawImage(src, 0, 0); return c; }
 // Lee la cara combinando la capa base con la del sombrero (muchas skins dibujan ojos o anteojos ahí).
 // Busca dos ojos simétricos; si no está segura, no toca los ojos (solo la boca, si la zona es piel).
 function analyzeFace(base, hat) {
@@ -3319,7 +3321,7 @@ async function feGifFrames(file) {
   await dec.tracks.ready; const n = Math.min(dec.tracks.selectedTrack.frameCount, 48), frames = [], delays = [];
   for (let i = 0; i < n; i++) {
     const { image } = await dec.decode({ frameIndex: i }), c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d'); g.drawImage(image, 0, 0, 64, 64); frames.push(c.toDataURL('image/png')); delays.push(Math.max(40, Math.round((image.duration || 80000) / 1000))); image.close();
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(image, 0, 0, 64, 64); frames.push(c.toDataURL('image/png')); delays.push(Math.max(40, Math.round((image.duration || 80000) / 1000))); image.close();
   }
   return n > 1 ? { frames, delays } : null;
 }
@@ -3432,7 +3434,7 @@ function feImportPNG(file) {
   rd.onload = () => {
     const im = new Image();
     im.onload = () => {
-      const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(im, 0, 0, 8, 8);
+      const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; g.drawImage(im, 0, 0, 8, 8);
       const d = g.getImageData(0, 0, 8, 8).data, lib = feLib(), ex = feExpr(), nm = lib.exprs.find(e => e.id === 'normal'), grid = [];
       for (let y = 0; y < 8; y++) {
         let row = '';
@@ -3505,7 +3507,7 @@ function feInit() {
       im.onload = () => {
         // se reduce a 128 px como máximo para que el guardado sea liviano; la imagen se pega con filtro de píxeles
         const k = Math.min(1, 128 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
-        const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, c.width, c.height);
         feExpr().img = { kind: 'data', src: c.toDataURL('image/png'), hideEyes: true, fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('Imagen puesta');
       };
       im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
@@ -4806,7 +4808,7 @@ function sparkLines(p, col, n = 6, len = 1.6, sc = scene) {
 }
 // grietas en el piso para golpes grandes
 const CRACK_TEX = (() => {
-  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d', { willReadFrequently: true });
   g.strokeStyle = 'rgba(20,14,8,.9)'; g.lineCap = 'round';
   for (let i = 0; i < 11; i++) {
     let a = i / 11 * TAU + rand(-.2, .2), r = 6, x = 64, y = 64; g.lineWidth = 4;
@@ -4824,7 +4826,7 @@ function crackDecal(p, r) {
 }
 // aura de despertar estilo battlegrounds: llamas verticales del color del personaje
 const AURA_TEX = (() => {
-  const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d');
+  const c = document.createElement('canvas'); c.width = 64; c.height = 128; const g = c.getContext('2d', { willReadFrequently: true });
   for (let x = 0; x < 64; x++) {
     const h = 40 + Math.sin(x * .45) * 18 + Math.sin(x * 1.3) * 10 + Math.random() * 18;
     const gr = g.createLinearGradient(0, 128, 0, 128 - h * 1.4); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(.5, 'rgba(255,255,255,.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -5203,7 +5205,10 @@ function initAudio() {
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     } catch (e) { AC = null; }
   }
-  if (AC && (AC.state === 'suspended' || AC.state === 'interrupted')) AC.resume().catch(()=>{});
+  if (AC && (AC.state === 'suspended' || AC.state === 'interrupted')) {
+    const resumeOnGesture = () => { if (AC && AC.state === 'suspended') AC.resume().catch(()=>{}); };
+    ['pointerdown','keydown','touchstart'].forEach(ev => window.addEventListener(ev, resumeOnGesture, { once: true, passive: true }));
+  }
   if (AC) loadSounds();
 }
 function spatialPan(pos){
@@ -10356,7 +10361,7 @@ async function netShareProfile() {
         const img = new Image(); img.onload = () => {
           try {
             const c = document.createElement('canvas'); c.width = 600; c.height = 172;
-            const g = c.getContext('2d'), s = Math.max(c.width / img.width, c.height / img.height);
+            const g = c.getContext('2d', { willReadFrequently: true }), s = Math.max(c.width / img.width, c.height / img.height);
             g.drawImage(img, (c.width - img.width * s) / 2, (c.height - img.height * s) / 2, img.width * s, img.height * s);
             let d = ''; for (const q of [.75, .55, .35, .2]) { d = c.toDataURL('image/jpeg', q); if (d.length <= PROFILE_IMAGE_MAX) break; }
             resolve(d.length <= PROFILE_IMAGE_MAX ? d : '');
@@ -10574,7 +10579,7 @@ try {
     try { if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { const pr = renderer.getPixelRatio(); rt = new THREE.WebGLMultisampleRenderTarget(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr), { format: THREE.RGBAFormat }); rt.samples = 0; } } catch (e) { rt = null; }
     composer = rt ? new THREE.EffectComposer(renderer, rt) : new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .38, .36, .62);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .24, .28, .86);
     composer.addPass(renderPass); composer.addPass(bloomPass);
     if (THREE.ShaderPass) {
       caPass = new THREE.ShaderPass({
@@ -10600,17 +10605,17 @@ try {
           void main(){
             vec3 c = texture2D(tDiffuse, vUv).rgb;
             float l = dot(c, vec3(.299, .587, .114));
-            // Sombras azuladas cómic e iluminación cálida anime
-            c = mix(c * vec3(.88, .94, 1.12), c * vec3(1.10, 1.04, .92), smoothstep(.18, .78, l));
+            // Sombras azuladas cómic e iluminación suave anime (sin sobreexponer)
+            c = mix(c * vec3(.92, .96, 1.08), c * vec3(1.05, 1.02, .96), smoothstep(.22, .82, l));
             c = clamp(c, 0., 1.);
-            // Curva S cinematográfica para contraste nítido anime
-            c = mix(c, c * c * (3.0 - 2.0 * c), 0.22);
-            // Saturación vibrante
+            // Curva S suave para contraste cel-shaded limpio
+            c = mix(c, c * c * (3.0 - 2.0 * c), 0.12);
+            // Saturación natural vibrante
             float g = dot(c, vec3(.299, .587, .114));
-            c = mix(vec3(g), c, 1.25);
-            // Viñeta suave en las esquinas
+            c = mix(vec3(g), c, 1.12);
+            // Viñeta suave
             vec2 d = (vUv - .5) * vec2(1.12, 1.);
-            c *= 1. - smoothstep(.40, .98, length(d)) * .22;
+            c *= 1. - smoothstep(.42, .98, length(d)) * .18;
             gl_FragColor = vec4(c, 1.);
           }`,
       });
@@ -10691,13 +10696,13 @@ function gfxApply(save = true) {
   if (bloomPass) {
     bloomPass.enabled = wantPost;
     if (GFX_CFG.bloom === 'anime') {
-      bloomPass.strength = 0.38;
-      bloomPass.radius = 0.36;
-      bloomPass.threshold = 0.62;
+      bloomPass.strength = 0.24;
+      bloomPass.radius = 0.28;
+      bloomPass.threshold = 0.86;
     } else if (GFX_CFG.bloom === 'subtle') {
-      bloomPass.strength = 0.18;
-      bloomPass.radius = 0.26;
-      bloomPass.threshold = 0.78;
+      bloomPass.strength = 0.12;
+      bloomPass.radius = 0.22;
+      bloomPass.threshold = 0.92;
     }
   }
   if (gradePass) gradePass.enabled = wantPost;
@@ -10957,7 +10962,7 @@ function drawLines(dt) {
 // 1. Textura y material de sombra de contacto suave (Ground Ambient Occlusion)
 const CONTACT_SHADOW_TEX = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 64;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   grad.addColorStop(0.00, 'rgba(0, 0, 0, 0.90)'); // Centro negro profundo nítido
   grad.addColorStop(0.40, 'rgba(4, 6, 14, 0.70)');
@@ -11795,7 +11800,7 @@ async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
   // si el juego se abrió desde el servidor local (server/server.js) se juega por él: más rápido y sin depender de internet
-  if (!window.claude && /^https?:$/.test(location.protocol)) {
+  if (!window.claude && /^https?:$/.test(location.protocol) && /^(localhost|127\.|\[::1\]|192\.168\.)/.test(location.hostname)) {
     try {
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1200), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
       const j = r.ok ? await r.json() : null;
@@ -12446,7 +12451,7 @@ function cleanProfileDecor(decor, stickers) {
 }
 const PROFILE_MAP_BANNERS = [['plaza','Plaza Aurora'],['beach','Playa de Sekza'],['casino','Noche de casino'],['rooftops','Azoteas'],['raincity','Ciudad bajo la lluvia'],['forestpath','Parque tranquilo'],['sunsetpier','Atardecer en el muelle'],['arcade','Arcade neón']];
 const profileText=(s,n)=>typeof s==='string'?s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').slice(0,n):'';
-function compactProfileImage(src,w,h,max){return new Promise(resolve=>{const im=new Image();im.onload=()=>{try{const c=document.createElement('canvas'),g=c.getContext('2d');for(const scale of [1,.8,.6]){c.width=Math.round(w*scale);c.height=Math.round(h*scale);const r=Math.max(c.width/im.width,c.height/im.height);g.drawImage(im,(c.width-im.width*r)/2,(c.height-im.height*r)/2,im.width*r,im.height*r);for(const q of [.75,.55,.35,.2]){const d=c.toDataURL('image/jpeg',q);if(d.length<=max)return resolve(d);}}resolve('');}catch(e){resolve('');}};im.onerror=()=>resolve('');im.src=src;});}
+function compactProfileImage(src,w,h,max){return new Promise(resolve=>{const im=new Image();im.onload=()=>{try{const c=document.createElement('canvas'),g=c.getContext('2d', { willReadFrequently: true });for(const scale of [1,.8,.6]){c.width=Math.round(w*scale);c.height=Math.round(h*scale);const r=Math.max(c.width/im.width,c.height/im.height);g.drawImage(im,(c.width-im.width*r)/2,(c.height-im.height*r)/2,im.width*r,im.height*r);for(const q of [.75,.55,.35,.2]){const d=c.toDataURL('image/jpeg',q);if(d.length<=max)return resolve(d);}}resolve('');}catch(e){resolve('');}};im.onerror=()=>resolve('');im.src=src;});}
 function cleanCosmetics(p={}) {
   const result = {bio:profileText(p.bio,240),pronouns:profileText(p.pronouns,32),status:profileText(p.status,80),accent:/^#[\da-f]{6}$/i.test(p.accent||'')?p.accent:'#a5a0ff',theme:PROFILE_THEMES.some(x=>x[0]===p.theme)?p.theme:'midnight',aura:PROFILE_AURAS.some(x=>x[0]===p.aura)?p.aura:'none',stickers:Array.isArray(p.stickers)?[...new Set(p.stickers.filter(x=>Object.hasOwn(PROFILE_STICKERS,x)))].slice(0,6):[]};
   const decor = cleanProfileDecor(p.decor, result.stickers);
@@ -12545,7 +12550,7 @@ function decorateProfile(container,p,editDecal){
   if(c.bio){const label=document.createElement('h4');label.textContent='SOBRE MÍ';const bio=document.createElement('p');bio.className='profile-bio';bio.textContent=c.bio;area.append(label,bio);}
 }
 function drawMapBanner(id,w,h){
-  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');let seed=91;const rn=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d', { willReadFrequently: true });let seed=91;const rn=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
   const night=['casino','raincity','arcade','rooftops'].includes(id),sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,night?'#0b1030':id==='sunsetpier'?'#ff875f':'#68baee');sky.addColorStop(1,night?'#454485':id==='sunsetpier'?'#ffcf94':'#ddf4ff');g.fillStyle=sky;g.fillRect(0,0,w,h);
   if(night){g.fillStyle='#eaf5ff';for(let i=0;i<60;i++)g.fillRect(rn()*w,rn()*h*.65,1.5,1.5);g.beginPath();g.arc(w*.8,h*.2,h*.075,0,7);g.fill();}
   if(id==='beach'||id==='sunsetpier'){
@@ -12566,7 +12571,7 @@ function drawMapBanner(id,w,h){
   g.fillStyle='#08142755';g.fillRect(0,0,w,h);return c;
 }
 async function uploadProfileAvatar(){
-  const f=document.createElement('input');f.type='file';f.accept='image/png,image/jpeg,image/webp';f.onchange=()=>{const file=f.files[0];if(!file)return;if(file.size>8*1024*1024)return acctMsg('La imagen debe pesar menos de 8 MB.');const im=new Image(),url=URL.createObjectURL(file);im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),r=Math.max(128/im.width,128/im.height);g.fillStyle='#181b2c';g.fillRect(0,0,128,128);g.drawImage(im,(128-im.width*r)/2,(128-im.height*r)/2,im.width*r,im.height*r);let d='';for(const q of [.8,.6,.4,.2]){d=c.toDataURL('image/jpeg',q);if(d.length<=14000)break;}if(d.length>14000)return acctMsg('No se pudo ajustar esta imagen.');localStorage.setItem(cosmeticKey()+'_avatar',d);acctPaint();acctCustomize();netShareProfile();socialSaveProfile();}catch(e){acctMsg('No se pudo guardar la foto.');}finally{URL.revokeObjectURL(url);}};im.onerror=()=>{URL.revokeObjectURL(url);acctMsg('No se pudo leer esa imagen.');};im.src=url;};f.click();
+  const f=document.createElement('input');f.type='file';f.accept='image/png,image/jpeg,image/webp';f.onchange=()=>{const file=f.files[0];if(!file)return;if(file.size>8*1024*1024)return acctMsg('La imagen debe pesar menos de 8 MB.');const im=new Image(),url=URL.createObjectURL(file);im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d', { willReadFrequently: true }),r=Math.max(128/im.width,128/im.height);g.fillStyle='#181b2c';g.fillRect(0,0,128,128);g.drawImage(im,(128-im.width*r)/2,(128-im.height*r)/2,im.width*r,im.height*r);let d='';for(const q of [.8,.6,.4,.2]){d=c.toDataURL('image/jpeg',q);if(d.length<=14000)break;}if(d.length>14000)return acctMsg('No se pudo ajustar esta imagen.');localStorage.setItem(cosmeticKey()+'_avatar',d);acctPaint();acctCustomize();netShareProfile();socialSaveProfile();}catch(e){acctMsg('No se pudo guardar la foto.');}finally{URL.revokeObjectURL(url);}};im.onerror=()=>{URL.revokeObjectURL(url);acctMsg('No se pudo leer esa imagen.');};im.src=url;};f.click();
 }
 let profileEditDraft=null;
 function acctCustomize(){
@@ -12695,7 +12700,7 @@ BANNERS.push(...PROFILE_MAP_BANNERS.map(([id,n])=>['map_'+id,n]));
 const BN_CACHE = {};
 function bannerDraw(id, w = 900, h = 256) {
   if(id.startsWith('map_'))return drawMapBanner(id.slice(4),w,h);
-  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'), L = (a, b) => { const r = g.createLinearGradient(0, 0, 0, h); r.addColorStop(0, a); r.addColorStop(1, b); return r; };
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true }), L = (a, b) => { const r = g.createLinearGradient(0, 0, 0, h); r.addColorStop(0, a); r.addColorStop(1, b); return r; };
   let seed = 7; const rn = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   if (id.startsWith('char:')) {
     const ch = CHARS[id.slice(5)] || CHARS.javi, gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#0c0e18'); gr.addColorStop(.55, ch.color); gr.addColorStop(1, '#0c0e18'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
@@ -12749,7 +12754,7 @@ function acctBannerPick() {
     f.onchange = () => {
       const file = f.files[0]; if (!file) return; if (file.size > 8 * 1024 * 1024) return acctMsg('La imagen pesa demasiado (máximo 8 MB).');
       const img = new Image(); img.onload = () => {
-        const W = 1000, H = 286, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), r = Math.max(W / img.width, H / img.height), w = img.width * r, h = img.height * r;
+        const W = 1000, H = 286, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d', { willReadFrequently: true }), r = Math.max(W / img.width, H / img.height), w = img.width * r, h = img.height * r;
         g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h); bannerSet({ k: 'img', d: c.toDataURL('image/jpeg', .82) }); URL.revokeObjectURL(img.src); acctBannerPick(); acctMsg('Banner cambiado.', true);
       }; img.onerror = () => acctMsg('No se pudo leer esa imagen.'); img.src = URL.createObjectURL(file);
     }; f.click();
@@ -14358,7 +14363,7 @@ edLoadSaved();
 @media(max-width:900px){#menu{grid-template-columns:1fr}#tab-sel{grid-column:1;grid-row:2;max-width:none}#roster{grid-column:1;grid-row:3;max-height:42vh}#play{grid-column:1;grid-row:4;writing-mode:horizontal-tb;clip-path:none;padding:12px 24px;margin:0}}
 `; document.head.appendChild(st); })();
 function bustPortrait(skin) {
-  const c = document.createElement('canvas'); c.width = 16; c.height = 12; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const c = document.createElement('canvas'); c.width = 16; c.height = 12; const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false;
   g.drawImage(skin, 20, 20, 8, 4, 4, 8, 8, 4); g.drawImage(skin, 44, 20, 4, 4, 0, 8, 4, 4); g.drawImage(skin, 36, Math.min(52, skin.height - 12), 4, 4, 12, 8, 4, 4);
   g.drawImage(skin, 8, 8, 8, 8, 4, 0, 8, 8); g.drawImage(skin, 40, 8, 8, 8, 4, 0, 8, 8); c.classList.add('px'); return c;
 }
@@ -15062,7 +15067,7 @@ function titleSekzaEnd() {
   TITLE.sek = null; TITLE.nextSek = TITLE.t + 48;
 }
 function bangSprite() {
-  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.lineJoin = 'round';
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d', { willReadFrequently: true }); g.lineJoin = 'round';
   g.font = '900 120px Impact,Arial Black,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.lineWidth = 16; g.strokeStyle = '#000'; g.strokeText('!', 64, 66); g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeText('!', 64, 66); g.fillStyle = '#ff2d4a'; g.fillText('!', 64, 66);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false })); sp.renderOrder = 30; sp.visible = false; return sp;
@@ -15463,7 +15468,7 @@ try { MM.on = localStorage.getItem('bsb_minimap') !== '0'; } catch (e) { }
 }
 const mmX = (x, W) => ((x - MM.cx) / MM.half * .5 + .5) * W, mmZ = (z, W) => ((z - MM.cz) / MM.half * .5 + .5) * W;
 function mmBackground(W) {
-  const c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d'), k = W / (2 * MM.half);
+  const c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d', { willReadFrequently: true }), k = W / (2 * MM.half);
   g.fillStyle = '#365a3c'; g.fillRect(0, 0, W, W);
   // mar y arena (al sur, z positivo)
   for (let px = 0; px < W; px++) {
@@ -15696,7 +15701,7 @@ function guideStage(on) {
   if (on && !GS.stage) {
     const cv = document.createElement('canvas'); cv.width = 8; cv.height = 256; const g = cv.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256);
     gr.addColorStop(0, '#0a0e1c'); gr.addColorStop(.55, '#1d2b4d'); gr.addColorStop(.8, '#3a4f7e'); gr.addColorStop(1, '#8aa0c8'); g.fillStyle = gr; g.fillRect(0, 0, 8, 256);
-    const gc = document.createElement('canvas'); gc.width = gc.height = 256; const q = gc.getContext('2d'); q.fillStyle = '#242c40'; q.fillRect(0, 0, 256, 256);
+    const gc = document.createElement('canvas'); gc.width = gc.height = 256; const q = gc.getContext('2d', { willReadFrequently: true }); q.fillStyle = '#242c40'; q.fillRect(0, 0, 256, 256);
     q.strokeStyle = '#33405e'; q.lineWidth = 3; for (let i = 0; i <= 256; i += 64) { q.beginPath(); q.moveTo(i, 0); q.lineTo(i, 256); q.moveTo(0, i); q.lineTo(256, i); q.stroke(); }
     const ft = new THREE.CanvasTexture(gc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(10, 10);
     const grp = new THREE.Group(); grp.position.set(0, GS_Y, 0);
