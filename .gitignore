@@ -3,6 +3,7 @@ tests/artifacts/
 CLAVE_DUENO.txt
 *.zip
 .npm-cache/
+CalFight-App/
 
 .firebase/
 *-debug.log
