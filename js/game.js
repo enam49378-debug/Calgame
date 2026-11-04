@@ -32,17 +32,39 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // gradación final: más color y contraste, menos apagado
 $('wrap').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const SKY = 0xa8d5ff;
+const SKY = 0x5da8ea;
 scene.background = new THREE.Color(SKY);
-scene.fog = new THREE.Fog(SKY, 70, 210);
+scene.fog = new THREE.Fog(0x82bcf2, 80, 240);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 400);
-scene.add(new THREE.HemisphereLight(0xeaf4ff, 0x3d506d, 0.88));
-const sun = new THREE.DirectionalLight(0xfff2d4, 0.95);
+
+// Luz hemisférica vibrante: cielo azul anime + rebote dorado del suelo
+scene.add(new THREE.HemisphereLight(0x9fd5ff, 0x5a4836, 1.08));
+const sun = new THREE.DirectionalLight(0xfffae8, 1.25);
 sun.position.set(30, 55, 18); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(1024, 1024);
 Object.assign(sun.shadow.camera, { left: -78, right: 78, top: 78, bottom: -78, far: 260 });
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = .025;
 scene.add(sun, sun.target);
+
+// Cúpula celeste anime con gradiente vertical (Zenit índigo Shinkai -> Horizonte cálido)
+const ANIME_SKY_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 512;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 512);
+  gr.addColorStop(0.00, '#153c78'); // Zenit: índigo profundo
+  gr.addColorStop(0.32, '#2872cb'); // Cielo superior: azul anime vibrante
+  gr.addColorStop(0.65, '#56a2e6'); // Medio cielo: celeste luminoso
+  gr.addColorStop(0.86, '#94cef6'); // Atmósfera baja
+  gr.addColorStop(1.00, '#ffd8b5'); // Resplandor dorado de horizonte
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 512);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  return t;
+})();
+const skyGeo = new THREE.SphereGeometry(380, 32, 16);
+const skyMat = new THREE.MeshBasicMaterial({ map: ANIME_SKY_TEX, side: THREE.BackSide, depthWrite: false, fog: false });
+const skyDome = new THREE.Mesh(skyGeo, skyMat);
+scene.add(skyDome);
 
 // ================= Texturas =================
 function noiseRect(g, x, y, w, h, col, amt = 16) {
@@ -61,12 +83,56 @@ function pixTex(w, h, draw) {
   return t;
 }
 const BLOCK_TEX = {
-  grass: pixTex(16, 16, g => { noiseRect(g, 0, 0, 16, 16, '#52af32', 30); g.fillStyle = 'rgba(25,75,18,.35)'; for (let i = 0; i < 18; i++) g.fillRect(Math.random() * 16 | 0, Math.random() * 16 | 0, 1, 1); g.fillStyle = '#7de853'; for (let i = 0; i < 8; i++) g.fillRect(Math.random() * 16 | 0, Math.random() * 16 | 0, 1, 1); }),
-  cobble: pixTex(16, 16, g => { noiseRect(g, 0, 0, 16, 16, '#727e8a', 28); g.fillStyle = '#3c4652'; for (let i = 0; i < 26; i++) g.fillRect(Math.random() * 16 | 0, Math.random() * 16 | 0, Math.random() < .5 ? 2 : 1, 1); g.fillStyle = '#a6b4c4'; for (let i = 0; i < 14; i++) g.fillRect(Math.random() * 16 | 0, Math.random() * 16 | 0, 1, 1); }),
-  brick: pixTex(16, 16, g => { noiseRect(g, 0, 0, 16, 16, '#987a70', 18); g.fillStyle = '#54413b'; g.fillRect(0, 7, 16, 1); g.fillRect(0, 15, 16, 1); g.fillRect(7, 0, 1, 7); g.fillRect(15, 8, 1, 7); g.fillStyle = '#bca197'; g.fillRect(0, 0, 7, 1); g.fillRect(8, 8, 7, 1); }),
-  log: pixTex(16, 16, g => { noiseRect(g, 0, 0, 16, 16, '#6b4f2c', 18); g.fillStyle = '#4a3519'; for (let x = 1; x < 16; x += 3) g.fillRect(x, 0, 1, 16); }),
-  leaves: pixTex(16, 16, g => { noiseRect(g, 0, 0, 16, 16, '#38a82c', 36); g.fillStyle = '#1c6314'; for (let i = 0; i < 30; i++) g.fillRect(Math.random() * 16 | 0, Math.random() * 16 | 0, 1, 1); g.fillStyle = '#65d957'; for (let i = 0; i < 12; i++) g.fillRect(Math.random() * 16 | 0, Math.random() * 16 | 0, 1, 1); }),
-  plank: pixTex(16, 16, g => { noiseRect(g, 0, 0, 16, 16, '#b08b54', 16); g.fillStyle = '#75542b'; [3, 7, 11, 15].forEach(y => g.fillRect(0, y, 16, 1)); g.fillRect(8, 0, 1, 3); g.fillRect(3, 4, 1, 3); g.fillRect(12, 8, 1, 3); }),
+  // Pasto estilo anime Ghibli / BotW: base esmeralda con motas lima luminosas
+  grass: pixTex(16, 16, g => {
+    g.fillStyle = '#42c050'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#2d913a';
+    for (let i = 0; i < 14; i++) g.fillRect((i * 5) % 16, (i * 7) % 16, 2, 2);
+    g.fillStyle = '#6eed75';
+    for (let i = 0; i < 8; i++) g.fillRect((i * 9 + 3) % 16, (i * 11 + 2) % 16, 1, 2);
+  }),
+  // Adoquines de anime: piedras redondeadas con juntas limpias y bisel
+  cobble: pixTex(16, 16, g => {
+    g.fillStyle = '#8291a2'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#515e6e'; // juntas oscuras
+    g.strokeRect(0.5, 0.5, 7, 7); g.strokeRect(8.5, 0.5, 7, 7);
+    g.strokeRect(4.5, 8.5, 7, 7);
+    g.fillStyle = '#a9b8cc'; // brillos superiores
+    g.fillRect(1, 1, 6, 1); g.fillRect(9, 1, 6, 1); g.fillRect(5, 9, 6, 1);
+  }),
+  // Ladrillos cálidos estilizados
+  brick: pixTex(16, 16, g => {
+    g.fillStyle = '#bf6a54'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#773426'; // líneas de cemento
+    g.fillRect(0, 7, 16, 1); g.fillRect(0, 15, 16, 1);
+    g.fillRect(7, 0, 1, 7); g.fillRect(15, 8, 1, 7);
+    g.fillStyle = '#db8974'; // resplandor superior
+    g.fillRect(0, 1, 7, 1); g.fillRect(8, 9, 7, 1);
+  }),
+  // Madera anime cálida
+  log: pixTex(16, 16, g => {
+    g.fillStyle = '#84572e'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#593414';
+    for (let x = 0; x < 16; x += 4) g.fillRect(x, 0, 1, 16);
+    g.fillStyle = '#a57342';
+    for (let x = 1; x < 16; x += 4) g.fillRect(x, 0, 1, 16);
+  }),
+  // Hojas de árbol anime
+  leaves: pixTex(16, 16, g => {
+    g.fillStyle = '#3ab84e'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#217d33';
+    for (let i = 0; i < 20; i++) g.fillRect((i * 7) % 16, (i * 11) % 16, 2, 2);
+    g.fillStyle = '#6ef07d';
+    for (let i = 0; i < 10; i++) g.fillRect((i * 13 + 1) % 16, (i * 9 + 4) % 16, 2, 1);
+  }),
+  // Tablones limpios
+  plank: pixTex(16, 16, g => {
+    g.fillStyle = '#c79c5c'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#855e2d';
+    [3, 7, 11, 15].forEach(y => g.fillRect(0, y, 16, 1));
+    g.fillStyle = '#e5be82';
+    [0, 4, 8, 12].forEach(y => g.fillRect(0, y, 16, 1));
+  }),
 };
 
 // Sombreado por bandas y color con más saturación, también cuando se desactiva el posprocesado.
@@ -10401,7 +10467,7 @@ try {
     try { if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { const pr = renderer.getPixelRatio(); rt = new THREE.WebGLMultisampleRenderTarget(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr), { format: THREE.RGBAFormat }); rt.samples = 0; } } catch (e) { rt = null; }
     composer = rt ? new THREE.EffectComposer(renderer, rt) : new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .11, .32, .98);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .38, .36, .62);
     composer.addPass(renderPass); composer.addPass(bloomPass);
     if (THREE.ShaderPass) {
       caPass = new THREE.ShaderPass({
@@ -10427,10 +10493,17 @@ try {
           void main(){
             vec3 c = texture2D(tDiffuse, vUv).rgb;
             float l = dot(c, vec3(.299, .587, .114));
-            c = mix(c * vec3(.93, .98, 1.08), c * vec3(1.05, 1.01, .94), smoothstep(.25, .85, l));
-            c=clamp(c,0.,1.);c=mix(c,c*c*(3.-2.*c),.1);
-            float g = dot(c, vec3(.299, .587, .114)); c = mix(vec3(g), c, 1.08);
-            vec2 d = (vUv - .5) * vec2(1.1, 1.); c *= 1. - smoothstep(.36, .98, length(d)) * .26;
+            // Sombras azuladas cómic e iluminación cálida anime
+            c = mix(c * vec3(.88, .94, 1.12), c * vec3(1.10, 1.04, .92), smoothstep(.18, .78, l));
+            c = clamp(c, 0., 1.);
+            // Curva S cinematográfica para contraste nítido anime
+            c = mix(c, c * c * (3.0 - 2.0 * c), 0.22);
+            // Saturación vibrante
+            float g = dot(c, vec3(.299, .587, .114));
+            c = mix(vec3(g), c, 1.25);
+            // Viñeta suave en las esquinas
+            vec2 d = (vUv - .5) * vec2(1.12, 1.);
+            c *= 1. - smoothstep(.40, .98, length(d)) * .22;
             gl_FragColor = vec4(c, 1.);
           }`,
       });
@@ -10490,7 +10563,8 @@ function gfxSave() {
 
 function gfxApply(save = true) {
   GFX_LIMIT.fps = Number(GFX_CFG.fpsLimit) || 0;
-  GFX_LIMIT.minDt = GFX_LIMIT.fps > 0 ? (1000 / GFX_LIMIT.fps) : 0;
+  // Si es 0 (ilimitado) o 200 FPS (pantallas de 200 Hz), minDt=0 para permitir rendimiento nativo a 200 Hz sin saltos
+  GFX_LIMIT.minDt = (GFX_LIMIT.fps > 0 && GFX_LIMIT.fps < 200) ? (1000 / GFX_LIMIT.fps) : 0;
   const wantShadows = GFX_CFG.shadows !== 'off';
   const wasOn = renderer.shadowMap.enabled;
   renderer.shadowMap.enabled = wantShadows;
@@ -10510,13 +10584,13 @@ function gfxApply(save = true) {
   if (bloomPass) {
     bloomPass.enabled = wantPost;
     if (GFX_CFG.bloom === 'anime') {
-      bloomPass.strength = 0.20;
-      bloomPass.radius = 0.35;
-      bloomPass.threshold = 0.80;
+      bloomPass.strength = 0.38;
+      bloomPass.radius = 0.36;
+      bloomPass.threshold = 0.62;
     } else if (GFX_CFG.bloom === 'subtle') {
-      bloomPass.strength = 0.09;
-      bloomPass.radius = 0.22;
-      bloomPass.threshold = 0.88;
+      bloomPass.strength = 0.18;
+      bloomPass.radius = 0.26;
+      bloomPass.threshold = 0.78;
     }
   }
   if (gradePass) gradePass.enabled = wantPost;
@@ -10778,10 +10852,10 @@ const CONTACT_SHADOW_TEX = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const g = c.getContext('2d');
   const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, 'rgba(8, 10, 18, 0.68)');
-  grad.addColorStop(0.35, 'rgba(10, 12, 22, 0.45)');
-  grad.addColorStop(0.75, 'rgba(12, 14, 25, 0.12)');
-  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  grad.addColorStop(0.00, 'rgba(0, 0, 0, 0.90)'); // Centro negro profundo nítido
+  grad.addColorStop(0.40, 'rgba(4, 6, 14, 0.70)');
+  grad.addColorStop(0.75, 'rgba(10, 12, 22, 0.25)');
+  grad.addColorStop(1.00, 'rgba(0, 0, 0, 0.00)');
   g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
   const t = new THREE.CanvasTexture(c);
   t.magFilter = t.minFilter = THREE.LinearFilter;
@@ -10792,32 +10866,32 @@ const CONTACT_SHADOW_MAT = new THREE.MeshBasicMaterial({
   transparent: true,
   depthWrite: false,
   polygonOffset: true,
-  polygonOffsetFactor: -1.5,
-  polygonOffsetUnits: -1.5
+  polygonOffsetFactor: -2.0,
+  polygonOffsetUnits: -2.0
 });
 
 function updateContactShadow(f) {
   if (!f || !f.pos) return;
   if (!f.contactShadow) {
-    f.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), CONTACT_SHADOW_MAT.clone());
+    f.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), CONTACT_SHADOW_MAT.clone());
     f.contactShadow.rotation.x = -Math.PI / 2;
     scene.add(f.contactShadow);
   }
-  if (!f.alive || !GFX_CFG.contactShadows || G.state !== 'play') {
+  if (!f.alive || !GFX_CFG.contactShadows || (G.state !== 'play' && G.state !== 'menu')) {
     f.contactShadow.visible = false;
     return;
   }
   const gy = groundAt(f.pos.x, f.pos.z, f.pos.y + 0.1);
   const distY = Math.max(0, f.pos.y - gy);
-  if (distY > 10) {
+  if (distY > 12) {
     f.contactShadow.visible = false;
     return;
   }
   f.contactShadow.visible = true;
-  f.contactShadow.position.set(f.pos.x, gy + 0.035, f.pos.z);
-  const scale = clamp(1.4 + distY * 0.15, 0.8, 2.4);
+  f.contactShadow.position.set(f.pos.x, gy + 0.045, f.pos.z);
+  const scale = clamp(1.5 + distY * 0.18, 0.9, 2.8);
   f.contactShadow.scale.set(scale, scale, 1);
-  f.contactShadow.material.opacity = clamp(0.7 - distY * 0.08, 0, 0.7);
+  f.contactShadow.material.opacity = clamp(0.88 - distY * 0.09, 0, 0.88);
 }
 
 // 2. Sistema de Auras de Despertar (Awakening Energy Flame Spires)
@@ -11006,7 +11080,9 @@ const SH = { scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(36, inne
   SH.rim2 = new THREE.PointLight(0xff4d4d, .55, 6); SH.rim2.position.set(0, .3, 1.2); s.add(SH.rim2);
   const plat = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.65, .2, 6), new THREE.MeshLambertMaterial({ color: 0x17181f }));
   plat.position.y = 0; plat.receiveShadow = true; s.add(plat);
-  SH.ring = new THREE.Mesh(new THREE.RingGeometry(1.55, 1.68, 6), glowMat('#ff4d4d', .9)); SH.ring.rotation.x = -Math.PI / 2; SH.ring.position.y = .11; s.add(SH.ring);
+  SH.ring = new THREE.Mesh(new THREE.RingGeometry(1.52, 1.74, 32), glowMat('#ff4d4d', 1.0)); SH.ring.rotation.x = -Math.PI / 2; SH.ring.position.y = .12; s.add(SH.ring);
+  // Anillo de energía exterior pulsante en el selector
+  SH.ring2 = new THREE.Mesh(new THREE.RingGeometry(1.82, 1.94, 32), glowMat('#4fc3ff', .7)); SH.ring2.rotation.x = -Math.PI / 2; SH.ring2.position.y = .08; s.add(SH.ring2);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshLambertMaterial({ map: pixTex(32, 32, g => { g.fillStyle = '#0c0d14'; g.fillRect(0, 0, 32, 32); g.fillStyle = '#171927'; g.fillRect(0, 0, 32, 1); g.fillRect(0, 0, 1, 32); }) }));
   floor.material.map.wrapS = floor.material.map.wrapT = THREE.RepeatWrapping; floor.material.map.repeat.set(20, 20);
   floor.rotation.x = -Math.PI / 2; floor.position.y = -.1; floor.receiveShadow = true; s.add(floor);
@@ -11044,7 +11120,7 @@ function showSelect(id, quiet) {
   if (ch.eyeLaser) addEyes(model, ch.color);
   model.root.position.set(0, 4, 0); model.root.rotation.y = .35;
   SH.drop = 0; SH.landed = false; SH.kf = null; SH.track = null; SH.camZ = quiet ? 5 : 8; SH.flourT = rand(6, 8);
-  SH.rim.color.set(ch.color); SH.rim2.color.set(ch.color); SH.ring.material.color.set(ch.color);
+  SH.rim.color.set(ch.color); SH.rim2.color.set(ch.color); SH.ring.material.color.set(ch.color); if(SH.ring2) SH.ring2.material.color.set(ch.color);
   drawBackdrop(ch);
   const menu = $('menu'); menu.style.setProperty('--c', ch.color);
   $('crole').textContent = ch.role; $('cname').textContent = ch.name.toUpperCase(); $('cname').classList.toggle('long', ch.name.length > 9); $('ctitle').textContent = ch.title.toUpperCase(); $('cdesc').textContent = ch.desc;
@@ -11109,7 +11185,7 @@ function updateShow(dt) {
   if (Math.random() < dt * 40) { const a = rand(0, TAU), r = rand(.3, 1.6); SH.parts.emit(Math.cos(a) * r, .15, Math.sin(a) * r, 0, rand(.8, 2), 0, Math.random() < .3 ? '#ffffff' : ch.color, rand(.04, .09), rand(1, 2), -.02, .3); }
   SH.parts.update(dt);
   SH.bgTex.offset.x += dt * .012;
-  SH.ring.rotation.z += dt * .4;
+  SH.ring.rotation.z += dt * .4; if(SH.ring2) SH.ring2.rotation.z -= dt * .25;
   SH.key.intensity += ((SH.faceZoom ? .5 : .95) - SH.key.intensity) * Math.min(1, dt * 4);   // de cerca la cara se quema con la luz principal
   SH.camZ += ((SH.faceZoom ? 3.1 : 5.5) - SH.camZ) * Math.min(1, dt * 3.5);
   const ox = SH.faceZoom ? (innerWidth > 820 ? .7 : 0) : (innerWidth > 820 ? 1.0 : 0);
@@ -15763,13 +15839,41 @@ function fpsTick(raw) {
     FPS.n = 0; FPS.t = 0; FPS.ms = 0;
   }
 }
+
+// ====================================================================
+// RAYOS DE SOL VOLUMÉTRICOS ANIME (God Rays dinámicos)
+// ====================================================================
+function updateGodRays() {
+  const gr = $('game-godrays');
+  if (!gr) return;
+  if (!GFX_CFG.godrays || G.state !== 'play' || (G.cine && G.cine.shot === 1) || (typeof WX !== 'undefined' && WX.cloud > 0.65)) {
+    gr.style.opacity = '0';
+    return;
+  }
+  const camFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const sunPos = sun.position.clone().normalize();
+  const dot = camFwd.dot(sunPos);
+  if (dot > -0.25) {
+    const sv = sunPos.clone().multiplyScalar(150).project(camera);
+    const sx = clamp((sv.x * 0.5 + 0.5) * 100, 5, 95);
+    const sy = clamp((-sv.y * 0.5 + 0.5) * 100, -25, 45);
+    gr.style.setProperty('--sx', sx.toFixed(1) + '%');
+    gr.style.setProperty('--sy', sy.toFixed(1) + '%');
+    const alpha = clamp((dot + 0.25) / 0.85, 0, 1) * 0.70;
+    gr.style.opacity = alpha.toFixed(2);
+  } else {
+    gr.style.opacity = '0';
+  }
+}
+
 function loop(now){
   requestAnimationFrame(loop);
   if(IS_GUIDE&&GUIDE_OFF){last=Number.isFinite(now)?now:performance.now();return;}
-  if(typeof GFX_LIMIT !== 'undefined' && GFX_LIMIT.minDt > 0){
+  if (typeof GFX_LIMIT !== 'undefined' && GFX_LIMIT.minDt > 0) {
     const tNow = performance.now();
-    if(tNow - GFX_LIMIT.lastFrame < GFX_LIMIT.minDt - 0.5) return;
-    GFX_LIMIT.lastFrame = tNow;
+    const elapsed = tNow - GFX_LIMIT.lastFrame;
+    if (elapsed < GFX_LIMIT.minDt * 0.88) return;
+    GFX_LIMIT.lastFrame = tNow - (elapsed % GFX_LIMIT.minDt);
   }
   try{
   const rawDt=Number.isFinite(now)&&Number.isFinite(last)?Math.max(0,(now-last)/1000):0,rdt=Math.min(.05,rawDt);last=Number.isFinite(now)?now:performance.now();
@@ -15799,7 +15903,7 @@ function loop(now){
   }
   if(G.mp)frameTask('red',()=>guideNet(rdt));
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
-  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});
+  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});frameTask('rayos_sol',()=>updateGodRays());
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
   frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('culling',()=>cityCull());frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
