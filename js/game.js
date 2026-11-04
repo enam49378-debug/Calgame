@@ -20,6 +20,65 @@ if (IS_GUIDE) document.body.classList.add('guide-frame');
 function shade(hex, f) { const c = new THREE.Color(hex); c.lerp(new THREE.Color(f > 0 ? 0xffffff : 0x000000), Math.abs(f)); return '#' + c.getHexString(); }
 const _c = new THREE.Color();
 
+// ====================================================================
+// PANTALLA DE CARGA ANIME DINÁMICA (Web & Desktop)
+// ====================================================================
+const LOADER = {
+  el: null,
+  bar: null,
+  pct: null,
+  status: null,
+  tip: null,
+  tips: [
+    'Presiona SHIFT durante el combate para activar Shift Lock y fijar la cámara en tu rival.',
+    'Bloquea con F o botón derecho justo al recibir el ataque para ejecutar un Bloqueo Perfecto.',
+    'Alcanzar el 100% de la barra de Ulti desata el Despertar con nuevas habilidades y velocidad.',
+    'Esquiva con Dash (tecla Q o doble toque) para cancelar ataques y castigar a tu oponente.',
+    'El botón H en partida abre el Panel para cambiar la hora, el clima y entrenar con Dummies.',
+    'Puedes personalizar y desbloquear hasta 200 FPS en el menú de Ajustes Gráficos.'
+  ],
+  tipIdx: 0,
+  tipTimer: null,
+  progress: 15,
+  done: false,
+  init() {
+    this.el = $('loading-screen');
+    this.bar = $('loading-bar-fill');
+    this.pct = $('loading-pct');
+    this.status = $('loading-status');
+    this.tip = $('loading-tip');
+    if (this.tipTimer) clearInterval(this.tipTimer);
+    this.tipTimer = setInterval(() => this.nextTip(), 2500);
+    // Timeout de seguridad: nunca dejar la pantalla bloqueada
+    setTimeout(() => this.finish(), 6500);
+  },
+  setProgress(val, text) {
+    this.progress = Math.max(this.progress, Math.min(100, val));
+    if (this.bar) this.bar.style.width = this.progress.toFixed(0) + '%';
+    if (this.pct) this.pct.textContent = this.progress.toFixed(0) + '%';
+    if (text && this.status) this.status.textContent = text;
+    if (this.el) this.el.setAttribute('aria-valuenow', this.progress.toFixed(0));
+  },
+  nextTip() {
+    if (!this.tip) return;
+    this.tipIdx = (this.tipIdx + 1) % this.tips.length;
+    this.tip.innerHTML = this.tips[this.tipIdx].replace(/(SHIFT|Shift Lock|F|Bloqueo Perfecto|Ulti|Despertar|Dash|tecla Q|H|Dummies|200 FPS|Ajustes Gráficos)/g, '<b>$1</b>');
+  },
+  finish() {
+    if (this.done) return;
+    this.done = true;
+    this.setProgress(100, '¡A PELEAR!');
+    if (this.tipTimer) clearInterval(this.tipTimer);
+    setTimeout(() => {
+      if (this.el) {
+        this.el.classList.add('loader-done');
+        setTimeout(() => { if (this.el) this.el.style.display = 'none'; }, 500);
+      }
+    }, 320);
+  }
+};
+LOADER.init();
+
 // ================= Renderer y escenas =================
 const WEAK_PC = (navigator.hardwareConcurrency || 8) <= 2 || (navigator.deviceMemory || 8) <= 2, LOW_PC = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;   // equipo modesto: sin antialias y arranca con menos efectos
 let PERF_FX = 1, PERF_DEST = 1;   // multiplicadores de partículas y de destrucción según la calidad
@@ -4470,10 +4529,24 @@ const STAT_NAMES = ['VIDA', 'DAÑO', 'VELOCIDAD', 'ALCANCE', 'DIFICULTAD'];
 const SKIN_CACHE = {};
 const charSkin = id => SKIN_CACHE[id] || (SKIN_CACHE[id] = CHARS[id].skinCanvas || makeSkinCanvas(CHARS[id].skin));
 function loadCharSkins() {
-  return Promise.all(Object.keys(CHARS).filter(id => CHARS[id].skinData).map(id => new Promise(res => {
+  const ids = Object.keys(CHARS).filter(id => CHARS[id].skinData);
+  let loaded = 0;
+  LOADER.setProgress(30, 'Cargando modelos y skins de peleadores...');
+  return Promise.all(ids.map(id => new Promise(res => {
     const img = new Image();
-    img.onload = () => { const c = normalizeSkin(img); if (c) { CHARS[id].skinCanvas = c; CHARS[id].slim = detectSlim(c); } res(); };
-    img.onerror = res; img.src = CHARS[id].skinData;
+    img.onload = () => {
+      const c = normalizeSkin(img);
+      if (c) { CHARS[id].skinCanvas = c; CHARS[id].slim = detectSlim(c); }
+      loaded++;
+      LOADER.setProgress(30 + (loaded / Math.max(1, ids.length)) * 48, 'Cargando peleador ' + loaded + '/' + ids.length + '...');
+      res();
+    };
+    img.onerror = () => {
+      loaded++;
+      LOADER.setProgress(30 + (loaded / Math.max(1, ids.length)) * 48, 'Cargando peleador ' + loaded + '/' + ids.length + '...');
+      res();
+    };
+    img.src = CHARS[id].skinData;
   })));
 }
 const LVL_NAMES = ['', 'Novato', 'Novato', 'Aprendiz', 'Aprendiz', 'Peleador', 'Peleador', 'Veterano', 'Veterano', 'Maestro', 'Leyenda'];
@@ -15053,7 +15126,14 @@ function titleUpdate(dt) {
 $('tplay').addEventListener('click', e => { e.stopPropagation(); titleLeave(); });
 tmWire();
 $('tscene').addEventListener('click', e => { e.stopPropagation(); if (TITLE.lt != null) return; TITLE.idx = 1 - TITLE.idx; try { localStorage.setItem('bsb_title_idx', String(TITLE.idx)); } catch (x) { } });
-loadCharSkins().then(() => { ensureNormalAll(); renderRoster(); showSelect(G.charId, true); titleStart(); });
+loadCharSkins().then(() => {
+  LOADER.setProgress(92, 'Generando entorno y shaders cel-shaded...');
+  ensureNormalAll();
+  renderRoster();
+  showSelect(G.charId, true);
+  titleStart();
+  setTimeout(() => LOADER.finish(), 250);
+});
 if (!IS_GUIDE) netInit();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (SH.fig) drawBackdrop(SH.fig.ch); });
 try {
@@ -15914,7 +15994,9 @@ function loop(now){
   finally{drawFrameSafely();if(GS.on)guideBlit();}
 }
 
+LOADER.setProgress(22, 'Iniciando ciudad y motores...');
 buildSeaWorld();
+LOADER.setProgress(28, 'Generando texturas anime...');
 initWeatherControls();
 initPauseAudioControls();
 gfxInit();
