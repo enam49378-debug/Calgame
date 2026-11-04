@@ -776,3 +776,9 @@ html,body{overscroll-behavior:none}
 .audio-actions button{min-height:39px;padding:7px 11px;background:#252a36;color:#eef1fb;border:1px solid #ffffff33;border-radius:3px;font:700 12px var(--body)}
 .audio-actions button[aria-pressed=true]{border-color:var(--hot);color:var(--hot)}
 .audio-actions button:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+
+#game-godrays{position:fixed;inset:0;z-index:3;pointer-events:none;mix-blend-mode:screen;opacity:0;transition:opacity .25s ease;--sx:50%;--sy:35%;
+  background:repeating-conic-gradient(from 0deg at var(--sx) var(--sy),rgba(255,190,110,0) 0deg,rgba(255,210,130,.18) 2.2deg,rgba(255,190,110,0) 5.0deg,rgba(255,190,110,0) 8.5deg);
+  -webkit-mask:radial-gradient(circle at var(--sx) var(--sy),#000 0,rgba(0,0,0,.6) 35%,transparent 75%);
+  mask:radial-gradient(circle at var(--sx) var(--sy),#000 0,rgba(0,0,0,.6) 35%,transparent 75%);
+}

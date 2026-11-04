@@ -693,7 +693,11 @@ function cityGrassAt(x,z) {
           float f1=(1.-smoothstep(0.,1.2,abs(dd-(1.4+1.2*sin(uTime*.8+vWP.x*.08)))))*step(0.,dd);
           float f2=(1.-smoothstep(0.,.8,abs(dd-(4.2+1.4*sin(uTime*.6+vWP.x*.05+2.)))))*step(0.,dd)*.55;
           float foam=clamp(f1+f2,0.,1.)*(.55+.45*spk);
-          diffuseColor.rgb=mix(wc,vec3(1.),foam*.85);diffuseColor.a=mix(.55,.97,smoothstep(0.,16.,dd));`)
+          // destellos anime (diamond glints) en la cresta de las olas
+          float glint=pow(max(0.,dot(reflect(-normalize(vViewPosition),normal),uSunV)),50.);
+          float sparkle=step(0.82,glint)*spk*uSunK;
+          diffuseColor.rgb=mix(wc,vec3(1.),foam*.88)+uSunC*sparkle*1.2;
+          diffuseColor.a=mix(.55,.97,smoothstep(0.,16.,dd));`)
         .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nvec2 wg=vec2(cos(vWP.x*.9+uTime*1.7)*.9+cos((vWP.x+vWP.z)*.35-uTime*1.1)*.6+cos(vWP.x*2.3-vWP.z*1.7+uTime*2.4)*.35,-sin(vWP.z*.8+uTime*1.3)*.8+cos((vWP.z-vWP.x)*.5+uTime*.9)*.5+sin(vWP.z*2.1+vWP.x*1.4-uTime*2.1)*.35);normal=normalize(normal+(viewMatrix*vec4(wg.x,0.,wg.y,0.)).xyz*.13);')
         .replace('#include <fog_fragment>','{vec3 vd=normalize(vViewPosition);float fr=pow(1.-clamp(dot(vd,normal),0.,1.),3.);gl_FragColor.rgb=mix(gl_FragColor.rgb,uSky,fr*.55);vec3 rv=reflect(-vd,normal);float gl=pow(max(dot(rv,uSunV),0.),90.);gl_FragColor.rgb+=uSunC*(gl*.9+pow(max(dot(rv,uSunV),0.),12.)*.12)*uSunK;}\n#include <fog_fragment>');
     };
@@ -5517,6 +5521,8 @@ function applyHit(att, t, o) {
   const heavy = ragdoll > 0 || o.dmg >= 8;
   burst(chest, heavy ? 22 : 9, col, heavy ? 11 : 6, heavy ? .22 : .14, heavy ? .5 : .3, .5);
   burst(chest, heavy ? 10 : 4, '#ffffff', heavy ? 9 : 5, .1, .25, .3);
+  ringAt(chest, '#ffffff', heavy ? 2.8 : 1.6, heavy ? .28 : .18, 'face', Math.atan2(dir.x, dir.z));
+  if (heavy && t.onGround) animeDustRing(t.pos, 10, 2.0);
   impactStar(chest.clone().addScaledVector(dir, -.3), heavy ? col : '#ffffff', heavy ? 2.4 : 1.2, heavy ? .26 : .16);
   if (heavy) ringAt(chest, col, 2.4, .35, 'face', Math.atan2(dir.x, dir.z));
   sparkLines(chest, col, heavy ? 9 : 4, heavy ? 2.2 : 1.2);
@@ -9682,7 +9688,7 @@ function applyCtl(f, c, dt) {
   sekzaFlightControl(f,c,dt);
   if (f.ch.wings && f.awak > 0 && c.jump && !f.onGround && f.vel.y < -2.2 && !a) f.vel.y = -2.2;
   if (c.jump && f.onGround && !a && !f.blocking) { f.vel.y = 11.5; f.onGround = false; f.dashAnimT = 0; sfx('jump', f.pos); f.anim.v.by -= 30; javiSpeak(f, 'ev_jump'); }
-  if (c.dash && f.dashCd <= 0 && !a && (f.onGround || f.airDash)) {
+  if (c.dash && f.dashCd <= 0 && !a && (f.onGround || f.airDash)) { animeDashSmoke(f);
     let dx = c.mx, dz = c.mz; if (!dx && !dz) { const F = fwd(f.isPlayer ? cam.yaw : f.yaw); dx = F.x; dz = F.z; }
     f.vel.x = dx * 25; f.vel.z = dz * 25; if (!f.onGround) { f.airDash = false; f.vel.y = Math.max(f.vel.y, 2); }
     const tgt = !f.isPlayer && f.ai && f.ai.target && f.ai.target.alive ? f.ai.target : null;
@@ -9886,7 +9892,7 @@ function physics(f, dt) {
       for (const j of ['alx', 'arx', 'llx', 'lrx', 'hx', 'tx']) f.anim.v[j] += rand(-22, 22);
     }
     else {
-      if (!f.onGround && f.alive && vy < -9 && f.ragdoll <= 0) { f.landHard = !!bbSet(f.ch.id) && vy < -16; f.landT = f.landHard ? .5 : .14; javiSpeak(f, 'ev_land'); f.anim.v.by -= 25; if (vy < -16) burst(new V3(f.pos.x, gy + .1, f.pos.z), 6, '#d8d0c0', 3, .15, .35); if (f.ch === CHARS.javi) { ringAt(new V3(f.pos.x, gy + .05, f.pos.z), '#e6dfcf', 1 + Math.min(1.4, -vy / 20), .3); burst(new V3(f.pos.x, gy + .15, f.pos.z), 10, '#d8d0c0', 4, .16, .4, .3, 1); } }
+      if (!f.onGround && f.alive && vy < -5 && f.ragdoll <= 0) { animeDustRing(f.pos, 12, clamp(-vy * .18, 1.2, 3.0)); f.landHard = !!bbSet(f.ch.id) && vy < -16; f.landT = f.landHard ? .5 : .14; javiSpeak(f, 'ev_land'); f.anim.v.by -= 25; if (vy < -16) burst(new V3(f.pos.x, gy + .1, f.pos.z), 6, '#d8d0c0', 3, .15, .35); if (f.ch === CHARS.javi) { ringAt(new V3(f.pos.x, gy + .05, f.pos.z), '#e6dfcf', 1 + Math.min(1.4, -vy / 20), .3); burst(new V3(f.pos.x, gy + .15, f.pos.z), 10, '#d8d0c0', 4, .16, .4, .3, 1); } }
       f.vel.y = 0; f.onGround = true; f.airDash = true;
     }
   } else f.onGround = f.pos.y - gy < .02;
@@ -10453,7 +10459,11 @@ const GFX_CFG = {
   bloom: "anime",
   scale: 1.0,
   outlines: true,
-  speedlines: true
+  speedlines: true,
+  godrays: true,
+  auras: true,
+  dust: true,
+  contactShadows: true
 };
 const GFX = { level: 0, auto: true, post: true, names: ['Alta', 'Media', 'Baja', 'Mínima', 'Ultra baja'], acc: 0, frames: 0, bad: 0, good: 0, best: 0, cool: 6, soft: false, fps: 60 };
 
@@ -10465,6 +10475,10 @@ function gfxSyncUI() {
   const sc = $('gfx-scale'); if (sc) sc.value = String(GFX_CFG.scale);
   const ol = $('gfx-outlines'); if (ol) ol.checked = !!GFX_CFG.outlines;
   const sl = $('gfx-speedlines'); if (sl) sl.checked = !!GFX_CFG.speedlines;
+  const gr = $('gfx-godrays'); if (gr) gr.checked = !!GFX_CFG.godrays;
+  const au = $('gfx-auras'); if (au) au.checked = !!GFX_CFG.auras;
+  const du = $('gfx-dust'); if (du) du.checked = !!GFX_CFG.dust;
+  const cs = $('gfx-cshadows'); if (cs) cs.checked = !!GFX_CFG.contactShadows;
 }
 
 function gfxSave() {
@@ -10534,6 +10548,10 @@ function gfxApplyPreset(level, isAuto = false, save = true) {
     GFX_CFG.scale = 1.0;
     GFX_CFG.outlines = true;
     GFX_CFG.speedlines = true;
+    GFX_CFG.godrays = true;
+    GFX_CFG.auras = true;
+    GFX_CFG.dust = true;
+    GFX_CFG.contactShadows = true;
   } else if (level === 1) {
     GFX_CFG.fpsLimit = 200;
     GFX_CFG.shadows = 'hard';
@@ -10541,6 +10559,10 @@ function gfxApplyPreset(level, isAuto = false, save = true) {
     GFX_CFG.scale = 1.0;
     GFX_CFG.outlines = true;
     GFX_CFG.speedlines = true;
+    GFX_CFG.godrays = true;
+    GFX_CFG.auras = true;
+    GFX_CFG.dust = true;
+    GFX_CFG.contactShadows = true;
   } else if (level === 2) {
     GFX_CFG.fpsLimit = 200;
     GFX_CFG.shadows = 'off';
@@ -10548,6 +10570,10 @@ function gfxApplyPreset(level, isAuto = false, save = true) {
     GFX_CFG.scale = 1.0;
     GFX_CFG.outlines = false;
     GFX_CFG.speedlines = true;
+    GFX_CFG.godrays = false;
+    GFX_CFG.auras = true;
+    GFX_CFG.dust = true;
+    GFX_CFG.contactShadows = true;
   } else if (level === 3) {
     GFX_CFG.fpsLimit = 0;
     GFX_CFG.shadows = 'off';
@@ -10555,6 +10581,10 @@ function gfxApplyPreset(level, isAuto = false, save = true) {
     GFX_CFG.scale = 0.85;
     GFX_CFG.outlines = false;
     GFX_CFG.speedlines = false;
+    GFX_CFG.godrays = false;
+    GFX_CFG.auras = false;
+    GFX_CFG.dust = false;
+    GFX_CFG.contactShadows = false;
   } else {
     GFX_CFG.fpsLimit = 60;
     GFX_CFG.shadows = 'off';
@@ -10562,6 +10592,10 @@ function gfxApplyPreset(level, isAuto = false, save = true) {
     GFX_CFG.scale = 0.75;
     GFX_CFG.outlines = false;
     GFX_CFG.speedlines = false;
+    GFX_CFG.godrays = false;
+    GFX_CFG.auras = false;
+    GFX_CFG.dust = false;
+    GFX_CFG.contactShadows = false;
   }
   gfxApply(save);
 }
@@ -10619,6 +10653,22 @@ function gfxInit() {
   const sl = $('gfx-speedlines');
   if (sl) sl.addEventListener('change', () => {
     GFX_CFG.speedlines = sl.checked; GFX_CFG.preset = 'custom'; GFX.auto = false; gfxApply(true);
+  });
+  const gr = $('gfx-godrays');
+  if (gr) gr.addEventListener('change', () => {
+    GFX_CFG.godrays = gr.checked; GFX_CFG.preset = 'custom'; GFX.auto = false; gfxApply(true);
+  });
+  const au = $('gfx-auras');
+  if (au) au.addEventListener('change', () => {
+    GFX_CFG.auras = au.checked; GFX_CFG.preset = 'custom'; GFX.auto = false; gfxApply(true);
+  });
+  const du = $('gfx-dust');
+  if (du) du.addEventListener('change', () => {
+    GFX_CFG.dust = du.checked; GFX_CFG.preset = 'custom'; GFX.auto = false; gfxApply(true);
+  });
+  const cs = $('gfx-cshadows');
+  if (cs) cs.addEventListener('change', () => {
+    GFX_CFG.contactShadows = cs.checked; GFX_CFG.preset = 'custom'; GFX.auto = false; gfxApply(true);
   });
   const resetBtn = $('gfx-reset');
   if (resetBtn) resetBtn.addEventListener('click', () => {
@@ -10718,6 +10768,147 @@ function drawLines(dt) {
 }
 
 // ================= Cámara =================
+
+// ====================================================================
+// MOTOR GRÁFICO ANIME: SISTEMAS DE EFECTOS AVANZADOS
+// ====================================================================
+
+// 1. Textura y material de sombra de contacto suave (Ground Ambient Occlusion)
+const CONTACT_SHADOW_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(8, 10, 18, 0.68)');
+  grad.addColorStop(0.35, 'rgba(10, 12, 22, 0.45)');
+  grad.addColorStop(0.75, 'rgba(12, 14, 25, 0.12)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.LinearFilter;
+  return t;
+})();
+const CONTACT_SHADOW_MAT = new THREE.MeshBasicMaterial({
+  map: CONTACT_SHADOW_TEX,
+  transparent: true,
+  depthWrite: false,
+  polygonOffset: true,
+  polygonOffsetFactor: -1.5,
+  polygonOffsetUnits: -1.5
+});
+
+function updateContactShadow(f) {
+  if (!f || !f.pos) return;
+  if (!f.contactShadow) {
+    f.contactShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), CONTACT_SHADOW_MAT.clone());
+    f.contactShadow.rotation.x = -Math.PI / 2;
+    scene.add(f.contactShadow);
+  }
+  if (!f.alive || !GFX_CFG.contactShadows || G.state !== 'play') {
+    f.contactShadow.visible = false;
+    return;
+  }
+  const gy = groundAt(f.pos.x, f.pos.z, f.pos.y + 0.1);
+  const distY = Math.max(0, f.pos.y - gy);
+  if (distY > 10) {
+    f.contactShadow.visible = false;
+    return;
+  }
+  f.contactShadow.visible = true;
+  f.contactShadow.position.set(f.pos.x, gy + 0.035, f.pos.z);
+  const scale = clamp(1.4 + distY * 0.15, 0.8, 2.4);
+  f.contactShadow.scale.set(scale, scale, 1);
+  f.contactShadow.material.opacity = clamp(0.7 - distY * 0.08, 0, 0.7);
+}
+
+// 2. Sistema de Auras de Despertar (Awakening Energy Flame Spires)
+const AURA_GEO = new THREE.CylinderGeometry(0.85, 1.3, 2.5, 12, 1, true);
+function updateAwakeningAura(f, dt) {
+  if (!f || !f.pos || !f.model) return;
+  const active = f.alive && f.awak > 0 && GFX_CFG.auras && G.state === 'play';
+  if (!f.awakAura && active) {
+    const col = f.ch.color || '#4fc3ff';
+    const mat = new THREE.MeshBasicMaterial({
+      color: col,
+      transparent: true,
+      opacity: 0.45,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const mesh = new THREE.Mesh(AURA_GEO, mat);
+    mesh.position.y = 1.2;
+    f.model.root.add(mesh);
+    f.awakAura = { mesh, mat, col };
+    // Explosión de activación anime
+    ringAt(f.pos, col, 4.8, 0.55);
+    sphereFlash(f.pos, col, 2.4, 0.4);
+    if (f.isPlayer) { camPunch(0.4, 1); G.shake = Math.max(G.shake, 0.35); }
+    sfx('boom', f.pos);
+  }
+  if (f.awakAura) {
+    if (!active) {
+      if (f.awakAura.mesh.parent) f.awakAura.mesh.parent.remove(f.awakAura.mesh);
+      f.awakAura.mat.dispose();
+      f.awakAura = null;
+      if (f.model && f.model.mats) f.model.mats.forEach(m => m.emissive && m.emissive.setRGB(0, 0, 0));
+      return;
+    }
+    const au = f.awakAura;
+    const t = G.time;
+    au.mesh.rotation.y += dt * 5.5;
+    const pulse = 1.0 + Math.sin(t * 14) * 0.12;
+    au.mesh.scale.set(pulse, 1.0 + Math.cos(t * 10) * 0.1, pulse);
+    au.mat.opacity = 0.38 + Math.sin(t * 12) * 0.15;
+    // Resplandor cel-shaded en los materiales del personaje
+    if (f.model.mats) {
+      const emPow = 0.35 + 0.18 * Math.sin(t * 9);
+      f.model.mats.forEach(m => { if (m.emissive) m.emissive.set(au.col).multiplyScalar(emPow); });
+    }
+    // Chispas de energía ascendentes
+    if (Math.random() < dt * 26) {
+      const a = rand(0, TAU), r = rand(0.3, 0.9);
+      emit(
+        f.pos.x + Math.cos(a) * r,
+        f.pos.y + rand(0.1, 1.8),
+        f.pos.z + Math.sin(a) * r,
+        rand(-0.2, 0.2), rand(3, 6), rand(-0.2, 0.2),
+        Math.random() < 0.4 ? '#ffffff' : au.col,
+        rand(0.08, 0.18), 0.45, -0.05, 1
+      );
+    }
+  }
+}
+
+// 3. Sistema de Polvo y Viento Anime (Anime Dust Puffs)
+function animeDustRing(p, count = 10, maxR = 2.2, col = '#e4d8c5') {
+  if (!GFX_CFG.dust) return;
+  const gy = groundAt(p.x, p.z, p.y + 0.2);
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * TAU + rand(-0.2, 0.2);
+    const spd = rand(3.5, 7.5);
+    const vx = Math.cos(a) * spd, vz = Math.sin(a) * spd;
+    emit(
+      p.x + Math.cos(a) * 0.4, gy + rand(0.05, 0.2), p.z + Math.sin(a) * 0.4,
+      vx, rand(0.4, 1.8), vz,
+      col, rand(0.12, 0.28), rand(0.3, 0.55), -0.6, 1
+    );
+  }
+}
+function animeDashSmoke(f) {
+  if (!GFX_CFG.dust || !f || !f.pos) return;
+  const F = fwd(f.yaw);
+  const gy = groundAt(f.pos.x, f.pos.z, f.pos.y + 0.2);
+  for (let i = 0; i < 4; i++) {
+    emit(
+      f.pos.x - F.x * rand(0.3, 0.8) + rand(-0.3, 0.3),
+      gy + rand(0.05, 0.25),
+      f.pos.z - F.z * rand(0.3, 0.8) + rand(-0.3, 0.3),
+      -F.x * rand(2, 5), rand(0.3, 1.2), -F.z * rand(2, 5),
+      '#e0d8cc', rand(0.15, 0.3), rand(0.3, 0.5), -0.5, 1
+    );
+  }
+}
+
 function updateCamera(dt) {
   if (G.cine) {
     const c = G.cine, f = c.f, F = fwd(f.yaw), Rr = rightOf(f.yaw);
@@ -14804,7 +14995,10 @@ function step(dt) {
     if(f.alive)frameTask('accion:'+f.ch.id,()=>{const c=f.guideCtl?f.guideCtl(f,dt):f.isPlayer?(VB.on?vbPlayerCtl(f,playerCtl()):playerCtl()):f.vbBot?vbBotCtl(f,dt):f.dummy?dummyCtl(f,dt):VB.on?VB_NEUTRAL():aiCtl(f,dt);applyCtl(f,c,dt);updateAction(f,dt);},()=>cancelFailedAction(f));
     if (G.cine) break;
   }
-  for(const f of G.fighters){if(f.remote)continue;frameTask('fisica:'+f.ch.id,()=>physics(f,dt));frameTask('tiempos:'+f.ch.id,()=>tickTimers(f,dt));frameTask('pose:'+f.ch.id,()=>animate(f,dt),()=>{cancelFailedAction(f);f.anim.reset();f.model.root.position.copy(f.pos);});}
+  for(const f of G.fighters){
+    updateContactShadow(f);
+    updateAwakeningAura(f, dt);
+    if(f.remote)continue;frameTask('fisica:'+f.ch.id,()=>physics(f,dt));frameTask('tiempos:'+f.ch.id,()=>tickTimers(f,dt));frameTask('pose:'+f.ch.id,()=>animate(f,dt),()=>{cancelFailedAction(f);f.anim.reset();f.model.root.position.copy(f.pos);});}
   const F = G.fighters;
   for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) {
     const a = F[i], b = F[j]; if (a.remote || b.remote || !a.alive || !b.alive || a.grabbed || b.grabbed || Math.abs(a.pos.y - b.pos.y) > 1.8) continue;
