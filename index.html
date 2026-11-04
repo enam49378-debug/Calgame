@@ -11545,10 +11545,10 @@ function initPostProcessing(){if(composer)return;
 try {
   if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass) {
     let rt = null;
-    try { if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { const pr = renderer.getPixelRatio(); rt = new THREE.WebGLMultisampleRenderTarget(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr), { format: THREE.RGBAFormat }); rt.samples = WEAK_PC ? 0 : 4; } } catch (e) { rt = null; }
+    try { if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { const pr = renderer.getPixelRatio(); rt = new THREE.WebGLMultisampleRenderTarget(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr), { format: THREE.RGBAFormat }); rt.samples = 0; } } catch (e) { rt = null; }
     composer = rt ? new THREE.EffectComposer(renderer, rt) : new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .11, .32, .98);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .11, .32, .98);
     composer.addPass(renderPass); composer.addPass(bloomPass);
     if (THREE.ShaderPass) {
       caPass = new THREE.ShaderPass({
@@ -11602,12 +11602,12 @@ const GFX = { level: 0, auto: true, post: true, names: ['Alta', 'Media', 'Baja',
 function gfxSet(level, auto, save = true) {
   level = clamp(level | 0, 0, 4); if(level===0)initPostProcessing(); GFX.level = level; PERF_FX = [1, .8, .55, .35, .2][level]; PERF_DEST = [1, 1, .8, .55, .3][level]; GFX.auto = !!auto; GFX.post = level === 0;
   renderer.domElement.style.filter = GFX.post && composer && gradePass ? 'none' : 'contrast(1.07) saturate(1.22) brightness(1.03)';
-  renderer.setPixelRatio(Math.min(devicePixelRatio, [1.5, 1.25, 1, .75, .5][level]));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, [1.0, 1.0, 1.0, .75, .5][level]));
   renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(GFX.post?innerWidth:16, GFX.post?innerHeight:16); }
   const shadows = level < 2, wasOn = renderer.shadowMap.enabled;
   renderer.shadowMap.enabled = shadows; sun.castShadow = shadows;
   renderer.shadowMap.type = level === 0 ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
-  sun.shadow.mapSize.set(level === 0 ? 2048 : 1024, level === 0 ? 2048 : 1024);
+  sun.shadow.mapSize.set(1024, 1024);
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   if (wasOn !== shadows) scene.traverse(o => { if (o.material) { const m = Array.isArray(o.material) ? o.material : [o.material]; m.forEach(x => { x.needsUpdate = true; }); } });
   OUTLINE_MAT.visible = level < 2;
