@@ -117,7 +117,7 @@ const WEAK_PC = (navigator.hardwareConcurrency || 8) <= 2 || (navigator.deviceMe
 let PERF_FX = 1, PERF_DEST = 1;   // multiplicadores de partículas y de destrucción según la calidad
 const renderer = new THREE.WebGLRenderer({ antialias: !WEAK_PC, powerPreference: 'high-performance', desynchronized: true });
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 0.92;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.0));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -853,15 +853,24 @@ function cityGrassAt(x,z) {
           float f1=(1.-smoothstep(0.,1.2,abs(dd-(1.4+1.2*sin(uTime*.8+vWP.x*.08)))))*step(0.,dd);
           float f2=(1.-smoothstep(0.,.8,abs(dd-(4.2+1.4*sin(uTime*.6+vWP.x*.05+2.)))))*step(0.,dd)*.55;
           float foam=clamp(f1+f2,0.,1.)*(.55+.45*spk);
-          // destellos anime (diamond glints) en la cresta de las olas
           vec3 seaN=normalize(vNormal);float glint=pow(max(0.,dot(reflect(-normalize(vViewPosition),seaN),uSunV)),50.);
           float sparkle=step(0.82,glint)*spk*uSunK;
           diffuseColor.rgb=mix(wc,vec3(1.),foam*.88)+uSunC*sparkle*1.2;
           diffuseColor.a=mix(.55,.97,smoothstep(0.,16.,dd));`)
-        .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nvec2 wg=vec2(cos(vWP.x*.9+uTime*1.7)*.9+cos((vWP.x+vWP.z)*.35-uTime*1.1)*.6+cos(vWP.x*2.3-vWP.z*1.7+uTime*2.4)*.35,-sin(vWP.z*.8+uTime*1.3)*.8+cos((vWP.z-vWP.x)*.5+uTime*.9)*.5+sin(vWP.z*2.1+vWP.x*1.4-uTime*2.1)*.35);normal=normalize(normal+(viewMatrix*vec4(wg.x,0.,wg.y,0.)).xyz*.13);')
-        .replace('#include <fog_fragment>','{vec3 vd=normalize(vViewPosition);float fr=pow(1.-clamp(dot(vd,normal),0.,1.),3.);gl_FragColor.rgb=mix(gl_FragColor.rgb,uSky,fr*.55);vec3 rv=reflect(-vd,normal);float gl=pow(max(dot(rv,uSunV),0.),90.);gl_FragColor.rgb+=uSunC*(gl*.9+pow(max(dot(rv,uSunV),0.),12.)*.12)*uSunK;}\n#include <fog_fragment>');
+        .replace('#include <fog_fragment>',`{
+          vec3 vd=normalize(vViewPosition);
+          vec3 seaNorm=normalize(vNormal);
+          vec2 wg=vec2(cos(vWP.x*.9+uTime*1.7)*.9+cos((vWP.x+vWP.z)*.35-uTime*1.1)*.6,-sin(vWP.z*.8+uTime*1.3)*.8+cos((vWP.z-vWP.x)*.5+uTime*.9)*.5);
+          seaNorm=normalize(seaNorm+(viewMatrix*vec4(wg.x,0.,wg.y,0.)).xyz*.1);
+          float fr=pow(1.-clamp(dot(vd,seaNorm),0.,1.),3.);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,uSky,fr*.55);
+          vec3 rv=reflect(-vd,seaNorm);
+          float gl=pow(max(dot(rv,uSunV),0.),90.);
+          gl_FragColor.rgb+=uSunC*(gl*.9+pow(max(dot(rv,uSunV),0.),12.)*.12)*uSunK;
+        }
+        #include <fog_fragment>`);
     };
-    sea.customProgramCacheKey=()=>'aurora-sea-v2';
+    sea.customProgramCacheKey=()=>'aurora-sea-v3';
     sea.side=THREE.DoubleSide;const water=new THREE.Mesh(new THREE.PlaneGeometry(1200,700),sea);water.frustumCulled=false;water.renderOrder=-4;water.rotation.x=-Math.PI/2;water.position.set(0,-.04,67+350);scene.add(water);BEACH.water=water;
   }
   // el mar ya se puede nadar: sin muro. La cubierta del muelle es suelo propio (sobre el agua)
@@ -2374,7 +2383,7 @@ function destColor(d) {
 const DEB = { m: null, a: [], max: 2600 };
 // cubos de escombro con física propia (gravedad, rebote en el piso, giro); se encogen y desaparecen
 function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
-  if (!DEB.m) { DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB.m = new THREE.InstancedMesh(DEST_GEO, new THREE.MeshLambertMaterial({ color: 0xffffff }), DEB.max); DEB.m.count = 0; DEB.m.frustumCulled = false; DEB.m.castShadow = true; scene.add(DEB.m); }
+  if (!DEB.m) { DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB.m = new THREE.InstancedMesh(DEST_GEO, new THREE.MeshLambertMaterial({ color: 0xffffff }), DEB.max); DEB.m.count = 0; DEB.m.visible = false; DEB.m.frustumCulled = false; DEB.m.castShadow = true; DEB.m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEB.max * 3), 3); scene.add(DEB.m); }
   if (DEB.a.length >= DEB.max) return;
   DEB.a.push({ x, y, z, sx, sy, sz, vx, vy, vz, rx: rand(0, TAU), ry: rand(0, TAU), wx: rand(-9, 9), wy: rand(-9, 9), life: rand(5, 9), c: new THREE.Color(col) });
 }
@@ -2391,7 +2400,7 @@ function destUpdate(dt) {
     const d = A[i], k = d.life < .6 ? Math.max(.01, d.life / .6) : 1;
     _de.set(d.rx, d.ry, 0); _dq.setFromEuler(_de); _dm.compose(_dv.set(d.x, d.y, d.z), _dq, _ds.set(d.sx * k, d.sy * k, d.sz * k)); M.setMatrixAt(i, _dm); M.setColorAt(i, d.c);
   }
-  M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
+  M.visible = A.length > 0; M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
 }
 function destHide(d) {
   if (d.bb) { d.bb.geo.index.array.fill(0, d.bb.i0, d.bb.i0 + d.bb.n); d.bb.geo.index.needsUpdate = true; }
@@ -5194,6 +5203,10 @@ function initPauseAudioControls(){
 }
 
 let AC = null, master = null, NB = null, uwFilter = null, audioCompressor = null;
+function resumeAudioContext(){if(AC&&AC.state==='suspended'){AC.resume().catch(()=>{});}}
+window.addEventListener('pointerdown',resumeAudioContext,{passive:true});
+window.addEventListener('keydown',resumeAudioContext,{passive:true});
+window.addEventListener('touchstart',resumeAudioContext,{passive:true});
 function initAudio() {
   if (!AC) {
     try {
@@ -10588,7 +10601,7 @@ try {
     try { if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { const pr = renderer.getPixelRatio(); rt = new THREE.WebGLMultisampleRenderTarget(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr), { format: THREE.RGBAFormat }); rt.samples = 0; } } catch (e) { rt = null; }
     composer = rt ? new THREE.EffectComposer(renderer, rt) : new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .24, .28, .86);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .14, .20, .94);
     composer.addPass(renderPass); composer.addPass(bloomPass);
     if (THREE.ShaderPass) {
       caPass = new THREE.ShaderPass({
@@ -10705,13 +10718,13 @@ function gfxApply(save = true) {
   if (bloomPass) {
     bloomPass.enabled = wantPost;
     if (GFX_CFG.bloom === 'anime') {
-      bloomPass.strength = 0.24;
-      bloomPass.radius = 0.28;
-      bloomPass.threshold = 0.86;
+      bloomPass.strength = 0.14;
+      bloomPass.radius = 0.20;
+      bloomPass.threshold = 0.94;
     } else if (GFX_CFG.bloom === 'subtle') {
-      bloomPass.strength = 0.12;
-      bloomPass.radius = 0.22;
-      bloomPass.threshold = 0.92;
+      bloomPass.strength = 0.08;
+      bloomPass.radius = 0.16;
+      bloomPass.threshold = 0.97;
     }
   }
   if (gradePass) gradePass.enabled = wantPost;
@@ -11809,7 +11822,7 @@ async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
   // si el juego se abrió desde el servidor local (server/server.js) se juega por él: más rápido y sin depender de internet
-  if (!window.claude && /^https?:$/.test(location.protocol) && /^(localhost|127\.|\[::1\]|192\.168\.)/.test(location.hostname)) {
+  if (!window.claude && /^https?:$/.test(location.protocol) && /^(localhost|127\.|\[::1\]|192\.168\.)/.test(location.hostname) && (location.port === '3000' || location.port === '8080')) {
     try {
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1200), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
       const j = r.ok ? await r.json() : null;
@@ -12593,6 +12606,7 @@ function meOpen() {
   meBuild();
   meInitMeshes();
   meBuildGizmo();
+  scene.traverse(o => { if (o.userData && o.userData.isProxy) o.visible = true; });
   ME.open = true;
   ME.el.classList.remove('hidden');
   document.body.classList.add('guide-on');
@@ -12619,6 +12633,7 @@ async function meClose() {
   if (!ME.open) return;
   if (ME.dirty && !(await uiConfirm('Hay cambios sin guardar. ¿Cerrar igual?', true))) return;
   ME.open = false;
+  scene.traverse(o => { if (o.userData && o.userData.isProxy) o.visible = false; });
   ME.el.classList.add('hidden');
   document.body.classList.remove('guide-on');
   if (ME.gizmo) ME.gizmo.visible = false;
