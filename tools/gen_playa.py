@@ -6,182 +6,302 @@ from gen_edificios import Model
 
 def palmera(m, rng):
     m.group('Tronco')
-    n = 9
+    n = 12
     x = z = 0.0
-    top = 0
+    top = 0.0
     for i in range(n):
-        w = .58 - i * .02
-        bx = .38 * math.sin(i * .36)
-        m.cube(bx, i * .78, 0, w, .8, w, 'bark')
+        w = max(0.42, 0.62 - i * 0.016)
+        bx = 0.45 * math.sin(i * 0.28)
+        bz = 0.15 * math.sin(i * 0.4)
+        m.cube(bx, i * 0.65, bz, w, 0.68, w, 'bark' if i % 3 != 1 else 'dark_planks')
         if i % 2 == 0:
-            m.cube(bx, i * .78 + .55, 0, w + .06, .1, w + .06, 'dark_planks')
-        top = i * .78 + .8
-        x = bx
-    m.col(.1, 0, .6, .6, 7.0)
-    m.group('Copa')
-    for k in range(9):
-        yaw = k * 40 + rng.uniform(-8, 8)
-        L = 3.6 + rng.uniform(-.3, .3)
-        t = 22 + rng.uniform(0, 16)
-        dx, dz = math.sin(math.radians(yaw)), math.cos(math.radians(yaw))
-        h = L / 2 * math.cos(math.radians(t))
-        v = L / 2 * math.sin(math.radians(t))
-        m.cube(x + dx * h, top - v + .15, dz * h, .95, .07, L, 'palm_leaf', rot=[t, yaw, 0])
-    for k in range(5):
-        yaw = k * 72 + 20
-        L = 2.4
-        t = 8
-        dx, dz = math.sin(math.radians(yaw)), math.cos(math.radians(yaw))
-        h = L / 2 * math.cos(math.radians(t))
-        m.cube(x + dx * h, top + .3, dz * h, .8, .06, L, 'palm_leaf', rot=[t, yaw, 0])
-    for sx, sz in ((.2, .2), (-.2, .15), (0, -.25)):
-        m.cube(x + sx, top - .45, sz, .3, .3, .3, 'wood')
+            m.cube(bx, i * 0.65 + 0.48, bz, w + 0.06, 0.12, w + 0.06, 'wood')
+        top = i * 0.65 + 0.68
+        x, z = bx, bz
+    m.col(0.1, 0, 0.6, 0.6, 7.5)
+
+    # Racimo de cocos bajo la copa
+    m.group('Cocos')
+    for (cx, cz) in ((0.22, 0.2), (-0.2, 0.22), (-0.18, -0.22), (0.22, -0.18)):
+        m.cube(x + cx, top - 0.45, z + cz, 0.32, 0.36, 0.32, 'wood')
+        m.cube(x + cx * 1.1, top - 0.42, z + cz * 1.1, 0.28, 0.32, 0.28, 'trim_stone')
+
+    # Corona de hojas de palmera (dos capas: superior extendida e inferior arqueada hacia abajo)
+    m.group('Copa Superior')
+    for k in range(10):
+        yaw = k * 36 + rng.uniform(-6, 6)
+        L = 3.8 + rng.uniform(-0.25, 0.25)
+        tilt = 18 + rng.uniform(0, 10)
+        rad = math.radians(yaw)
+        dx, dz = math.sin(rad), math.cos(rad)
+        h = L / 2 * math.cos(math.radians(tilt))
+        v = L / 2 * math.sin(math.radians(tilt))
+        # Base de la hoja
+        m.cube(x + dx * (h * 0.45), top - v * 0.3 + 0.2, z + dz * (h * 0.45), 0.95, 0.08, L * 0.55, 'palm_leaf', rot=[tilt, yaw, 0])
+        # Extremo curvado hacia abajo
+        tipTilt = tilt + 22
+        th = L * 0.85 * math.cos(math.radians(tipTilt))
+        tv = L * 0.85 * math.sin(math.radians(tipTilt))
+        m.cube(x + dx * th, top - tv + 0.1, z + dz * th, 0.75, 0.06, L * 0.55, 'palm_leaf', rot=[tipTilt, yaw, 0])
+
+    m.group('Copa Inferior')
+    for k in range(7):
+        yaw = k * 51.4 + 25 + rng.uniform(-5, 5)
+        L = 2.9 + rng.uniform(-0.2, 0.2)
+        tilt = 34 + rng.uniform(0, 8)
+        rad = math.radians(yaw)
+        dx, dz = math.sin(rad), math.cos(rad)
+        h = L / 2 * math.cos(math.radians(tilt))
+        v = L / 2 * math.sin(math.radians(tilt))
+        m.cube(x + dx * h, top - v - 0.1, z + dz * h, 0.85, 0.07, L, 'palm_leaf', rot=[tilt, yaw, 0])
 
 
 def sombrilla(m, rng, tile, towel):
     m.group('Sombrilla')
-    m.cube(0, 0, 0, .09, 2.55, .09, 'oak_planks')
-    m.cube(0, 2.25, 0, 3.2, .1, 3.2, tile)
-    m.cube(0, 2.35, 0, 2.4, .1, 2.4, tile)
-    m.cube(0, 2.45, 0, 1.5, .1, 1.5, tile)
-    m.cube(0, 2.55, 0, .35, .22, .35, 'trim_white')
-    for sx, sz in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        m.cube(sx * 1.55, 2.12, sz * 1.55, 3.2 if sz == -1 and False else .08, .14, .08, tile)
+    # Mástil de madera torneado
+    m.cube(0, 0, 0, 0.12, 2.65, 0.12, 'wood')
+    m.cube(0, 0, 0, 0.45, 0.14, 0.45, 'trim_stone')  # Base de piedra en la arena
+    # Cúpula de 8 caras escalonada estilo parasol náutico
+    m.cube(0, 2.25, 0, 3.4, 0.09, 3.4, tile)
+    m.cube(0, 2.34, 0, 2.7, 0.1, 2.7, tile)
+    m.cube(0, 2.44, 0, 1.9, 0.1, 1.9, tile)
+    m.cube(0, 2.54, 0, 1.1, 0.1, 1.1, tile)
+    m.cube(0, 2.64, 0, 0.35, 0.2, 0.35, 'trim_white')  # Remate superior
+    # Faldón con festón blanco alrededor de la tela
+    for sx, sz in ((-1, -1), (1, -1), (-1, 1), (1, 1), (0, -1), (0, 1), (-1, 0), (1, 0)):
+        if sx != 0 and sz != 0:
+            m.cube(sx * 1.62, 2.15, sz * 1.62, 0.16, 0.16, 0.16, 'trim_white')
+        elif sx != 0:
+            m.cube(sx * 1.68, 2.17, 0, 0.08, 0.14, 3.2, 'trim_white')
+        else:
+            m.cube(0, 2.17, sz * 1.68, 3.2, 0.14, 0.08, 'trim_white')
+
     m.group('Tumbonas')
     for sx in (-1, 1):
-        x = sx * 1.4
-        m.cube(x, .22, 1.15, .75, .1, 1.55, 'oak_planks')
-        for lx in (-.3, .3):
-            for lz in (.5, 1.8):
-                m.cube(x + lx, 0, lz, .08, .24, .08, 'dark_planks')
-        m.cube(x, .3, 1.0, .68, .09, 1.2, towel)
-        m.cube(x, .42, 0.35, .68, .09, .85, towel, rot=[-48, 0, 0])
-    m.col(0, 0, .25, .25, 2.6); m.col(-1.4, 1.15, .8, 1.6, .5); m.col(1.4, 1.15, .8, 1.6, .5); m.col(0, 1.7, .55, .55, .5)
-    m.cube(0, 0, 1.7, .5, .45, .5, 'oak_planks')
-    m.cube(0, .45, 1.7, .52, .05, .52, 'trim_white')
-    m.cube(.1, .5, 1.75, .12, .22, .12, 'hull_blue')
-    m.cube(-.1, .5, 1.65, .12, .18, .12, 'sign_red')
-    m.group('Toalla')
-    m.cube(0, .0, 3.0, 1.3, .02, 1.8, towel)
-    m.cube(0, .02, 3.0, 1.1, .01, 1.6, 'trim_white')
+        x = sx * 1.35
+        # Armazón de madera
+        m.cube(x, 0.22, 1.15, 0.78, 0.1, 1.65, 'oak_planks')
+        for lx in (-0.32, 0.32):
+            for lz in (0.45, 1.85):
+                m.cube(x + lx, 0, lz, 0.09, 0.24, 0.09, 'dark_planks')
+        # Colchoneta reclinable suave con toalla
+        m.cube(x, 0.31, 0.95, 0.72, 0.1, 1.25, towel)
+        m.cube(x, 0.44, 0.32, 0.72, 0.1, 0.85, towel, rot=[-45, 0, 0])
+        # Almohada / cabezal blanco
+        m.cube(x, 0.62, 0.12, 0.65, 0.09, 0.32, 'trim_white', rot=[-45, 0, 0])
+
+    m.col(0, 0, 0.3, 0.3, 2.7)
+    m.col(-1.35, 1.15, 0.85, 1.7, 0.6)
+    m.col(1.35, 1.15, 0.85, 1.7, 0.6)
+
+    # Mesita auxiliar con cóctel tropical
+    m.group('Mesita y Bebida')
+    m.cube(0, 0, 1.75, 0.52, 0.48, 0.52, 'oak_planks')
+    m.cube(0, 0.48, 1.75, 0.58, 0.05, 0.58, 'trim_white')
+    # Vaso de cóctel de frutas con pajita
+    m.cube(0.08, 0.53, 1.78, 0.14, 0.25, 0.14, 'glass')
+    m.cube(0.08, 0.55, 1.78, 0.12, 0.18, 0.12, 'sign_teal')  # Bebida tropical
+    m.cube(0.12, 0.72, 1.82, 0.04, 0.18, 0.04, 'sign_red')   # Pajita
+    m.cube(-0.1, 0.53, 1.72, 0.14, 0.22, 0.14, 'gold')       # Lata refresco dorada
+
+    m.group('Toalla en arena')
+    m.cube(0, 0.01, 3.1, 1.4, 0.02, 1.9, towel)
+    m.cube(0, 0.02, 3.1, 1.2, 0.01, 1.7, 'trim_white')
 
 
 def torre_salvavidas(m, rng):
-    m.group('Soportes')
+    m.group('Pilotes de soporte')
     for sx in (-1, 1):
         for sz in (-1, 1):
-            m.cube(sx * 1.5, 0, sz * 1.5, .24, 2.7, .24, 'oak_planks')
-            m.col(sx * 1.5, sz * 1.5, .26, .26, 2.7)
+            m.cube(sx * 1.5, 0, sz * 1.5, 0.26, 2.8, 0.26, 'oak_planks')
+            m.col(sx * 1.5, sz * 1.5, 0.28, 0.28, 2.8)
     for sx in (-1, 1):
-        m.cube(sx * 1.5, .9, 0, .1, .1, 3.2, 'oak_planks')
+        m.cube(sx * 1.5, 1.0, 0, 0.12, 0.12, 3.2, 'oak_planks')
+        m.cube(sx * 1.5, 1.9, 0, 0.12, 0.12, 3.2, 'oak_planks')
     for sz in (-1, 1):
-        m.cube(0, 1.3, sz * 1.5, 3.2, .1, .1, 'oak_planks')
-        m.cube(0, .7, sz * 1.5, 3.2, .1, .1, 'oak_planks')
+        m.cube(0, 1.4, sz * 1.5, 3.2, 0.12, 0.12, 'oak_planks')
+        m.cube(0, 0.7, sz * 1.5, 3.2, 0.12, 0.12, 'oak_planks')
+
+    m.group('Plataforma y barandas')
+    m.cube(0, 2.7, 0, 4.1, 0.22, 4.1, 'dark_planks')
+    # Barandilla perimetral
+    for sx in (-1, 1):
+        m.cube(sx * 1.95, 2.9, 0, 0.1, 1.0, 4.0, 'oak_planks')
+    m.cube(0, 2.9, -1.95, 4.0, 1.0, 0.1, 'oak_planks')
+    m.cube(-1.0, 2.9, 1.95, 2.0, 1.0, 0.1, 'oak_planks')  # Deja paso para la escalera
+
     m.group('Cabina')
-    m.cube(0, 2.6, 0, 3.8, .2, 3.8, 'dark_planks')
-    m.cube(0, 2.8, -.3, 3.0, 2.2, 2.6, 'trim_white')
-    m.cube(0, 3.65, -.3, 3.06, .5, 2.66, 'sign_red')
-    m.cube(0, 3.2, 1.0, 2.0, 1.1, .08, 'glass')
-    m.cube(0, 3.2, 1.05, 2.1, .08, .06, 'trim_white'); m.cube(0, 4.3, 1.05, 2.1, .08, .06, 'trim_white')
-    m.cube(0, 5.0, -.2, 4.2, .22, 3.4, 'sign_red'); m.cube(0, 5.22, -.2, 3.2, .18, 2.6, 'sign_red')
-    m.cube(0, 4.98, 1.6, 4.2, .08, .08, 'trim_white')
-    m.cube(-1.55, 2.8, 1.95, .1, 1.0, .1, 'oak_planks'); m.cube(1.55, 2.8, 1.95, .1, 1.0, .1, 'oak_planks')
-    m.cube(0, 3.8, 1.95, 3.2, .08, .08, 'oak_planks'); m.cube(0, 3.3, 1.95, 3.2, .06, .06, 'oak_planks')
+    m.cube(0, 2.92, -0.3, 3.0, 2.3, 2.6, 'trim_white')
+    m.cube(0, 3.75, -0.3, 3.06, 0.55, 2.66, 'sign_red')  # Franja roja de emergencia
+    # Ventanal de vigilancia panorámico
+    m.cube(0, 3.3, 1.02, 2.2, 1.2, 0.08, 'glass')
+    m.cube(0, 3.3, 1.06, 2.3, 0.08, 0.06, 'trim_white')
+    m.cube(0, 4.4, 1.06, 2.3, 0.08, 0.06, 'trim_white')
+    for sx in (-1, 1):
+        m.cube(sx * 1.52, 3.4, -0.3, 0.06, 1.0, 1.6, 'glass')
+
+    m.group('Techo')
+    m.cube(0, 5.2, -0.2, 4.4, 0.24, 3.6, 'sign_red')
+    m.cube(0, 5.44, -0.2, 3.4, 0.2, 2.8, 'sign_red')
+    m.cube(0, 5.18, 1.6, 4.4, 0.08, 0.08, 'trim_white')
+
+    m.group('Salvavidas y Accesorios')
+    # Aro salvavidas rojo y blanco colgado del frente
+    m.cube(-1.2, 3.05, 2.02, 0.85, 0.85, 0.12, 'sign_red')
+    m.cube(-1.2, 3.05, 2.04, 0.87, 0.22, 0.14, 'trim_white')
+    m.cube(-1.2, 3.05, 2.04, 0.22, 0.87, 0.14, 'trim_white')
+    # Hueco central del aro
+    m.cube(-1.2, 3.05, 2.05, 0.35, 0.35, 0.16, 'trim_white')
+
+    # Megáfono / bocina de alerta en el techo
+    m.cube(1.3, 5.5, 0.8, 0.25, 0.25, 0.5, 'gold')
+    # Prismáticos en la repisa
+    m.cube(0.5, 3.3, 1.15, 0.25, 0.12, 0.2, 'metal_dark')
+
     m.group('Escalera')
     for i in range(8):
-        m.cube(1.0, 0, 2.0 + (7 - i) * .42, 1.2, (i + 1) * .33, .4, 'oak_planks')
-    m.cube(1.62, .6, 3.8, .08, 1.0, .08, 'oak_planks'); m.cube(.38, .6, 3.8, .08, 1.0, .08, 'oak_planks')
-    m.group('Detalles')
-    m.cube(1.4, 5.3, -1.2, .1, 2.8, .1, 'steel')
-    m.cube(2.0, 7.2, -1.2, 1.1, .7, .04, 'sign_red'); m.cube(2.0, 7.3, -1.2, .4, .5, .05, 'trim_white')
-    m.cube(-1.0, 2.9, 1.1, .7, .7, .1, 'sign_red'); m.cube(-1.0, 3.05, 1.12, .4, .4, .1, 'trim_white')
-    m.cube(-1.0, 3.2, 1.14, .16, .16, .1, 'sign_red')
-    m.cube(-1.3, 2.8, 1.5, 1.4, .1, .4, 'oak_planks')
+        m.cube(1.0, 0, 1.9 + (7 - i) * 0.42, 1.25, (i + 1) * 0.35, 0.4, 'oak_planks')
+    m.cube(1.65, 0.7, 3.8, 0.09, 1.1, 0.09, 'oak_planks')
+    m.cube(0.35, 0.7, 3.8, 0.09, 1.1, 0.09, 'oak_planks')
+
+    # Mástil con bandera de rescate
+    m.group('Bandera')
+    m.cube(1.4, 5.5, -1.2, 0.1, 3.0, 0.1, 'steel')
+    m.cube(2.1, 7.5, -1.2, 1.3, 0.75, 0.04, 'sign_red')
+    m.cube(2.1, 7.6, -1.2, 0.45, 0.55, 0.05, 'trim_white')
 
 
 def chiringuito(m, rng):
-    m.group('Tarima')
-    m.cube(0, 0, 0, 9.4, .1, 6.6, 'oak_planks')
-    m.group('Estructura')
+    m.group('Tarima de madera')
+    m.cube(0, 0, 0, 9.8, 0.14, 7.0, 'oak_planks')
+
+    m.group('Columnas de bambú')
     for sx in (-1, 1):
         for sz in (-1, 0, 1):
-            m.cube(sx * 4.3, 0, sz * 2.8, .28, 3.3, .28, 'bark')
-    m.col(-4.3, -2.8, .3, .3, 3.3); m.col(4.3, -2.8, .3, .3, 3.3); m.col(-4.3, 2.8, .3, .3, 3.3); m.col(4.3, 2.8, .3, .3, 3.3)
-    m.cube(0, 3.3, 0, 9.4, .2, .22, 'bark')
-    for sz in (-1, 1): m.cube(0, 3.3, sz * 2.8, 9.4, .2, .22, 'bark')
-    m.group('Techo de paja')
-    m.cube(0, 3.45, 0, 10.4, .2, 7.6, 'thatch'); m.cube(0, 3.65, 0, 9.0, .2, 6.4, 'thatch'); m.cube(0, 3.85, 0, 7.4, .2, 5.0, 'thatch')
-    m.cube(0, 4.05, 0, 5.6, .2, 3.8, 'thatch'); m.cube(0, 4.25, 0, 3.6, .2, 2.6, 'thatch'); m.cube(0, 4.45, 0, 1.6, .2, 1.4, 'thatch')
-    for i in range(12): m.cube(-5.0 + i * .9, 3.2, 3.82, .26, .26, .26, 'thatch')
-    m.group('Barra')
-    m.cube(0, .1, 0.6, 7.4, 1.05, 1.0, 'dark_planks'); m.cube(0, .1, 1.12, 7.4, 1.0, .06, 'counter_front')
-    m.cube(0, 1.15, 0.6, 7.8, .1, 1.3, 'oak_planks')
-    m.col(0, .6, 7.8, 1.2, 1.2)
+            m.cube(sx * 4.4, 0, sz * 3.0, 0.3, 3.4, 0.3, 'bark')
+            m.cube(sx * 4.4, 1.7, sz * 3.0, 0.34, 0.1, 0.34, 'wood')
+            m.col(sx * 4.4, sz * 3.0, 0.32, 0.32, 3.4)
+
+    # Vigas de amarre
+    m.cube(0, 3.35, 0, 9.6, 0.22, 0.24, 'bark')
+    for sz in (-1, 1):
+        m.cube(0, 3.35, sz * 3.0, 9.6, 0.22, 0.24, 'bark')
+
+    m.group('Techo de paja tropical')
+    m.cube(0, 3.55, 0, 10.8, 0.22, 8.0, 'thatch')
+    m.cube(0, 3.77, 0, 9.4, 0.22, 6.8, 'thatch')
+    m.cube(0, 3.99, 0, 7.8, 0.22, 5.4, 'thatch')
+    m.cube(0, 4.21, 0, 6.0, 0.22, 4.0, 'thatch')
+    m.cube(0, 4.43, 0, 4.0, 0.22, 2.8, 'thatch')
+    m.cube(0, 4.65, 0, 2.0, 0.22, 1.6, 'thatch')
+    # Flecos colgantes de paja en el borde
+    for i in range(14):
+        m.cube(-5.0 + i * 0.77, 3.35, 4.02, 0.28, 0.32, 0.28, 'thatch')
+
+    m.group('Barra de bar')
+    m.cube(0, 0.14, 0.6, 7.6, 1.08, 1.0, 'dark_planks')
+    m.cube(0, 0.14, 1.12, 7.6, 1.05, 0.08, 'wood')
+    m.cube(0, 1.22, 0.6, 8.0, 0.12, 1.35, 'oak_planks')
+    m.col(0, 0.6, 8.0, 1.3, 1.2)
+
+    # Taburetes de bar de playa
+    m.group('Taburetes')
     for i in range(6):
         sx = -3.0 + i * 1.2
-        m.cube(sx, 0.1, 1.9, .1, .65, .1, 'metal_dark'); m.cube(sx, .75, 1.9, .5, .1, .5, ['sign_red', 'awn_blue', 'wool_yellow'][i % 3]); m.cube(sx, .1, 1.9, .4, .05, .4, 'metal_dark')
-        m.col(sx, 1.9, .5, .5, .85)
-    for i in range(5): m.cube(-2.8 + i * 1.4, 1.25, 0.5, .14, .32, .14, ['hull_blue', 'sign_red', 'wool_green', 'wool_yellow', 'hull_white'][i])
-    m.group('Trasera')
-    m.col(0, -2.8, 9.4, .4, 3.0)
-    m.cube(0, .1, -2.8, 9.4, 2.9, .3, 'wall_wood')
-    m.cube(0, 1.3, -2.6, 7.2, 1.5, .06, 'goods')
-    for y in (1.2, 1.7, 2.2): m.cube(0, y, -2.55, 7.4, .08, .3, 'dark_planks')
-    m.cube(-3.8, .1, -2.0, 1.1, 2.1, .8, 'steel'); m.cube(-3.8, .3, -1.59, .95, 1.7, .05, 'fridge'); m.col(-3.8, -2.0, 1.1, .8, 2.1)
-    m.cube(3.6, 2.3, -2.55, 1.8, .8, .06, 'menu_board')
-    m.group('Letrero y luces')
-    m.cube(0, 2.6, 3.05, 4.6, .9, .14, 'sign_dark'); m.cube(0, 2.72, 3.14, 4.2, .66, .06, 'sign_gold')
-    for i in range(14): m.cube(-4.5 + i * .7, 3.0, 3.1, .13, .13, .13, 'glow')
+        m.cube(sx, 0.14, 1.95, 0.12, 0.68, 0.12, 'metal_dark')
+        m.cube(sx, 0.82, 1.95, 0.52, 0.12, 0.52, ['sign_red', 'awn_blue', 'gold', 'awn_green', 'sign_teal', 'sign_red'][i])
+        m.cube(sx, 0.14, 1.95, 0.44, 0.06, 0.44, 'metal_dark')
+        m.col(sx, 1.95, 0.52, 0.52, 0.9)
+
+    # Botellas y vasos en la barra
+    for i in range(6):
+        m.cube(-3.0 + i * 1.2, 1.34, 0.55, 0.14, 0.34, 0.14, ['sign_teal', 'sign_red', 'gold', 'awn_green', 'hull_blue', 'trim_white'][i])
+
+    m.group('Fondo y Estantería')
+    m.col(0, -3.0, 9.6, 0.45, 3.2)
+    m.cube(0, 0.14, -3.0, 9.6, 3.0, 0.32, 'wall_wood')
+    m.cube(0, 1.4, -2.8, 7.4, 1.6, 0.08, 'goods')
+    for y in (1.3, 1.85, 2.4):
+        m.cube(0, y, -2.75, 7.6, 0.09, 0.35, 'dark_planks')
+    # Nevera de helados y bebidas
+    m.cube(-3.8, 0.14, -2.2, 1.2, 2.2, 0.85, 'steel')
+    m.cube(-3.8, 0.35, -1.75, 1.0, 1.8, 0.06, 'fridge')
+    m.col(-3.8, -2.2, 1.2, 0.85, 2.2)
+
+    # Pizarra con menú
+    m.cube(3.5, 2.2, -2.75, 2.0, 1.0, 0.08, 'menu_board')
+
+    m.group('Letrero Tiki y Luces')
+    m.cube(0, 2.65, 3.15, 4.8, 0.95, 0.16, 'sign_dark')
+    m.cube(0, 2.78, 3.25, 4.4, 0.7, 0.06, 'sign_gold')
+    # Guirnalda de farolillos luminosos de colores
+    for i in range(16):
+        m.cube(-4.8 + i * 0.64, 3.1, 3.2, 0.16, 0.16, 0.16, 'glow')
+
     m.group('Tablas de surf')
-    m.col(4.95, -.55, .5, 2.4, 2.5)
-    for k, tl in enumerate(('hull_blue', 'sign_red', 'wool_yellow')):
-        m.cube(4.95, .1, -1.3 + k * .75, .5, 2.6, .09, tl, rot=[0, 0, -9])
-        m.cube(4.95, 1.1, -1.3 + k * .75, .08, 1.0, .1, 'trim_white', rot=[0, 0, -9])
-    m.group('Mesas')
-    for sx in (-3.5, 3.5):
-        m.cube(sx, .0, 3.9, 1.2, .8, 1.2, 'oak_planks') if False else None
+    m.col(5.1, -0.6, 0.5, 2.6, 2.6)
+    surf_colors = ('hull_blue', 'sign_red', 'gold')
+    for k, tl in enumerate(surf_colors):
+        m.cube(5.05, 0.14, -1.4 + k * 0.8, 0.52, 2.8, 0.1, tl, rot=[0, 0, -10])
+        m.cube(5.05, 1.2, -1.4 + k * 0.8, 0.1, 1.2, 0.11, 'trim_white', rot=[0, 0, -10])
 
 
 def barca(m, rng, tile):
-    m.group('Casco')
-    m.cube(0, 0, 0, 1.0, .12, 3.4, tile)
+    m.group('Casco Náutico')
+    m.cube(0, 0, 0, 1.1, 0.14, 3.6, tile)
     for sx in (-1, 1):
-        m.cube(sx * .54, .1, 0, .12, .52, 3.6, tile)
-        m.cube(sx * .42, .1, 2.05, .12, .5, .8, tile, rot=[0, sx * 24, 0])
-        m.cube(sx * .54, .54, 0, .16, .08, 3.6, 'trim_white')
-    m.cube(0, .1, 2.35, .24, .5, .3, tile)
-    m.cube(0, .1, -1.85, 1.2, .52, .14, tile)
-    m.col(0, 0, 1.3, 3.7, .7)
-    m.group('Interior')
-    for z in (-.9, .1, 1.0): m.cube(0, .38, z, 1.0, .08, .36, 'oak_planks')
-    m.cube(0, .12, 0, .8, .04, 3.1, 'dark_planks')
+        m.cube(sx * 0.58, 0.12, 0, 0.14, 0.55, 3.8, tile)
+        # Proa afilada
+        m.cube(sx * 0.44, 0.12, 2.15, 0.14, 0.54, 0.9, tile, rot=[0, sx * 26, 0])
+        # Borda blanca decorativa
+        m.cube(sx * 0.58, 0.65, 0, 0.18, 0.09, 3.8, 'trim_white')
+    m.cube(0, 0.12, 2.5, 0.26, 0.54, 0.35, tile)
+    m.cube(0, 0.12, -1.95, 1.3, 0.55, 0.16, tile)
+    m.col(0, 0, 1.4, 3.9, 0.75)
+
+    m.group('Interior y Bancos')
+    for z in (-1.0, 0.1, 1.1):
+        m.cube(0, 0.42, z, 1.05, 0.09, 0.4, 'oak_planks')
+    m.cube(0, 0.14, 0, 0.85, 0.05, 3.2, 'dark_planks')  # Enjaretado del fondo
+
     m.group('Remos')
     for sx in (-1, 1):
-        m.cube(sx * .85, .55, .1, 1.5, .06, .06, 'oak_planks', rot=[0, 0, sx * 12]); m.cube(sx * 1.55, .6, .1, .5, .05, .2, 'oak_planks')
+        m.cube(sx * 0.92, 0.6, 0.1, 1.6, 0.07, 0.07, 'oak_planks', rot=[0, 0, sx * 14])
+        m.cube(sx * 1.68, 0.65, 0.1, 0.55, 0.06, 0.22, 'oak_planks')
 
 
 def velero(m, rng):
-    m.group('Casco')
-    m.cube(0, 0, 0, 1.6, .15, 5.4, 'hull_white')
+    m.group('Casco de Vela')
+    m.cube(0, 0, 0, 1.7, 0.16, 5.6, 'hull_white')
     for sx in (-1, 1):
-        m.cube(sx * .85, .1, -.2, .14, .7, 5.4, 'hull_white'); m.cube(sx * .85, .62, -.2, .18, .1, 5.4, 'hull_blue')
-        m.cube(sx * .62, .1, 3.0, .14, .65, 1.2, 'hull_white', rot=[0, sx * 25, 0])
-    m.cube(0, .1, 3.6, .3, .6, .4, 'hull_white'); m.cube(0, .1, -2.95, 1.7, .7, .16, 'hull_white')
-    m.cube(0, .5, 1.6, 1.4, .08, 2.0, 'oak_planks')
-    m.col(0, .2, 1.8, 5.6, .9)
-    m.group('Mástil y vela')
-    m.cube(0, .1, 1.0, .14, 6.8, .14, 'oak_planks')
-    m.cube(0, 1.3, -.6, .1, .1, 3.4, 'oak_planks')
-    for i in range(11):
-        L = 3.4 - i * .3
-        m.cube(0, 1.45 + i * .5, 1.0 - 1.0 - L / 2 + .45 if False else -.1 - L / 2 + .55, .05, .5, L, 'sail')
-    m.cube(0, 6.9, 1.0, .5, .3, .04, 'sign_red')
-    m.cube(0, 1.0, -2.0, .06, 2.0, .06, 'steel')
-    m.group('Cabina')
-    m.cube(0, .7, 2.4, 1.2, .5, 1.1, 'hull_blue'); m.cube(0, 1.2, 2.4, 1.3, .08, 1.2, 'trim_white'); m.cube(0, .85, 2.97, .8, .22, .05, 'glass')
+        m.cube(sx * 0.9, 0.12, -0.2, 0.16, 0.74, 5.6, 'hull_white')
+        m.cube(sx * 0.9, 0.68, -0.2, 0.2, 0.12, 5.6, 'hull_blue')
+        m.cube(sx * 0.66, 0.12, 3.15, 0.16, 0.7, 1.3, 'hull_white', rot=[0, sx * 27, 0])
+    m.cube(0, 0.12, 3.8, 0.35, 0.65, 0.45, 'hull_white')
+    m.cube(0, 0.12, -3.1, 1.8, 0.74, 0.18, 'hull_white')
+    m.cube(0, 0.55, 1.7, 1.5, 0.09, 2.1, 'oak_planks')
+    m.col(0, 0.2, 1.9, 5.8, 1.0)
+
+    m.group('Mástil y Vela Mayor')
+    m.cube(0, 0.14, 1.1, 0.16, 7.2, 0.16, 'wood')
+    m.cube(0, 1.35, -0.7, 0.11, 0.11, 3.6, 'wood')
+    # Vela mayor triangular ondeando
+    for i in range(12):
+        L = 3.6 - i * 0.28
+        m.cube(0, 1.5 + i * 0.48, -0.15 - L / 2 + 0.55, 0.05, 0.48, L, 'sail')
+    # Banderín rojo en la punta
+    m.cube(0, 7.3, 1.1, 0.55, 0.32, 0.04, 'sign_red')
+    # Timón en popa
+    m.cube(0, 0.4, -3.2, 0.08, 0.9, 0.5, 'dark_planks')
+    m.cube(0, 0.85, -2.6, 0.06, 0.06, 1.2, 'metal_dark')
+
+    m.group('Cabina y Ojo de Buey')
+    m.cube(0, 0.75, 2.5, 1.3, 0.55, 1.2, 'hull_blue')
+    m.cube(0, 1.3, 2.5, 1.4, 0.09, 1.3, 'trim_white')
+    m.cube(0, 0.92, 3.12, 0.45, 0.45, 0.06, 'glass')
+    m.cube(0, 0.92, 3.14, 0.52, 0.52, 0.03, 'gold')  # Marco de bronce
 
 
-# profundidad del fondo bajo el muelle (el muelle empieza en el mundo z = 78): los pilotes llegan hasta ahí
 _FONDO = [(96, .1), (99, .8), (102, 1.7), (105, 2.6), (108, 3.5), (111, 4.3), (114, 5.0), (117, 5.5), (120, 6.0), (124, 6.5)]
 def _hondo(zz):
     zw = 78 + zz
@@ -195,121 +315,204 @@ def muelle(m, rng):
     L, Wd = 34.0, 4.4
     m.group('Cubierta')
     z = 0.0
-    while z < L - .01:
+    while z < L - 0.01:
         d = min(4.0, L - z)
-        m.cube(0, -.07, z + d / 2, Wd, .12, d, 'oak_planks')
+        m.cube(0, -0.07, z + d / 2, Wd, 0.14, d, 'oak_planks')
         for k in range(int(d / 1.0)):
-            m.cube(0, .04, z + .5 + k * 1.0 + 0.0, Wd, .02, .04, 'dark_planks')
+            m.cube(0, 0.05, z + 0.5 + k * 1.0, Wd, 0.02, 0.05, 'dark_planks')
         z += d
-    m.cube(0, -.07, L + 3.0, 9.0, .12, 6.0, 'oak_planks')
+    m.cube(0, -0.07, L + 3.0, 9.4, 0.14, 6.2, 'oak_planks')
+
     m.group('Pilotes y barandas')
     for i in range(0, int(L / 3) + 3):
-        zz = i * 3.0 + .3
+        zz = i * 3.0 + 0.3
         for sx in (-1, 1):
-            m.cube(sx * 1.95, -_hondo(zz), zz, .3, _hondo(zz), .3, 'bark')
-            m.cube(sx * 2.15, -.0, zz, .14, 1.1, .14, 'oak_planks')
+            m.cube(sx * 2.0, -_hondo(zz), zz, 0.32, _hondo(zz), 0.32, 'bark')
+            m.cube(sx * 2.18, 0, zz, 0.15, 1.15, 0.15, 'oak_planks')
     for sx in (-1, 1):
-        m.cube(sx * 2.15, 1.0, L / 2, .12, .1, L, 'oak_planks'); m.cube(sx * 2.15, .55, L / 2, .06, .06, L, 'oak_planks')
-        m.col(sx * 2.2, L / 2, .22, L, 1.15)
-    m.cube(0, 1.0, L + 6.0, 9.0, .1, .12, 'oak_planks'); m.cube(0, .55, L + 6.0, 9.0, .06, .06, 'oak_planks')
+        m.cube(sx * 2.18, 1.05, L / 2, 0.13, 0.11, L, 'oak_planks')
+        m.cube(sx * 2.18, 0.58, L / 2, 0.07, 0.07, L, 'oak_planks')
+        m.col(sx * 2.2, L / 2, 0.24, L, 1.2)
+    m.cube(0, 1.05, L + 6.0, 9.4, 0.11, 0.13, 'oak_planks')
+    m.cube(0, 0.58, L + 6.0, 9.4, 0.07, 0.07, 'oak_planks')
     for sx in (-1, 1):
-        m.cube(sx * 4.5, 1.0, L + 3.0, .12, .1, 6.0, 'oak_planks'); m.cube(sx * 4.5, .55, L + 3.0, .06, .06, 6.0, 'oak_planks')
-        for zz in (L + .5, L + 2.5, L + 4.5, L + 6.0): m.cube(sx * 4.5, 0, zz, .14, 1.1, .14, 'oak_planks')
-        m.col(sx * 4.5, L + 3.0, .2, 6.0, 1.15)
-    m.col(0, L + 6.0, 9.0, .2, 1.15)
-    for zz in (L + .6, L + 3.0, L + 5.6):   # la plataforma del final también se apoya en el fondo
-        for sx in (-1, 0, 1): m.cube(sx * 4.1 - .15, -_hondo(zz), zz - .15, .3, _hondo(zz), .3, 'bark')
-    for zz in (L + 1, L + 3, L + 5): m.cube(0, -.0, zz, 8.8, .0, .0, 'oak_planks') if False else None
-    m.group('Farolas y bancos')
+        m.cube(sx * 4.65, 1.05, L + 3.0, 0.13, 0.11, 6.2, 'oak_planks')
+        m.cube(sx * 4.65, 0.58, L + 3.0, 0.07, 0.07, 6.2, 'oak_planks')
+        for zz in (L + 0.5, L + 2.5, L + 4.5, L + 6.0):
+            m.cube(sx * 4.65, 0, zz, 0.15, 1.15, 0.15, 'oak_planks')
+        m.col(sx * 4.65, L + 3.0, 0.22, 6.2, 1.2)
+    m.col(0, L + 6.0, 9.4, 0.22, 1.2)
+    for zz in (L + 0.6, L + 3.0, L + 5.6):
+        for sx in (-1, 0, 1):
+            m.cube(sx * 4.2 - 0.15, -_hondo(zz), zz - 0.15, 0.32, _hondo(zz), 0.32, 'bark')
+
+    m.group('Farolas de muelle')
     for zz in (4.0, 12.0, 20.0, 28.0):
         for sx in (-1, 1):
-            m.cube(sx * 1.78, 0, zz, .12, 2.3, .12, 'metal_dark'); m.cube(sx * 1.78, 2.3, zz, .34, .34, .34, 'glow'); m.col(sx * 1.78, zz, .2, .2, 2.5)   # dentro de la baranda, sin atravesarla
+            m.cube(sx * 1.82, 0, zz, 0.14, 2.4, 0.14, 'metal_dark')
+            m.cube(sx * 1.82, 2.4, zz, 0.36, 0.36, 0.36, 'glow')
+            m.col(sx * 1.82, zz, 0.22, 0.22, 2.6)
     for sx in (-1, 1):
-        m.cube(sx * 3.9, 0, L + 5.0, .12, 2.3, .12, 'metal_dark'); m.cube(sx * 3.9, 2.3, L + 5.0, .34, .34, .34, 'glow'); m.col(sx * 3.9, L + 5.0, .2, .2, 2.5)
+        m.cube(sx * 4.0, 0, L + 5.0, 0.14, 2.4, 0.14, 'metal_dark')
+        m.cube(sx * 4.0, 2.4, L + 5.0, 0.36, 0.36, 0.36, 'glow')
+        m.col(sx * 4.0, L + 5.0, 0.22, 0.22, 2.6)
+
+    m.group('Bancos y Amarras')
     for sx in (-3.0, 3.0):
-        m.cube(sx, .0, L + 3.2, 1.8, .45, .5, 'oak_planks'); m.cube(sx, .45, L + 3.45, 1.8, .6, .1, 'oak_planks')
-        m.col(sx, L + 3.3, 1.8, .6, 1.0)
-    m.cube(0, 0, L + 5.6, .5, .5, .5, 'barrel_wood'); m.cube(1.5, 0, L + 5.6, .5, .5, .5, 'rope'); m.cube(-1.5, 0, L + 5.6, .5, .5, .5, 'rope')
-    m.cube(2.15, .0, L / 2 + 6, .5, .36, .5, 'sign_red') if False else None
-    m.group('Cartel')
-    m.cube(0, 2.9, 0.2, 4.8, .8, .14, 'sign_dark'); m.cube(-2.15, 0, 0.2, .14, 2.9, .14, 'bark'); m.cube(2.15, 0, 0.2, .14, 2.9, .14, 'bark')
-    m.cube(0, 3.0, 0.3, 4.2, .6, .06, 'sign_gold')
+        m.cube(sx, 0, L + 3.2, 1.9, 0.48, 0.55, 'oak_planks')
+        m.cube(sx, 0.48, L + 3.5, 1.9, 0.65, 0.12, 'oak_planks')
+        m.col(sx, L + 3.3, 1.9, 0.65, 1.05)
+    # Bolardos de amarre náuticos
+    m.cube(0, 0, L + 5.8, 0.35, 0.55, 0.35, 'metal_dark')
+    m.cube(1.6, 0, L + 5.8, 0.35, 0.55, 0.35, 'metal_dark')
+    m.cube(-1.6, 0, L + 5.8, 0.35, 0.55, 0.35, 'metal_dark')
 
 
 def faro(m, rng):
-    m.group('Rocas')
-    for (x, z, w, d, h) in ((0, 0, 9, 9, 1.6), (-2.5, 1.5, 5, 5, 2.2), (2.8, -2.2, 4.5, 4.5, 2.6), (3.5, 3.0, 3.5, 3.2, 1.5), (-3.8, -3.0, 3.0, 3.4, 1.9)):
+    m.group('Base de Roca')
+    for (x, z, w, d, h) in ((0, 0, 9.4, 9.4, 1.8), (-2.5, 1.5, 5.2, 5.2, 2.4), (2.8, -2.2, 4.8, 4.8, 2.8), (3.5, 3.0, 3.8, 3.5, 1.7), (-3.8, -3.0, 3.2, 3.6, 2.1)):
         m.cube(x, 0, z, w, h, d, 'rock')
-        m.cube(x, h, z, w * .6, .5, d * .6, 'rock_dark')
-    m.col(0, 0, 9, 9, 2.0)
-    m.group('Torre')
-    y = 1.8
-    for i in range(9):
-        w = 4.4 - i * .22
-        m.cube(0, y, 0, w, 2.0, w, 'hull_white' if i % 2 == 0 else 'sign_red')
+        m.cube(x, h, z, w * 0.65, 0.55, d * 0.65, 'rock_dark')
+    m.col(0, 0, 9.4, 9.4, 2.2)
+
+    m.group('Torre del Faro')
+    y = 2.0
+    for i in range(10):
+        w = max(2.6, 4.6 - i * 0.2)
+        m.cube(0, y, 0, w, 2.1, w, 'hull_white' if i % 2 == 0 else 'sign_red')
         for sx in (-1, 1):
-            m.cube(sx * (w / 2 + .02), y + .8, 0, .06, .7, .4, 'glass_dark') if i % 2 == 0 else None
-        y += 2.0
-    m.cube(0, 1.8, 2.2, 1.0, 1.9, .1, 'door_navy')
-    m.col(0, 0, 4.4, 4.4, 20.0)
-    m.group('Linterna')
-    m.cube(0, y, 0, 4.2, .25, 4.2, 'metal_dark')
-    for sx, sz in ((-1, -1), (1, -1), (-1, 1), (1, 1)): m.cube(sx * 1.95, y, sz * 1.95, .12, 2.4, .12, 'metal_dark'); m.cube(sx * 1.95, y + .25, sz * 1.95, .1, .9, .1, 'metal_dark')
-    m.cube(0, y + .25, 2.05, 3.6, .1, .1, 'metal_dark'); m.cube(0, y + .25, -2.05, 3.6, .1, .1, 'metal_dark')
-    for sx in (-1, 1): m.cube(sx * 2.05, y + .25, 0, .1, .1, 3.6, 'metal_dark')
-    m.cube(0, y + .25, 0, 3.7, 1.9, 3.7, 'glass')
-    m.cube(0, y + .6, 0, 1.4, 1.2, 1.4, 'glow'); m.cube(0, y + .5, 0, 1.0, 1.6, 1.0, 'neon_yellow')
-    m.cube(0, y + 2.15, 0, 4.4, .3, 4.4, 'sign_red'); m.cube(0, y + 2.45, 0, 3.2, .3, 3.2, 'sign_red'); m.cube(0, y + 2.75, 0, 2.0, .3, 2.0, 'sign_red'); m.cube(0, y + 3.05, 0, .8, .4, .8, 'metal_dark')
+            if i % 2 == 1:
+                m.cube(sx * (w / 2 + 0.02), y + 0.8, 0, 0.07, 0.75, 0.45, 'glass_dark')
+        y += 2.1
+
+    # Puerta de entrada en la base
+    m.cube(0, 2.0, 2.32, 1.1, 2.0, 0.12, 'door_navy')
+    m.col(0, 0, 4.6, 4.6, 23.0)
+
+    m.group('Galería y Balcón')
+    m.cube(0, y, 0, 4.4, 0.28, 4.4, 'metal_dark')
+    for sx, sz in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        m.cube(sx * 2.05, y, sz * 2.05, 0.14, 2.5, 0.14, 'metal_dark')
+        m.cube(sx * 2.05, y + 0.28, sz * 2.05, 0.11, 0.95, 0.11, 'metal_dark')
+    m.cube(0, y + 0.28, 2.15, 3.8, 0.11, 0.11, 'metal_dark')
+    m.cube(0, y + 0.28, -2.15, 3.8, 0.11, 0.11, 'metal_dark')
+    for sx in (-1, 1):
+        m.cube(sx * 2.15, y + 0.28, 0, 0.11, 0.11, 3.8, 'metal_dark')
+
+    m.group('Linterna y Foco')
+    m.cube(0, y + 0.28, 0, 3.8, 2.1, 3.8, 'glass')
+    # Foco giratorio central ultra brillante
+    m.cube(0, y + 0.65, 0, 1.5, 1.3, 1.5, 'glow')
+    m.cube(0, y + 0.55, 0, 1.1, 1.7, 1.1, 'neon_yellow')
+    m.cube(0, y + 0.5, 0, 0.6, 1.8, 0.6, 'gold')
+
+    m.group('Cúpula y Veleta')
+    m.cube(0, y + 2.38, 0, 4.6, 0.32, 4.6, 'sign_red')
+    m.cube(0, y + 2.7, 0, 3.4, 0.32, 3.4, 'sign_red')
+    m.cube(0, y + 3.02, 0, 2.2, 0.32, 2.2, 'sign_red')
+    m.cube(0, y + 3.34, 0, 0.9, 0.45, 0.9, 'metal_dark')
+    # Pararrayos / Veleta
+    m.cube(0, y + 3.79, 0, 0.08, 1.2, 0.08, 'gold')
 
 
 def rocas(m, rng, seed):
     r = random.Random(seed)
-    m.group('Rocas')
-    for i in range(6):
-        w, d, h = r.uniform(1.0, 3.0), r.uniform(1.0, 2.6), r.uniform(.8, 2.4)
-        x, z = r.uniform(-2.5, 2.5), r.uniform(-2, 2)
-        m.cube(x, 0, z, w, h, d, 'rock' if i % 3 else 'rock_dark')
-        m.cube(x + .1, h, z, w * .6, .3, d * .6, 'rock')
-        m.col(x, z, w, d, h + .3)
+    m.group('Rocas Costeras')
+    for i in range(8):
+        w = r.uniform(1.2, 3.2)
+        d = r.uniform(1.2, 2.8)
+        h = r.uniform(0.9, 2.6)
+        x = r.uniform(-2.6, 2.6)
+        z = r.uniform(-2.2, 2.2)
+        m.cube(x, 0, z, w, h, d, 'rock' if i % 2 == 0 else 'rock_dark')
+        m.cube(x + 0.1, h, z, w * 0.65, 0.35, d * 0.65, 'rock')
+        m.col(x, z, w, d, h + 0.35)
 
 
 def castillo(m, rng):
-    m.group('Castillo')
-    m.cube(0, 0, 0, 1.8, .45, 1.8, 'sand'); m.cube(0, .45, 0, 1.4, .3, 1.4, 'sand')
+    m.group('Muralla y Foso')
+    m.cube(0, 0, 0, 2.2, 0.5, 2.2, 'sand')
+    m.cube(0, 0.5, 0, 1.6, 0.35, 1.6, 'sand')
+    # 4 torreones esquineros con almenas
     for sx in (-1, 1):
         for sz in (-1, 1):
-            m.cube(sx * .75, 0, sz * .75, .5, 1.1, .5, 'sand'); m.cube(sx * .75, 1.1, sz * .75, .6, .15, .6, 'sand')
-    m.cube(0, .75, 0, .8, .8, .8, 'sand'); m.cube(0, 1.55, 0, .5, .15, .5, 'sand')
-    m.cube(0, 1.7, 0, .05, .6, .05, 'trim_white'); m.cube(.15, 2.1, 0, .3, .2, .03, 'sign_red')
-    m.cube(0, 0, 1.3, .6, .1, .8, 'wet_sand')
-    m.col(0, 0, 1.9, 1.9, 1.5)
+            m.cube(sx * 0.85, 0, sz * 0.85, 0.55, 1.25, 0.55, 'sand')
+            m.cube(sx * 0.85, 1.25, sz * 0.85, 0.65, 0.18, 0.65, 'sand')
+    # Torre del homenaje central con puerta arqueada
+    m.cube(0, 0.85, 0, 0.9, 0.9, 0.9, 'sand')
+    m.cube(0, 1.75, 0, 0.6, 0.2, 0.6, 'sand')
+    # Mástil con banderín de playa
+    m.cube(0, 1.95, 0, 0.06, 0.7, 0.06, 'trim_white')
+    m.cube(0.18, 2.4, 0, 0.35, 0.22, 0.04, 'sign_red')
+    # Arena mojada alrededor
+    m.cube(0, 0, 1.4, 0.7, 0.12, 0.9, 'wet_sand')
+    m.col(0, 0, 2.2, 2.2, 1.6)
 
 
 def voley(m, rng):
-    m.group('Red')
+    m.group('Red y Postes')
     for sx in (-1, 1):
-        m.cube(sx * 4.6, 0, 0, .14, 2.45, .14, 'steel'); m.col(sx * 4.6, 0, .2, .2, 2.45)
-    m.cube(0, 1.65, 0, 9.0, .9, .03, 'vent'); m.cube(0, 2.5, 0, 9.0, .08, .06, 'trim_white'); m.cube(0, 1.6, 0, 9.0, .06, .06, 'trim_white')
-    m.group('Cancha')
-    for (x, z, w, d) in ((0, 8.5, 9.0, .1), (0, -8.5, 9.0, .1), (-4.5, 0, .1, 17.1), (4.5, 0, .1, 17.1), (0, 0, 9.0, .1), (0, 3, 9.0, .1), (0, -3, 9.0, .1)):
-        m.cube(x, 0, z, w, .02, d, 'trim_white')
-    m.cube(-4.6, .0, 0.0, .3, .0, .3, 'sand') if False else None
+        m.cube(sx * 4.6, 0, 0, 0.16, 2.5, 0.16, 'steel')
+        m.col(sx * 4.6, 0, 0.22, 0.22, 2.5)
+    # Red blanca de vóley playa tensada con bordes
+    m.cube(0, 1.65, 0, 9.0, 0.92, 0.04, 'vent')
+    m.cube(0, 2.57, 0, 9.0, 0.09, 0.07, 'trim_white')
+    m.cube(0, 1.6, 0, 9.0, 0.07, 0.07, 'trim_white')
+
+    m.group('Líneas de Cancha')
+    for (x, z, w, d) in ((0, 8.5, 9.0, 0.1), (0, -8.5, 9.0, 0.1), (-4.5, 0, 0.1, 17.1), (4.5, 0, 0.1, 17.1), (0, 0, 9.0, 0.1)):
+        m.cube(x, 0, z, w, 0.02, d, 'trim_white')
+
+    # Balón de vóley playa en la arena
+    m.group('Pelota')
+    m.cube(-2.2, 0, 1.8, 0.35, 0.35, 0.35, 'gold')
+    m.cube(-2.2, 0.05, 1.8, 0.37, 0.25, 0.37, 'hull_blue')
 
 
 def caseta(m, rng, tile, roof):
     m.group('Caseta')
-    m.cube(0, 0, 0, 2.6, 2.5, 2.6, tile)
-    m.cube(0, .0, 1.31, 1.0, 2.0, .06, 'door_navy')
-    m.cube(0, 1.4, 1.35, .2, .1, .06, 'gold') if False else None
-    for sx in (-1, 1): m.cube(sx * 1.31, 1.1, 0, .06, .8, .9, 'glass')
-    m.cube(0, 2.5, 0, 3.2, .16, 3.2, roof); m.cube(0, 2.66, 0, 2.4, .16, 2.4, roof); m.cube(0, 2.82, 0, 1.6, .16, 1.6, roof); m.cube(0, 2.98, 0, .8, .16, .8, roof)
-    m.col(0, 0, 2.7, 2.7, 2.6)
+    m.cube(0, 0, 0, 2.7, 2.6, 2.7, tile)
+    # Puerta azul marina con manilla
+    m.cube(0, 0, 1.36, 1.05, 2.1, 0.07, 'door_navy')
+    m.cube(0.4, 1.05, 1.41, 0.08, 0.14, 0.06, 'gold')
+    # Ventanitas laterales
+    for sx in (-1, 1):
+        m.cube(sx * 1.36, 1.15, 0, 0.07, 0.85, 0.95, 'glass')
+    # Techo a cuatro aguas rayado
+    m.cube(0, 2.6, 0, 3.3, 0.18, 3.3, roof)
+    m.cube(0, 2.78, 0, 2.5, 0.18, 2.5, roof)
+    m.cube(0, 2.96, 0, 1.7, 0.18, 1.7, roof)
+    m.cube(0, 3.14, 0, 0.9, 0.18, 0.9, roof)
+    m.col(0, 0, 2.8, 2.8, 2.7)
 
 
-SOMBRILLAS = [('sombrilla_roja', 'awn_red', 'awn_red'), ('sombrilla_azul', 'awn_blue', 'awn_blue'), ('sombrilla_amarilla', 'awn_gold', 'awn_gold'), ('sombrilla_verde', 'awn_green', 'awn_green')]
-SIZES = {'palmera': (4, 4, 7.6), 'torre_salvavidas': (4.2, 7, 7.8), 'chiringuito': (10.4, 7.6, 4.7), 'barca_roja': (1.6, 5, 1.2), 'barca_azul': (1.6, 5, 1.2),
-         'velero': (2, 6.5, 7.2), 'muelle': (9, 40, 2.4), 'faro': (9, 9, 24), 'rocas_a': (6, 5, 3), 'rocas_b': (6, 5, 3), 'castillo': (2, 2, 2.4), 'voley': (9.2, 17.2, 2.6),
-         'caseta_roja': (3.2, 3.2, 3.2), 'caseta_azul': (3.2, 3.2, 3.2), 'sombrilla_roja': (4, 5, 2.8), 'sombrilla_azul': (4, 5, 2.8), 'sombrilla_amarilla': (4, 5, 2.8), 'sombrilla_verde': (4, 5, 2.8)}
+SOMBRILLAS = [
+    ('sombrilla_roja', 'awn_red', 'awn_red'),
+    ('sombrilla_azul', 'awn_blue', 'awn_blue'),
+    ('sombrilla_amarilla', 'awn_gold', 'awn_gold'),
+    ('sombrilla_verde', 'awn_green', 'awn_green')
+]
+
+SIZES = {
+    'palmera': (4, 4, 8.0),
+    'torre_salvavidas': (4.4, 7.2, 8.2),
+    'chiringuito': (10.8, 8.0, 4.9),
+    'barca_roja': (1.8, 5.2, 1.3),
+    'barca_azul': (1.8, 5.2, 1.3),
+    'velero': (2.2, 6.8, 7.6),
+    'muelle': (9.4, 40.0, 2.6),
+    'faro': (9.4, 9.4, 25.0),
+    'rocas_a': (6.2, 5.2, 3.2),
+    'rocas_b': (6.2, 5.2, 3.2),
+    'castillo': (2.2, 2.2, 2.6),
+    'voley': (9.4, 17.2, 2.7),
+    'caseta_roja': (3.3, 3.3, 3.4),
+    'caseta_azul': (3.3, 3.3, 3.4),
+    'sombrilla_roja': (4.2, 5.2, 2.9),
+    'sombrilla_azul': (4.2, 5.2, 2.9),
+    'sombrilla_amarilla': (4.2, 5.2, 2.9),
+    'sombrilla_verde': (4.2, 5.2, 2.9)
+}
 
 
 def build_all(tex):
@@ -321,7 +524,8 @@ def build_all(tex):
         n = m.save(tex)
         w, d, h = SIZES[name]
         info[name] = {'w': w, 'd': d, 'h': h, 'cubos': n}
-        print(f'{name:20s} {n:4d} cubos')
+        print(f'{name:22s} {n:4d} cubos')
+
     save('palmera', lambda m: palmera(m, random.Random(5)))
     for name, tile, towel in SOMBRILLAS:
         save(name, lambda m, t=tile, w=towel: sombrilla(m, random.Random(2), t, w))
