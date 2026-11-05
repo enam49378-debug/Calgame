@@ -736,7 +736,7 @@ function cityGrassAt(x,z) {
   for(const b of CITY_PLAN)if(b.model){
     const face=b.z<0?1:-1;
     bbLoads.push(loadBBModel(b.model).then(({geo,mat})=>{
-      const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.model=b.model;mesh.updateMatrix();mesh.matrixAutoUpdate=false;scene.add(mesh);(window.BBM||(window.BBM=[])).push(mesh);bbRegister(mesh,geo);
+      const mesh=new THREE.Mesh(geo,mat);mesh.position.set(b.x,0,b.z);mesh.rotation.y=face>0?0:Math.PI;mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.model=b.model;mesh.userData.isBuilding=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;scene.add(mesh);(window.BBM||(window.BBM=[])).push(mesh);bbRegister(mesh,geo);
       const itB = MAP_ITEMS.find(q => q.plan === b || (q.kind === 'b' && Math.abs(q.x - b.x) < 0.2 && Math.abs(q.z - b.z) < 0.2));
       if (itB) { itB.mesh = mesh; mesh.userData.mapItem = itB; }
       for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2;COL.push({x:b.x+face*lx,z:b.z+face*lz,hx:(x1-x0)/2,hz:(z1-z0)/2,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true});}
@@ -915,6 +915,7 @@ function cityGrassAt(x,z) {
     pGeo.userData = Object.assign({}, geo.userData);
     const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;
     mesh.userData.model = pr.m;
+    mesh.userData.isProp = true;
     mesh.updateMatrix();
     if(!pr.bob) mesh.matrixAutoUpdate=false;
     scene.add(mesh);
@@ -987,7 +988,7 @@ function cityGrassAt(x,z) {
     if(['#77b3c6','#7fb5c5','#aac5d1'].includes(batch.color))CITY.windowMaterials.push(mat);
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
-    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);const tower=p.pop();if(tower)tower.parts.push({mesh,index:i});if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color});});
+    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);const tower=p.pop();if(tower)tower.parts.push({mesh,index:i});if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color,isBuilding:true});});
     cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;scene.add(mesh);
     {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
     mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
@@ -2345,11 +2346,16 @@ function bbRegister(mesh, geo) {
   const cubes = geo.userData.cubes; if (!cubes || !geo.index) return;
   mesh.updateMatrixWorld(true); mesh.userData.idx0 = geo.index.array.slice();
   const L = window.DESTR || (window.DESTR = []), M = mesh.matrixWorld, v = new V3();
+  const isBldg = !!(mesh.userData && mesh.userData.isBuilding);
   for (const c of cubes) {
     const a = c.a; let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
     for (const x of [a[0], a[3]]) for (const y of [a[1], a[4]]) for (const z of [a[2], a[5]]) { v.set(x, y, z).applyMatrix4(M); mnx = Math.min(mnx, v.x); mny = Math.min(mny, v.y); mnz = Math.min(mnz, v.z); mxx = Math.max(mxx, v.x); mxy = Math.max(mxy, v.y); mxz = Math.max(mxz, v.z); }
-    const w = mxx - mnx, h = mxy - mny, d = mxz - mnz; if (w * h * d > 7000 || Math.max(w, h, d) < .08 || mxy < -.6) continue;
-    L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv, fc: c.fc, a: c.a }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material, model: mesh.userData.model || '' });
+    const w = mxx - mnx, h = mxy - mny, d = mxz - mnz;
+    const vol = w * h * d;
+    if (vol > 7000 || Math.max(w, h, d) < .08 || mxy < -.6) continue;
+    // Si es un edificio, omitir el cuerpo principal, muros altos y tejados para no voxelizar la fachada ni tirar escombros del tejado
+    if (isBldg && (Math.max(w, h, d) > 1.4 || vol > 1.2 || mxy > 4.0)) continue;
+    L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv, fc: c.fc, a: c.a }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material, model: mesh.userData.model || '', isBuilding: isBldg });
   }
 }
 const BBF = { south: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], north: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], east: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], west: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], up: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], down: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] };
@@ -2502,7 +2508,7 @@ function destHide(d) {
 // parte una pieza grande en cubos: los que caen dentro de la explosión salen volando y el resto queda como bloques sueltos (que también se pueden romper)
 function carveBox(d, c, r, dir) {
   const q = d.p; let cs = d.bb ? .45 : .6, nx, ny, nz;
-  do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 900);
+  do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 200);
   const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d), mw = d.bb ? d.bb.mesh.matrixWorld.elements : null, flx = mw && mw[0] < 0, flz = mw && mw[10] < 0;
   const tcol = (i, j, k) => { if (!d.bb) return base; let tx = (i + .5) / nx, tz = (k + .5) / nz; if (flx) tx = 1 - tx; if (flz) tz = 1 - tz; const g = destCell(d, [tx, (j + .5) / ny, tz]); return g ? 'rgb(' + g[0] + ',' + g[1] + ',' + g[2] + ')' : base; };
   const matType = destMaterial(d);
@@ -2538,12 +2544,16 @@ function carveBox(d, c, r, dir) {
   }
 }
 
-// Comprueba si una estructura multi-cubo (palmera, torre, chiringuito) perdio su soporte inferior y colapsa por gravedad
+// Comprueba si una estructura multi-cubo (palmera) perdio su soporte inferior y colapsa por gravedad
 function checkStructuralCascade(affectedMeshes) {
   if (!affectedMeshes || !affectedMeshes.size) return;
   const L = window.DESTR; if (!L) return;
   for (const mesh of affectedMeshes) {
     if (!mesh) continue;
+    // NUNCA colapsar edificios! Solo accesorios delgados como palmeras
+    if (mesh.userData.isBuilding || !mesh.userData.isProp) continue;
+    const model = (mesh.userData && mesh.userData.model) || '';
+    if (!/palmera/i.test(model)) continue;
     const aliveCubes = [];
     let lowestY = 1e9, highestY = -1e9;
     for (let i = 0; i < L.length; i++) {
@@ -2592,10 +2602,36 @@ function worldBreak(c, r, maxVol, carve, dir) {
     const d = L[k]; if (d.off || d.dead) continue; const q = d.p;
     const dx = Math.max(Math.abs(c.x - q[0]) - q[3] / 2, 0), dy = Math.max(Math.abs(c.y - q[1]) - q[4] / 2, 0), dz = Math.max(Math.abs(c.z - q[2]) - q[5] / 2, 0);
     if (dx * dx + dy * dy + dz * dz > r * r) continue;
-    const vol = q[3] * q[4] * q[5], small = Math.max(q[3], q[4], q[5]) <= 1.2;
+    const vol = q[3] * q[4] * q[5];
+    const isLargeWall = Math.max(q[3], q[4], q[5]) > 1.8 || vol > 1.8;
+    const isBuilding = d.isBuilding || !d.bb || (d.bb && d.bb.mesh && (d.bb.mesh.userData.isBuilding || !d.bb.mesh.userData.isProp));
+
+    // Si es un muro o estructura de edificio: daño ESTRICTAMENTE LOCALIZADO donde fue golpeado
+    if (isBuilding || isLargeWall) {
+      n++;
+      const nChunks = clamp(Math.round(r * 8), 6, 14);
+      const col = destColor(d);
+      for (let si = 0; si < nChunks; si++) {
+        const px = c.x + rand(-r * 0.65, r * 0.65);
+        const py = clamp(c.y + rand(-r * 0.65, r * 0.65), 0.25, 45);
+        const pz = c.z + rand(-r * 0.65, r * 0.65);
+        const l = Math.hypot(px - c.x, py - c.y, pz - c.z) || 1;
+        const sz = rand(0.28, Math.min(0.6, r * 0.45));
+        const vx = (px - c.x) / l * 8 + dirX + rand(-2.5, 2.5);
+        const vy = (py - c.y) / l * 5 + dirY + rand(2.5, 7.5);
+        const vz = (pz - c.z) / l * 8 + dirZ + rand(-2.5, 2.5);
+        spawnDebris(px, py, pz, sz, sz, sz, col, vx, vy, vz);
+      }
+      burst(c, 12, col, 6.5, 0.16, 0.45);
+      sfx('heavy', c, 0.8);
+      sfx('break', c, 0.7);
+      continue;
+    }
+
+    const small = Math.max(q[3], q[4], q[5]) <= 1.2;
     if (small || (!carve && vol <= maxVol)) {
       destHide(d); n++;
-      if (d.bb && d.bb.mesh) affectedMeshes.add(d.bb.mesh);
+      if (d.bb && d.bb.mesh && d.bb.mesh.userData.isProp) affectedMeshes.add(d.bb.mesh);
       {
         const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1;
         const vx = ex / l * 8 + dirX + rand(-2.5, 2.5);
@@ -2605,7 +2641,7 @@ function worldBreak(c, r, maxVol, carve, dir) {
       }
     } else if (carve && carved < 24) {
       carveBox(d, c, r, dir); carved++; n++;
-      if (d.bb && d.bb.mesh) affectedMeshes.add(d.bb.mesh);
+      if (d.bb && d.bb.mesh && d.bb.mesh.userData.isProp) affectedMeshes.add(d.bb.mesh);
     }
   }
   checkStructuralCascade(affectedMeshes);
@@ -2709,18 +2745,22 @@ function bbAvgColor(m) {
 }
 // los edificios de Blockbench son una sola malla: se les abre un hueco esférico y salen cubos de escombro
 function bbHole(c, r) {
-  const L = window.BBM; if (!L || r < 1.4) return;
+  const L = window.BBM; if (!L || r < 1.0) return;
   for (const m of L) {
     if (!m.userData.bb) { m.updateMatrixWorld(true); m.userData.bb = new THREE.Box3().setFromObject(m); }
     const b = m.userData.bb, dx = Math.max(b.min.x - c.x, 0, c.x - b.max.x), dy = Math.max(b.min.y - c.y, 0, c.y - b.max.y), dz = Math.max(b.min.z - c.z, 0, c.z - b.max.z);
     if (dx * dx + dy * dy + dz * dz > r * r) continue;
     addHole(c, r); const col = bbAvgColor(m); let n = 0;
-    for (let i = 0; i < 60 && n < 26; i++) {
-      const px = c.x + rand(-r, r), py = c.y + rand(-r, r), pz = c.z + rand(-r, r);
-      if (Math.hypot(px - c.x, py - c.y, pz - c.z) > r || py < .2 || px < b.min.x || px > b.max.x || py > b.max.y || pz < b.min.z || pz > b.max.z) continue;
-      n++; const l = Math.hypot(px - c.x, py - c.y, pz - c.z) || 1, sz = rand(.4, 1.1);
-      spawnDebris(px, py, pz, sz, sz * rand(.7, 1.2), sz, col, (px - c.x) / l * 9 + rand(-2, 2), (py - c.y) / l * 5 + rand(2, 8), (pz - c.z) / l * 9 + rand(-2, 2));
+    const nChunks = clamp(Math.round(r * 8), 6, 14);
+    for (let i = 0; i < 60 && n < nChunks; i++) {
+      const px = c.x + rand(-r * 0.65, r * 0.65), py = clamp(c.y + rand(-r * 0.65, r * 0.65), 0.25, 45), pz = c.z + rand(-r * 0.65, r * 0.65);
+      if (Math.hypot(px - c.x, py - c.y, pz - c.z) > r) continue;
+      n++; const l = Math.hypot(px - c.x, py - c.y, pz - c.z) || 1, sz = rand(.28, Math.min(.55, r * .45));
+      spawnDebris(px, py, pz, sz, sz, sz, col, (px - c.x) / l * 8 + rand(-2.5, 2.5), (py - c.y) / l * 5 + rand(2.5, 7.5), (pz - c.z) / l * 8 + rand(-2.5, 2.5));
     }
+    burst(c, 12, col, 6.5, 0.16, 0.45);
+    sfx('heavy', c, 0.8);
+    sfx('break', c, 0.7);
     break;
   }
 }
@@ -2757,9 +2797,9 @@ function worldDamage(c, r, power, dmg, dest, dir) {
   }
   if (r >= 1.0) {
     const big = (dmg != null ? rr >= 1.2 : r >= 2.0 && power >= .8);
-    worldBreak(c, rr, (.45 + r * .35) * power, big, dir);
+    const nBroken = worldBreak(c, rr, (.45 + r * .35) * power, big, dir);
     colCarve(c, rr);
-    if (big && (dmg >= 10 || r >= 2.5)) bbHole(c, rr);
+    if (big || nBroken === 0) bbHole(c, rr);
   }
 }
 
