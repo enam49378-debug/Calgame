@@ -7,6 +7,7 @@ const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+window.V3 = V3; window.rand = rand; window.clamp = clamp;
 const fwd = yaw => new V3(Math.sin(yaw), 0, Math.cos(yaw));
 const rightOf = yaw => new V3(-Math.cos(yaw), 0, Math.sin(yaw));
 const wrapA = a => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
@@ -124,6 +125,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // gradación final: más color y contraste, menos apagado
 $('wrap').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
+window.scene = scene;
 const SKY = 0x5da8ea;
 scene.background = new THREE.Color(SKY);
 scene.fog = new THREE.Fog(0x82bcf2, 80, 240);
@@ -276,6 +278,7 @@ function cityAnimeMaterial(material,opts={}){
 // ================= Mundo: Ciudad Aurora =================
 // Calles de 8 m, plaza abierta y manzanas bajas; la distribución es fija en todas las partidas.
 const B = 1.1, ARENA = 118, COL = [], CLOUDS = [], ELEVATORS = [];
+window.COL = COL; window.CLOUDS = CLOUDS;
 const CITY = { name: 'Ciudad Aurora', buildings: [], skyline: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], core: 62, bounds: 116 };
 // Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
 const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
@@ -1582,6 +1585,7 @@ function seaFloor(x, z) {
   return -(.09 + 9.2 * k) + Math.sin(x * .13 + z * .09) * .45 * k + Math.sin(x * .31 - z * .23) * .18 * k;
 }
 let GUIDE_Y=0;
+window.groundAt = groundAt;
 function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;let g=(z>SHORE(x)+.2&&z<290&&Math.abs(x)<190)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
 // ================= Partículas (bloquecitos) =================
@@ -1633,6 +1637,7 @@ class Parts {
 const PS = new Parts(scene, 2400);
 const emit = (...a) => PS.emit(...a);
 const burst = (...a) => PS.burst(...a);
+window.burst = burst; window.emit = emit;
 
 // ================= Skins estilo Minecraft =================
 const faceRects = (u, v, w, h, d) => ({ right: [u, v + d, d, h], front: [u + d, v + d, w, h], left: [u + d + w, v + d, d, h], back: [u + 2 * d + w, v + d, w, h], top: [u + d, v, w, d], bottom: [u + d + w, v, w, d] });
@@ -2321,486 +2326,46 @@ function randiTinku(f) {
   };
   later(0, tick);
 }
-// ===== Destrucción temporal del escenario: marcas de quemado/grietas en el piso y las paredes y piezas pequeñas (ventanas, adornos, árboles) que saltan y se reparan solas =====
-const SCAR_TEX = (() => {
-  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d', { willReadFrequently: true });
-  const gr = g.createRadialGradient(64, 64, 4, 64, 64, 58); gr.addColorStop(0, 'rgba(8,6,4,.92)'); gr.addColorStop(.55, 'rgba(18,13,8,.7)'); gr.addColorStop(1, 'rgba(18,13,8,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
-  g.strokeStyle = 'rgba(8,6,4,.95)'; g.lineCap = 'round';
-  for (let i = 0; i < 13; i++) {
-    let a = i / 13 * TAU + rand(-.2, .2), r = 10, x = 64, y = 64; g.lineWidth = 4.5; g.beginPath(); g.moveTo(x, y);
-    while (r < 62) { r += rand(5, 11); a += rand(-.4, .4); x = 64 + Math.cos(a) * r; y = 64 + Math.sin(a) * r; g.lineTo(x, y); g.lineWidth = Math.max(1, g.lineWidth - .45); }
-    g.stroke();
-  }
-  return new THREE.CanvasTexture(c);
-})();
-let SCAR_N = 0;
-function scarDecal(p, r, n) {
-  if (SCAR_N > 70) return; SCAR_N++;
-  const geo = new THREE.PlaneGeometry(r * 2, r * 2), mat = new THREE.MeshBasicMaterial({ map: SCAR_TEX, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), m = new THREE.Mesh(geo, mat);
-  if (n) { m.position.copy(p).addScaledVector(n, .05); m.lookAt(p.x + n.x, p.y + n.y, p.z + n.z); m.rotateZ(rand(0, TAU)); } else { m.rotation.x = -Math.PI / 2; m.rotation.z = rand(0, TAU); m.position.set(p.x, p.y + .04, p.z); }
-  addFx(m, 40, (o, k) => { mat.opacity = k < .8 ? .95 : .95 * (1 - (k - .8) / .2); }, () => { SCAR_N--; geo.dispose(); mat.dispose(); });
-}
-const DEST_OFF = [], COL_OFF = [], _dm = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _dv = new V3(), _ds = new V3(), _de = new THREE.Euler();
-let DEST_GEO = null, DEB_MAT = null;
-function bbRegister(mesh, geo) {
-  const cubes = geo.userData.cubes; if (!cubes || !geo.index) return;
-  mesh.updateMatrixWorld(true); mesh.userData.idx0 = geo.index.array.slice();
-  const L = window.DESTR || (window.DESTR = []), M = mesh.matrixWorld, v = new V3();
-  const isBldg = !!(mesh.userData && mesh.userData.isBuilding);
-  for (const c of cubes) {
-    const a = c.a; let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
-    for (const x of [a[0], a[3]]) for (const y of [a[1], a[4]]) for (const z of [a[2], a[5]]) { v.set(x, y, z).applyMatrix4(M); mnx = Math.min(mnx, v.x); mny = Math.min(mny, v.y); mnz = Math.min(mnz, v.z); mxx = Math.max(mxx, v.x); mxy = Math.max(mxy, v.y); mxz = Math.max(mxz, v.z); }
-    const w = mxx - mnx, h = mxy - mny, d = mxz - mnz;
-    const vol = w * h * d;
-    if (vol > 7000 || Math.max(w, h, d) < .08 || mxy < -.6) continue;
-    // Si es un edificio, omitir el cuerpo principal, muros altos y tejados para no voxelizar la fachada ni tirar escombros del tejado
-    if (isBldg && (Math.max(w, h, d) > 1.4 || vol > 1.2 || mxy > 4.0)) continue;
-    L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv, fc: c.fc, a: c.a }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material, model: mesh.userData.model || '', isBuilding: isBldg });
-  }
-}
-const BBF = { south: [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], north: [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]], east: [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], west: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 0]], up: [[0, 1, 1], [1, 1, 1], [1, 1, 0], [0, 1, 0]], down: [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]] };
-// cara más grande del cubo y cómo se reparte su textura sobre los ejes
-function destFace(d) {
-  if (d.bb.face !== undefined) return d.bb.face;
-  const a = d.bb.a, dx = a[3] - a[0], dy = a[4] - a[1], dz = a[5] - a[2]; let best = null, ba = -1;
-  for (const f of d.bb.fc || []) { const nm = f[0], ar = (nm === 'north' || nm === 'south') ? dx * dy : (nm === 'east' || nm === 'west') ? dz * dy : dx * dz; if (ar > ba) { ba = ar; best = f; } }
-  if (!best || !BBF[best[0]]) return d.bb.face = null;
-  const c = BBF[best[0]], ax = (p, q) => { for (let i = 0; i < 3; i++) if (c[p][i] !== c[q][i]) return [i, c[p][i]]; return [0, 0]; };
-  const [ua, u0] = ax(0, 1), [va, v0] = ax(0, 3);
-  return d.bb.face = { u1: best[1], v1: best[2], u2: best[3], v2: best[4], ua, u0, va, v0 };
-}
-// color de la textura en la posición t=[x,y,z] (0..1) dentro del cubo
-function destCell(d, t) {
-  const F = destFace(d), map = d.mat && d.mat.map; if (!F || !map || !map.image) return null;
-  try {
-    const M = map.userData; if (!M.px) { const im = map.image, cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const g = cv.getContext('2d'); g.drawImage(im, 0, 0); M.w = cv.width; M.h = cv.height; M.px = g.getImageData(0, 0, cv.width, cv.height).data; }
-    const RW = d.bb.geo.userData.RW, RH = d.bb.geo.userData.RH, tu = F.u0 === 0 ? t[F.ua] : 1 - t[F.ua], tv = F.v0 === 0 ? t[F.va] : 1 - t[F.va];
-    const u = F.u1 + (F.u2 - F.u1) * tu, v = F.v2 + (F.v1 - F.v2) * tv, x = clamp(Math.floor(u * M.w / RW), 0, M.w - 1), y = clamp(Math.floor(v * M.h / RH), 0, M.h - 1), i = (y * M.w + x) * 4;
-    return M.px[i + 3] < 40 ? null : [M.px[i], M.px[i + 1], M.px[i + 2]];
-  } catch (e) { return null; }
-}
-function destColor(d) {
-  if (d.col) return d.col;
-  let col = '#b9b19c';
-  try {
-    const map = d.mat && d.mat.map, im = map && map.image, uv = d.bb && d.bb.uv, RW = d.bb.geo.userData.RW, RH = d.bb.geo.userData.RH;
-    if (im && uv) {
-      if (!map.userData.cv) { const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; cv.getContext('2d').drawImage(im, 0, 0); map.userData.cv = cv; }
-      const cv = map.userData.cv, sx = cv.width / RW, sy = cv.height / RH, x = Math.floor(Math.min(uv[0], uv[2]) * sx), y = Math.floor(Math.min(uv[1], uv[3]) * sy), w = Math.max(1, Math.min(8, Math.floor(Math.abs(uv[2] - uv[0]) * sx))), h = Math.max(1, Math.min(8, Math.floor(Math.abs(uv[3] - uv[1]) * sy)));
-      const dd = cv.getContext('2d').getImageData(clamp(x, 0, cv.width - 1), clamp(y, 0, cv.height - 1), w, h).data; let r = 0, g = 0, b = 0, n = 0;
-      for (let i = 0; i < dd.length; i += 4) if (dd[i + 3] > 40) { r += dd[i]; g += dd[i + 1]; b += dd[i + 2]; n++; }
-      if (n) col = 'rgb(' + Math.round(r / n) + ',' + Math.round(g / n) + ',' + Math.round(b / n) + ')';
-    }
-  } catch (e) { }
-  return d.col = col;
-}
-function destMaterial(d) {
-  const m = d.model || (d.bb && d.bb.mesh && d.bb.mesh.userData && d.bb.mesh.userData.model) || '';
-  if (/palmera|torre|chiringuito|barca|velero|banco|madera/i.test(m)) return 'wood';
-  if (/sombrilla|caseta|toldo|vela/i.test(m)) return 'fabric';
-  if (/castillo|arena/i.test(m)) return 'sand';
-  if (/farola|valla|reja|metal/i.test(m)) return 'metal';
-  if (/ventana|cristal/i.test(m)) return 'glass';
-  return 'stone';
-}
-const DEB = { m: null, a: [], max: 3500 };
-// cubos de escombro con fisica propia (gravedad, rebote en el piso, giro, rebote en muros); se encogen y desaparecen
+// ====================================================================
+// CONEXIÓN MODULAR: FÍSICA (physics.js) Y DAÑO ESTRUCTURAL (destruction.js)
+// El código de la física y el daño a estructuras se encuentra completamente
+// separado en js/physics.js y js/destruction.js para máxima limpieza y rendimiento.
+// ====================================================================
 function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
-  if (!DEB.m) { DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB.m = new THREE.InstancedMesh(DEST_GEO, new THREE.MeshLambertMaterial({ color: 0xffffff }), DEB.max); DEB.m.count = 0; DEB.m.visible = false; DEB.m.frustumCulled = false; DEB.m.castShadow = true; DEB.m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEB.max * 3), 3); scene.add(DEB.m); }
-  if (DEB.a.length >= DEB.max) return;
-  DEB.a.push({ x, y, z, sx, sy, sz, vx, vy, vz, rx: rand(0, TAU), ry: rand(0, TAU), wx: rand(-11, 11), wy: rand(-11, 11), life: rand(6, 10), c: new THREE.Color(col) });
+  return window.PHYSICS ? window.PHYSICS.spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) : undefined;
 }
 function destUpdate(dt) {
-  if (!DEB.m) return; const A = DEB.a;
-  for (let i = A.length - 1; i >= 0; i--) {
-    const d = A[i]; d.life -= dt; if (d.life <= 0) { A[i] = A[A.length - 1]; A.pop(); continue; }
-    d.vy -= 26 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; d.rx += d.wx * dt; d.ry += d.wy * dt;
-    const gy = groundAt(d.x, d.z), h = Math.min(d.sx, d.sy, d.sz) / 2;
-    // Apilado tridimensional dinamico: escombros que descansan sobre otros escombros
-    let floorY = gy + h;
-    if (d.y - h < gy + 0.35 && Math.abs(d.vx) < 0.8 && Math.abs(d.vz) < 0.8) {
-      const checkLimit = Math.min(25, A.length);
-      for (let si = 0; si < checkLimit; si++) {
-        const o = A[si];
-        if (o === d || o.y < gy) continue;
-        const ox = d.x - o.x, oz = d.z - o.z;
-        if (ox * ox + oz * oz < 0.16 && o.y >= floorY - 0.05 && o.y < gy + 0.7) {
-          floorY = Math.max(floorY, o.y + Math.min(d.sy, o.sy) * 0.9);
-          break;
-        }
-      }
-    }
-    if (d.y - h < floorY) {
-      d.y = floorY + h;
-      if (d.vy < -2) { d.vy *= -.38; d.vx *= .65; d.vz *= .65; d.wx *= .65; d.wy *= .65; }
-      else { d.vy = 0; d.vx *= .82; d.vz *= .82; d.wx *= .75; d.wy *= .75; }
-    }
-    // Rebote fisico de escombros veloces contra muros en COL
-    if (Math.abs(d.vx) > 2 || Math.abs(d.vz) > 2) {
-      for (let ci = 0; ci < COL.length; ci++) {
-        const c = COL[ci];
-        if (c.ceiling || c.rubble || d.y < (c.y0 || 0) || d.y > c.h) continue;
-        if (Math.abs(d.x - c.x) < c.hx + 0.25 && Math.abs(d.z - c.z) < c.hz + 0.25) {
-          const ox = (c.hx + 0.25) - Math.abs(d.x - c.x);
-          const oz = (c.hz + 0.25) - Math.abs(d.z - c.z);
-          if (ox < oz) { d.vx = -d.vx * 0.55; d.x += Math.sign(d.x - c.x) * (ox + 0.05); }
-          else { d.vz = -d.vz * 0.55; d.z += Math.sign(d.z - c.z) * (oz + 0.05); }
-          d.wx = rand(-14, 14); d.wy = rand(-14, 14);
-          break;
-        }
-      }
-    }
-    // Colision kinetica de escombros veloces contra luchadores (chispas, sonido e impulso de impacto)
-    const sp = Math.hypot(d.vx, d.vy, d.vz);
-    if (sp > 4.2 || d.vy < -6) {
-      for (let fi = 0; fi < G.fighters.length; fi++) {
-        const f = G.fighters[fi];
-        if (!f.alive) continue;
-        const fdx = d.x - f.pos.x, fdz = d.z - f.pos.z;
-        const fDistSq = fdx * fdx + fdz * fdz;
-        const fdy = Math.abs(d.y - (f.pos.y + 0.9));
-        if (fDistSq < 0.55 && fdy < 1.0) {
-          d.vx = -d.vx * 0.35 + rand(-2, 2);
-          d.vz = -d.vz * 0.35 + rand(-2, 2);
-          d.vy = rand(3, 7);
-          d.wx = rand(-18, 18); d.wy = rand(-18, 18);
-          burst(new V3(d.x, d.y, d.z), 4, d.c, 3, 0.12, 0.25);
-          sfx('hit', f.pos, 0.35);
-          f.vel.x += Math.sign(d.vx || 1) * Math.min(sp * 0.14, 2.2);
-          f.vel.z += Math.sign(d.vz || 1) * Math.min(sp * 0.14, 2.2);
-          if (f.isPlayer && sp > 7) shakeFrom(f.pos, 0.14);
-          break;
-        }
-      }
-    }
-    // Interaccion fisica: luchadores patean y dispersan los escombros al correr o deslizarse
-    for (let fi = 0; fi < G.fighters.length; fi++) {
-      const f = G.fighters[fi];
-      if (!f.alive) continue;
-      const fdx = d.x - f.pos.x, fdz = d.z - f.pos.z;
-      const fDistSq = fdx * fdx + fdz * fdz;
-      if (fDistSq < 1.0 && Math.abs(d.y - f.pos.y) < 1.5) {
-        const fDist = Math.sqrt(fDistSq) || 0.1;
-        const push = (1.0 - fDist) * 8.5;
-        const fsp = Math.hypot(f.vel.x, f.vel.z);
-        d.vx += (fdx / fDist) * push + f.vel.x * 0.45;
-        d.vz += (fdz / fDist) * push + f.vel.z * 0.45;
-        if (d.y - (gy + h) < 0.4) {
-          d.vy = Math.max(d.vy, 3.2 + Math.min(fsp * 0.4, 5.5));
-        }
-        d.wx = rand(-16, 16); d.wy = rand(-16, 16);
-      }
-    }
-  }
-  const M = DEB.m; M.count = A.length;
-  for (let i = 0; i < A.length; i++) {
-    const d = A[i], k = d.life < .6 ? Math.max(.01, d.life / .6) : 1;
-    _de.set(d.rx, d.ry, 0); _dq.setFromEuler(_de); _dm.compose(_dv.set(d.x, d.y, d.z), _dq, _ds.set(d.sx * k, d.sy * k, d.sz * k)); M.setMatrixAt(i, _dm); M.setColorAt(i, d.c);
-  }
-  M.visible = A.length > 0; M.instanceMatrix.needsUpdate = true; if (M.instanceColor) M.instanceColor.needsUpdate = true;
-}
-function destHide(d) {
-  if (d.bb) { d.bb.geo.index.array.fill(0, d.bb.i0, d.bb.i0 + d.bb.n); d.bb.geo.index.needsUpdate = true; }
-  else { _dm.compose(_dv.set(d.p[0], -60, d.p[2]), _dq, _ds.set(.001, .001, .001)); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; }
-  d.off = true;
-  if (d.parent) d.parent.back = Math.max(d.parent.back, G.time + 18); else { d.back = G.time + 26 + Math.random() * 14; DEST_OFF.push(d); }
-}
-// parte una pieza grande en cubos: los que caen dentro de la explosión salen volando y el resto queda como bloques sueltos (que también se pueden romper)
-function carveBox(d, c, r, dir) {
-  const q = d.p; let cs = d.bb ? .45 : .6, nx, ny, nz;
-  do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 200);
-  const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d), mw = d.bb ? d.bb.mesh.matrixWorld.elements : null, flx = mw && mw[0] < 0, flz = mw && mw[10] < 0;
-  const tcol = (i, j, k) => { if (!d.bb) return base; let tx = (i + .5) / nx, tz = (k + .5) / nz; if (flx) tx = 1 - tx; if (flz) tz = 1 - tz; const g = destCell(d, [tx, (j + .5) / ny, tz]); return g ? 'rgb(' + g[0] + ',' + g[1] + ',' + g[2] + ')' : base; };
-  const matType = destMaterial(d);
-  const dirX = dir ? dir.x * 6 : 0, dirZ = dir ? dir.z * 6 : 0, dirY = dir && dir.y ? dir.y * 6 : 0;
-  let sp = 0;
-  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
-    const x = q[0] - q[3] / 2 + (i + .5) * sx, y = q[1] - q[4] / 2 + (j + .5) * sy, z = q[2] - q[5] / 2 + (k + .5) * sz, dx = x - c.x, dy = y - c.y, dz = z - c.z, dd = Math.hypot(dx, dy, dz);
-    if (dd < r * (.75 + .25 * Math.random())) {
-      const l = dd || 1, f = 7 + 12 * (1 - dd / r);
-      const vx = dx / l * f * 0.7 + dirX + rand(-3, 3);
-      const vy = dy / l * f * 0.5 + dirY + rand(3, 11);
-      const vz = dz / l * f * 0.7 + dirZ + rand(-3, 3);
-      spawnDebris(x, y, z, Math.max(sx, .28) * .95, Math.max(sy, .28) * .95, Math.max(sz, .28) * .95, tcol(i, j, k), vx, vy, vz);
-      sp++;
-    }
-    else keep.push([x, y, z, sx, sy, sz, tcol(i, j, k)]);
-  }
-  destHide(d);
-  if (sp > 0) {
-    const burstCol = matType === 'wood' ? '#9e6b38' : matType === 'sand' ? '#e8d29a' : matType === 'metal' ? '#ffe066' : base;
-    burst(c, Math.min(22, sp + 4), burstCol, 7, .16, .45);
-    if (matType === 'wood') { sfx('break', c, 0.85); }
-    else if (matType === 'metal') { sfx('ding', c, 0.7); }
-    else if (matType === 'sand') { sfx('drop', c, 0.8); }
-    else { sfx('break', c, 0.75); sfx('heavy', c, 0.6); }
-  }
-  if (keep.length) {
-    DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB_MAT = DEB_MAT || new THREE.MeshLambertMaterial({ color: 0xffffff });
-    const mesh = new THREE.InstancedMesh(DEST_GEO, d.bb ? DEB_MAT : d.m.material, keep.length), cc = new THREE.Color(base); mesh.receiveShadow = true; mesh.castShadow = true;
-    keep.forEach((p, i) => { _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5])); mesh.setMatrixAt(i, _dm); if (d.bb) mesh.setColorAt(i, new THREE.Color(p[6]).multiplyScalar(.94 + Math.random() * .12)); });
-    scene.add(mesh); d.rubble = mesh; d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: p[6] || base, parent: d, cell: true, off: false }));
-    for (const x of d.cells) window.DESTR.push(x);
-  }
-}
-
-// Comprueba si una estructura multi-cubo (palmera) perdio su soporte inferior y colapsa por gravedad
-function checkStructuralCascade(affectedMeshes) {
-  if (!affectedMeshes || !affectedMeshes.size) return;
-  const L = window.DESTR; if (!L) return;
-  for (const mesh of affectedMeshes) {
-    if (!mesh) continue;
-    // NUNCA colapsar edificios! Solo accesorios delgados como palmeras
-    if (mesh.userData.isBuilding || !mesh.userData.isProp) continue;
-    const model = (mesh.userData && mesh.userData.model) || '';
-    if (!/palmera/i.test(model)) continue;
-    const aliveCubes = [];
-    let lowestY = 1e9, highestY = -1e9;
-    for (let i = 0; i < L.length; i++) {
-      const d = L[i];
-      if (d.off || d.dead || !d.bb || d.bb.mesh !== mesh) continue;
-      const q = d.p;
-      aliveCubes.push(d);
-      lowestY = Math.min(lowestY, q[1] - q[4] / 2);
-      highestY = Math.max(highestY, q[1] + q[4] / 2);
-    }
-    const gy = groundAt(mesh.position.x, mesh.position.z);
-    if (aliveCubes.length > 0 && lowestY > gy + 2.0 && highestY - lowestY > 1.0) {
-      comicPop(mesh.position.clone().add(new V3(0, Math.min(5, highestY), 0)), '¡COLLAPSE!', 'burst-orange', 36, rand(-10, 10));
-      sfx('break', mesh.position, 1.0);
-      sfx('heavy', mesh.position, 0.9);
-      shakeFrom(mesh.position, 0.45);
-      ringAt(new V3(mesh.position.x, gy + 0.1, mesh.position.z), '#e8dfcb', 3.2, 0.35);
-      for (const d of aliveCubes) {
-        destHide(d);
-        const q = d.p, col = destColor(d);
-        for (let si = 0; si < 3; si++) {
-          spawnDebris(q[0] + rand(-q[3] / 3, q[3] / 3), q[1] + rand(-q[4] / 3, q[4] / 3), q[2] + rand(-q[5] / 3, q[5] / 3),
-            Math.max(0.32, q[3] * 0.45), Math.max(0.32, q[4] * 0.45), Math.max(0.32, q[5] * 0.45),
-            col, rand(-5, 5), rand(-2, 3), rand(-5, 5));
-        }
-      }
-      for (let ci = COL.length - 1; ci >= 0; ci--) {
-        const b = COL[ci];
-        if (b && b.prop === mesh) {
-          COL_OFF.push({ b, back: G.time + 26 + Math.random() * 10 });
-          COL.splice(ci, 1);
-        }
-      }
-      const rubbleCol = { x: mesh.position.x, z: mesh.position.z, hx: 2.2, hz: 2.2, h: gy + 0.75, y0: gy, rubble: true, ceiling: false, nocam: true };
-      COL.push(rubbleCol);
-      COL_OFF.push({ b: rubbleCol, back: G.time + 26, isRubble: true });
-    }
-  }
-}
-
-function worldBreak(c, r, maxVol, carve, dir) {
-  const L = window.DESTR; if (!L) return 0; let n = 0, carved = 0;
-  const affectedMeshes = new Set();
-  const dirX = dir ? dir.x * 6 : 0, dirZ = dir ? dir.z * 6 : 0, dirY = dir && dir.y ? dir.y * 6 : 0;
-  for (let k = 0; k < L.length; k++) {
-    const d = L[k]; if (d.off || d.dead) continue; const q = d.p;
-    const dx = Math.max(Math.abs(c.x - q[0]) - q[3] / 2, 0), dy = Math.max(Math.abs(c.y - q[1]) - q[4] / 2, 0), dz = Math.max(Math.abs(c.z - q[2]) - q[5] / 2, 0);
-    if (dx * dx + dy * dy + dz * dz > r * r) continue;
-    const vol = q[3] * q[4] * q[5];
-    const isLargeWall = Math.max(q[3], q[4], q[5]) > 1.8 || vol > 1.8;
-    const isBuilding = d.isBuilding || !d.bb || (d.bb && d.bb.mesh && (d.bb.mesh.userData.isBuilding || !d.bb.mesh.userData.isProp));
-
-    // Si es un muro o estructura de edificio: daño ESTRICTAMENTE LOCALIZADO donde fue golpeado
-    if (isBuilding || isLargeWall) {
-      n++;
-      const nChunks = clamp(Math.round(r * 8), 6, 14);
-      const col = destColor(d);
-      for (let si = 0; si < nChunks; si++) {
-        const px = c.x + rand(-r * 0.65, r * 0.65);
-        const py = clamp(c.y + rand(-r * 0.65, r * 0.65), 0.25, 45);
-        const pz = c.z + rand(-r * 0.65, r * 0.65);
-        const l = Math.hypot(px - c.x, py - c.y, pz - c.z) || 1;
-        const sz = rand(0.28, Math.min(0.6, r * 0.45));
-        const vx = (px - c.x) / l * 8 + dirX + rand(-2.5, 2.5);
-        const vy = (py - c.y) / l * 5 + dirY + rand(2.5, 7.5);
-        const vz = (pz - c.z) / l * 8 + dirZ + rand(-2.5, 2.5);
-        spawnDebris(px, py, pz, sz, sz, sz, col, vx, vy, vz);
-      }
-      burst(c, 12, col, 6.5, 0.16, 0.45);
-      sfx('heavy', c, 0.8);
-      sfx('break', c, 0.7);
-      continue;
-    }
-
-    const small = Math.max(q[3], q[4], q[5]) <= 1.2;
-    if (small || (!carve && vol <= maxVol)) {
-      destHide(d); n++;
-      if (d.bb && d.bb.mesh && d.bb.mesh.userData.isProp) affectedMeshes.add(d.bb.mesh);
-      {
-        const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1;
-        const vx = ex / l * 8 + dirX + rand(-2.5, 2.5);
-        const vy = ey / l * 5 + dirY + rand(2.5, 7.5);
-        const vz = ez / l * 8 + dirZ + rand(-2.5, 2.5);
-        spawnDebris(q[0], q[1], q[2], clamp(q[3], .3, .8), clamp(q[4], .3, .8), clamp(q[5], .3, .8), destColor(d), vx, vy, vz);
-      }
-    } else if (carve && carved < 24) {
-      carveBox(d, c, r, dir); carved++; n++;
-      if (d.bb && d.bb.mesh && d.bb.mesh.userData.isProp) affectedMeshes.add(d.bb.mesh);
-    }
-  }
-  checkStructuralCascade(affectedMeshes);
-  return n;
-}
-
-// Precision 3D Collision Carving: se talla un hueco 3D exacto en cualquier obstaculo destructible
-function colCarve(c, r) {
-  const hy = Math.max(.55, r * .85);
-  for (let i = COL.length - 1; i >= 0; i--) {
-    const b = COL[i];
-    if (!b || b.nobreak || b.ceiling || b.rubble) continue;
-    const y0 = b.y0 || 0;
-    const dx = Math.max(Math.abs(c.x - b.x) - b.hx, 0);
-    const dz = Math.max(Math.abs(c.z - b.z) - b.hz, 0);
-    if (dx * dx + dz * dz > r * r || c.y - hy > b.h || c.y + hy < y0) continue;
-
-    const root = b.root || b;
-    const fullyEngulfed = (Math.hypot(b.hx, b.hz) <= r * 0.95 && c.y - hy <= y0 + 0.3 && c.y + hy >= b.h - 0.3);
-    if (fullyEngulfed) {
-      COL_OFF.push({ b, back: G.time + 26 + Math.random() * 10 });
-      COL.splice(i, 1);
-      continue;
-    }
-
-    const q = Math.max(.55, r * .82);
-    const x0 = c.x - q, x1 = c.x + q, z0 = c.z - q, z1 = c.z + q;
-    const bx0 = b.x - b.hx, bx1 = b.x + b.hx, bz0 = b.z - b.hz, bz1 = b.z + b.hz;
-    const hl = Math.max(y0, c.y - hy), hh = Math.min(b.h, c.y + hy), pcs = [];
-    const add = (ax0, ax1, az0, az1, yb, yt) => {
-      if (ax1 - ax0 > .1 && az1 - az0 > .1 && yt - yb > .1) {
-        pcs.push(Object.assign({}, b, { x: (ax0 + ax1) / 2, z: (az0 + az1) / 2, hx: (ax1 - ax0) / 2, hz: (az1 - az0) / 2, y0: yb, h: yt, root }));
-      }
-    };
-    const ix0 = Math.max(bx0, x0), ix1 = Math.min(bx1, x1), iz0 = Math.max(bz0, z0), iz1 = Math.min(bz1, z1);
-    if (ix1 <= ix0 || iz1 <= iz0) continue;
-    add(bx0, ix0, bz0, bz1, y0, b.h); add(ix1, bx1, bz0, bz1, y0, b.h); // lados
-    add(ix0, ix1, bz0, iz0, y0, b.h); add(ix0, ix1, iz1, bz1, y0, b.h); // frente y fondo
-    add(ix0, ix1, iz0, iz1, y0, hl);  add(ix0, ix1, iz0, iz1, hh, b.h); // abajo y arriba
-    COL.splice(i, 1);
-    for (const x of pcs) COL.push(x);
-    const rec = COL_ROOTS.get(root) || { root };
-    rec.back = G.time + 28 + Math.random() * 12;
-    COL_ROOTS.set(root, rec);
-  }
-  // Generar monticulo de escombros solido en el suelo sobre el que el jugador puede caminar y escalar
-  if (r >= 1.3) {
-    const gy = groundAt(c.x, c.z);
-    if (c.y < gy + 6.0) {
-      const rw = Math.min(2.4, r * 0.65);
-      const rh = Math.min(0.85, 0.22 + r * 0.12);
-      const rubbleCol = { x: c.x, z: c.z, hx: rw, hz: rw, h: gy + rh, y0: gy, rubble: true, ceiling: false, nocam: true };
-      COL.push(rubbleCol);
-      COL_OFF.push({ b: rubbleCol, back: G.time + 26, isRubble: true });
-    }
-  }
-}
-const COL_ROOTS = new Map();
-function destRestore(all) {
-  let comp = false;
-  for (let i = DEST_OFF.length - 1; i >= 0; i--) {
-    const d = DEST_OFF[i]; if (!all && G.time < d.back) continue;
-    const q = d.p; if (d.bb) { d.bb.geo.index.array.set(d.bb.mesh.userData.idx0.subarray(d.bb.i0, d.bb.i0 + d.bb.n), d.bb.i0); d.bb.geo.index.needsUpdate = true; } else { _dm.compose(_dv.set(q[0], q[1], q[2]), _dq, _ds.set(q[3], q[4], q[5])); d.m.setMatrixAt(d.i, _dm); d.m.instanceMatrix.needsUpdate = true; } d.off = false; DEST_OFF.splice(i, 1);
-    if (d.rubble) { scene.remove(d.rubble); d.rubble.dispose(); for (const x of d.cells) x.dead = true; d.rubble = null; d.cells = null; comp = true; if (!all) burst(new V3(q[0], q[1], q[2]), 6, '#ffffff', 3, .1, .5, 0); }
-    else if (!all && Math.random() < .35) burst(new V3(q[0], q[1], q[2]), 2, '#ffffff', 2, .08, .4, 0);
-  }
-  for (let i = COL_OFF.length - 1; i >= 0; i--) {
-    const e = COL_OFF[i];
-    if (all || G.time >= e.back) {
-      if (e.isRubble) {
-        const ri = COL.indexOf(e.b);
-        if (ri >= 0) COL.splice(ri, 1);
-      } else {
-        COL.push(e.b);
-      }
-      COL_OFF.splice(i, 1);
-    }
-  }
-  for (const [root, rec] of COL_ROOTS) if (all || G.time >= rec.back) { for (let i = COL.length - 1; i >= 0; i--) if (COL[i].root === root) COL.splice(i, 1); COL.push(root); COL_ROOTS.delete(root); }
-  if (comp && window.DESTR) window.DESTR = window.DESTR.filter(x => !x.dead);
-  if (all) {
-    DEB.a.length = 0; if (DEB.m) DEB.m.count = 0; HOLES.length = 0;
-    for (let i = COL.length - 1; i >= 0; i--) if (COL[i].rubble) COL.splice(i, 1);
-  }
-}
-const HOLES = [];
-function addHole(c, r) { if (HOLES.length >= 10) HOLES.shift(); HOLES.push({ x: c.x, y: c.y, z: c.z, r, t0: G.time, back: G.time + 28 + Math.random() * 10 }); }
-function holesUpdate() {
-  for (let i = HOLES.length - 1; i >= 0; i--) { const h = HOLES[i]; if (G.time > h.back + .6) HOLES.splice(i, 1); }
-  for (let i = 0; i < 10; i++) {
-    const h = HOLES[i], u = HOLE_U.value[i]; if (!h) { u.w = 0; continue; }
-    let k = Math.min(1, (G.time - h.t0) / .18); k = 1 - (1 - k) * (1 - k); if (G.time > h.back) k *= 1 - (G.time - h.back) / .6;
-    u.set(h.x, h.y, h.z, h.r * Math.max(0, k));
-  }
-}
-function bbAvgColor(m) {
-  if (m.userData.col) return m.userData.col;
-  let col = '#b9b19c';
-  try { const im = m.material.map && m.material.map.image; if (im) { const cv = document.createElement('canvas'); cv.width = cv.height = 4; const g = cv.getContext('2d'); g.drawImage(im, 0, 0, 4, 4); const d = g.getImageData(0, 0, 4, 4).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < 64; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; } col = 'rgb(' + (r >> 4) + ',' + (gg >> 4) + ',' + (b >> 4) + ')'; } } catch (e) { }
-  return m.userData.col = col;
-}
-// los edificios de Blockbench son una sola malla: se les abre un hueco esférico y salen cubos de escombro
-function bbHole(c, r) {
-  const L = window.BBM; if (!L || r < 1.0) return;
-  for (const m of L) {
-    if (!m.userData.bb) { m.updateMatrixWorld(true); m.userData.bb = new THREE.Box3().setFromObject(m); }
-    const b = m.userData.bb, dx = Math.max(b.min.x - c.x, 0, c.x - b.max.x), dy = Math.max(b.min.y - c.y, 0, c.y - b.max.y), dz = Math.max(b.min.z - c.z, 0, c.z - b.max.z);
-    if (dx * dx + dy * dy + dz * dz > r * r) continue;
-    addHole(c, r); const col = bbAvgColor(m); let n = 0;
-    const nChunks = clamp(Math.round(r * 8), 6, 14);
-    for (let i = 0; i < 60 && n < nChunks; i++) {
-      const px = c.x + rand(-r * 0.65, r * 0.65), py = clamp(c.y + rand(-r * 0.65, r * 0.65), 0.25, 45), pz = c.z + rand(-r * 0.65, r * 0.65);
-      if (Math.hypot(px - c.x, py - c.y, pz - c.z) > r) continue;
-      n++; const l = Math.hypot(px - c.x, py - c.y, pz - c.z) || 1, sz = rand(.28, Math.min(.55, r * .45));
-      spawnDebris(px, py, pz, sz, sz, sz, col, (px - c.x) / l * 8 + rand(-2.5, 2.5), (py - c.y) / l * 5 + rand(2.5, 7.5), (pz - c.z) / l * 8 + rand(-2.5, 2.5));
-    }
-    burst(c, 12, col, 6.5, 0.16, 0.45);
-    sfx('heavy', c, 0.8);
-    sfx('break', c, 0.7);
-    break;
-  }
-}
-// daño al escenario en un punto: marca en el piso, marcas en las paredes cercanas y piezas pequeñas que saltan (el ragdoll lo hace en menor medida)
-const NETREP = { on: false, recv: false, last: -9 };
-// la destrucción de un jugador se manda a los demás para que todos rompan lo mismo y puedan pasar por los mismos huecos
-function netDestSend(c, r, power, dmg, dest) {
-  if (!G.mp || NETREP.recv || NETREP.on || G.viewer || G.guide) return;
-  if (G.time - NETREP.last < .2 && r < 3) return; NETREP.last = G.time;
-  NET.destSeq = (NET.destSeq || 0) + 1;
-  (NET.destOut || (NET.destOut = [])).push({ s: NET.destSeq, t: G.time, x: r2(c.x), y: r2(c.y), z: r2(c.z), r: r2(r), p: r2(power), m: dmg == null ? null : r2(dmg), e: dest == null ? null : r2(dest) });
-  while (NET.destOut.length > 8) NET.destOut.shift(); NET.sendT = 0;
-}
-function applyNetDest(e) {
-  if (!e || ![e.x, e.y, e.z, e.r, e.p].every(v => Number.isFinite(+v)) || Math.abs(e.x) > 400 || Math.abs(e.z) > 400 || Math.abs(e.y) > 60) return;
-  NETREP.recv = true;
-  try { worldDamage(new V3(+e.x, +e.y, +e.z), clamp(+e.r, 0, 14), clamp(+e.p, 0, 5), e.m == null ? undefined : clamp(+e.m, 0, 80), e.e == null ? undefined : clamp(+e.e, 0, 3)); } finally { NETREP.recv = false; }
+  return window.PHYSICS ? window.PHYSICS.destUpdate(dt) : undefined;
 }
 function worldDamage(c, r, power, dmg, dest, dir) {
-  if (NETREP.on) return;   // lo que hace un jugador remoto se rompe con sus paquetes (no dos veces)
-  if (r < 1.0 || G.state !== 'play' || dest === 0 || G.rules.dest === 0 || G.guide) return;
-  netDestSend(c, r, power, dmg, dest);
-  if (dmg != null) dmg *= (dest != null ? dest : 1) * G.rules.dest * PERF_DEST; else power *= G.rules.dest * PERF_DEST;
-  if (dmg != null && dmg < 1.5) return;
-  const rr = dmg != null ? Math.min(r * .9, .8 + dmg * .16) : r * .85 * power;   // el hueco depende de la fuerza del golpe
-  const gy = groundAt(c.x, c.z);
-  if (c.y < gy + 2.5) scarDecal(new V3(c.x, gy, c.z), Math.min(6.5, rr * 1.25));
-  let k = 0;
-  for (const b of COL) {
-    if (k >= 2) break; if (b.ceiling || b.nocam || b.h < 2.5 || (b.y0 && c.y < b.y0 - .5) || c.y > b.h + .5) continue;
-    const qx = clamp(c.x, b.x - b.hx, b.x + b.hx), qz = clamp(c.z, b.z - b.hz, b.z + b.hz), dx = c.x - qx, dz = c.z - qz, d = Math.hypot(dx, dz);
-    if (d < .05 || d > r + .6) continue;
-    scarDecal(new V3(qx, clamp(c.y, .9, b.h - .7), qz), Math.min(3.4, r * .8), new V3(dx / d, 0, dz / d)); k++;
-  }
-  if (r >= 1.0) {
-    const big = (dmg != null ? rr >= 1.2 : r >= 2.0 && power >= .8);
-    const nBroken = worldBreak(c, rr, (.45 + r * .35) * power, big, dir);
-    colCarve(c, rr);
-    if (big || nBroken === 0) bbHole(c, rr);
-  }
+  return window.DESTRUCTION ? window.DESTRUCTION.worldDamage(c, r, power, dmg, dest, dir) : undefined;
+}
+function worldBreak(c, r, maxVol, carve, dir) {
+  return window.DESTRUCTION ? window.DESTRUCTION.worldBreak(c, r, maxVol, carve, dir) : 0;
+}
+function colCarve(c, r) {
+  return window.DESTRUCTION ? window.DESTRUCTION.colCarve(c, r) : undefined;
+}
+function scarDecal(p, r, n) {
+  return window.DESTRUCTION ? window.DESTRUCTION.scarDecal(p, r, n) : undefined;
+}
+function bbRegister(mesh, geo) {
+  return window.DESTRUCTION ? window.DESTRUCTION.bbRegister(mesh, geo) : undefined;
+}
+function destRestore(all, comp) {
+  return window.DESTRUCTION ? window.DESTRUCTION.destRestore(all, comp) : undefined;
+}
+function destHide(d) {
+  return window.DESTRUCTION ? window.DESTRUCTION.destHide(d) : undefined;
+}
+function holesUpdate() {
+  return window.DESTRUCTION ? window.DESTRUCTION.holesUpdate() : undefined;
+}
+function bbHole(c, r) {
+  return window.DESTRUCTION ? window.DESTRUCTION.bbHole(c, r) : undefined;
+}
+function applyNetDest(e) {
+  return window.DESTRUCTION ? window.DESTRUCTION.applyNetDest(e) : undefined;
 }
 
 // ===== Expansión de dominio de ElRandi (cinemática 3D): llevan a la víctima y a ElRandi a un lugar oscuro, aparecen los animales del Perú, se juntan, sale la bandera y el domo se rompe como cristal =====
@@ -5548,6 +5113,7 @@ function sfxFile(url, volume, pos) {
   }
   playHtmlEffect(url,volume*.5,'game');
 }
+window.sfx = sfx;
 function sfx(k, pos, mul = 1, { range = 45, title = false } = {}) {
   if (!AC || AC.state!=='running' || AUDIO_LEVELS.general===0 || AUDIO_LEVELS.game===0 || (G.state !== 'play' && !(title && G.state === 'title') && !UI_SFX.has(k) && !SFX_FORCE)) return;
   let v = (pos ? clamp(1 - camera.position.distanceTo(pos) / range, 0, 1) : 1) * mul;
