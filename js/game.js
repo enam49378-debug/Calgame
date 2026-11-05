@@ -709,7 +709,7 @@ function cityGrassAt(x,z) {
   function loadBBModel(name){
     // Con servidor se lee el .bbmodel directo (los cambios hechos en Blockbench se ven al recargar); sin servidor (file://) se usa la copia ciudad/<nombre>.js
     const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
-    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];d.textures[0].source=window.BB_ATLAS;return d;});
+    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];if(d.textures[0]&&(!d.textures[0].source||d.textures[0].source===''))d.textures[0].source=window.BB_ATLAS;return d;});
     // Una sola textura y un solo material para todos los modelos (comparten el atlas): arranca más rápido y usa menos memoria.
     const mat=src=>{
       const key=src.length+':'+src.slice(-48);
@@ -5160,7 +5160,7 @@ const MUS = {
 };
 try { MUS.on = localStorage.getItem('bsb_music') !== '0'; const v = parseFloat(localStorage.getItem('bsb_music_vol')); if (v >= 0 && v <= 1) MUS.vol = v; } catch (e) { }
 // Ganancias de las pistas incluidas, medidas con FFmpeg y referidas a -16 LUFS.
-const MUSIC_TRIM = {"musica/calfight_intro.mp3":1.123,"musica/menu.mp3":0.989,"musica/pelea1.mp3":0.989,"musica/pelea2.mp3":1.002,"musica/pelea3.mp3":1.038,"musica/ulti/gato.mp3":0.773,"musica/ulti/javi.mp3":0.823,"musica/ulti/jesuluto.mp3":0.29,"musica/ulti/mattux.mp3":0.759,"musica/ulti/randi.mp3":0.828,"musica/ulti/redbird.mp3":0.795,"musica/ulti/rocket.mp3":0.736,"musica/ulti/sebolla.mp3":0.314,"musica/ulti/sekza.mp3":0.81,"musica/ulti/ukyo.mp3":0.763};
+const MUSIC_TRIM = {"musica/calfight_intro.mp3":1.123,"musica/hypnotic_choques_arcade.mp3":1.0,"musica/hypnotic_choques_identico.mp3":1.0,"musica/hypnotic_choques_intermedio.mp3":1.0,"musica/hypnotic_data_arcade.mp3":1.0,"musica/hypnotic_data_intermedio.mp3":1.0,"musica/hypnotic_data_original.mp3":1.0,"musica/menu.mp3":0.989,"musica/pelea1.mp3":0.989,"musica/pelea2.mp3":1.002,"musica/pelea3.mp3":1.038,"musica/she_bugging_game.mp3":1.0,"musica/she_bugging_loop.mp3":1.0,"musica/ulti/gato.mp3":0.773,"musica/ulti/javi.mp3":0.823,"musica/ulti/jesuluto.mp3":0.29,"musica/ulti/mattux.mp3":0.759,"musica/ulti/randi.mp3":0.828,"musica/ulti/redbird.mp3":0.795,"musica/ulti/rocket.mp3":0.736,"musica/ulti/sebolla.mp3":0.314,"musica/ulti/sekza.mp3":0.81,"musica/ulti/ukyo.mp3":0.763};
 function musicTrim(src,id){return (MUSIC_TRIM[src]??1)*(AUDIO_CFG.music[id]?.vol??1);}
 function makeMusicTrack(src,id,loop,preloaded){
   const el=preloaded||new Audio(src);
@@ -11846,7 +11846,7 @@ addEventListener('visibilitychange', () => { if (document.hidden && stCount()) {
 const OW = { u: new Map(), on: new Map(), cl: [], el: null, tm: 0 };
 async function stHash(k) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
 // ===== Editor de mapa (modo desarrollador): 3D interactivo con mover, rotar, duplicar y borrar modelos =====
-const PROP_DIMS = { palmera: [4, 4], sombrilla_roja: [4, 5], sombrilla_azul: [4, 5], sombrilla_amarilla: [4, 5], sombrilla_verde: [4, 5], torre_salvavidas: [4.2, 7], chiringuito: [10.4, 7.6],
+const PROP_DIMS = { palmera: [4, 4], sombrilla_roja: [4, 5], sombrilla_azul: [4, 5], sombrilla_amarilla: [4, 5], sombrilla_verde: [4, 5], set_playa_pro_v2: [4, 5], torre_salvavidas: [4.2, 7], chiringuito: [10.4, 7.6],
   barca_roja: [1.6, 5], barca_azul: [1.6, 5], velero: [2, 6.5], muelle: [9, 40, 0, 20], faro: [9, 9], rocas_a: [6, 5], rocas_b: [6, 5], castillo: [2, 2], voley: [9.2, 17.2], caseta_roja: [3.2, 3.2], caseta_azul: [3.2, 3.2] };
 
 const ME = {

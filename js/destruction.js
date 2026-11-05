@@ -336,11 +336,16 @@
       DEB_MAT = DEB_MAT || new THREE.MeshLambertMaterial({ color: 0xffffff });
       const mesh = new THREE.InstancedMesh(DEST_GEO, d.bb ? DEB_MAT : d.m.material, keep.length);
       mesh.receiveShadow = true; mesh.castShadow = true;
+      if (d.bb) {
+        mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(keep.length * 3), 3);
+      }
       keep.forEach((p, i) => {
         _dm.compose(_dv.set(p[0], p[1], p[2]), _dq, _ds.set(p[3], p[4], p[5]));
         mesh.setMatrixAt(i, _dm);
         if (d.bb) mesh.setColorAt(i, new THREE.Color(p[6]).multiplyScalar(.94 + Math.random() * .12));
       });
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       if (window.scene) window.scene.add(mesh);
       d.rubble = mesh;
       d.cells = keep.map((p, i) => ({ m: mesh, i, p, col: p[6] || base, parent: d, cell: true, off: false }));
@@ -429,10 +434,15 @@
       if (d.off || d.dead) continue;
       const q = d.p;
 
-      // FILTRO DE ALTURA CRÍTICO:
-      // Si el elemento está en un piso superior o en el tejado (|q[1] - c.y| > r + 0.3),
-      // JAMÁS se toca. Esto elimina al 100% que caigan escombros desde el techo al golpear la planta baja!
-      if (Math.abs(q[1] - c.y) > r * 1.1 + 0.3) continue;
+      // FILTRO DE ALTURA ESTRICTO PARA EDIFICIOS:
+      // Si el elemento está en un piso superior o en el tejado, JAMÁS se toca.
+      // Golpear la planta baja solo afecta la zona inmediata del golpe (<= 1.8m vertical).
+      const dY = Math.abs(q[1] - c.y);
+      if (d.isBuilding) {
+        if (dY > Math.min(r * 0.75, 2.0) || q[1] > c.y + 1.8) continue;
+      } else {
+        if (dY > r * 1.1 + 0.3) continue;
+      }
 
       const dx = Math.max(Math.abs(c.x - q[0]) - q[3] / 2, 0);
       const dy = Math.max(Math.abs(c.y - q[1]) - q[4] / 2, 0);
