@@ -911,13 +911,20 @@ function cityGrassAt(x,z) {
   addP('rocas_a',-78,SHORE(-78)-2,.5);addP('rocas_b',78,SHORE(78)-2,2.1);addP('faro',86,SHORE(86)-5,0);
   for(const a of MAPED.add)if(a.kind==='p'&&a.model){MAP_ITEMS.push({key:a.id,kind:'p',model:a.model,label:'',ox:a.x,oz:a.z,ory:a.ry,x:a.x,z:a.z,ry:a.ry,added:true,from:a.from});PR.push({m:a.model,x:a.x,z:a.z,ry:a.ry});}
   for(const pr of PR)bbLoads.push(loadBBModel(pr.m).then(({geo,mat})=>{
-    const mesh=new THREE.Mesh(geo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+    const pGeo = geo.clone();
+    pGeo.userData = Object.assign({}, geo.userData);
+    const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;
+    mesh.updateMatrix();
+    if(!pr.bob) mesh.matrixAutoUpdate=false;
+    scene.add(mesh);
+    (window.BBM||(window.BBM=[])).push(mesh);
+    bbRegister(mesh,pGeo);
     const itP = MAP_ITEMS.find(q => q.kind === 'p' && q.model === pr.m && Math.abs(q.x - pr.x) < 0.2 && Math.abs(q.z - pr.z) < 0.2 && !q.mesh);
     if (itP) { itP.mesh = mesh; mesh.userData.mapItem = itP; }
     if(pr.bob)BEACH.boats.push({mesh,y0:pr.y,ph:rnd()*6});
     const c=Math.cos(pr.ry),sn=Math.sin(pr.ry);
     for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2,hx=(x1-x0)/2,hz=(z1-z0)/2;
-      COL.push({x:pr.x+lx*c+lz*sn,z:pr.z-lx*sn+lz*c,hx:Math.abs(c)*hx+Math.abs(sn)*hz,hz:Math.abs(sn)*hx+Math.abs(c)*hz,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true});}
+      COL.push({x:pr.x+lx*c+lz*sn,z:pr.z-lx*sn+lz*c,hx:Math.abs(c)*hx+Math.abs(sn)*hz,hz:Math.abs(sn)*hx+Math.abs(c)*hz,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true,prop:mesh});}
   }).catch(()=>{}));
   Promise.all(bbLoads).then(()=>{if(typeof rebuildCityNav==='function')rebuildCityNav();});
   // plataformas de entrada al minijuego de vóley playa (una por equipo)
@@ -2340,7 +2347,7 @@ function bbRegister(mesh, geo) {
   for (const c of cubes) {
     const a = c.a; let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
     for (const x of [a[0], a[3]]) for (const y of [a[1], a[4]]) for (const z of [a[2], a[5]]) { v.set(x, y, z).applyMatrix4(M); mnx = Math.min(mnx, v.x); mny = Math.min(mny, v.y); mnz = Math.min(mnz, v.z); mxx = Math.max(mxx, v.x); mxy = Math.max(mxy, v.y); mxz = Math.max(mxz, v.z); }
-    const w = mxx - mnx, h = mxy - mny, d = mxz - mnz; if (w * h * d > 7000 || h < .05 || mxy < .05) continue;
+    const w = mxx - mnx, h = mxy - mny, d = mxz - mnz; if (w * h * d > 7000 || Math.max(w, h, d) < .08 || mxy < -.6) continue;
     L.push({ bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv, fc: c.fc, a: c.a }, p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)], col: null, mat: mesh.material });
   }
 }
@@ -2380,12 +2387,12 @@ function destColor(d) {
   } catch (e) { }
   return d.col = col;
 }
-const DEB = { m: null, a: [], max: 2600 };
-// cubos de escombro con física propia (gravedad, rebote en el piso, giro); se encogen y desaparecen
+const DEB = { m: null, a: [], max: 3500 };
+// cubos de escombro con fisica propia (gravedad, rebote en el piso, giro, rebote en muros); se encogen y desaparecen
 function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
   if (!DEB.m) { DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB.m = new THREE.InstancedMesh(DEST_GEO, new THREE.MeshLambertMaterial({ color: 0xffffff }), DEB.max); DEB.m.count = 0; DEB.m.visible = false; DEB.m.frustumCulled = false; DEB.m.castShadow = true; DEB.m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEB.max * 3), 3); scene.add(DEB.m); }
   if (DEB.a.length >= DEB.max) return;
-  DEB.a.push({ x, y, z, sx, sy, sz, vx, vy, vz, rx: rand(0, TAU), ry: rand(0, TAU), wx: rand(-9, 9), wy: rand(-9, 9), life: rand(5, 9), c: new THREE.Color(col) });
+  DEB.a.push({ x, y, z, sx, sy, sz, vx, vy, vz, rx: rand(0, TAU), ry: rand(0, TAU), wx: rand(-11, 11), wy: rand(-11, 11), life: rand(6, 10), c: new THREE.Color(col) });
 }
 function destUpdate(dt) {
   if (!DEB.m) return; const A = DEB.a;
@@ -2393,7 +2400,44 @@ function destUpdate(dt) {
     const d = A[i]; d.life -= dt; if (d.life <= 0) { A[i] = A[A.length - 1]; A.pop(); continue; }
     d.vy -= 26 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt; d.rx += d.wx * dt; d.ry += d.wy * dt;
     const gy = groundAt(d.x, d.z), h = Math.min(d.sx, d.sy, d.sz) / 2;
-    if (d.y - h < gy) { d.y = gy + h; if (d.vy < -2) { d.vy *= -.35; d.vx *= .6; d.vz *= .6; d.wx *= .6; d.wy *= .6; } else { d.vy = 0; d.vx *= .85; d.vz *= .85; d.wx *= .8; d.wy *= .8; } }
+    if (d.y - h < gy) {
+      d.y = gy + h;
+      if (d.vy < -2) { d.vy *= -.42; d.vx *= .68; d.vz *= .68; d.wx *= .7; d.wy *= .7; }
+      else { d.vy = 0; d.vx *= .85; d.vz *= .85; d.wx *= .8; d.wy *= .8; }
+    }
+    // Rebote de escombros veloces contra muros
+    if (Math.abs(d.vx) > 2 || Math.abs(d.vz) > 2) {
+      for (let ci = 0; ci < COL.length; ci++) {
+        const c = COL[ci];
+        if (c.ceiling || d.y < (c.y0 || 0) || d.y > c.h) continue;
+        if (Math.abs(d.x - c.x) < c.hx + 0.25 && Math.abs(d.z - c.z) < c.hz + 0.25) {
+          const ox = (c.hx + 0.25) - Math.abs(d.x - c.x);
+          const oz = (c.hz + 0.25) - Math.abs(d.z - c.z);
+          if (ox < oz) { d.vx = -d.vx * 0.55; d.x += Math.sign(d.x - c.x) * (ox + 0.05); }
+          else { d.vz = -d.vz * 0.55; d.z += Math.sign(d.z - c.z) * (oz + 0.05); }
+          d.wx = rand(-12, 12); d.wy = rand(-12, 12);
+          break;
+        }
+      }
+    }
+    // Interaccion fisica: jugadores y luchadores patean y dispersan los escombros al correr o deslizarse
+    for (let fi = 0; fi < G.fighters.length; fi++) {
+      const f = G.fighters[fi];
+      if (!f.alive) continue;
+      const fdx = d.x - f.pos.x, fdz = d.z - f.pos.z;
+      const fDistSq = fdx * fdx + fdz * fdz;
+      if (fDistSq < 1.0 && Math.abs(d.y - f.pos.y) < 1.5) {
+        const fDist = Math.sqrt(fDistSq) || 0.1;
+        const push = (1.0 - fDist) * 8.5;
+        const fsp = Math.hypot(f.vel.x, f.vel.z);
+        d.vx += (fdx / fDist) * push + f.vel.x * 0.45;
+        d.vz += (fdz / fDist) * push + f.vel.z * 0.45;
+        if (d.y - (gy + h) < 0.35) {
+          d.vy = Math.max(d.vy, 3.2 + Math.min(fsp * 0.4, 5.5));
+        }
+        d.wx = rand(-16, 16); d.wy = rand(-16, 16);
+      }
+    }
   }
   const M = DEB.m; M.count = A.length;
   for (let i = 0; i < A.length; i++) {
@@ -2410,17 +2454,25 @@ function destHide(d) {
 }
 // parte una pieza grande en cubos: los que caen dentro de la explosión salen volando y el resto queda como bloques sueltos (que también se pueden romper)
 function carveBox(d, c, r) {
-  const q = d.p; let cs = d.bb ? .6 : .75, nx, ny, nz;
+  const q = d.p; let cs = d.bb ? .45 : .6, nx, ny, nz;
   do { nx = Math.max(1, Math.round(q[3] / cs)); ny = Math.max(1, Math.round(q[4] / cs)); nz = Math.max(1, Math.round(q[5] / cs)); cs *= 1.2; } while (nx * ny * nz > 900);
   const sx = q[3] / nx, sy = q[4] / ny, sz = q[5] / nz, keep = [], base = destColor(d), mw = d.bb ? d.bb.mesh.matrixWorld.elements : null, flx = mw && mw[0] < 0, flz = mw && mw[10] < 0;
   const tcol = (i, j, k) => { if (!d.bb) return base; let tx = (i + .5) / nx, tz = (k + .5) / nz; if (flx) tx = 1 - tx; if (flz) tz = 1 - tz; const g = destCell(d, [tx, (j + .5) / ny, tz]); return g ? 'rgb(' + g[0] + ',' + g[1] + ',' + g[2] + ')' : base; };
   let sp = 0;
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
     const x = q[0] - q[3] / 2 + (i + .5) * sx, y = q[1] - q[4] / 2 + (j + .5) * sy, z = q[2] - q[5] / 2 + (k + .5) * sz, dx = x - c.x, dy = y - c.y, dz = z - c.z, dd = Math.hypot(dx, dy, dz);
-    if (dd < r * (.72 + .28 * Math.random())) { const l = dd || 1, f = 5 + 9 * (1 - dd / r), z0 = Math.max(.34, (sx + sy + sz) / 3); spawnDebris(x, y, z, Math.max(sx, .34) * .95, Math.max(sy, .34) * .95, Math.max(sz, .34) * .95, tcol(i, j, k), dx / l * f + rand(-2.5, 2.5), dy / l * f * .6 + rand(3, 10), dz / l * f + rand(-2.5, 2.5)); }
+    if (dd < r * (.75 + .25 * Math.random())) {
+      const l = dd || 1, f = 7 + 12 * (1 - dd / r);
+      spawnDebris(x, y, z, Math.max(sx, .28) * .95, Math.max(sy, .28) * .95, Math.max(sz, .28) * .95, tcol(i, j, k), dx / l * f + rand(-3, 3), dy / l * f * .6 + rand(3, 11), dz / l * f + rand(-3, 3));
+      sp++;
+    }
     else keep.push([x, y, z, sx, sy, sz, tcol(i, j, k)]);
   }
   destHide(d);
+  if (sp > 0) {
+    burst(c, Math.min(18, sp), base, 6, .15, .4);
+    sfx('break', c, 0.7);
+  }
   if (keep.length) {
     DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1); DEB_MAT = DEB_MAT || new THREE.MeshLambertMaterial({ color: 0xffffff });
     const mesh = new THREE.InstancedMesh(DEST_GEO, d.bb ? DEB_MAT : d.m.material, keep.length), cc = new THREE.Color(base); mesh.receiveShadow = true; mesh.castShadow = true;
@@ -2439,7 +2491,20 @@ function worldBreak(c, r, maxVol, carve) {
     if (small || (!carve && vol <= maxVol)) {
       destHide(d); n++;
       { const ex = q[0] - c.x, ey = q[1] - c.y, ez = q[2] - c.z, l = Math.hypot(ex, ey, ez) || 1; spawnDebris(q[0], q[1], q[2], clamp(q[3], .3, .8), clamp(q[4], .3, .8), clamp(q[5], .3, .8), destColor(d), ex / l * 9 + rand(-2, 2), ey / l * 5 + rand(2, 7), ez / l * 9 + rand(-2, 2)); }
-    } else if (carve && carved < 14) { carveBox(d, c, r); carved++; n++; }
+    } else if (carve && carved < 24) { carveBox(d, c, r); carved++; n++; }
+  }
+  // Romper o desactivar colisionadores de objetos destructibles (sombrillas, vallas, puestos)
+  for (let i = COL.length - 1; i >= 0; i--) {
+    const b = COL[i];
+    if (!b || b.nobreak || b.ceiling) continue;
+    if (b.prop || b.h < 3.2 || Math.max(b.hx, b.hz) < 0.9) {
+      const cdx = Math.max(Math.abs(c.x - b.x) - b.hx, 0);
+      const cdz = Math.max(Math.abs(c.z - b.z) - b.hz, 0);
+      if (cdx * cdx + cdz * cdz <= r * r && Math.abs(c.y - (b.y0 + b.h) * 0.5) <= r + 1.2) {
+        COL_OFF.push({ b, back: G.time + 26 + Math.random() * 10 });
+        COL.splice(i, 1);
+      }
+    }
   }
   return n;
 }
@@ -2527,13 +2592,13 @@ function applyNetDest(e) {
 }
 function worldDamage(c, r, power, dmg, dest) {
   if (NETREP.on) return;   // lo que hace un jugador remoto se rompe con sus paquetes (no dos veces)
-  if (r < 1.2 || G.state !== 'play' || dest === 0 || G.rules.dest === 0 || G.guide) return;
+  if (r < 1.0 || G.state !== 'play' || dest === 0 || G.rules.dest === 0 || G.guide) return;
   netDestSend(c, r, power, dmg, dest);
   if (dmg != null) dmg *= (dest != null ? dest : 1) * G.rules.dest * PERF_DEST; else power *= G.rules.dest * PERF_DEST;
-  if (dmg != null && dmg < 2.5) return;
-  const rr = dmg != null ? Math.min(r * .85, .9 + dmg * .15) : r * .85 * power;   // el hueco depende de la fuerza del golpe
+  if (dmg != null && dmg < 1.5) return;
+  const rr = dmg != null ? Math.min(r * .9, .8 + dmg * .16) : r * .85 * power;   // el hueco depende de la fuerza del golpe
   const gy = groundAt(c.x, c.z);
-  if (c.y < gy + 2.4) scarDecal(new V3(c.x, gy, c.z), Math.min(6.5, rr * 1.25));
+  if (c.y < gy + 2.5) scarDecal(new V3(c.x, gy, c.z), Math.min(6.5, rr * 1.25));
   let k = 0;
   for (const b of COL) {
     if (k >= 2) break; if (b.ceiling || b.nocam || b.h < 2.5 || (b.y0 && c.y < b.y0 - .5) || c.y > b.h + .5) continue;
@@ -2541,7 +2606,12 @@ function worldDamage(c, r, power, dmg, dest) {
     if (d < .05 || d > r + .6) continue;
     scarDecal(new V3(qx, clamp(c.y, .9, b.h - .7), qz), Math.min(3.4, r * .8), new V3(dx / d, 0, dz / d)); k++;
   }
-  if (r >= 1.5) { const big = (dmg != null ? rr >= 1.5 : r >= 2.8 && power >= 1); worldBreak(c, rr, (.45 + r * .3) * power, big); if (big) colCarve(c, rr); }
+  if (r >= 1.0) {
+    const big = (dmg != null ? rr >= 1.2 : r >= 2.0 && power >= .8);
+    worldBreak(c, rr, (.45 + r * .35) * power, big);
+    if (big) colCarve(c, rr);
+    if (big && (dmg >= 10 || r >= 2.5)) bbHole(c, rr);
+  }
 }
 
 // ===== Expansión de dominio de ElRandi (cinemática 3D): llevan a la víctima y a ElRandi a un lugar oscuro, aparecen los animales del Perú, se juntan, sale la bandera y el domo se rompe como cristal =====
@@ -5578,6 +5648,7 @@ const later = (s, fn) => TIMERS.push({ t: s, fn });
 function startAction(f, a) {
   if (f.action) endAction(f);
   a.t = 0; a.steps = a.steps || []; f.action = a; f.blocking = false;
+  if (a.swing == null) a.swing = (a.name === 'm1' || a.name === 'counterHit' || (a.steps && a.steps.length > 0 && (a.dur || 1) < 1.4));
   // A stationary cast owns movement; discard running/dash inertia before its own start/tick.
   if (a.noControl && a.speedMul === 0) { f.vel.x = f.vel.z = 0; f.dashT = 0; f.dashAnimT = 0; }
   if (a.aim) f.yaw = aimYawFor(f);
@@ -5638,14 +5709,46 @@ function netHit(att, t, o) {
 function applyHit(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
-  // en ragdoll (o recién levantándose) no se recibe daño, como en los battlegrounds
-  if (!t.alive || t.iframes > 0 || t.ragdoll > 0) return false;
-  // durante un agarre con cinemática solo le pega el que lo agarró
+  // en ragdoll en el suelo no recibe dano (wake up), pero en el aire si se permite juggle combo
+  if (!t.alive || t.iframes > 0) return false;
+  if (t.ragdoll > 0) {
+    const tGround = groundAt(t.pos.x, t.pos.z);
+    const isAirborne = !t.onGround && (t.pos.y > tGround + 0.45);
+    if (!isAirborne && !o.otg) return false;
+    t.ragdoll = Math.min(t.ragdoll, 0.45);
+  }
+  // durante un agarre con cinematica solo le pega el que lo agarro
   if (t.cineLock && t.cineLock !== att) return false;
   if (t.action && t.action.sebParry && !o.noCounter && att.alive) { sebCounter(t, att); return 'countered'; }
   if (t.action && t.action.counter && !o.noCounter && att.alive) { counterHit(t, att); return 'countered'; }
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
+  // Sistema de Choque de Ataques (Attack Clash) estilo anime
+  const attAct = att.action, tgtAct = t.action;
+  const isClashable = !o.noCounter && !o.guardBreak && !o.fromNet && !att.clashT && !t.clashT;
+  if (isClashable && tgtAct && tgtAct.swing && !tgtAct.idle && t.alive && !t.ragdoll && !t.blocking) {
+    let tFwd = fwd(t.yaw);
+    let toAtt = new V3(att.pos.x - t.pos.x, 0, att.pos.z - t.pos.z);
+    toAtt.normalize();
+    if (tFwd.dot(toAtt) > 0.35) {
+      att.clashT = G.time + 0.45; t.clashT = G.time + 0.45;
+      const clashPos = chestOf(att).clone().add(chestOf(t)).multiplyScalar(0.5);
+      burst(clashPos, 24, '#ffffff', 10, .14, .45);
+      burst(clashPos, 20, '#ffd91a', 12, .2, .55);
+      ringAt(clashPos, '#ffd91a', 2.8, .28);
+      sparkLines(clashPos, '#ffffff', 10, 2.5);
+      impactStar(clashPos, '#ffe853', 2.4, .25);
+      comicPop(clashPos, '¡CLASH!', 'burst-cyan', 38, rand(-6, 6));
+      sfx('block', clashPos, 1.0);
+      sfx('heavy', clashPos, 0.8);
+      G.hitstop = Math.max(G.hitstop, 0.12);
+      G.shake = Math.max(G.shake, 0.28);
+      att.vel.x = -toAtt.x * 5.2; att.vel.z = -toAtt.z * 5.2;
+      t.vel.x = toAtt.x * 5.2; t.vel.z = toAtt.z * 5.2;
+      att.anim.v.by -= 18; t.anim.v.by -= 18;
+      return 'clash';
+    }
+  }
   const chest = t.choreTrack ? poseChest(t) : chestOf(t), involved = att.isPlayer || t.isPlayer, col = o.color || att.ch.color;
   let kb = o.kb || 0, up = o.up || 0, ragdoll = o.ragdoll || 0, stun = o.stun || 0;
   if (t.blocking) {
@@ -5767,7 +5870,10 @@ function hitArea(att, c, r, o) {
   for (const g of enemiesOf(att)) {
     if (o.set && o.set.has(g)) continue;
     const dx = g.pos.x - c.x, dz = g.pos.z - c.z, dy = g.pos.y + 1 - c.y;
-    if (dx * dx + dz * dz < (r + .45) ** 2 && Math.abs(dy) < r + 1) { if (applyHit(att, g, o)) { n++; if (o.set) o.set.add(g); } }
+    if (dx * dx + dz * dz < (r + .55) ** 2 && Math.abs(dy) < r + 1.4) { if (applyHit(att, g, o)) { n++; if (o.set) o.set.add(g); } }
+  }
+  if (o.dmg >= 2.5 || o.dest || o.ragdoll) {
+    worldDamage(c, Math.max(1.2, r * 1.05), 0.9, o.dmg || 5, o.dest != null ? o.dest : att.destPow);
   }
   return n;
 }
@@ -10059,6 +10165,37 @@ function physics(f, dt) {
   const free = f.dashT > 0 || (a && a.noControl);
   if (!free && (f.stun > 0 || f.ragdoll > 0 || !f.alive)) { const fr = f.onGround ? Math.exp(-(f.ragdoll > 0 ? 2.3 : 5) * dt) : Math.exp(-.5 * dt); f.vel.x *= fr; f.vel.z *= fr; }
   f.pos.addScaledVector(f.vel, dt);
+  if (f.clashT && G.time > f.clashT) f.clashT = 0;
+  // Colision de cuerpo a cuerpo entre luchadores (capsula fisica para que no se traspasen)
+  if (f.alive && !f.swim) {
+    for (const g of G.fighters) {
+      if (g === f || !g.alive || g.swim) continue;
+      if ((f.cineLock && f.cineLock !== g) || (g.cineLock && g.cineLock !== f)) continue;
+      const fdy = Math.abs(f.pos.y - g.pos.y);
+      if (fdy > 1.85) continue;
+      let cdx = f.pos.x - g.pos.x, cdz = f.pos.z - g.pos.z;
+      let cdist = Math.hypot(cdx, cdz);
+      const minD = 0.82;
+      if (cdist < minD) {
+        if (cdist < 1e-4) { cdx = Math.cos(f.yaw || 0); cdz = Math.sin(f.yaw || 0); cdist = 1; }
+        const overlap = minD - cdist;
+        const nx = cdx / cdist, nz = cdz / cdist;
+        let fWeight = 0.5, gWeight = 0.5;
+        if (f.ragdoll > 0 && g.ragdoll <= 0) { fWeight = 0.82; gWeight = 0.18; }
+        else if (g.ragdoll > 0 && f.ragdoll <= 0) { fWeight = 0.18; gWeight = 0.82; }
+        else if (f.dashT > 0) { fWeight = 0.25; gWeight = 0.75; }
+        else if (g.dashT > 0) { fWeight = 0.75; gWeight = 0.25; }
+        f.pos.x += nx * overlap * fWeight; f.pos.z += nz * overlap * fWeight;
+        g.pos.x -= nx * overlap * gWeight; g.pos.z -= nz * overlap * gWeight;
+        const rvx = f.vel.x - g.vel.x, rvz = f.vel.z - g.vel.z;
+        const rvn = rvx * nx + rvz * nz;
+        if (rvn < 0) {
+          f.vel.x -= nx * rvn * 0.4 * fWeight; f.vel.z -= nz * rvn * 0.4 * fWeight;
+          g.vel.x += nx * rvn * 0.4 * gWeight; g.vel.z += nz * rvn * 0.4 * gWeight;
+        }
+      }
+    }
+  }
   for (const c of COL) {
     if(c.y0&&f.pos.y+1.85<c.y0)continue;
     if(c.ceiling&&f.pos.y<c.y0&&Math.abs(f.pos.x-c.x)<c.hx+.3&&Math.abs(f.pos.z-c.z)<c.hz+.3){
@@ -10072,7 +10209,28 @@ function physics(f, dt) {
       else {
         f.pos.x = cx + dx / d * .45; f.pos.z = cz + dz / d * .45;
         const vn = (f.vel.x * dx + f.vel.z * dz) / d;
-        if (vn < 0) { const b = f.ragdoll > 0 ? 1.7 : 1; f.vel.x -= vn * b * dx / d; f.vel.z -= vn * b * dz / d; if (f.ragdoll > 0 && vn < -9) { burst(chestOf(f), 16, '#8a8a8a', 7, .25, .6); shakeFrom(f.pos, .35); worldDamage(chestOf(f), 1.6 * (f.ragPow || 1), .8); } }
+        if (vn < 0) {
+          const b = f.ragdoll > 0 ? 1.7 : 1; f.vel.x -= vn * b * dx / d; f.vel.z -= vn * b * dz / d;
+          if (f.ragdoll > 0 && vn < -5.5) {
+            const pow = (f.ragPow || 1) * Math.min(2.5, -vn / 7);
+            burst(chestOf(f), 20, '#ffffff', 9, .22, .6);
+            burst(chestOf(f), 18, '#8a8a8a', 8, .28, .7);
+            ringAt(chestOf(f), '#ffffff', 2.6, .24);
+            shakeFrom(f.pos, Math.min(.6, -vn * .06));
+            sfx('heavy', f.pos, 0.9);
+            scarDecal(new V3(cx, clamp(f.pos.y + .9, .4, c.h - .4), cz), 2.2 * pow, new V3(dx / d, 0, dz / d));
+            worldDamage(chestOf(f), 2.2 * pow, 1.3, 18, 1.2);
+            colCarve(chestOf(f), 2.0);
+            comicPop(chestOf(f), pick(['¡CRASH!', '¡BAM!', '¡WHAM!', '¡KRAK!']), 'burst-red', 34, rand(-12, 12));
+            f.vel.x = (dx / d) * Math.min(14, -vn * 0.58);
+            f.vel.z = (dz / d) * Math.min(14, -vn * 0.58);
+            f.vel.y = Math.max(f.vel.y, 4.2 + Math.min(4, -vn * 0.25));
+            f.onGround = false;
+            for (let si = 0; si < 8; si++) {
+              spawnDebris(cx + (dx / d) * .3, f.pos.y + rand(.4, 1.5), cz + (dz / d) * .3, rand(.3, .6), rand(.3, .6), rand(.3, .6), '#9a9488', (dx / d) * rand(5, 12) + rand(-3, 3), rand(2, 8), (dz / d) * rand(5, 12) + rand(-3, 3));
+            }
+          }
+        }
       }
     }
   }
@@ -10081,25 +10239,62 @@ function physics(f, dt) {
   else if (r > ARENA - .5) {
     const nx = f.pos.x / r, nz = f.pos.z / r; f.pos.x = nx * (ARENA - .5); f.pos.z = nz * (ARENA - .5);
     const vn = f.vel.x * nx + f.vel.z * nz;
-    if (vn > 0) { const b = f.ragdoll > 0 ? 1.7 : 1; f.vel.x -= vn * b * nx; f.vel.z -= vn * b * nz; if (f.ragdoll > 0 && vn > 9) { burst(chestOf(f), 18, '#8b8b8b', 8, .25, .6); shakeFrom(f.pos, .4); sfx('heavy', f.pos, .6); worldDamage(chestOf(f), 1.6 * (f.ragPow || 1), .8); } }
+    if (vn > 0) {
+      const b = f.ragdoll > 0 ? 1.7 : 1; f.vel.x -= vn * b * nx; f.vel.z -= vn * b * nz;
+      if (f.ragdoll > 0 && vn > 6) {
+        burst(chestOf(f), 18, '#8b8b8b', 8, .25, .6);
+        ringAt(chestOf(f), '#ff3b30', 2.8, .28);
+        shakeFrom(f.pos, .4);
+        sfx('heavy', f.pos, .7);
+        worldDamage(chestOf(f), 1.8 * (f.ragPow || 1), .9);
+        f.vel.x = -nx * Math.min(12, vn * 0.55);
+        f.vel.z = -nz * Math.min(12, vn * 0.55);
+        f.vel.y = Math.max(f.vel.y, 4.0);
+      }
+    }
   }
   const gy = groundAt(f.pos.x, f.pos.z,f.pos.y+Math.max(0,-f.vel.y*dt)+.15);
   if (f.pos.y <= gy) {
     const vy = f.vel.y;
     f.pos.y = gy;
-    if (f.ragdoll > 0 && vy < -7) {
-      f.vel.y *= -(.3 + .1 * (f.ragPow || 1)); f.onGround = false; if (vy < -13) worldDamage(new V3(f.pos.x, gy + .3, f.pos.z), 1.9 * (f.ragPow || 1), .7); burst(new V3(f.pos.x, gy + .2, f.pos.z), 10, '#6b5a3e', 6, .2, .5, 1.2, 3);
-      for (const j of ['alx', 'arx', 'llx', 'lrx', 'hx', 'tx']) f.anim.v[j] += rand(-22, 22);
+    if (f.ragdoll > 0 && vy < -6) {
+      const pow = (f.ragPow || 1) * Math.min(2.5, -vy / 8);
+      f.vel.y *= -(.34 + .08 * pow);
+      f.onGround = false;
+      ringAt(new V3(f.pos.x, gy + .06, f.pos.z), '#e8dfcb', 2.4, .28);
+      shakeFrom(f.pos, Math.min(.55, -vy * .04));
+      sfx('heavy', f.pos, .8);
+      crackDecal(new V3(f.pos.x, gy + .02, f.pos.z), Math.min(4.5, 1.6 * pow));
+      burst(new V3(f.pos.x, gy + .2, f.pos.z), 16, '#6b5a3e', 8, .22, .6, 1.2, 4);
+      burst(new V3(f.pos.x, gy + .2, f.pos.z), 10, '#ffffff', 6, .14, .4, .6, 2);
+      if (vy < -9) {
+        worldDamage(new V3(f.pos.x, gy + .25, f.pos.z), 2.2 * pow, 1.1, 16, 1.2);
+        for (let si = 0; si < 6; si++) {
+          spawnDebris(f.pos.x + rand(-.4, .4), gy + .3, f.pos.z + rand(-.4, .4), rand(.25, .5), rand(.25, .5), rand(.25, .5), '#82786b', rand(-5, 5), rand(4, 9), rand(-5, 5));
+        }
+      }
+      for (const j of ['alx', 'arx', 'llx', 'lrx', 'hx', 'tx']) f.anim.v[j] += rand(-28, 28);
     }
     else {
-      if (!f.onGround && f.alive && vy < -5 && f.ragdoll <= 0) { animeDustRing(f.pos, 12, clamp(-vy * .18, 1.2, 3.0)); f.landHard = !!bbSet(f.ch.id) && vy < -16; f.landT = f.landHard ? .5 : .14; javiSpeak(f, 'ev_land'); f.anim.v.by -= 25; if (vy < -16) burst(new V3(f.pos.x, gy + .1, f.pos.z), 6, '#d8d0c0', 3, .15, .35); if (f.ch === CHARS.javi) { ringAt(new V3(f.pos.x, gy + .05, f.pos.z), '#e6dfcf', 1 + Math.min(1.4, -vy / 20), .3); burst(new V3(f.pos.x, gy + .15, f.pos.z), 10, '#d8d0c0', 4, .16, .4, .3, 1); } }
+      if (!f.onGround && f.alive && vy < -5 && f.ragdoll <= 0) {
+        animeDustRing(f.pos, 12, clamp(-vy * .18, 1.2, 3.0));
+        f.landHard = !!bbSet(f.ch.id) && vy < -16;
+        f.landT = f.landHard ? .5 : .14;
+        javiSpeak(f, 'ev_land');
+        f.anim.v.by -= 25;
+        if (vy < -14) {
+          burst(new V3(f.pos.x, gy + .1, f.pos.z), 8, '#d8d0c0', 4, .15, .4);
+          crackDecal(new V3(f.pos.x, gy + .02, f.pos.z), 2.0);
+        }
+        if (f.ch === CHARS.javi) {
+          ringAt(new V3(f.pos.x, gy + .05, f.pos.z), '#e6dfcf', 1 + Math.min(1.4, -vy / 20), .3);
+          burst(new V3(f.pos.x, gy + .15, f.pos.z), 10, '#d8d0c0', 4, .16, .4, .3, 1);
+        }
+      }
       f.vel.y = 0; f.onGround = true; f.airDash = true;
     }
   } else f.onGround = f.pos.y - gy < .02;
 }
-// paso de tiempo real para bucles por cuadro (later(0, ...)): cada llamada devuelve los segundos de juego desde la anterior
-// Ascensor de la Torre Aurora: quedarse parado en la plataforma sube a la azotea (y en la azotea, baja)
-// Ascensor con cabina: las puertas se abren al acercarse, el jugador entra a la plataforma, se cierran, espera ~3 s y se abren arriba (o abajo).
 function updateElevatorDoors(dt) {
   for (const e of ELEVATORS) {
     if (!e.st) continue;
