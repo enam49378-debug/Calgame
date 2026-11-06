@@ -8211,7 +8211,7 @@ function animate(f, dt) {
   if (bbSet(f.ch.id) && f.alive) javiMotionFx(f, dt, sp);
   updateAura(f, dt, T);
   updateFace(f, dt);
-  if (f.alive) m.root.visible = !(G.viewer && CHORE[VW.id].bbPreview && f===VW.vic) && !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
+  if (f.alive) m.root.visible = !f.cineHide && !(G.viewer && CHORE[VW.id].bbPreview && f===VW.vic) && !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
   const fl = Math.max(0, f.flashT) / .12, aw = f.awak > 0 ? .12 + .08 * Math.sin(T * 8) : 0;
   if (fl > 0) m.mats.forEach(x => x.emissive.setRGB(fl * .9, fl * .9, fl * .9));
   else if (aw > 0) m.mats.forEach(x => x.emissive.set(f.ch.color).multiplyScalar(aw));
@@ -9032,7 +9032,10 @@ function animeDashSmoke(f) {
   }
 }
 
+// Cámara con guion (la usan las cinemáticas de personajes, p. ej. "Ojo del Cosmos"): G.camScript = { fn(dt) -> true si mueve la cámara, cleanup() }
+function endCamScript() { const s = G.camScript; G.camScript = null; if (s && s.cleanup) { try { s.cleanup(); } catch (e) { } } }
 function updateCamera(dt) {
+  if (G.camScript) { let ok = false; try { ok = G.camScript.fn(dt); } catch (e) { endCamScript(); } if (ok) return; if (G.camScript) endCamScript(); }
   if (G.cine) {
     const c = G.cine, f = c.f, F = fwd(f.yaw), Rr = rightOf(f.yaw);
     // cuatro tomas: barrido bajo → primer plano de la cara → zoom de choque → plano de héroe
@@ -9271,7 +9274,7 @@ async function startMatch() {
   if (G.mode === 'mp' && !(await joinRoom())) { unlock(); openTab('cfg'); return; }
   G.mp = G.mode === 'mp';
   NET.ko = null; NET.act = null; NET.hitsOut = [];
-  stageExit(); clearFighters(); destRestore(true); rulesStart(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
+  stageExit(); clearFighters(); destRestore(true); rulesStart(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine');
   G.bots = +$('nbots').value; G.goal = +$('goalsel').value;
   G.baseLvl = +$('lvl').value; G.botLvl = G.baseLvl; G.auto = $('auto').checked; G.balT = 12; G.winPK = 0; G.winPD = 0;
   G.pname = ($('pname-in').value || 'Jugador').trim().slice(0, 16) || 'Jugador';
@@ -9290,7 +9293,7 @@ async function startMatch() {
 function toMenu() {
   socialSaveProfile(); if(SOC.open)socialClose();
   G.viewer = null; VW.on = false; $('viewer').classList.add('hidden'); document.body.classList.remove('duel');
-  unlock(); stageExit(); clearDummies(); togglePanel(false); clearFighters(); G.state = 'menu'; G.mp = false; G.over = false; G.paused = false; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
+  unlock(); stageExit(); clearDummies(); togglePanel(false); clearFighters(); G.state = 'menu'; G.mp = false; G.over = false; G.paused = false; G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine');
   $('hud').classList.add('hidden'); $('menu').classList.remove('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden');
   showSelect(G.charId);
 }
@@ -10764,7 +10767,7 @@ const SHOT_ES = { two: 'Plano de los dos', ots: 'Sobre el hombro', otsV: 'Contra
 function openViewer() {
   if (!DEV.on) return;
   initAudio(); stageExit(); clearDummies(); clearFighters();
-  G.state = 'play'; G.mp = false; G.over = false; G.paused = false; G.cine = null; cineGrade(false); document.body.classList.remove('cine');
+  G.state = 'play'; G.mp = false; G.over = false; G.paused = false; G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine');
   G.viewer = VW; VW.on = true;
   $('menu').classList.add('hidden'); $('hud').classList.add('hidden'); $('viewer').classList.remove('hidden');
   const sel = $('vsel'); sel.innerHTML = '';
@@ -15311,7 +15314,7 @@ function guideWipe() {
   PROJ.forEach(p => { scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }); PROJ.length = 0;
   TIMERS.length = 0; for (const d of DN) d.el.remove(); DN.length = 0; PS.clear(); ZONES.length = 0;
   for (const fx of FX) { fx.sc.remove(fx.obj); if (fx.dispose) fx.dispose(); else { fx.obj.geometry.dispose(); fx.obj.material.dispose(); } } FX.length = 0;
-  G.chore = null; G.cine = null; G.hitstop = 0; G.slowT = 0; G.shake = 0; G.linesI = 0; IMPACT.t = 0; CAMFX.zoom = CAMFX.roll = CAMFX.rollV = CAMFX.ca = 0;
+  G.chore = null; G.cine = null; endCamScript(); G.hitstop = 0; G.slowT = 0; G.shake = 0; G.linesI = 0; IMPACT.t = 0; CAMFX.zoom = CAMFX.roll = CAMFX.rollV = CAMFX.ca = 0;
   try { cineGrade(false); } catch (e) { } document.body.classList.remove('cine', 'duel'); seqHud(null);
 }
 function guideBuild(E) {
