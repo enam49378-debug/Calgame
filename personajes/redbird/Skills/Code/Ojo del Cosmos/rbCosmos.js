@@ -24,18 +24,25 @@ CF.mover('rbCosmos', function (f, o) {
   const gy = R0.y, E = R0.clone().addScaledVector(F, 2), C0 = E.clone().addScaledVector(F, 3.6), S0 = E.clone().addScaledVector(Rr, 5.2);
 
   // ---- tiempos (segundos desde que empieza la habilidad)
-  const T_SHOW = 1, T_WALK_END = 4.2, T_TURN = .6, T_CAM_UP = 4.4, T_FACE = 5.8, T_COLLAPSE = 6.4, T_KNEEL = 7.2, T_FIRE = 8.6;
-  const BEAM_EVAL = 2.8, POWER_DUR = 3, SPACE_DUR = 6.6, DESC_DUR = 3.6;
+  const T_SHOW = .8, T_WALK_END = 3.6, T_TURN = .5, T_CAM_UP = 3.8, T_FACE = 5.0, T_COLLAPSE = 5.6, T_KNEEL = 6.4, T_FIRE = 7.6;
+  const BEAM_EVAL = 2.5, POWER_DUR = 2.7, SPACE_DUR = 6.4, DESC_DUR = 3.4;
 
-  // ---- poses (de rodillas: cuerpo bajo, piernas hacia atrás, torso y cabeza hacia atrás)
-  const KNEEL_A = { by: -8, ix: .12, tx: .2, hx: -.1, llx: .9, lrx: .9, llz: .1, lrz: -.1, alx: -.35, arx: -.35, alz: .35, arz: -.35 };
-  const SCREAM = { by: -10.5, ix: -.06, tx: -.4, hx: -1, llx: 1.3, lrx: 1.3, llz: .18, lrz: -.18, alx: -.2, arx: -.2, alz: .6, arz: -.6 };
-  const FIRE_P = Object.assign({}, SCREAM, { hx: -1.15, tx: -.5, alz: .75, arz: -.75 });
+  // ---- poses estilo cartoon/anime: anticipación (se encoge), caída exagerada con rebote, grito con brazos abiertos y temblor
+  const PRE = { by: -3, ix: .3, tx: .35, hx: .35, llx: .35, lrx: .35, alx: -.5, arx: -.5, alz: .3, arz: -.3 };
+  const DROP = { by: -11.5, ix: .05, tx: .1, hx: .1, llx: 1.25, lrx: 1.25, llz: .2, lrz: -.2, alx: -.1, arx: -.1, alz: .5, arz: -.5 };
+  const KNEEL_A = { by: -8, ix: .1, tx: .15, hx: -.05, llx: .95, lrx: .95, llz: .1, lrz: -.1, alx: -.3, arx: -.3, alz: .4, arz: -.4 };
+  const SCR_A = { by: -10.5, ix: -.08, tx: -.45, hx: -1.15, llx: 1.3, lrx: 1.3, llz: .18, lrz: -.18, alx: -.15, arx: -.15, alz: .85, arz: -.85 };
+  const SCR_B = Object.assign({}, SCR_A, { tx: -.38, hx: -1.05, alz: .95, arz: -.95, by: -10.2 });
+  const FIRE_A = Object.assign({}, SCR_A, { tx: -.55, hx: -1.25, alz: 1, arz: -1, alx: -.35, arx: -.35, ix: -.12 });
+  const FIRE_B = Object.assign({}, FIRE_A, { tx: -.5, hx: -1.15, alz: 1.1, arz: -1.1, by: -10.1 });
+  const POW_A = Object.assign({}, FIRE_A, { tx: -.65, hx: -1.3, alz: 1.3, arz: -1.3, alx: -.6, arx: -.6, by: -11 });
+  const POW_B = Object.assign({}, POW_A, { tx: -.6, hx: -1.2, alz: 1.45, arz: -1.45 });
   const eyes = () => front(f, .35, 1.72 - 10.5 * PX);
 
   // ---- estado
   const did = {}; let fireT = 0, k0 = 0, success = false, beamG = null, space = null, spaceT0 = 0, desc = null, descT0 = 0, graded = false, acc = 0, powered = false, finished = false;
-  let A = null, mine = null;
+  let A = null, mine = null, tension = null, rumble = null, beamHum = null, beamHum2 = null, ambience = null; const nextAt = {};
+  const tremble = (a, t, A1, A2, per) => { const ph = Math.floor(t / per) % 2; if (a._ph !== ph) { a._ph = ph; a.anim = [[t + .04, ph ? A1 : A2, 700]]; } };
   const ease = k => 1 - Math.pow(1 - clamp(k, 0, 1), 3), ease2 = k => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); }, lerpV = (a, b, k) => a.clone().lerp(b, clamp(k, 0, 1));
 
   // ---- velo de nubes (para esconder el corte entre escenas)
@@ -124,7 +131,7 @@ CF.mover('rbCosmos', function (f, o) {
     if (finished) return; finished = true;
     killBeam(); if (space) { try { space.dispose(); } catch (e) { } space = null; } if (desc) { try { desc.dispose(); } catch (e) { } desc = null; }
     if (graded) { cineGrade(false); graded = false; }
-    setFx(0, 0, 1); glow.style.opacity = 0; document.body.classList.remove('cine');
+    rbCosmosSnd.stopAll(); setFx(0, 0, 1); glow.style.opacity = 0; document.body.classList.remove('cine');
     if (cos && composer) { const i = composer.passes.indexOf(cos); if (i >= 0) composer.passes.splice(i, 1); cos = null; }
     if (bloom0 != null && bloomPass) bloomPass.strength = bloom0;
     f.cineHide = false; f.iframes = Math.min(f.iframes, .6);
@@ -164,7 +171,7 @@ CF.mover('rbCosmos', function (f, o) {
         const a = .5 + s * .12, dist = 170 - s * 22, e = ease(s / 2.2); fxTo(.0, .55, .45, .22); G.shake = Math.max(G.shake, .02 + e * .08);
         setCam(new V3(O.x + Math.cos(a) * dist, O.y + 28 - e * 10, O.z + Math.sin(a) * dist), O, 42 - e * 4, 0, 'sp1', 0, 1.1);
       } else if (s < 4) {   // corte anime: el rayo sale del agujero
-        if (!did.boom) { did.boom = true; impactFrame('#ffffff', .14); screenFlash(1); G.shake = 1.6; sfx('boom', f.pos); sfx('beam', f.pos); G.linesI = 1; }
+        if (!did.boom) { did.boom = true; impactFrame('#ffffff', .14); screenFlash(1); G.shake = 1.6; sfx('boom', f.pos); sfx('beam', f.pos); G.linesI = 1; rbCosmosSnd.boom(1.2); rbCosmosSnd.riser(.5, 900, 120, .5); if (beamHum) beamHum.set(1, 70, .05); }
         const k = (s - 2.2) / 1.8, hole = new V3(O.x + d.x * R, O.y + d.y * R, O.z + d.z * R);
         fxTo(Math.max(0, 1 - (s - 2.2) * 1.6), .5, .42, .15);
         setCam(new V3(hole.x - 55 + k * 12, hole.y - 8, hole.z + 62 - k * 8), new V3(hole.x + d.x * 22, hole.y + d.y * 22, hole.z + d.z * 22), 62 - k * 6, .12 - k * .1, 'sp2', 0, 2.2);
@@ -204,44 +211,64 @@ CF.mover('rbCosmos', function (f, o) {
         mine = { fn: camFn, cleanup }; G.camScript = mine;
       } else { a.t = T_COLLAPSE - .2; if (!f.remote) f.pos.set(E.x, E.y, E.z); }
       popText(chestOf(f), '¡OJO DEL COSMOS!', '#ff2d55', 26); sfx('ult', f.pos);
+      tension = rbCosmosSnd.hum('sine', 52, .4); if (tension) tension.set(.25, 52, .5); rumble = rbCosmosSnd.loopNoise('lowpass', 90, .7, .5); if (rumble) rumble.set(.2, 90, .6);
     },
     tick: (a, t, dt) => {
-      f.iframes = Math.max(f.iframes, 1);
+      // nada ni nadie puede moverlo, aturdirlo ni agarrarlo durante la escena
+      f.iframes = Math.max(f.iframes, 1); f.stun = 0; f.frozen = 0; f.ragdoll = 0; f.grabbed = false; f.cineLock = null; f.hurtT = 0; f.vel.x = f.vel.z = 0;
+      if (!f.remote) {
+        if (isP && t < T_SHOW) f.pos.set(S0.x, S0.y, S0.z);
+        else if (isP && t < T_WALK_END) { const k = (t - T_SHOW) / (T_WALK_END - T_SHOW); f.pos.set(S0.x + (E.x - S0.x) * k, S0.y, S0.z + (E.z - S0.z) * k); }
+        else f.pos.set(E.x, E.y, E.z);
+      }
+      // ---- sonido de tensión que va subiendo hasta el disparo
+      if (!did.fire) { const k = clamp(t / T_FIRE, 0, 1); if (tension) tension.set(.25 + .75 * k, 52 + 46 * k, .25); if (rumble) rumble.set(.2 + .8 * k, 90 + 160 * k, .3); }
       // ---- escena 2: entra caminando de lado (solo se ven los pies), se detiene y se gira hacia la cámara
       if (isP) {
-        if (t < T_SHOW) { f.cineHide = true; if (!f.remote) f.pos.set(S0.x, S0.y, S0.z); }
-        else if (t < T_WALK_END) { f.cineHide = false; const k = (t - T_SHOW) / (T_WALK_END - T_SHOW); if (!f.remote) f.pos.set(S0.x + (E.x - S0.x) * k, S0.y, S0.z + (E.z - S0.z) * k); }
-        else if (t < T_COLLAPSE + .6 && !f.remote) f.pos.set(E.x, E.y, E.z);
+        f.cineHide = t < T_SHOW;
         if (t >= T_SHOW && t < T_WALK_END && a.bbClip !== 'caminar') a.bbClip = 'caminar';
         if (t >= T_WALK_END && t < T_COLLAPSE && a.bbClip !== 'idle') a.bbClip = 'idle';
+        if (t >= T_SHOW && t < T_WALK_END && t >= (nextAt.step || 0)) { rbCosmosSnd.step(); nextAt.step = t + .6; }
+        if (t >= T_FACE && t < T_COLLAPSE && t >= (nextAt.heart || 0)) { rbCosmosSnd.heart(); nextAt.heart = t + .85 - .35 * (t - T_FACE) / (T_COLLAPSE - T_FACE); }
       }
       if (!did.fire) f.yaw = isP && t < T_WALK_END + T_TURN ? Y + (Math.PI / 2) * (1 - clamp((t - T_WALK_END) / T_TURN, 0, 1)) : Y;
-      // ---- caída de rodillas
+      // ---- caída de rodillas: se encoge (anticipación), se desploma de golpe y rebota
       if (!did.collapse && t >= T_COLLAPSE) {
-        did.collapse = true; a.bbClip = null; a.anim = [[t + .5, KNEEL_A, 700]]; f.cineHide = false;
-        sfx('heavy', f.pos); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ff2d55', 4, .5); G.shake = Math.max(G.shake, .5);
-        burst(new V3(f.pos.x, f.pos.y + .2, f.pos.z), 22, '#6b5a3e', 8, .2, .6, 1, 4);
+        did.collapse = true; a.bbClip = null; a.anim = [[t + .16, PRE, 700], [t + .38, DROP, 700], [t + .62, KNEEL_A, 700]]; f.cineHide = false;
+        later(.2, () => {
+          sfx('heavy', f.pos); rbCosmosSnd.thud(); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ff2d55', 4.5, .5); G.shake = Math.max(G.shake, .9);
+          burst(new V3(f.pos.x, f.pos.y + .2, f.pos.z), 28, '#6b5a3e', 9, .22, .6, 1, 4); impactFrame('#ffffff', .07);
+        });
       }
-      if (!did.scream && t >= T_KNEEL) { did.scream = true; a.anim = [[t + .35, SCREAM, 700]]; popText(chestOf(f), '¡AAAAH!', '#ffffff', 30); }
-      if (t >= T_KNEEL && t < T_FIRE) {   // el visor se carga
+      if (!did.scream && t >= T_KNEEL) {
+        did.scream = true; a.anim = [[t + .1, SCR_A, 700]]; popText(chestOf(f), '¡AAAAH!', '#ffffff', 30); G.linesI = 1; javiSpeak(f, 'skill');
+        rbCosmosSnd.riser(T_FIRE - T_KNEEL, 160, 2600, .55);
+      }
+      if (t >= T_KNEEL + .3 && t < T_FIRE) {   // el visor se carga y todo el cuerpo tiembla
+        tremble(a, t, SCR_A, SCR_B, .06);
         const k = (t - T_KNEEL) / (T_FIRE - T_KNEEL), org = eyes();
-        for (let i = 0; i < 3; i++) { const an = rand(0, TAU), rr = 1 + k * 1.6; emit(org.x + Math.cos(an) * rr, org.y + rand(-.7, .7), org.z + Math.sin(an) * rr, -Math.cos(an) * 9, rand(-1, 1), -Math.sin(an) * 9, k > .6 ? '#ffffff' : '#ff2d55', .12 + k * .1, .22, 0, 0); }
+        for (let i = 0; i < 4; i++) { const an = rand(0, TAU), rr = 1 + k * 1.8; emit(org.x + Math.cos(an) * rr, org.y + rand(-.7, .7), org.z + Math.sin(an) * rr, -Math.cos(an) * 10, rand(-1, 1), -Math.sin(an) * 10, k > .6 ? '#ffffff' : '#ff2d55', .12 + k * .1, .22, 0, 0); }
         if (Math.floor(t * 4) !== Math.floor((t - dt) * 4)) ringAt(org, '#ff2d55', 2 + k * 2, .35, 'face', f.yaw);
+        if (t >= (nextAt.crack || 0)) { rbCosmosSnd.crackle(); nextAt.crack = t + .08 + Math.random() * .12; }
       }
       // ---- disparo
       if (!did.fire && t >= T_FIRE) {
-        did.fire = true; fireT = t; k0 = f.kills; a.anim = [[t + .15, FIRE_P, 700]]; makeBeam();
-        sfx('beam', f.pos); sfx('boom', f.pos); screenFlash(.7); G.shake = Math.max(G.shake, .8); G.fovKick = Math.max(G.fovKick, 8);
+        did.fire = true; fireT = t; k0 = f.kills; a.anim = [[t + .1, FIRE_A, 700]]; makeBeam();
+        sfx('beam', f.pos); sfx('boom', f.pos); rbCosmosSnd.boom(1); rbCosmosSnd.sting(.7); screenFlash(.7); G.shake = Math.max(G.shake, 1); G.fovKick = Math.max(G.fovKick, 8); impactFrame('#ff2d55', .08);
         ringAt(eyes(), '#ffffff', 5, .45, 'face', f.yaw);
+        if (tension) tension.set(0, 52, .2); if (rumble) rumble.set(.4, 70, .2);
+        beamHum = rbCosmosSnd.hum('sawtooth', 92, .38); beamHum2 = rbCosmosSnd.hum('square', 184, .12); if (beamHum) beamHum.set(1, 92, .15); if (beamHum2) beamHum2.set(1, 184, .15);
       }
       if (did.fire && beamG && !space && !desc) {
         const s = t - fireT, grow = Math.min(1, s / .3);
+        tremble(a, t, powered ? POW_A : FIRE_A, powered ? POW_B : FIRE_B, powered ? .045 : .05);
         // el rayo barre un poco a los lados: pega a casi todos, no a todos
         const off = powered ? 0 : Math.sin(s * 1.6) * .3; f.yaw = Y + off;
         const F2 = fwd(f.yaw), org = eyes(), w = (powered ? 3.8 + Math.min(1, (t - fireT - BEAM_EVAL) * .4) : 4.2) * grow, pul = 1 + Math.sin(t * 50) * .08;
         beamG.position.copy(org); beamG.rotation.y = f.yaw;
         const ow = (powered ? w * .85 : w * 1.15) * pul; beamG.children[0].scale.set(ow, ow, 1); beamG.children[1].scale.set(w * .38, w * .38, 1);
         if (powered) beamG.children[0].material.color.set('#ff3a2a');
+        if (beamHum) beamHum.set(powered ? 1.5 : 1, powered ? 130 : 92, .3); if (beamHum2) beamHum2.set(powered ? 1.6 : 1, powered ? 260 : 184, .3);
         const end = org.clone().addScaledVector(F2, LEN);
         for (let i = 0; i < 4; i++) { const q = org.clone().addScaledVector(F2, rand(2, LEN * .5)); emit(q.x + rand(-w, w) * .6, q.y + rand(-1, 1), q.z, rand(-5, 5), rand(0, 5), rand(-5, 5), powered ? '#ffffff' : '#ff2d55', .24, .35, .3); }
         emit(end.x, end.y, end.z, rand(-8, 8), rand(0, 8), rand(-8, 8), '#ff7a1a', .3, .4, .5);
@@ -259,17 +286,24 @@ CF.mover('rbCosmos', function (f, o) {
       // ---- ¿alcanzó? (si no, termina; si sí, sigue la escena)
       if (did.fire && !did.eval && t >= fireT + BEAM_EVAL) {
         did.eval = true; const killed = f.kills - k0; success = killed >= NEED;
-        if (success) { powered = true; popText(chestOf(f), '¡EL COSMOS RESPONDE!', '#ffffff', 28); sfx('ult', f.pos); screenFlash(.9); impactFrame('#ff2d55', .1); G.linesI = 1; f.yaw = Y; }
+        if (success) { powered = true; popText(chestOf(f), '¡EL COSMOS RESPONDE!', '#ffffff', 28); sfx('ult', f.pos); screenFlash(.9); impactFrame('#ff2d55', .1); G.linesI = 1; f.yaw = Y; rbCosmosSnd.riser(1.2, 200, 3000, .6); rbCosmosSnd.sting(.9); }
         else popText(chestOf(f), 'Rayo ' + killed + '/' + NEED, '#aab', 18);
       }
-      if (did.eval && !success && t >= fireT + BEAM_EVAL + 1) { killBeam(); endAction(f); return; }
+      if (did.eval && !success && t >= fireT + BEAM_EVAL + 1) { killBeam(); rbCosmosSnd.stopAll(); endAction(f); return; }
       // ---- espacio
       if (success && !did.space && t >= fireT + BEAM_EVAL + POWER_DUR) {
-        did.space = true; killBeam();
+        did.space = true; killBeam(); if (rumble) rumble.set(0, 60, .1);
         if (isP) {
           spaceT0 = t; cineGrade(true, f); graded = true; scene.fog = null; scene.background = new THREE.Color(0x01020a); if (bloomPass) { if (bloom0 == null) bloom0 = bloomPass.strength; bloomPass.strength = bloom0 * 2.4; }
-          space = rbCosmosEspacio(new V3(f.pos.x, 2600, f.pos.z)); screenFlash(1); sfx('whoosh');
+          space = rbCosmosEspacio(new V3(f.pos.x, 2600, f.pos.z)); screenFlash(1); sfx('whoosh'); rbCosmosSnd.whoosh(.8, 4000, 300, .6);
+          if (beamHum) beamHum.set(0, 60, .05); if (beamHum2) beamHum2.set(0, 60, .05);
+          ambience = rbCosmosSnd.loopNoise('lowpass', 140, .6, .6); if (ambience) ambience.set(1, 140, .6);
         } else spaceT0 = t;
+      }
+      if (space) {   // sonidos del espacio: crujidos de la grieta, y luego el viento de la caída
+        const s = t - spaceT0;
+        if (s < 2.2 && t >= (nextAt.crack || 0)) { rbCosmosSnd.crackle(); nextAt.crack = t + .12 + Math.random() * .2; }
+        if (s >= 5.2) { const k = clamp((s - 5.2) / (SPACE_DUR - 5.2), 0, 1); if (!did.dive) { did.dive = true; rbCosmosSnd.whoosh(1.3, 300, 3200, .8); } if (ambience) ambience.set(1 + k * 2.2, 140 + k * 1800, .15); }
       }
       // ---- descenso entre nubes y pájaros hasta Redbird
       if (success && did.space && !did.desc && t >= spaceT0 + SPACE_DUR) {
@@ -279,11 +313,17 @@ CF.mover('rbCosmos', function (f, o) {
         if (bloom0 != null && bloomPass) bloomPass.strength = bloom0;
         a.bbClip = 'idle_combate'; a.anim = null; descT0 = t;
         if (isP) { desc = rbCosmosDescenso(f.pos); fadeFx(1); }
-        screenFlash(.9); sfx('whoosh');
+        screenFlash(.9); sfx('whoosh'); rbCosmosSnd.whoosh(2.6, 3200, 380, .8); rbCosmosSnd.sting(.6);
+        if (ambience) ambience.set(1.2, 1500, .3);
+      }
+      if (desc) {
+        const u = clamp((t - descT0) / DESC_DUR, 0, 1);
+        if (ambience) ambience.set(1.2 * (1 - u), 1500 - 1100 * u, .25);
+        if (t >= (nextAt.bird || 0)) { rbCosmosSnd.chirp(); nextAt.bird = t + .18 + Math.random() * .35; }
       }
       if (success && did.desc && !did.end && t >= descT0 + DESC_DUR) {
         did.end = true;
-        screenFlash(.8); G.shake = 1; sfx('boom', f.pos);
+        screenFlash(.8); G.shake = 1; sfx('boom', f.pos); rbCosmosSnd.boom(.9); rbCosmosSnd.stopAll();
         for (const g of enemiesOf(f)) applyHit(f, g, { dmg: 16, kb: 24, up: 12, ragdoll: 1.6, guardBreak: true, color: '#ff3b30', hitstop: .1, shake: .8 });
         ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffffff', 14, .7);
         endAction(f);
