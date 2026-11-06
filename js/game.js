@@ -6830,7 +6830,7 @@ const MOVES = {
           if (!tg) return;
           phase = 1; t0 = t; f.vel.set(0, 0, 0); a.invuln = true; f.iframes = Math.max(f.iframes, 2.4);
           if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.stun = 3; tg.grabbed = true; }
-          if (f.isPlayer || tg.isPlayer) { G.duel = { f, tg, t0: G.time }; IMPACT.cd = 0; impactFrame(o.color, .08); }
+          if ((f.isPlayer || tg.isPlayer) && !CFG_CINE.off) { G.duel = { f, tg, t0: G.time }; IMPACT.cd = 0; impactFrame(o.color, .08); }
           popText(chestOf(tg), '¡AGARRE!', '#ffffff', 24); sfx('grab', f.pos); sfx('counter', f.pos, .6);
           a.anim = [[t, 'grab', 1100]];
         }
@@ -7282,7 +7282,7 @@ function useUlt(f) {
   prepWeapon(f);
   if (f.awak > 0) return;
   f.ult = 0; if (f.isPlayer) { statsUlt(f); ultMusic(f.ch.id); }
-  if (f.isPlayer && !ownsMissingSpear(f)) { startCine(f); return; }   // sin lanza no hay cinemática: despierta directo
+  if (f.isPlayer && !ownsMissingSpear(f) && !CFG_CINE.off) { startCine(f); return; }   // sin lanza no hay cinemática: despierta directo
   runUlt(f);
   if (involvesPlayerNear(f)) miniCut(f);
 }
@@ -9035,7 +9035,7 @@ function animeDashSmoke(f) {
 // Cámara con guion (la usan las cinemáticas de personajes, p. ej. "Ojo del Cosmos"): G.camScript = { fn(dt) -> true si mueve la cámara, cleanup() }
 function endCamScript() { const s = G.camScript; G.camScript = null; if (s && s.cleanup) { try { s.cleanup(); } catch (e) { } } }
 function updateCamera(dt) {
-  if (G.camScript) { let ok = false; try { ok = G.camScript.fn(dt); } catch (e) { endCamScript(); } if (ok) return; if (G.camScript) endCamScript(); }
+  if (G.camScript && !CFG_CINE.off) { let ok = false; try { ok = G.camScript.fn(dt); } catch (e) { endCamScript(); } if (ok) return; if (G.camScript) endCamScript(); }
   if (G.cine) {
     const c = G.cine, f = c.f, F = fwd(f.yaw), Rr = rightOf(f.yaw);
     // cuatro tomas: barrido bajo → primer plano de la cara → zoom de choque → plano de héroe
@@ -9074,7 +9074,7 @@ function updateCamera(dt) {
     camera.position.y = Math.max(.3, camera.position.y); camera.up.set(0, 1, 0); camera.lookAt(VW.focus);
     cam.fov += (50 - cam.fov) * Math.min(1, dt * 8); camera.fov = cam.fov; camera.updateProjectionMatrix(); return;
   }
-  if (G.chore) {
+  if (G.chore && (!CFG_CINE.off || G.viewer)) {
     document.body.classList.add('duel'); choreCam(G.chore, dt);
     cam.focus.copy(p.pos).add(new V3(0, 1.7, 0)); return;
   }
@@ -9483,6 +9483,7 @@ const sebFlurry = (t0, t1, step, dmg) => { const out = []; for (let t = t0, i = 
 /* CF_API_BEGIN  (todo lo que pueden usar los archivos de personajes/<id>/.../Code y las coreografias; si creas una funcion nueva en este archivo y la quieres usar desde alli, anade su nombre a esta lista) */
 const CF_A = (() => {
   const api = {
+    get CFG_CINE() { return CFG_CINE; },
     get V3() { return V3; },
     get TAU() { return TAU; },
     get rand() { return rand; },
@@ -15140,6 +15141,13 @@ function updateVolley(dt) {
   show(['snd', 'gfx', 'misc'].includes(c0) ? c0 : 'snd');
 }
 // ===== Minimapa: la ciudad desde arriba con la posición de cada jugador =====
+// Desactivar cinemáticas: no se ven las cámaras animadas ni las escenas; se ve la acción desde fuera, como la ven los demás jugadores
+const CFG_CINE = { off: false };
+try { CFG_CINE.off = localStorage.getItem('bsb_nocine') === '1'; } catch (e) { }
+{
+  const nc = $('opt-nocine');
+  if (nc) { nc.checked = CFG_CINE.off; nc.addEventListener('change', () => { CFG_CINE.off = nc.checked; try { localStorage.setItem('bsb_nocine', CFG_CINE.off ? '1' : '0'); } catch (e) { } if (CFG_CINE.off && G.cine) { G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine'); } }); }
+}
 const MM = { on: true, bg: null, t: 0, cx: 0, cz: 6, half: 126 };
 try { MM.on = localStorage.getItem('bsb_minimap') !== '0'; } catch (e) { }
 {
