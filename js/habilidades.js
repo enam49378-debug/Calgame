@@ -281,17 +281,59 @@ CF.mover('optoJump', function (f, o) {
     });
   });
 
+/* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/descenso-cosmos.js ===== */
+/* Descenso de "Ojo del Cosmos" (personaje: redbird): al entrar en la atmósfera la cámara baja a toda velocidad
+   atravesando nubes y pájaros hasta llegar a Redbird. Esto crea esas nubes y pájaros en el mundo real.
+   Uso desde rbCosmos.js:  const D = rbCosmosDescenso(posRedbird);  D.update(dt);  D.dispose(); */
+const rbCosmosDescenso = function (P) {
+  const g = new THREE.Group(), mats = [], geos = [], texs = [];
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256; const c = cv.getContext('2d');
+  for (let i = 0; i < 14; i++) {
+    const x = rand(60, 196), y = rand(80, 176), r = rand(40, 90), gr = c.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(.6, 'rgba(240,248,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+  }
+  const tex = new THREE.CanvasTexture(cv); texs.push(tex);
+  // nubes: sprites que siempre miran a la cámara; la cámara baja entre ellas
+  for (let i = 0; i < 70; i++) {
+    const m = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: rand(.5, .95), depthWrite: false, fog: false }); mats.push(m);
+    const sp = new THREE.Sprite(m), s = rand(60, 150); sp.scale.set(s, s * .65, 1);
+    sp.position.set(P.x + rand(-80, 80), rand(15, 235), P.z + rand(-80, 80)); g.add(sp);
+  }
+  // pájaros: dos alas en V que aletean y cruzan rápido
+  const wingG = new THREE.PlaneGeometry(2.6, .9); geos.push(wingG);
+  const wingM = new THREE.MeshBasicMaterial({ color: 0x1d2433, side: THREE.DoubleSide }); mats.push(wingM);
+  const birds = [];
+  for (let i = 0; i < 14; i++) {
+    const b = new THREE.Group(), l = new THREE.Mesh(wingG, wingM), r = new THREE.Mesh(wingG, wingM); l.position.x = -1.3; r.position.x = 1.3; b.add(l, r);
+    const sc = rand(1.2, 2.6); b.scale.set(sc, sc, sc);
+    b.position.set(P.x + rand(-45, 45), rand(25, 220), P.z + rand(-45, 45));
+    const an = rand(0, TAU), sp = rand(55, 110); b.userData = { v: new V3(Math.cos(an) * sp, rand(-6, 6), Math.sin(an) * sp), ph: rand(0, TAU), l, r };
+    b.rotation.y = Math.atan2(b.userData.v.x, b.userData.v.z) + Math.PI / 2; g.add(b); birds.push(b);
+  }
+  scene.add(g);
+  let T = 0;
+  return {
+    update(dt) {
+      T += dt;
+      for (const b of birds) { const u = b.userData; b.position.addScaledVector(u.v, dt); const f = Math.sin(T * 18 + u.ph) * .7; u.l.rotation.z = f; u.r.rotation.z = -f; }
+    },
+    dispose() { scene.remove(g); mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose()); texs.forEach(t => t.dispose()); },
+  };
+};
+
 /* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/espacio-cosmos.js ===== */
 /* Escena del espacio de "Ojo del Cosmos" (personaje: redbird)
-   Construye la Tierra, las estrellas y la explosión del planeta en un grupo de three.js lejos de la ciudad.
-   Se usa desde rbCosmos.js:  const E = rbCosmosEspacio(origen);  E.update(s, dt);  E.dispose();
+   Construye la Tierra, las estrellas y la ruptura de UNA PARTE del planeta (por donde sale el rayo) en un grupo de
+   three.js lejos de la ciudad. Se usa desde rbCosmos.js:  const E = rbCosmosEspacio(origen);  E.update(s, dt, camPos);  E.dispose();
    Este archivo se carga antes que rbCosmos.js (orden alfabético), así que lo que declara aquí lo ve el otro. */
 const rbCosmosEspacio = function (O) {
-  const R = 45, g = new THREE.Group();
+  const R = 45, CAP = .5, g = new THREE.Group();   // CAP = radio angular (en radianes) del trozo que se rompe
   g.position.copy(O);
   const mats = [], geos = [], texs = [];
   const track = (m) => { mats.push(m); return m; };
   const trackG = (x) => { geos.push(x); return x; };
+  const dir = new V3(-.6, .42, .68).normalize();   // hacia dónde sale el rayo
+  const pivot = new THREE.Group(); pivot.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir); g.add(pivot);   // el eje +Y del planeta apunta al rayo
 
   // ---- estrellas
   const N = 1100, sp = new Float32Array(N * 3);
@@ -302,7 +344,7 @@ const rbCosmosEspacio = function (O) {
   const sg = trackG(new THREE.BufferGeometry()); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
   g.add(new THREE.Points(sg, track(new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true, transparent: true, opacity: .95, depthWrite: false, fog: false }))));
 
-  // ---- textura de la Tierra (océano, continentes, casquetes)
+  // ---- texturas de la Tierra (océano, continentes, casquetes) y de las nubes
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512; const c = cv.getContext('2d');
   const grad = c.createLinearGradient(0, 0, 0, 512); grad.addColorStop(0, '#2a6fd6'); grad.addColorStop(.5, '#1c56b5'); grad.addColorStop(1, '#2a6fd6');
   c.fillStyle = grad; c.fillRect(0, 0, 1024, 512);
@@ -319,71 +361,78 @@ const rbCosmosEspacio = function (O) {
     gr.addColorStop(0, 'rgba(255,255,255,.62)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c2.fillStyle = gr; c2.beginPath(); c2.ellipse(x, y, r * 1.5, r * .7, 0, 0, TAU); c2.fill();
   }
   const cloudTex = new THREE.CanvasTexture(cv2); texs.push(cloudTex);
-  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 64, 44)), track(new THREE.MeshLambertMaterial({ map: earthTex, emissive: 0x000000 })));
-  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.014, 64, 44)), track(new THREE.MeshLambertMaterial({ map: cloudTex, transparent: true, depthWrite: false })));
+  const earthMat = track(new THREE.MeshLambertMaterial({ map: earthTex, emissive: 0x000000 })), cloudMat = track(new THREE.MeshLambertMaterial({ map: cloudTex, transparent: true, depthWrite: false }));
+  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 64, 44)), earthMat);
+  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.014, 64, 44)), cloudMat);
+  // versiones con el casquete roto (falta un trozo de planeta donde sale el rayo)
+  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 64, 44, 0, TAU, CAP, Math.PI - CAP)), earthMat);
+  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.014, 64, 44, 0, TAU, CAP, Math.PI - CAP)), cloudMat);
+  earthB.visible = cloudsB.visible = false;
   const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.09, 48, 32)), track(new THREE.MeshBasicMaterial({ color: 0x6fb2ff, transparent: true, opacity: .2, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
-  g.add(earth, clouds, halo);
+  // magma que se ve por el agujero, y borde incandescente
+  const magma = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * .96, 40, 28)), track(new THREE.MeshBasicMaterial({ color: 0xff4a12, fog: false })));
+  const rimR = R * Math.sin(CAP), rim = new THREE.Mesh(trackG(new THREE.TorusGeometry(rimR, 1.1, 8, 64)), track(new THREE.MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: .95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
+  rim.rotation.x = Math.PI / 2; rim.position.y = R * Math.cos(CAP); rim.visible = false;
+  pivot.add(earth, clouds, earthB, cloudsB, magma, rim); magma.visible = false;
+  g.add(halo);
   const sunL = new THREE.DirectionalLight(0xfff2dc, 1.15); sunL.position.set(170, 70, 130); g.add(sunL, sunL.target);
-  const amb = new THREE.AmbientLight(0x3a4f7a, .32); g.add(amb);
+  g.add(new THREE.AmbientLight(0x3a4f7a, .32));
 
-  // ---- grietas rojas que se van abriendo
+  // ---- grietas rojas alrededor del trozo que se romperá
   const pts = [];
-  for (let i = 0; i < 70; i++) {
-    let p = new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize(), prev = p.clone().multiplyScalar(R * 1.004);
-    for (let j = 0; j < 9; j++) {
-      p = p.clone().add(new V3(rand(-.16, .16), rand(-.16, .16), rand(-.16, .16))).normalize();
+  for (let i = 0; i < 46; i++) {
+    const th = rand(.05, CAP * 1.9), ph = rand(0, TAU);
+    let p = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)).normalize(), prev = p.clone().multiplyScalar(R * 1.004);
+    for (let j = 0; j < 8; j++) {
+      p = p.clone().add(new V3(rand(-.14, .14), rand(-.14, .14), rand(-.14, .14))).normalize();
       const q = p.clone().multiplyScalar(R * 1.004); pts.push(prev.x, prev.y, prev.z, q.x, q.y, q.z); prev = q;
     }
   }
   const lg = trackG(new THREE.BufferGeometry()); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3)); lg.setDrawRange(0, 0);
   const cracks = new THREE.LineSegments(lg, track(new THREE.LineBasicMaterial({ color: 0xff4a1f, transparent: true, opacity: 1, fog: false })));
-  g.add(cracks);
+  pivot.add(cracks);
   const total = pts.length / 3;
 
-  // ---- núcleo, rayo, onda de choque y pedazos
-  const core = new THREE.Mesh(trackG(new THREE.SphereGeometry(1, 24, 18)), track(new THREE.MeshBasicMaterial({ color: 0xffe0c0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
-  g.add(core);
+  // ---- rayo, onda de choque y pedazos
   const cylG = trackG(new THREE.CylinderGeometry(1, 1, 1, 30, 1, true)); cylG.rotateX(Math.PI / 2); cylG.translate(0, 0, .5);
-  const dir = new V3(-.6, .42, .68).normalize();
   const beam = new THREE.Group(), bOut = new THREE.Mesh(cylG, track(new THREE.MeshBasicMaterial({ color: 0xff2a1f, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })));
   const bIn = new THREE.Mesh(cylG, track(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .95, depthWrite: false, side: THREE.DoubleSide, fog: false })));
-  beam.add(bOut, bIn); beam.visible = false; g.add(beam); beam.quaternion.setFromUnitVectors(new V3(0, 0, 1), dir);
+  beam.add(bOut, bIn); beam.visible = false; beam.position.copy(dir).multiplyScalar(R * .9); beam.quaternion.setFromUnitVectors(new V3(0, 0, 1), dir); g.add(beam);
   const ring = new THREE.Mesh(trackG(new THREE.RingGeometry(.92, 1, 72)), track(new THREE.MeshBasicMaterial({ color: 0xffd0a0, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
-  g.add(ring);
+  ring.position.copy(dir).multiplyScalar(R); g.add(ring);
   const frags = [], fcols = [0x2a62c0, 0x3f8a3a, 0x7a6a3c, 0xeef4ff, 0x264f9c], fgeo = trackG(new THREE.BoxGeometry(1, 1, 1)), fmats = fcols.map(col => track(new THREE.MeshLambertMaterial({ color: col, emissive: 0x3a0800 })));
-  for (let i = 0; i < 170; i++) {
-    const d = new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).normalize(), m = new THREE.Mesh(fgeo, fmats[i % fmats.length]), s = rand(1.6, 6.5);
-    m.position.copy(d).multiplyScalar(R * rand(.2, 1)); m.scale.set(s, s * rand(.5, 1), s * rand(.6, 1)); m.visible = false;
-    m.userData = { v: d.clone().multiplyScalar(rand(14, 62)).add(new V3(rand(-6, 6), rand(-6, 6), rand(-6, 6))), r: new V3(rand(-1.4, 1.4), rand(-1.4, 1.4), rand(-1.4, 1.4)) };
+  for (let i = 0; i < 90; i++) {
+    const th = rand(0, CAP * .95), ph = rand(0, TAU), loc = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)).applyQuaternion(pivot.quaternion);
+    const m = new THREE.Mesh(fgeo, fmats[i % fmats.length]), s = rand(1.8, 6.5);
+    m.position.copy(loc).multiplyScalar(R * rand(.8, 1)); m.scale.set(s, s * rand(.5, 1), s * rand(.6, 1)); m.visible = false;
+    m.userData = { v: loc.clone().multiplyScalar(rand(18, 60)).addScaledVector(dir, rand(10, 40)).add(new V3(rand(-6, 6), rand(-6, 6), rand(-6, 6))), r: new V3(rand(-1.4, 1.4), rand(-1.4, 1.4), rand(-1.4, 1.4)) };
     frags.push(m); g.add(m);
   }
   scene.add(g);
 
   let boomed = false, boomT = 0;
   const api = {
-    group: g, origin: O, dir, boomed: () => boomed,
+    group: g, origin: O, dir, radius: R, boomed: () => boomed,
     // s = segundos desde que empieza la escena del espacio
     update(s, dt, camPos) {
-      earth.rotation.y += dt * .05; clouds.rotation.y += dt * .07;
+      earth.rotation.y += dt * .05; clouds.rotation.y += dt * .07; earthB.rotation.y = earth.rotation.y; cloudsB.rotation.y = clouds.rotation.y;
       if (!boomed) {
         const k = clamp((s - .35) / 1.7, 0, 1);
         lg.setDrawRange(0, Math.floor(total * k / 2) * 2);
         cracks.material.opacity = .55 + .45 * Math.abs(Math.sin(s * 14));
-        const glow = k * k; earth.material.emissive.setRGB(.5 * glow, .1 * glow, .02 * glow);
-        core.material.opacity = k * .55; core.scale.setScalar(R * .05 + R * .5 * k * k);
+        earthMat.emissive.setRGB(.28 * k * k, .06 * k * k, .01 * k * k);
         if (s > 2.2) {
-          boomed = true; boomT = s; earth.visible = false; clouds.visible = false; halo.visible = false; cracks.visible = false;
-          frags.forEach(m => { m.visible = true; }); beam.visible = true; core.material.opacity = 1;
+          boomed = true; boomT = s; earth.visible = false; clouds.visible = false; earthB.visible = cloudsB.visible = true; magma.visible = true; rim.visible = true; cracks.visible = false;
+          frags.forEach(m => { m.visible = true; }); beam.visible = true; earthMat.emissive.setRGB(.05, .01, 0);
         }
         return;
       }
       const b = s - boomT;
-      core.scale.setScalar(R * (.55 + b * .5)); core.material.opacity = Math.max(0, 1 - b * .22);
-      const w = 5 + Math.min(b, 1.2) * 7 + Math.sin(s * 40) * .8;
+      const w = 4.5 + Math.min(b, 1.2) * 6 + Math.sin(s * 40) * .7;
       bOut.scale.set(w * 1.8, w * 1.8, 700); bIn.scale.set(w * .6, w * .6, 700);
-      beam.rotateZ(dt * 4);
+      beam.rotateZ(dt * 4); rim.material.opacity = .75 + .25 * Math.sin(s * 18);
       for (const m of frags) { const u = m.userData; m.position.addScaledVector(u.v, dt); m.rotation.x += u.r.x * dt; m.rotation.y += u.r.y * dt; m.rotation.z += u.r.z * dt; u.v.multiplyScalar(1 - dt * .12); }
-      const rs = 1 + b * 120; ring.scale.setScalar(rs); ring.material.opacity = Math.max(0, .9 - b * .45);
+      const rs = 1 + b * 90; ring.scale.setScalar(rs); ring.material.opacity = Math.max(0, .9 - b * .5);
       if (camPos) ring.lookAt(camPos);
     },
     dispose() {
@@ -396,12 +445,13 @@ const rbCosmosEspacio = function (O) {
 
 /* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/rbCosmos.js ===== */
 /* Habilidad: Ojo del Cosmos  ·  personaje: redbird  ·  movimiento: rbCosmos   (habilidad 4 del despertar)
-   Cinemática: cámara a ras del suelo -> Redbird camina hacia ella -> primer plano de la cara -> se desploma de rodillas
-   y grita -> dispara un rayo gigante (cámara libre). Si el rayo mata a "need" rivales o más, la escena sigue:
-   plano lateral del rayo creciendo -> espacio: la Tierra se rompe por el rayo (escena anime) -> nubes -> vuelve el juego.
-   Los números (daño, recarga, rivales necesarios) están en personaje.js. La escena del espacio está en espacio-cosmos.js. */
+   Escena 1: cámara fija a ras del suelo, no se ve nada. Escena 2: la MISMA cámara; entran los pies de Redbird caminando de lado.
+   Luego la cámara sube a su cara, él se desploma de rodillas y grita, y dispara un rayo muy ancho (cámara libre).
+   Si el rayo mata a "need" rivales o más, la escena sigue: plano lateral del rayo más fuerte -> el espacio: se rompe un trozo
+   de la Tierra por donde sale el rayo -> la cámara se lanza al planeta, atraviesa nubes y pájaros y baja sola hasta Redbird.
+   Los números (daño, rivales necesarios) están en personaje.js. El espacio está en espacio-cosmos.js y el descenso en descenso-cosmos.js. */
 CF.mover('rbCosmos', function (f, o) {
-  const NEED_BASE = o.need || 3, isP = !!f.isPlayer && !f.remote, BEAM_DMG = o.dmg || 8.5, LEN = 95;
+  const NEED_BASE = o.need || 2, isP = !!f.isPlayer && !f.remote, BEAM_DMG = o.dmg || 8.5, LEN = 95;
   const foes = enemiesOf(f).filter(g => g.alive);
   if (!foes.length) return false;
   const NEED = Math.min(NEED_BASE, foes.length);
@@ -410,17 +460,18 @@ CF.mover('rbCosmos', function (f, o) {
   let best = foes[0], bs = -1e9;
   for (const g of foes) {
     const F0 = fwd(yawTo(f, g)); let n = 0;
-    for (const h of foes) { const c = chestOf(h), dx = c.x - f.pos.x, dz = c.z - f.pos.z; if (dx * F0.x + dz * F0.z > 0 && Math.abs(dx * F0.z - dz * F0.x) < 3.2) n++; }
+    for (const h of foes) { const c = chestOf(h), dx = c.x - f.pos.x, dz = c.z - f.pos.z; if (dx * F0.x + dz * F0.z > 0 && Math.abs(dx * F0.z - dz * F0.x) < 5) n++; }
     const sc = n * 100 - dist2d(f, g); if (sc > bs) { bs = sc; best = g; }
   }
   const Y = yawTo(f, best), F = fwd(Y), Rr = rightOf(Y);
+  // posición donde se queda Redbird (E), cámara baja delante de él (C0) y punto por donde entra caminando (S0, a la izquierda de la cámara)
   const R0 = f.pos.clone();
-  for (let i = 0; i < 12 && Math.hypot(R0.x + F.x * 3.8, R0.z + F.z * 3.8) > ARENA - 2; i++) R0.addScaledVector(F, -.5);   // que no se salga de la arena
-  const gy = R0.y, S0 = R0.clone().addScaledVector(F, -4), E = R0.clone().addScaledVector(F, 3.8), C0 = R0.clone().addScaledVector(F, 8);
+  for (let i = 0; i < 12 && Math.hypot(R0.x + F.x * 2, R0.z + F.z * 2) > ARENA - 2; i++) R0.addScaledVector(F, -.5);
+  const gy = R0.y, E = R0.clone().addScaledVector(F, 2), C0 = E.clone().addScaledVector(F, 3.6), S0 = E.clone().addScaledVector(Rr, 5.2);
 
   // ---- tiempos (segundos desde que empieza la habilidad)
-  const T_SHOW = .9, T_WALK_END = 3.4, T_CAM_UP = 3.0, T_FACE = 4.4, T_COLLAPSE = 5.0, T_KNEEL = 5.8, T_FIRE = 7.2;
-  const BEAM_EVAL = 2.8, POWER_DUR = 3.0, SPACE_DUR = 7.4;
+  const T_SHOW = 1, T_WALK_END = 4.2, T_TURN = .6, T_CAM_UP = 4.4, T_FACE = 5.8, T_COLLAPSE = 6.4, T_KNEEL = 7.2, T_FIRE = 8.6;
+  const BEAM_EVAL = 2.8, POWER_DUR = 3, SPACE_DUR = 6.6, DESC_DUR = 3.6;
 
   // ---- poses (de rodillas: cuerpo bajo, piernas hacia atrás, torso y cabeza hacia atrás)
   const KNEEL_A = { by: -8, ix: .12, tx: .2, hx: -.1, llx: .9, lrx: .9, llz: .1, lrz: -.1, alx: -.35, arx: -.35, alz: .35, arz: -.35 };
@@ -429,11 +480,11 @@ CF.mover('rbCosmos', function (f, o) {
   const eyes = () => front(f, .35, 1.72 - 10.5 * PX);
 
   // ---- estado
-  const did = {}; let fireT = 0, k0 = 0, success = false, beamG = null, space = null, spaceT0 = 0, graded = false, acc = 0, powered = false, finished = false;
+  const did = {}; let fireT = 0, k0 = 0, success = false, beamG = null, space = null, spaceT0 = 0, desc = null, descT0 = 0, graded = false, acc = 0, powered = false, finished = false;
   let A = null, mine = null;
-  const ease = k => 1 - Math.pow(1 - clamp(k, 0, 1), 3), lerpV = (a, b, k) => a.clone().lerp(b, clamp(k, 0, 1));
+  const ease = k => 1 - Math.pow(1 - clamp(k, 0, 1), 3), ease2 = k => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); }, lerpV = (a, b, k) => a.clone().lerp(b, clamp(k, 0, 1));
 
-  // ---- velo de nubes para la transición
+  // ---- velo de nubes (para esconder el corte entre escenas)
   let fx = document.getElementById('cosmosfx');
   if (!fx) {
     fx = document.createElement('div'); fx.id = 'cosmosfx'; fx.style.cssText = 'position:fixed;inset:0;z-index:55;pointer-events:none;opacity:0;background-size:cover;background-position:center;';
@@ -442,6 +493,7 @@ CF.mover('rbCosmos', function (f, o) {
     fx.style.backgroundImage = 'url(' + cv.toDataURL() + ')'; fx.style.backgroundColor = 'rgba(190,220,255,0)'; document.body.appendChild(fx);
   }
   const setFx = (clouds, white, sc) => { fx.style.opacity = clouds; fx.style.transform = 'scale(' + sc + ')'; fx.style.backgroundColor = 'rgba(' + Math.round(190 + 65 * white) + ',' + Math.round(220 + 35 * white) + ',255,' + white + ')'; };
+  const fadeFx = (from) => { let k = 0; const back = () => { k += .04; setFx(clamp(from - k, 0, 1), clamp(from - k * 1.3, 0, 1), 2.6 + k * 1.2); if (k < from) requestAnimationFrame(back); else setFx(0, 0, 1); }; setFx(from, from, 2.6); requestAnimationFrame(back); };
 
   // ---- rayo del mundo (se crea al disparar)
   const makeBeam = () => {
@@ -457,10 +509,17 @@ CF.mover('rbCosmos', function (f, o) {
     if (G.shake > 0) { const s = G.shake * .2; camera.position.x += rand(-s, s); camera.position.y += rand(-s, s); G.shake = Math.max(0, G.shake - .016 * 2.2); }
     cam.fov = fov; camera.fov = fov; camera.updateProjectionMatrix();
   };
+  // pose que tendría la cámara normal del juego (para que el descenso termine justo ahí y se quede sola)
+  const normalPose = () => {
+    const saved = G.camScript; G.camScript = null;
+    try { updateCamera(.016); } catch (e) { }
+    G.camScript = saved;
+    return { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
+  };
 
   const cleanup = () => {
     if (finished) return; finished = true;
-    killBeam(); if (space) { try { space.dispose(); } catch (e) { } space = null; }
+    killBeam(); if (space) { try { space.dispose(); } catch (e) { } space = null; } if (desc) { try { desc.dispose(); } catch (e) { } desc = null; }
     if (graded) { cineGrade(false); graded = false; }
     setFx(0, 0, 1); document.body.classList.remove('cine');
     f.cineHide = false; f.iframes = Math.min(f.iframes, .6);
@@ -469,15 +528,15 @@ CF.mover('rbCosmos', function (f, o) {
 
   const camFn = (dt) => {
     if (finished || f.action !== A) { cleanup(); return false; }
-    const t = A.t, g0 = gy + .12;
-    if (t < T_CAM_UP) {   // a ras del suelo mirando hacia donde vendrá Redbird: al principio no se ve nada
-      setCam(new V3(C0.x, g0, C0.z), new V3(C0.x - F.x * 10, gy + .7, C0.z - F.z * 10), 38, 0);
+    const t = A.t, gl = gy + .16;
+    if (t < T_CAM_UP) {   // escenas 1 y 2: cámara fija a ras del suelo (la misma): primero no se ve nada, luego entran los pies
+      setCam(new V3(C0.x, gl, C0.z), new V3(E.x, gy + .13, E.z), 18, 0);
     } else if (t < T_FACE) {   // sube hacia la cara
       const k = ease((t - T_CAM_UP) / (T_FACE - T_CAM_UP)), face = new V3(E.x + F.x * 2.7 + Rr.x * .35, gy + 1.62, E.z + F.z * 2.7 + Rr.z * .35);
-      setCam(lerpV(new V3(C0.x, g0, C0.z), face, k), lerpV(new V3(E.x, gy + .9, E.z), new V3(E.x, gy + 1.6, E.z), k), 38 - 8 * k, -.05 * k);
+      setCam(lerpV(new V3(C0.x, gl, C0.z), face, k), lerpV(new V3(E.x, gy + .13, E.z), new V3(E.x, gy + 1.6, E.z), k), 18 + 10 * k, -.05 * k);
     } else if (t < T_COLLAPSE) {   // primer plano de la cara, cada vez más tenso
       const k = (t - T_FACE) / (T_COLLAPSE - T_FACE), face = new V3(E.x + F.x * (2.7 - k * .5) + Rr.x * .35, gy + 1.62, E.z + F.z * (2.7 - k * .5) + Rr.z * .35);
-      G.shake = Math.max(G.shake, .03 + k * .12); setCam(face, new V3(E.x, gy + 1.6, E.z), 30 - 4 * k, -.05);
+      G.shake = Math.max(G.shake, .03 + k * .12); setCam(face, new V3(E.x, gy + 1.6, E.z), 28 - 4 * k, -.05);
     } else if (t < T_KNEEL) {   // se desploma: la cámara se aleja y baja
       const k = ease((t - T_COLLAPSE) / (T_KNEEL - T_COLLAPSE)), from = new V3(E.x + F.x * 2.2 + Rr.x * .35, gy + 1.62, E.z + F.z * 2.2 + Rr.z * .35), to = new V3(E.x + F.x * 4.2 + Rr.x, gy + .55, E.z + F.z * 4.2 + Rr.z);
       setCam(lerpV(from, to, k), new V3(E.x, gy + 1.6 - .6 * k, E.z), 26 + 22 * k, .06 * k);
@@ -485,33 +544,42 @@ CF.mover('rbCosmos', function (f, o) {
       const k = (t - T_KNEEL) / (T_FIRE - T_KNEEL);
       G.shake = Math.max(G.shake, .05 + k * .2);
       setCam(new V3(E.x + F.x * (4.2 - k) + Rr.x * (1 - .35 * k), gy + .55 - .1 * k, E.z + F.z * (4.2 - k) + Rr.z * (1 - .35 * k)), new V3(E.x, gy + .95, E.z), 48 - 8 * k, .06);
-    } else if (!powered && !space) {   // cámara libre: solo se ve el rayo
-      const s = t - fireT, ang = s * .1;
-      setCam(new V3(E.x - F.x * (6.5 + s * .5) + Rr.x * 1.8, gy + 2.3 + s * .25, E.z - F.z * (6.5 + s * .5) + Rr.z * 1.8), new V3(E.x + F.x * (18 + s * 2), gy + 1.3, E.z + F.z * (18 + s * 2)), 62 + Math.sin(ang) * 2, .04);
+    } else if (!powered && !space && !desc) {   // cámara libre: solo se ve el rayo
+      const s = t - fireT;
+      setCam(new V3(E.x - F.x * (6.5 + s * .5) + Rr.x * 1.8, gy + 2.3 + s * .25, E.z - F.z * (6.5 + s * .5) + Rr.z * 1.8), new V3(E.x + F.x * (18 + s * 2), gy + 1.3, E.z + F.z * (18 + s * 2)), 64 + Math.sin(s * .1) * 2, .04);
       G.shake = Math.max(G.shake, .22);
-    } else if (powered && !space) {   // costado izquierdo de Redbird: el rayo se hace más fuerte
+    } else if (powered && !space && !desc) {   // costado izquierdo de Redbird: el rayo se hace más fuerte
       const s = t - (fireT + BEAM_EVAL), k = clamp(s / POWER_DUR, 0, 1);
-      setCam(new V3(E.x - Rr.x * (6.2 - k * .8) - F.x * (3.2 - k * 1.2), gy + 3.0 + k * .3, E.z - Rr.z * (6.2 - k * .8) - F.z * (3.2 - k * 1.2)), new V3(E.x + F.x * (2.2 + k * 2), gy + 1.1, E.z + F.z * (2.2 + k * 2)), 52 - 6 * k, -.05 * k);
+      setCam(new V3(E.x - Rr.x * (6.2 - k * .8) - F.x * (3.2 - k * 1.2), gy + 3 + k * .3, E.z - Rr.z * (6.2 - k * .8) - F.z * (3.2 - k * 1.2)), new V3(E.x + F.x * (2.2 + k * 2), gy + 1.1, E.z + F.z * (2.2 + k * 2)), 52 - 6 * k, -.05 * k);
       G.shake = Math.max(G.shake, .25 + k * .25);
-    } else if (space) {   // espacio: la Tierra se rompe
-      const s = t - spaceT0, O = space.origin, d = space.dir;
+    } else if (space) {   // espacio: se rompe un trozo de la Tierra y la cámara se lanza al planeta
+      const s = t - spaceT0, O = space.origin, d = space.dir, R = space.radius;
       space.update(s, dt, camera.position);
       if (s < 2.2) {
         const a = .5 + s * .12, dist = 170 - s * 22, e = ease(s / 2.2);
         setCam(new V3(O.x + Math.cos(a) * dist, O.y + 28 - e * 10, O.z + Math.sin(a) * dist), O, 42 - e * 4, 0);
-      } else if (s < 4.2) {   // corte anime: el rayo sale del planeta
+      } else if (s < 4) {   // corte anime: el rayo sale del agujero
         if (!did.boom) { did.boom = true; impactFrame('#ffffff', .14); screenFlash(1); G.shake = 1.4; sfx('boom', f.pos); sfx('beam', f.pos); G.linesI = 1; }
-        const k = (s - 2.2) / 2;
-        setCam(new V3(O.x - 85 + k * 14, O.y - 14, O.z + 90 - k * 10), new V3(O.x + d.x * 30, O.y + d.y * 30, O.z + d.z * 30), 62 - k * 6, .12 - k * .1);
+        const k = (s - 2.2) / 1.8, hole = new V3(O.x + d.x * R, O.y + d.y * R, O.z + d.z * R);
+        setCam(new V3(hole.x - 55 + k * 12, hole.y - 8, hole.z + 62 - k * 8), new V3(hole.x + d.x * 22, hole.y + d.y * 22, hole.z + d.z * 22), 62 - k * 6, .12 - k * .1);
         G.shake = Math.max(G.shake, .6 * (1 - k));
-      } else if (s < 5.8) {   // plano abierto con los pedazos flotando
-        const k = (s - 4.2) / 1.6;
-        setCam(new V3(O.x + 210 - k * 40, O.y + 55 - k * 20, O.z + 110), new V3(O.x + d.x * 40, O.y + d.y * 40, O.z + d.z * 40), 50 + k * 4, 0);
-      } else {   // la cámara se lanza al planeta entre nubes
-        const k = clamp((s - 5.8) / (SPACE_DUR - 5.8), 0, 1), e = k * k, from = new V3(O.x + 170, O.y + 35, O.z + 110);
-        setCam(lerpV(from, O, e * .97), O, 54 + 28 * e, k * .3);
-        const cl = clamp((k - .25) / .5, 0, 1); setFx(cl, clamp((k - .72) / .28, 0, 1), 1 + cl * 1.6);
+      } else if (s < 5.2) {   // plano abierto: el planeta con su agujero y los pedazos
+        const k = (s - 4) / 1.2;
+        setCam(new V3(O.x + 215 - k * 30, O.y + 55 - k * 15, O.z + 115), new V3(O.x + d.x * 20, O.y + d.y * 20, O.z + d.z * 20), 50 + k * 4, 0);
+      } else {   // la cámara se lanza al planeta a toda velocidad y entra en la atmósfera
+        const k = clamp((s - 5.2) / (SPACE_DUR - 5.2), 0, 1), e = k * k * k, from = new V3(O.x + 185, O.y + 40, O.z + 115);
+        const side = new V3(d.z, 0, -d.x).normalize(), tgt = new V3(O.x + side.x * R * 1.04, O.y + 8, O.z + side.z * R * 1.04);
+        setCam(lerpV(from, tgt, e), O, 54 + 36 * e, k * .4);
+        G.linesI = 1; const cl = clamp((k - .55) / .45, 0, 1); setFx(cl, clamp((k - .85) / .15, 0, 1), 1 + cl * 1.4);
       }
+    } else if (desc) {   // descenso: nubes y pájaros pasando a toda velocidad hasta quedar en la cámara normal
+      const u = clamp((t - descT0) / DESC_DUR, 0, 1), P = f.pos, np = normalPose();
+      desc.update(dt); G.linesI = 1;
+      const start = new V3(P.x + 22, P.y + 235, P.z - 28), e = ease2(u) * .35 + u * u * .65;
+      const pos = lerpV(start, np.pos, e);
+      camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(P.x, P.y + 1.3, P.z);
+      const w = ease2(clamp((u - .55) / .45, 0, 1)); if (w > 0) camera.quaternion.slerp(np.quat, w);
+      const fov = 80 + (np.fov - 80) * ease2(u); cam.fov = fov; camera.fov = fov; camera.updateProjectionMatrix();
     }
     return true;
   };
@@ -528,15 +596,16 @@ CF.mover('rbCosmos', function (f, o) {
       popText(chestOf(f), '¡OJO DEL COSMOS!', '#ff2d55', 26); sfx('ult', f.pos);
     },
     tick: (a, t, dt) => {
-      f.iframes = Math.max(f.iframes, 1); f.yaw = Y;
-      // ---- llegada caminando
-      if (isP && !f.remote) {
-        if (t < T_SHOW) { f.pos.set(S0.x, S0.y, S0.z); f.cineHide = true; }
-        else if (t < T_WALK_END) { f.cineHide = false; const k = (t - T_SHOW) / (T_WALK_END - T_SHOW); f.pos.set(S0.x + (E.x - S0.x) * k, S0.y, S0.z + (E.z - S0.z) * k); }
-        else if (t < T_COLLAPSE + .6) { f.pos.set(E.x, E.y, E.z); }
+      f.iframes = Math.max(f.iframes, 1);
+      // ---- escena 2: entra caminando de lado (solo se ven los pies), se detiene y se gira hacia la cámara
+      if (isP) {
+        if (t < T_SHOW) { f.cineHide = true; if (!f.remote) f.pos.set(S0.x, S0.y, S0.z); }
+        else if (t < T_WALK_END) { f.cineHide = false; const k = (t - T_SHOW) / (T_WALK_END - T_SHOW); if (!f.remote) f.pos.set(S0.x + (E.x - S0.x) * k, S0.y, S0.z + (E.z - S0.z) * k); }
+        else if (t < T_COLLAPSE + .6 && !f.remote) f.pos.set(E.x, E.y, E.z);
         if (t >= T_SHOW && t < T_WALK_END && a.bbClip !== 'caminar') a.bbClip = 'caminar';
         if (t >= T_WALK_END && t < T_COLLAPSE && a.bbClip !== 'idle') a.bbClip = 'idle';
-      } else if (isP) { f.cineHide = t < T_SHOW; }
+      }
+      if (!did.fire) f.yaw = isP && t < T_WALK_END + T_TURN ? Y + (Math.PI / 2) * (1 - clamp((t - T_WALK_END) / T_TURN, 0, 1)) : Y;
       // ---- caída de rodillas
       if (!did.collapse && t >= T_COLLAPSE) {
         did.collapse = true; a.bbClip = null; a.anim = [[t + .5, KNEEL_A, 700]]; f.cineHide = false;
@@ -555,13 +624,16 @@ CF.mover('rbCosmos', function (f, o) {
         sfx('beam', f.pos); sfx('boom', f.pos); screenFlash(.7); G.shake = Math.max(G.shake, .8); G.fovKick = Math.max(G.fovKick, 8);
         ringAt(eyes(), '#ffffff', 5, .45, 'face', f.yaw);
       }
-      if (did.fire && beamG && !space) {
-        const s = t - fireT, org = eyes(), grow = powered ? 1 : Math.min(1, s / .35), w = (powered ? 2.7 + Math.min(.9, (t - fireT - BEAM_EVAL) * .4) : 2.1) * grow, pul = 1 + Math.sin(t * 50) * .1;
+      if (did.fire && beamG && !space && !desc) {
+        const s = t - fireT, grow = Math.min(1, s / .3);
+        // el rayo barre un poco a los lados: pega a casi todos, no a todos
+        const off = powered ? 0 : Math.sin(s * 1.6) * .3; f.yaw = Y + off;
+        const F2 = fwd(f.yaw), org = eyes(), w = (powered ? 3.8 + Math.min(1, (t - fireT - BEAM_EVAL) * .4) : 4.2) * grow, pul = 1 + Math.sin(t * 50) * .08;
         beamG.position.copy(org); beamG.rotation.y = f.yaw;
-        const ow = (powered ? w * 1.05 : w * 2) * pul; beamG.children[0].scale.set(ow, ow, 1); beamG.children[1].scale.set(powered ? w * .4 : w * .55, powered ? w * .4 : w * .55, 1);
-        if (powered) { beamG.children[0].material.color.set('#ff3a2a'); }
-        const end = org.clone().addScaledVector(F, LEN);
-        for (let i = 0; i < 3; i++) { const q = org.clone().addScaledVector(F, rand(2, LEN * .5)); emit(q.x, q.y + rand(-1, 1), q.z, rand(-5, 5), rand(0, 5), rand(-5, 5), powered ? '#ffffff' : '#ff2d55', .22, .35, .3); }
+        const ow = (powered ? w * .85 : w * 1.15) * pul; beamG.children[0].scale.set(ow, ow, 1); beamG.children[1].scale.set(w * .38, w * .38, 1);
+        if (powered) beamG.children[0].material.color.set('#ff3a2a');
+        const end = org.clone().addScaledVector(F2, LEN);
+        for (let i = 0; i < 4; i++) { const q = org.clone().addScaledVector(F2, rand(2, LEN * .5)); emit(q.x + rand(-w, w) * .6, q.y + rand(-1, 1), q.z, rand(-5, 5), rand(0, 5), rand(-5, 5), powered ? '#ffffff' : '#ff2d55', .24, .35, .3); }
         emit(end.x, end.y, end.z, rand(-8, 8), rand(0, 8), rand(-8, 8), '#ff7a1a', .3, .4, .5);
         if (involvesPlayerNear(f)) G.shake = Math.max(G.shake, powered ? .4 : .25);
         acc += dt;
@@ -569,18 +641,16 @@ CF.mover('rbCosmos', function (f, o) {
           acc -= .1;
           for (const g of enemiesOf(f)) {
             const c = chestOf(g);
-            if (segDist(c, org, end) < w + .9 && Math.abs(c.y - org.y) < w + 2.2 && (c.x - org.x) * F.x + (c.z - org.z) * F.z > -.5)
-              applyHit(f, g, { dmg: BEAM_DMG * (powered ? 1.5 : 1), stun: .4, kb: 7, up: 1, dir: F, guardBreak: true, color: powered ? '#ffffff' : '#ff2d55', hitstop: 0, shake: .2 });
+            if (segDist(c, org, end) < w * 1.1 + .9 && Math.abs(c.y - org.y) < w + 2.2 && (c.x - org.x) * F2.x + (c.z - org.z) * F2.z > -.5)
+              applyHit(f, g, { dmg: BEAM_DMG * (powered ? 1.5 : 1), stun: .4, kb: 7, up: 1, dir: F2, guardBreak: true, color: powered ? '#ffffff' : '#ff2d55', hitstop: 0, shake: .2 });
           }
         }
       }
       // ---- ¿alcanzó? (si no, termina; si sí, sigue la escena)
       if (did.fire && !did.eval && t >= fireT + BEAM_EVAL) {
         did.eval = true; const killed = f.kills - k0; success = killed >= NEED;
-        if (success) {
-          powered = true; popText(chestOf(f), '¡EL COSMOS RESPONDE!', '#ffffff', 28); sfx('ult', f.pos); screenFlash(.9); impactFrame('#ff2d55', .1); G.linesI = 1;
-          if (!isP) { /* los bots no ven la escena: solo el golpe final */ }
-        } else popText(chestOf(f), 'Rayo ' + killed + '/' + NEED, '#aab', 18);
+        if (success) { powered = true; popText(chestOf(f), '¡EL COSMOS RESPONDE!', '#ffffff', 28); sfx('ult', f.pos); screenFlash(.9); impactFrame('#ff2d55', .1); G.linesI = 1; f.yaw = Y; }
+        else popText(chestOf(f), 'Rayo ' + killed + '/' + NEED, '#aab', 18);
       }
       if (did.eval && !success && t >= fireT + BEAM_EVAL + 1) { killBeam(); endAction(f); return; }
       // ---- espacio
@@ -591,13 +661,17 @@ CF.mover('rbCosmos', function (f, o) {
           space = rbCosmosEspacio(new V3(f.pos.x, 2600, f.pos.z)); screenFlash(1); sfx('whoosh');
         } else spaceT0 = t;
       }
-      if (success && did.space && !did.end && t >= spaceT0 + SPACE_DUR) {
-        did.end = true;
+      // ---- descenso entre nubes y pájaros hasta Redbird
+      if (success && did.space && !did.desc && t >= spaceT0 + SPACE_DUR) {
+        did.desc = true;
         if (space) { space.dispose(); space = null; }
         if (graded) { cineGrade(false); graded = false; }
-        // vuelta al juego: velo de nubes que se disuelve
-        let k = 0; const back = () => { k += .03; setFx(clamp(1 - k, 0, 1), clamp(1 - k * 1.4, 0, 1), 2.6 + k * 1.4); if (k < 1) requestAnimationFrame(back); else setFx(0, 0, 1); };
-        setFx(1, 1, 2.6); requestAnimationFrame(back);
+        a.bbClip = 'idle_combate'; a.anim = null; descT0 = t;
+        if (isP) { desc = rbCosmosDescenso(f.pos); fadeFx(1); }
+        screenFlash(.9); sfx('whoosh');
+      }
+      if (success && did.desc && !did.end && t >= descT0 + DESC_DUR) {
+        did.end = true;
         screenFlash(.8); G.shake = 1; sfx('boom', f.pos);
         for (const g of enemiesOf(f)) applyHit(f, g, { dmg: 16, kb: 24, up: 12, ragdoll: 1.6, guardBreak: true, color: '#ff3b30', hitstop: .1, shake: .8 });
         ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffffff', 14, .7);

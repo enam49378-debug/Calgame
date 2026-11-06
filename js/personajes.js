@@ -128,7 +128,7 @@ window.CF_ORDEN = ["javi", "redbird", "gato", "sekza", "rocket", "ukyo", "mattux
     { n: 'Sobrecarga del Visor', d: 'Carga el visor al máximo y suelta un rayo enorme que rompe guardias y empuja muy lejos.', k: 'rbOverload', cd: 10, o: { hold: 1.95 }, r: [4, 26], tags: 'proj gb' },
     { n: 'Prismas Reflectantes', d: 'Deja tres prismas alrededor del rival y el rayo rebota en todos, pegando más fuerte en cada rebote.', k: 'rbMirrors', cd: 11, o: {}, r: [3, 24], tags: 'proj gap' },
     { n: 'Bombardeo Orbital', d: 'Una marca persigue al rival con retraso y el satélite dispara un pilar con dos ondas de columnas.', k: 'rbSatellite', cd: 14, o: { at: 1.7 }, r: [4, 26], tags: 'aoe' },
-    { n: 'Ojo del Cosmos', d: 'Redbird camina hasta quedar frente a la cámara, cae de rodillas y suelta un rayo gigante desde el visor. Si el rayo mata a 3 rivales o más, el cosmos responde: el rayo se vuelve más fuerte, atraviesa el espacio y rompe la Tierra antes de volver a la pelea.', k: 'rbCosmos', cd: 40, o: { need: 3, dmg: 8.5 }, r: [0, 40], tags: 'proj aoe gb' },
+    { n: 'Ojo del Cosmos', d: 'Redbird camina hasta quedar frente a la cámara, cae de rodillas y suelta un rayo gigante desde el visor. Si el rayo mata a 2 rivales o más, el cosmos responde: el rayo se vuelve más fuerte, rompe un trozo de la Tierra y la cámara baja entre nubes hasta volver a la pelea.', k: 'rbCosmos', cd: 40, o: { need: 2, dmg: 8.5 }, r: [0, 40], tags: 'proj aoe gb' },
     ],
     // Consejos de uso que salen en el Libro de habilidades (S1-S4 normales, A1-A4 despierto, F sin lanza, U ulti)
     consejos: {
@@ -139,7 +139,7 @@ window.CF_ORDEN = ["javi", "redbird", "gato", "sekza", "rocket", "ukyo", "mattux
       'A1': 'Carga casi 2 s: no la uses con rivales encima. Desde lejos rompe guardias y los manda muy lejos.',
       'A2': 'Cada rebote pega más fuerte: funciona mejor contra un rival que se queda en el lugar.',
       'A3': 'La marca persigue con retraso: obligá al rival a moverse o usala cuando esté atrapado.',
-      'A4': 'Cinemática: Redbird carga y dispara un rayo gigante (no puedes moverte). Si el rayo mata a 3 rivales o más, la escena sigue en el espacio. Apunta hacia donde haya más rivales juntos.',
+      'A4': 'Cinemática: Redbird carga y dispara un rayo gigante (no puedes moverte). Si el rayo mata a 2 rivales o más, la escena sigue en el espacio. Apunta hacia donde haya más rivales juntos.',
       'U': 'Un rayo gigante que rompe guardias: apuntalo a una fila de rivales.',
     },
     // Multiplicador de daño ajustado con duelos de bots (1 = normal)
