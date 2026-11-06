@@ -790,3 +790,42 @@ html,body{overscroll-behavior:none}
 #devpop button{width:100%;text-align:left;clip-path:none!important;font:700 15px var(--display,'Chakra Petch',sans-serif);letter-spacing:.05em;padding:9px 14px;background:#171a2a;color:#ffd27a;border:0;border-left:3px solid transparent;cursor:pointer}
 #devpop button:hover,#devpop button:focus-visible{background:#ffb020;color:#000;border-left-color:#000}
 #devpop #devoff{margin-top:6px;color:#ff9a9a;border-top:1px solid #ffffff22}
+
+/* ===== Menús de cuenta y amigos: pulido (v2.4) ===== */
+/* Iniciar sesión / crear cuenta con el mismo estilo que la tarjeta de perfil */
+#acctdlg .box:has(#acct-go){border-radius:2px;border:2px solid #06070b;border-top:5px solid #d7ff2f;box-shadow:9px 9px 0 #000a,0 20px 80px #000b;background:#10121b;padding:22px 26px 20px}
+#acctdlg .box:has(#acct-go) h3{font:italic 700 32px/1 var(--display);letter-spacing:.03em;text-transform:uppercase;color:#fff;text-shadow:3px 3px #000;margin:0 40px 16px 0}
+#acctdlg .box:has(#acct-go) .tabs{gap:0;margin-bottom:16px;border-bottom:2px solid #ffffff1c}
+#acctdlg .box:has(#acct-go) .tabs button{background:none;color:#aab0cc;padding:10px 4px;font:italic 700 15px var(--display);letter-spacing:.06em;text-transform:uppercase;border-bottom:4px solid transparent;margin-bottom:-2px}
+#acctdlg .box:has(#acct-go) .tabs button.on{background:none;color:#d7ff2f;border-bottom-color:#d7ff2f}
+#acctdlg .box:has(#acct-go) label{font-weight:700;font-size:11px;letter-spacing:.1em;margin-bottom:12px}
+#acctdlg .box:has(#acct-go) input{border-radius:0;background:#080a10;border:1px solid #ffffff38;min-height:44px}
+#acctdlg .box:has(#acct-go) input:focus,#acctdlg .cardp input:focus{outline:0;border-color:#d7ff2f;box-shadow:0 0 0 3px #d7ff2f33}
+#acctdlg .box:has(#acct-go) .go{border:0;border-radius:0;background:#d7ff2f;color:#101109;font:italic 700 18px var(--display);letter-spacing:.06em;min-height:46px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);margin-top:6px}
+#acctdlg .box:has(#acct-go) .go:hover{background:#e6ff6a}
+#acctdlg .box:has(#acct-go) .gg{border-radius:0;min-height:44px;margin-top:12px}
+#acctdlg .box:has(#acct-go) .lnk{color:#d7ff2f}
+#acctdlg .x{width:36px;height:36px;display:grid;place-items:center;font-size:18px;line-height:1;padding:0;z-index:3;cursor:pointer;right:12px;top:10px}
+#acctdlg .x:hover{background:#d7ff2f;color:#101109}
+#acctdlg .box:has(.cardp){scrollbar-width:thin;scrollbar-color:#75833c transparent}
+/* Tarjeta de cuenta más compacta: cabe sin desplazarse tanto */
+#acctdlg .cardp .bn{height:clamp(84px,19vh,128px)}
+#acctdlg .cardp .head{margin-top:-36px}
+#acctdlg .cardp .head img{width:80px;height:80px}
+#acctdlg .cardp .pad{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;padding:16px 24px 20px}
+#acctdlg .cardp .pad>*{margin:0!important;min-width:0}
+#acctdlg .cardp .pad .profile-customize,#acctdlg .cardp .pad label,#acctdlg .cardp .pad #acct-verify{grid-column:1/-1}
+#acctdlg .cardp .pad .sec{min-height:44px;border:1px solid #ffffff2e;clip-path:none}
+#acctdlg .cardp .pad #acct-out{color:#ff9a9a}
+#acctdlg .cardp .pad .go{min-height:44px}
+/* Amigos: fila activa, solicitudes y botones táctiles */
+#socialdlg .friend-row.active{background:#2a3320;border-left-color:#d7ff2f}
+#socialdlg .friend-row.pending{border-left-color:#ffb020;background:#2a2518}
+#socialdlg .friend-row.pending .friend-info small{color:#ffd37a}
+#socialdlg .friend-row button:not(.friend-info){min-width:34px;min-height:34px;font-weight:700}
+#socialdlg .friend-row button:not(.friend-info):hover,#socialdlg .friend-row button:not(.friend-info):focus-visible{background:#d7ff2f;color:#101109}
+#socialdlg .friend-row.pending .friend-info+button{background:#d7ff2f;color:#101109}
+#socialdlg #friend-list{scrollbar-width:thin;scrollbar-color:#75833c transparent}
+#socialdlg input:focus,#socialdlg textarea:focus{outline:0;border-color:#d7ff2f!important;box-shadow:0 0 0 3px #d7ff2f33}
+#friendsbtn:hover,#friendsbtn:focus-visible{background:#d7ff2f;color:#101109}
+#acctdlg .cardp .pad #acct-savename{order:1}#acctdlg .cardp .pad #acct-out{order:2}#acctdlg .cardp .pad #acct-verify{order:3}
