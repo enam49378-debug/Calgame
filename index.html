@@ -397,13 +397,18 @@
     <nav class="tabs"><button type="button" class="on" data-tab="sel">PELEADOR</button><button type="button" data-tab="cfg" class="hidden">PARTIDA</button></nav>
     <button type="button" id="invbtn" class="hidden">INVITAR ▸</button>
     <button type="button" id="acctbtn2">👤 CUENTA</button>
-    <button type="button" id="viewbtn" class="devonly">SALA DE CINEMÁTICAS ▸</button>
-    <button type="button" id="feb" class="devonly">EDITOR DE EXPRESIONES ▸</button>
-    <button type="button" id="animedbtn" class="devonly">EDITOR DE ANIMACIONES ▸</button>
-    <button type="button" id="mapedbtn" class="devonly devbtn">EDITOR DE MAPA ▸</button>
-    <button type="button" id="audedbtn" class="devonly devbtn">EDITOR DE AUDIO ▸</button>
-    <button type="button" id="devstat" class="devonly devbtn">ESTADÍSTICAS ▸</button>
-    <button type="button" id="devoff" class="devonly devbtn">SALIR DEV</button>
+    <div id="devtools" class="devonly">
+      <button type="button" id="devtoggle" class="devbtn" aria-haspopup="true" aria-expanded="false">🛠 HERRAMIENTAS ▾</button>
+      <div id="devpop" class="hidden" role="menu">
+        <button type="button" id="viewbtn" role="menuitem">SALA DE CINEMÁTICAS ▸</button>
+        <button type="button" id="feb" role="menuitem">EDITOR DE EXPRESIONES ▸</button>
+        <button type="button" id="animedbtn" role="menuitem">EDITOR DE ANIMACIONES ▸</button>
+        <button type="button" id="mapedbtn" role="menuitem">EDITOR DE MAPA ▸</button>
+        <button type="button" id="audedbtn" role="menuitem">EDITOR DE AUDIO ▸</button>
+        <button type="button" id="devstat" role="menuitem">ESTADÍSTICAS ▸</button>
+        <button type="button" id="devoff" role="menuitem">SALIR DEL MODO DESARROLLADOR</button>
+      </div>
+    </div>
     <button type="button" id="setbtn">⚙ AJUSTES</button>
   </header>
   <section class="mpanel" id="tab-sel">
@@ -697,22 +702,22 @@
 <!-- ==================================================================== -->
 <!-- Librerías de motor 3D y red (Locales para juego 100% offline)        -->
 <!-- ==================================================================== -->
-<script src="lib/three.min.js?v=2.2"></script>
-<script src="lib/CopyShader.js?v=2.2"></script>
-<script src="lib/LuminosityHighPassShader.js?v=2.2"></script>
-<script src="lib/EffectComposer.js?v=2.2"></script>
-<script src="lib/RenderPass.js?v=2.2"></script>
-<script src="lib/ShaderPass.js?v=2.2"></script>
-<script src="lib/UnrealBloomPass.js?v=2.2"></script>
-<script src="lib/mqtt.min.js?v=2.2"></script>
+<script src="lib/three.min.js?v=2.3"></script>
+<script src="lib/CopyShader.js?v=2.3"></script>
+<script src="lib/LuminosityHighPassShader.js?v=2.3"></script>
+<script src="lib/EffectComposer.js?v=2.3"></script>
+<script src="lib/RenderPass.js?v=2.3"></script>
+<script src="lib/ShaderPass.js?v=2.3"></script>
+<script src="lib/UnrealBloomPass.js?v=2.3"></script>
+<script src="lib/mqtt.min.js?v=2.3"></script>
 
 <!-- ==================================================================== -->
 <!-- Scripts modulares del juego                                          -->
 <!-- ==================================================================== -->
-<script src="js/physics.js?v=2.2"></script>
-<script src="js/destruction.js?v=2.2"></script>
-<script src="js/animations.js?v=2.2"></script>
-<script src="js/game.js?v=2.2"></script>
+<script src="js/physics.js?v=2.3"></script>
+<script src="js/destruction.js?v=2.3"></script>
+<script src="js/animations.js?v=2.3"></script>
+<script src="js/game.js?v=2.3"></script>
 
 </body>
 </html>

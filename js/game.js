@@ -13524,6 +13524,13 @@ setInterval(() => {
   h.textContent = `FPS ${Math.round(GFX.fps || 0)}  ·  calidad ${GFX.names[GFX.level]}\n` + (p ? `pos ${p.pos.x.toFixed(1)}, ${p.pos.y.toFixed(1)}, ${p.pos.z.toFixed(1)}\n` : '') + `peleadores ${G.fighters.length}  proy ${PROJ.length}  fx ${FX.length}\nestado ${G.state}${G.mp ? ' · online' : ''}${G.guide ? ' · guía' : ''}`;
 }, 400);
 $('devstat').addEventListener('click', () => { sfx('select'); ownerOpen(); });
+{
+  const tg = $('devtoggle'), pop = $('devpop'), close = () => { pop.classList.add('hidden'); tg.setAttribute('aria-expanded', 'false'); };
+  tg.addEventListener('click', e => { e.stopPropagation(); const open = pop.classList.contains('hidden'); pop.classList.toggle('hidden', !open); tg.setAttribute('aria-expanded', String(open)); });
+  pop.addEventListener('click', close);   // al elegir una herramienta el menú se cierra
+  addEventListener('click', e => { if (!pop.contains(e.target)) close(); }, true);
+  addEventListener('keydown', e => { if (e.code === 'Escape' && !pop.classList.contains('hidden')) { e.preventDefault(); e.stopImmediatePropagation(); close(); } }, true);
+}
 $('devoff').addEventListener('click', () => { sfx('select'); if (/^(localhost|127\.|\[::1\])/.test(location.hostname)) uiAlert('En localhost el modo desarrollador siempre está activo. Para verlo como jugador abrí la página por la web publicada.'); else devLock(); });
 const ownerHash = () => { if (/^#(dueno|due%C3%B1o|dueño|owner)$/i.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); ownerOpen(); } };
 addEventListener('hashchange', ownerHash); setTimeout(ownerHash, 600);
@@ -14896,7 +14903,12 @@ edLoadSaved();
 #play:hover{background:#ffd400;filter:none}
 #menu[data-tab=cfg] #roster{display:none}
 #menu[data-tab=cfg] #tab-cfg{grid-column:1/3;justify-self:center;width:min(520px,100%)}
-@media(max-width:900px){#menu{grid-template-columns:1fr}#tab-sel{grid-column:1;grid-row:2;max-width:none}#roster{grid-column:1;grid-row:3;max-height:42vh}#play{grid-column:1;grid-row:4;writing-mode:horizontal-tb;clip-path:none;padding:12px 24px;margin:0}}
+@media(max-width:900px){
+#menu{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(140px,1fr) auto auto;padding-right:max(18px,env(safe-area-inset-right,0px));gap:8px}
+#tab-sel{grid-column:1;grid-row:2;max-width:none;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+.selmodes{flex-direction:row;flex-wrap:wrap;margin:0}.selmodes button{min-width:0;padding:8px 22px 8px 16px;font-size:clamp(14px,3.4vw,20px)}
+#roster{grid-column:1;grid-row:3;max-height:34vh;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));padding:6px 10px 14px 6px}#roster .rc:nth-child(even){margin-top:0}#roster .rc{height:clamp(76px,12vh,110px)}
+#play{grid-column:1;grid-row:4;writing-mode:horizontal-tb;clip-path:none;padding:12px 24px;margin:0 0 4px;letter-spacing:.08em;font-size:clamp(24px,5vw,34px)}}
 `; document.head.appendChild(st); })();
 function bustPortrait(skin) {
   const c = document.createElement('canvas'); c.width = 16; c.height = 12; const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false;
