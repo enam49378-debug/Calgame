@@ -829,3 +829,4 @@ html,body{overscroll-behavior:none}
 #socialdlg input:focus,#socialdlg textarea:focus{outline:0;border-color:#d7ff2f!important;box-shadow:0 0 0 3px #d7ff2f33}
 #friendsbtn:hover,#friendsbtn:focus-visible{background:#d7ff2f;color:#101109}
 #acctdlg .cardp .pad #acct-savename{order:1}#acctdlg .cardp .pad #acct-out{order:2}#acctdlg .cardp .pad #acct-verify{order:3}
+#acctdlg .cardp .pad #acct-verified{order:3;grid-column:1/-1}

@@ -12952,6 +12952,17 @@ function acctLoad() {
     .catch(e => { ACCT.loading = null; throw e; });
   return ACCT.loading;
 }
+// Tras verificar el correo en otra pestaña, Firebase sigue con el usuario y el token antiguos (email_verified=false)
+// y las reglas rechazan perfil, banner y mensajes hasta que se refresquen. Esto los actualiza sin cerrar sesión.
+async function acctRefreshVerified(manual) {
+  const u = ACCT.user; if (!u || u.emailVerified || ACCT.refreshing) return false;
+  ACCT.refreshing = true;
+  try { await u.reload(); if (ACCT.auth?.currentUser !== u || !u.emailVerified) { if (manual) acctMsg('Todavía no aparece verificado. Abrí el enlace del correo y probá otra vez.'); return false; }
+    await u.getIdToken(true); acctMsg('¡Correo verificado! Ya podés usar amigos, mensajes y tu perfil.', true); await acctChanged(); return true;
+  } catch (e) { if (manual) acctMsg(acctErr(e)); return false; } finally { ACCT.refreshing = false; }
+}
+addEventListener('focus', () => { if (ACCT.user && !ACCT.user.emailVerified) acctRefreshVerified(false); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ACCT.user && !ACCT.user.emailVerified) acctRefreshVerified(false); });
 async function acctSha(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('calfight:' + t.toLowerCase().trim())); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
 async function acctChanged() {
   const u = ACCT.user, nm = u ? (u.displayName || (u.email || '').split('@')[0] || 'Jugador') : '';
@@ -13318,12 +13329,13 @@ function acctRender() {
       <div class="badges"><span>${u.emailVerified ? '✓ Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span>Owner</span>' : DEV.on ? '<span>Editor local</span>' : ''}<span>${(u.providerData[0] && u.providerData[0].providerId === 'google.com') ? 'Google' : 'Correo y contraseña'}</span></div>
       <div class="stats"><div><b>${games || '—'}</b><small>Partidas</small></div><div><b>${mins ? (mins / 60).toFixed(1) + ' h' : '—'}</b><small>Jugadas</small></div><div><b>${fav || '—'}</b><small>Favorito</small></div></div>
       <div class="pad"><button type="button" class="profile-customize" id="acct-customize">✦ Personalizar perfil</button><label>Tu nombre en el juego<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
-      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button>'}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
+      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
     b.querySelector('.nm').textContent = u.displayName || 'Jugador'; b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
     decorateProfile(b.querySelector('.cardp'),localPublicProfile());decorateProfile($('acctdlg').querySelector('.box'),localPublicProfile());$('acct-customize').onclick=acctCustomize;
     $('acct-bn').addEventListener('click', acctBannerPick);
     $('acct-savename').addEventListener('click', async () => { const n = $('acct-name').value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); } catch (e) { acctMsg(acctErr(e)); } });
     if ($('acct-verify')) $('acct-verify').addEventListener('click', async () => { try { await u.sendEmailVerification(); acctMsg('Te mandé el correo: abrilo y tocá el enlace.', true); } catch (e) { acctMsg(acctErr(e)); } });
+    if ($('acct-verified')) $('acct-verified').addEventListener('click', () => acctRefreshVerified(true));
     $('acct-out').addEventListener('click', async () => { try { await ACCT.auth.signOut(); acctMsg('Sesión cerrada.', true); } catch (e) { acctMsg(acctErr(e)); } });
     return;
   }
