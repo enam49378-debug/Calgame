@@ -143,6 +143,21 @@ const rbCosmosSnd = (function () {
       for (let i = 0; i < 16; i++) { const d = rnd(.2, 2.8), pan = rnd(-.8, .8); toneShot(t + d, .22, { type: 'triangle', f0: rnd(350, 1800), f1: rnd(120, 400), vol: rnd(.05, .12), pan, wet: .4 }); noiseShot(t + d, .12, { type: 'bandpass', f0: rnd(900, 3200), q: 2, vol: .1, pan, wet: .3 }); }
       toneShot(t + .6, 3.4, { type: 'sine', f0: 3100, f1: 3000, vol: .035, att: 1.2, wet: .5 });
     },
+    jet() {   // avión a reacción que cruza de un lado al otro (efecto Doppler)
+      if (!ok() || !NB) return; const t = AC.currentTime, dur = 2.4;
+      const s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain(), p = AC.createStereoPanner ? AC.createStereoPanner() : null;
+      s.buffer = NB; s.loop = true; fl.type = 'bandpass'; fl.Q.value = .9; fl.frequency.setValueAtTime(1400, t); fl.frequency.exponentialRampToValueAtTime(2600, t + dur * .45); fl.frequency.exponentialRampToValueAtTime(520, t + dur);
+      g.gain.setValueAtTime(.001, t); g.gain.linearRampToValueAtTime(.8, t + dur * .45); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+      s.connect(fl); fl.connect(g); let n = g; if (p) { p.pan.setValueAtTime(-.85, t); p.pan.linearRampToValueAtTime(.85, t + dur); g.connect(p); n = p; }
+      connectSpatial(n, 'game', null); const r = reverb(); if (r) { const w = AC.createGain(); w.gain.value = .25; n.connect(w); w.connect(r.in); }
+      s.start(t); s.stop(t + dur + .05); cleanOnEnd(s, [s, fl, g, p]);
+      toneShot(t, dur, { type: 'sawtooth', f0: 120, f1: 70, vol: .12, att: dur * .4, wet: .2 });
+      toneShot(t, dur, { type: 'sine', f0: 1500, f1: 850, vol: .05, att: dur * .4, wet: .3 });
+    },
+    ufo() {   // platillo: trino que sube y baja
+      if (!ok()) return; const t = AC.currentTime;
+      for (let i = 0; i < 6; i++) toneShot(t + i * .18, .22, { type: 'sine', f0: 380 + (i % 2) * 220, f1: 640 + (i % 3) * 120, vol: .09, pan: rnd(-.4, .4), wet: .45 });
+    },
     reentry(dur = 1.4) {   // entrada en la atmósfera: rugido que sube de tono con chispazos
       if (!ok()) return; const t = AC.currentTime;
       noiseShot(t, dur, { type: 'bandpass', f0: 180, f1: 2600, q: .8, vol: .7, att: dur * .6, wet: .25 }); noiseShot(t, dur, { type: 'lowpass', f0: 140, f1: 320, vol: .6, att: dur * .4 });
