@@ -4038,9 +4038,9 @@ const CHARS = {
     skin: { skin: '#f3bdab', hair: '#ebebeb', eye: '#4c3b3b', shirt: '#84292d', pants: '#48698c', shoes: '#2e2728', sleeve: 12 },
     skills: [
       { n: 'Embestida Traicionera', d: 'Se lanza como una serpiente hacia el rival y, si lo alcanza, lo remata con un gancho al cielo que rompe la guardia.', k: 'rush', cd: 8, o: { dmg: 8, fin: 'upper' }, r: [2, 12], tags: 'gap gb' },
-      { n: 'Danza de Puñales', d: 'Aparece alrededor del rival en zigzag y lo acuchilla cuatro veces a la velocidad de la luz; el último tajo lo lanza por los aires.', k: 'dashCombo', cd: 7, o: { n: 4, zig: true, dmg: 3.5, dmg2: 10 }, r: [2, 16], tags: 'gap gb' },
-      { n: 'Puñal en la Espalda', d: 'Lo agarra, lo sujeta de espaldas y lo apuñala una y otra vez antes de lanzarlo de una patada. No se puede bloquear.', k: 'cineGrab', cd: 12, o: { style: 'shadow', dmg: 15 }, r: [0, 3.5], tags: 'close gb' },
-      { n: 'Caída del Dios', d: 'Gancho al cielo, salta tras él, lo castiga en el aire y lo estrella contra el piso.', k: 'airCombo', cd: 9, o: { dmg: 13 }, r: [0, 3], tags: 'close' },
+      { n: 'Danza de Puñales', d: 'Aparece alrededor del rival en zigzag y lo acuchilla cuatro veces a la velocidad de la luz; el último tajo lo lanza por los aires.', k: 'dashCombo', cd: 8, o: { n: 4, zig: true, dmg: 3, dmg2: 8 }, r: [2, 16], tags: 'gap gb' },
+      { n: 'Puñal en la Espalda', d: 'Lo agarra, lo sujeta de espaldas y lo apuñala una y otra vez antes de lanzarlo de una patada. No se puede bloquear.', k: 'cineGrab', cd: 13, o: { style: 'shadow', dmg: 10 }, r: [0, 3.5], tags: 'close gb' },
+      { n: 'Caída del Dios', d: 'Gancho al cielo, salta tras él, lo castiga en el aire y lo estrella contra el piso.', k: 'airCombo', cd: 10, o: { dmg: 10 }, r: [0, 3], tags: 'close' },
     ],
     ult: { n: 'Ejército de Ilusiones', d: 'Seis copias salen en círculo, persiguen a todos y explotan.', k: 'illusion', o: { count: 5, dmg: 5.5, speed: 14, life: 3, army: true }, r: [0, 22] },
     intro: [[0, 'cross', 500], [.45, 'signs', 600], [.8, 'point', 700], [1.2, 'elegant', 400]],
@@ -4276,8 +4276,8 @@ const AWK = {
     { n: 'Empalamiento', d: 'Lo agarra de la cabeza, lo derriba, lo inmoviliza con el pie y remata con una estaca.', k: 'chore', cd: 14, o: { id: 'javiImpale' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   gato: [
-    { n: 'Paliza del Cetro', d: 'Lo agarra, lo sujeta y lo golpea con el cetro cuatro veces antes de un remate mágico que lo lanza lejos. No se puede bloquear.', k: 'cineGrab', cd: 12, o: { style: 'magic', dmg: 18 }, r: [0, 3.5], tags: 'close gb' },
-    { n: 'Mil Puñaladas', d: 'Seis cortes en zigzag a través del rival, cada vez más rápido, y un tajo final que lo manda por los aires.', k: 'dashCombo', cd: 11, o: { n: 6, zig: true, dmg: 3, dmg2: 12 }, r: [2, 18], tags: 'gap gb' },
+    { n: 'Paliza del Cetro', d: 'Lo agarra, lo sujeta y lo golpea con el cetro cuatro veces antes de un remate mágico que lo lanza lejos. No se puede bloquear.', k: 'cineGrab', cd: 14, o: { style: 'magic', dmg: 13 }, r: [0, 3.5], tags: 'close gb' },
+    { n: 'Mil Puñaladas', d: 'Seis cortes en zigzag a través del rival, cada vez más rápido, y un tajo final que lo manda por los aires.', k: 'dashCombo', cd: 12, o: { n: 6, zig: true, dmg: 2.6, dmg2: 9 }, r: [2, 18], tags: 'gap gb' },
     { n: 'Cadena Mágica', d: 'Lo atrae con magia, lo frena, golpecito en la frente... y estalla.', k: 'chore', cd: 12, o: { id: 'gatoChain' }, r: [4, 20], tags: 'proj gap', cine: 1 },
     { n: 'Truco Final', d: 'Reverencia burlona, lo da vuelta en el aire y una copia lo remata.', k: 'chore', cd: 14, o: { id: 'gatoTrick' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
