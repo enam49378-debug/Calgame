@@ -1547,3 +1547,565 @@ CF.mover('jlError', function (f, o) {
 
   }
 });
+
+// ---- coreografías (cinemáticas) ----
+(window.CF_COREOGRAFIAS = window.CF_COREOGRAFIAS || []).push(function (A) {
+  with (A) {
+    const CF = { coreografia: function (id, fn) { CHORE[id] = fn(); } };
+
+/* ===== personajes/javi/Skills/Animation/Cadena de Lanza/javiChain.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: javi · habilidad: Cadena de Lanza · id: javiChain
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// CADENA DE LANZA · tironea la cadena en tensión, estoca al rival que llega volando, lo alza en la lanza,
+// gira dos vueltas con él como una maza (cada vuelta más rápida) y lo lanza lejos.
+CF.coreografia('javiChain', function () {
+  return {
+    dur: 3.2, pull: 1, attClip: 'cine_cadena', vicClip: 'cine_vic_cadena', trails: [[.5, .82], [1.3, 2.3]],
+    vic: [[0, 'vJChainPull'], [.3, 'vJChainPull'], [.5, 'vJChainPull'], [.6, 'vJPierced'], [.72, 'vJShudder'], [.95, 'vJHang'], [1.3, 'vJHangLag'], [1.6, 'vJLaunch'], [2.2, 'vJLaunch'], [2.4, 'vJFloat']],
+    apos: [[0, 0, 0, 0, 0], [.48, 0, 0, -.2, 0], [.62, 0, 0, .35, 0], [1.15, 0, 0, .35, 0], [1.4, 0, 0, .35, 1.3], [1.7, 0, 0, .3, 4.2], [2, 0, 0, .3, 9], [2.22, 0, 0, .3, 12.566], [3.2, 0, 0, .3, 12.566]],
+    vpos: [[.5, 0, .15, 1.95, 0, 'o'], [.6, 0, .1, 1.9, 0], [3.2, 0, .1, 1.9, 0]],
+    anchor: [[.62, 2.2, 'tip', 0, .12]],
+    ev: [
+      { t: .03, fx: 'magic', text: '¡ENGANCHADO!' },
+      { t: .3, fx: 'elec' },
+      { t: .62, hit: 4, fx: 'stab', imp: 1, slow: .18, sfx: 'heavy' },
+      { t: .7, fx: 'ring', at: 'vic', r: 2.2 },
+      { t: .95, text: '¡ARRIBA!', who: 'att', fx: 'impact' },
+      { t: 1.4, fx: 'ring', at: 'att', r: 3.6 },
+      { t: 1.45, hit: 1.5, sfx: 'swing', fx: 'ghost' },
+      { t: 1.7, hit: 1.5, fx: 'lines', sfx: 'swing' },
+      { t: 1.8, fx: 'ghost' },
+      { t: 2, hit: 1.5, fx: 'lines', sfx: 'swing' },
+      { t: 2.05, fx: 'ghost' },
+      { t: 2.22, rel: { dmg: 9, kb: 28, up: 5, rag: 2.4 }, fx: 'slash', tilt: 0, imp: 1, slow: .3 },
+      { t: 2.24, fx: 'boom', at: 'vic', r: 2.4 },
+    ],
+    shots: [[0, 'clv', { s: 1, d: 6, fov: 52 }], [.46, 'ots', { s: -1 }], [.56, 'tip', { s: 1, d: 4.8, fov: 46 }], [.78, 'cl', { s: 1, d: 4.8, fov: 52 }], [1.2, 'orbit', { s: 1, spd: 1.6, r: 4.8, h: .3, fov: 54, fit: false }], [2.18, 'clv', { s: -1, d: 4.6, roll: .06 }], [2.7, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/javi/Skills/Animation/Embestida Relámpago/javiDash.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: javi · habilidad: Embestida Relámpago · id: javiDash
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// EMBESTIDA RELÁMPAGO · tres pasadas que atraviesan al rival (estocada, tajo y ascenso), pausa en el aire con la lanza
+// hacia abajo y una picada que lo clava en el piso. Todo ocurre pegado al rival: cada pasada tiene su propia cámara.
+CF.coreografia('javiDash', function () {
+  return {
+    dur: 3.5, catch: 2.2, reach: 'jCoil', attClip: 'cine_embestida', vicClip: 'cine_vic_embestida', trails: [[.3, .56], [.62, .88], [1.0, 1.3], [1.9, 2.27]],
+    vic: [[0, 'vJReady'], [.3, 'vJReady'], [.4, 'vJPierced'], [.5, 'vJSideL'], [.6, 'vJAfterL'], [.7, 'vJPierced'], [.8, 'vJSideR'], [.9, 'vJAfterR'], [1.0, 'vJShudder'], [1.11, 'vJPierced'], [1.28, 'vJLaunch'], [1.5, 'vJHangLag'], [1.7, 'vJFloat'], [1.95, 'vJDiveCatch'], [2.1, 'vJFoldFall'], [2.2, 'vJGroundPre'], [2.26, 'vJGroundHit'], [2.3, 'vJGroundRebound'], [3.4, 'vJGroundRebound']],
+    apos: [[0, 0, 0, 0, 0], [.12, 0, 0, -.25, 0], [.26, 0, 0, -.25, 0],
+      [.3, -2, 0, .2, -.927, 'c'], [.46, 2, 0, 3.2, -.927, 'o'], [.56, 2.5, 0, 3.6, -.927, 'o'],
+      [.62, 2.2, 0, .5, 1.069, 'c'], [.78, -2.2, 0, 2.9, 1.069, 'o'], [.88, -2.7, 0, 3.3, 1.069, 'o'],
+      [.94, -1.2, 0, .5, -.785, 'c'], [1.02, -1.2, 0, .5, -.785], [1.11, 0, 1.7, 1.7, -.785], [1.2, 1.2, 3.4, 2.9, -.785],
+      [1.5, .3, 5, 1.2, 0], [1.62, 0, 5.4, .9, 0], [1.95, 0, 5.4, .9, 0], [2.25, 0, 0, 1, 0, 'i'], [2.45, 0, 0, 1, 0], [3.5, 0, 0, 1, 0]],
+    vpos: [[0, 0, 0, 1.7, 0], [.3, 0, 0, 1.7, 0], [.34, 0, 0, 1.7, 0], [.5, .12, .05, 1.74, .45], [.62, 0, 0, 1.7, .25], [.66, 0, 0, 1.7, .25], [.8, -.12, .05, 1.74, -.45], [.94, 0, 0, 1.7, 0],
+      [1.11, 0, .05, 1.7, 0], [1.25, 0, 1.4, 1.7, .3], [1.5, 0, 3.2, 1.7, .8], [1.62, 0, 3.8, 1.7, 1], [1.97, 0, 3.8, 1.7, 1.6], [2.25, 0, 0, 1.7, 1.6, 'i'], [3.5, 0, 0, 1.7, 1.6]],
+    anchor: [[1.97, 2.25, 'tip', 0, .1]],
+    ev: [
+      { t: .26, fx: 'lines', sfx: 'dash' },
+      { t: .3, fx: 'ghost' },
+      { t: .34, hit: 3, fx: 'line', imp: 1, sfx: 'slash' },
+      { t: .62, fx: 'ghost', sfx: 'dash' },
+      { t: .66, hit: 3, fx: 'line', sfx: 'slash' },
+      { t: .94, fx: 'ghost' },
+      { t: 1.11, hit: 3, fx: 'xcut', slow: .2, imp: 1, sfx: 'heavy' },
+      { t: 1.14, fx: 'ring', at: 'vic', r: 2.8 },
+      { t: 1.62, fx: 'charge', at: 'att', text: '¡DESDE ARRIBA!', who: 'att', slow: .3 },
+      { t: 1.93, fx: 'lines', sfx: 'swing' },
+      { t: 2.2, fx: 'stab', hit: 2 },
+      { t: 2.25, fx: 'boom', at: 'ground', big: 1, r: 3.4, imp: 1 },
+      { t: 2.26, fx: 'crack', at: 'ground', r: 5.5 },
+      { t: 2.27, rel: { dmg: 7, kb: 2, up: 3, rag: 2 }, slow: .3 },
+    ],
+    shots: [[0, 'faceA', { s: 1, fov: 34 }], [.26, 'pass', { h: -.927, s: 1, d: 5.2, fov: 50 }], [.6, 'pass', { h: 1.069, s: -1, d: 5, fov: 50, roll: .06 }], [.92, 'cl', { s: 1, d: 4.6, fov: 54 }], [1.3, 'cl', { s: -1, d: 5.4, fov: 54 }],
+      [1.62, 'faceA', { s: -1, fov: 40 }], [1.93, 'cl', { s: 1, d: 4.4, fov: 52, roll: -.05 }], [2.24, 'clv', { s: -1, d: 4, fov: 48, roll: .07 }], [2.75, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/javi/Skills/Animation/Empalamiento/javiImpale.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: javi · habilidad: Empalamiento · id: javiImpale
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// Cabeza -> derribo de espaldas -> pie sobre el torso -> estaca vertical.
+CF.coreografia('javiImpale', function () {
+  return {
+    dur: 4.1, catch: 2, reach: 'jGReach', trails: [[2.48, 2.76], [3.16, 3.43]],
+    att: [[.2, 'jGReach'], [.38, 'jGClutch'], [.56, 'jGDrag'], [.8, 'jGThrow'], [.96, 'jGFollow'], [1.13, 'jGFollow'], [1.34, 'jGStep'], [1.6, 'jGPin'], [1.82, 'jGPin'], [2.13, 'jGRaise'], [2.4, 'jGPoise'], [2.53, 'jGPoise'], [2.64, 'jGDriveSmear'], [2.7, 'jGDrive'], [2.85, 'jGHold'], [3.1, 'jGHold'], [3.32, 'jGWithdraw'], [3.57, 'jGRecover'], [4, 'javiHero']],
+    vic: [[.22, 'vJReady'], [.38, 'vGGrab'], [.56, 'vGOffBalance'], [.8, 'vGFall'], [.96, 'vGBackHit'], [1.05, 'vGBackRebound'], [1.22, 'vGOnBack'], [1.6, 'vGPressed'], [1.84, 'vGStruggle'], [2.13, 'vGPressed'], [2.4, 'vGStruggle'], [2.57, 'vGPressed'], [2.7, 'vGFlinch'], [2.83, 'vGStill'], [3.1, 'vGStill'], [3.55, 'vGOnBack'], [4, 'vGStill']],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .12, 0], [.38, 0, 0, .34, 0], [.8, 0, 0, .62, 0], [1.13, 0, 0, .62, 0], [1.6, 0, 0, 1.15, 0], [3.1, 0, 0, 1.15, 0], [3.57, -.08, 0, .7, 0], [4.1, -.08, 0, .7, 0]],
+    vpos: [[0, 0, 0, 1.45, 0], [.38, 0, 0, 1.45, 0], [.56, 0, .1, 1.48, 0], [.8, 0, .23, 1.58, 0], [.96, 0, .08, 1.7, 0, 'i'], [1.05, 0, .14, 1.72, 0], [1.22, 0, .08, 1.72, 0], [4.1, 0, .08, 1.72, 0]],
+    bindings: [
+      { start: .22, end: .82, enter: .14, exit: .1, part: 'armL', from: [0, -10, 0], target: 'head', to: [-3, 5, 1], limit: .85 },
+      { start: 1.4, end: 3.4, enter: .2, exit: .18, part: 'legR', from: [0, -12, 0], target: 'torso', to: [0, 6, 2.2], limit: .8 },
+    ],
+    stake: { scale: .58, start: 1.98, end: 3.55, clearance: [[1.98, 0, .65, 0, 0], [2.2, 0, .95, 0, 0], [2.46, 0, .95, 0, 0], [2.55, 0, .75, 0, 0], [2.7, 0, 0, 0, 0, 'i'], [2.84, 0, -.04, 0, 0], [3.1, 0, -.04, 0, 0], [3.32, 0, .65, 0, 0], [3.55, 0, .9, 0, 0]] },
+    ev: [
+      { t: .38, hit: 2, sfx: 'grab', hs: .045, shake: .1, at: 'head' },
+      { t: .8, sfx: 'swing' },
+      { t: .96, hit: 4, fx: 'impact', at: 'ground', imp: 1, hs: .08, shake: .4 },
+      { t: .97, fx: 'ring', at: 'ground', r: 1.6 },
+      { t: 1.6, hit: 2, sfx: 'heavy', hs: .045, shake: .15 },
+      { t: 2.14, fx: 'charge', at: 'att' },
+      { t: 2.7, hit: 9, fx: 'stab', at: 'head', imp: 1, slow: .18, hs: .16, shake: .6 },
+      { t: 2.71, fx: 'ring', at: 'head', r: 1.15, face: 1 },
+      { t: 3.2, sfx: 'draw' },
+      { t: 3.58, letGo: 1.8 },
+    ],
+    shots: [[0, 'two', { s: -1, fov: 48, roll: .01 }], [.79, 'ground', { s: -1, fov: 52, roll: .01 }], [1.4, 'two', { s: -1, fov: 46, roll: .01 }], [2.09, 'two', { s: -1, fov: 48, roll: .01 }], [3.59, 'hero', { s: -1, roll: .01 }]],
+  };
+});
+
+/* ===== personajes/javi/Skills/Animation/Furia del Destello/javiFury.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: javi · habilidad: Furia del Destello · id: javiFury
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// FURIA DEL DESTELLO (sin lanza, despierto) · lo agarra, diez puñetazos seguidos, un gancho que lo sube y un Destello Negro que lo manda lejos.
+CF.coreografia('javiFury', function () {
+  return {
+    dur: 3.3, catch: 2.2, reach: 'jabR_w', trails: [[1.5, 1.75], [2.25, 2.5]],
+    att: [[0, 'jabR_w'], [0.2, 'jabR'], [0.32, 'jabL'], [0.44, 'jabR'], [0.56, 'jabL'], [0.6799999999999999, 'jabR'], [0.8, 'jabL'], [0.9199999999999999, 'jabR'], [1.04, 'jabL'], [1.16, 'jabR'], [1.28, 'jabL'], [1.42, 'upper_w'], [1.58, 'upper'], [1.9, 'windup'], [2.28, 'mega'], [2.7, 'mega'], [3.1, 'ninja']],
+    vic: [[0, 'vJReady'], [0.2, 'vJPierced'], [0.32, 'vJShudder'], [0.44, 'vJPierced'], [0.56, 'vJShudder'], [0.6799999999999999, 'vJPierced'], [0.8, 'vJShudder'], [0.9199999999999999, 'vJPierced'], [1.04, 'vJShudder'], [1.16, 'vJPierced'], [1.28, 'vJShudder'], [1.42, 'vJPierced'], [1.6, 'vJLaunch'], [1.9, 'vJHangLag'], [2.3, 'vJHangLag'], [2.45, 'vJLaunch'], [3.1, 'vJFloat']],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .1, 0], [1.4, 0, 0, .1, 0], [1.6, 0, 0, .35, 0], [2.3, 0, 0, .35, 0], [2.6, 0, 0, .1, 0], [3.3, 0, 0, .1, 0]],
+    vpos: [[0, 0, 0, 1.6, 0], [.2, 0, 0, 1.45, 0], [1.4, 0, .02, 1.45, 0], [1.6, 0, 1.6, 1.5, 0, 'o'], [1.9, 0, 2.3, 1.5, 0], [2.3, 0, 2.4, 1.5, 0], [2.32, 0, 2.4, 1.6, 0], [3.3, 0, 2.4, 1.6, 0]],
+    ev: [
+      { t: 0.20, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 0.32, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 0.44, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 0.56, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 0.68, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 0.80, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 0.92, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 1.04, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 1.16, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 1.28, hit: 1.6, fx: 'line', sfx: 'swing', shake: .12, hs: .03 },
+      { t: 1.58, hit: 4, fx: 'impact', imp: 1, hs: .1, shake: .4 },
+      { t: 1.6, fx: 'ring', at: 'vic', r: 2.4 },
+      { t: 1.9, fx: 'charge', at: 'att', text: '¡DESTELLO NEGRO!', who: 'att', slow: .3 },
+      { t: 2.28, fx: 'boom', at: 'vic', big: 1, r: 4, imp: 1, hs: .2, shake: 1 },
+      { t: 2.3, fx: 'crack', at: 'ground', r: 6 },
+      { t: 2.32, rel: { dmg: 22, kb: 22, up: 7, rag: 2.4 }, slow: .3 },
+    ],
+    shots: [[0, 'two', { s: 1, fov: 46 }], [.2, 'cl', { s: -1, d: 4, fov: 52 }], [.7, 'cl', { s: 1, d: 3.6, fov: 56, roll: .05 }], [1.4, 'faceA', { s: -1, fov: 42 }], [1.9, 'cl', { s: 1, d: 4.4, fov: 52, roll: -.05 }], [2.28, 'clv', { s: -1, d: 4, fov: 48, roll: .07 }], [2.8, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/redbird/Skills/Animation/_sin_habilidad/redExec.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: redbird · habilidad: (sin habilidad asignada) · id: redExec
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// lo levanta del cuello, se baja las gafas, carga los ojos a quemarropa y lo atraviesa con el láser
+CF.coreografia('redExec', function () {
+  return {
+    dur: 3.2,
+    att: [[.1, 'aCollar'], [.7, 'aCollar'], [1.0, 'visorTouch'], [1.8, 'visorTouch'], [2.0, 'aCollar'], [2.5, 'lookDown'], [3.0, 'redHero']],
+    vic: [[.1, 'vLifted'], [.7, 'vDangle'], [1.5, 'vDangle'], [1.85, 'vShock1'], [2.0, 'vShock2'], [2.35, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [.7, 0, 0, .2, 0], [2.0, 0, 0, .2, 0], [2.3, 0, 0, -.4, 0]],
+    vpos: [[0, 0, 0, 1.1, 0], [.4, 0, 1.0, 1.1, 0], [1.5, 0, 1.2, 1.15, 0], [2.0, 0, 1.25, 1.2, 0]],
+    ev: [
+      { t: .1, text: '¡TE TENGO!', who: 'att' },
+      { t: .5, hit: 2, fx: 'impact' },
+      { t: 1.0, eyes: 1, fx: 'charge', at: 'eyes' },
+      { t: 1.3, fx: 'charge', at: 'eyes' },
+      { t: 1.6, fx: 'charge', at: 'eyes', sfx: 'ult' },
+      { t: 1.85, hit: 3, fx: 'beam', len: 3, imp: 1 },
+      { t: 2.0, rel: { dmg: 11, kb: 30, up: 4, rag: 2.3 }, fx: 'beam', big: 1, len: 14, slow: .3 },
+      { t: 2.05, fx: 'flash', op: .55 },
+      { t: 2.6, eyes: 0 },
+    ],
+    shots: [[0, 'two'], [.45, 'lowA'], [.95, 'otsV'], [1.55, 'faceV'], [1.85, 'ots', { fov: 40 }], [2.05, 'wide'], [2.5, 'hero']],
+  };
+});
+
+/* ===== personajes/redbird/Skills/Animation/_sin_habilidad/redKick.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: redbird · habilidad: (sin habilidad asignada) · id: redKick
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// patada al cielo, lo sigue en el aire a patadas, se da vuelta encima de él y lo baja con un rayo de los ojos
+CF.coreografia('redKick', function () {
+  return {
+    dur: 3.0,
+    att: [[.05, 'kick_w'], [.18, 'kickHigh'], [.45, 'jump'], [.7, 'kick'], [.9, 'kickHigh'], [1.1, 'kick'], [1.4, 'aUpside'], [1.7, 'aUpside'], [2.0, 'fall'], [2.35, 'land'], [2.8, 'redStance']],
+    vic: [[.18, 'vKick1'], [.45, 'vLaunch'], [.7, 'vKick2'], [.9, 'vKick1'], [1.1, 'vSpinA'], [1.55, 'vFloat'], [1.8, 'vBack'], [2.2, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.2, 0, 0, .3, 0], [.7, 0, 3.0, .8, 0], [1.1, 0, 4.4, .9, 0], [1.4, 0, 6.6, 1.3, 0], [1.75, 0, 6.4, 1.3, 0], [2.3, 0, 0, .3, 0, 'i']],
+    vpos: [[0, 0, 0, 1.1, 0], [.18, 0, .5, 1.3, 0], [.7, 0, 3.6, 1.9, 0], [1.1, 0, 4.8, 2.0, 1], [1.4, 0, 5.2, 2.1, 3], [1.75, 0, 5.0, 2.0, 3.14], [2.1, 0, 0, 2.1, 3.14, 'i']],
+    ev: [
+      { t: .18, hit: 3, fx: 'impact', imp: 1 },
+      { t: .7, hit: 2, fx: 'slash', tilt: 1.2 },
+      { t: .9, hit: 2, fx: 'slash', tilt: -1 },
+      { t: 1.1, hit: 2, fx: 'impact' },
+      { t: 1.45, eyes: 1, fx: 'charge', at: 'eyes', slow: .25 },
+      { t: 1.75, rel: { dmg: 8, kb: 0, up: -26, rag: 2 }, fx: 'beam', big: 1, len: 4 },
+      { t: 2.1, fx: 'boom', at: 'ground', r: 2.8, big: 1 },
+      { t: 2.12, fx: 'crack', at: 'ground', eyes: 0 },
+    ],
+    shots: [[0, 'lowA', { s: -1 }], [.4, 'up'], [.8, 'orbit', { r: 4.5, spd: 2.8, h: 1 }], [1.35, 'faceA', { s: -1 }], [1.75, 'top'], [2.1, 'ground'], [2.5, 'hero']],
+  };
+});
+
+/* ===== personajes/gato/Skills/Animation/Cadena Mágica/gatoChain.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: gato · habilidad: Cadena Mágica · id: gatoChain
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// hechizo que lo atrae, lo frena a un palmo, le da un golpecito en la frente y lo hace estallar
+CF.coreografia('gatoChain', function () {
+  return {
+    dur: 2.8, pull: 1, attClip: 'cine_cadena', vicClip: 'cine_vic_cadena',
+    att: [[.1, 'magicPalm'], [.55, 'magicPalm'], [.8, 'bow'], [1.2, 'bow'], [1.4, 'point'], [1.6, 'point'], [1.75, 'elegant'], [2.6, 'gatoHero']],
+    vic: [[.1, 'vFloat'], [.6, 'vFrozenStand'], [1.4, 'vFrozenStand'], [1.6, 'vStagger'], [1.95, 'vShock1'], [2.1, 'vLaunch']],
+    apos: [[0, 0, 0, 0, 0], [1.75, 0, 0, 0, 0], [2.0, 0, 0, -.4, 3.14]],
+    vpos: [[.55, 0, .6, 1.0, 0], [1.4, 0, .5, 1.0, 0], [1.6, 0, .1, 1.2, 0], [1.95, 0, 0, 1.4, 0]],
+    ev: [
+      { t: .05, fx: 'magic', hit: 2 },
+      { t: .6, text: 'Shh...', who: 'att' },
+      { t: 1.4, fx: 'ring', at: 'vic', r: 1.2, face: 1 },
+      { t: 1.6, hit: 1, sfx: 'block' },
+      { t: 1.75, eyes: 1 },
+      { t: 1.95, fx: 'charge' },
+      { t: 2.1, rel: { dmg: 9, kb: 20, up: 6, rag: 2.2 }, fx: 'boom', r: 2.2, slow: .3 },
+      { t: .3, fx: 'ring', at: 'vic', r: 1.6 },
+      { t: 1.2, text: 'Quietito...', who: 'att' },
+      { t: 1.58, fx: 'impact', imp: 1 },
+      { t: 2.0, fx: 'charge', at: 'vic' },
+      { t: 2.6, text: 'Qué desastre.', who: 'att' },
+    ],
+    shots: [[0, 'follow'], [.6, 'two', { fov: 50 }], [1.25, 'faceV', { fov: 36 }], [1.55, 'faceA', { s: -1, fov: 34 }], [1.95, 'otsV', { fov: 44 }], [2.15, 'wide'], [2.55, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/gato/Skills/Animation/Truco Final/gatoTrick.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: gato · habilidad: Truco Final · id: gatoTrick
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// reverencia burlona, lo levanta con el cetro, lo da vuelta en el aire y una copia lo remata desde abajo
+CF.coreografia('gatoTrick', function () {
+  return {
+    dur: 3.4, attClip: 'cine_truco', vicClip: 'cine_vic_truco',
+    att: [[.15, 'bow'], [.6, 'bow'], [.9, 'magicPalm'], [1.3, 'castUp'], [1.75, 'scepterW'], [2.05, 'point'], [2.4, 'scepterSmash'], [2.8, 'aTaunt'], [3.3, 'gatoHero']],
+    vic: [[.2, 'vConfused'], [.9, 'vFloat'], [1.3, 'vUpside'], [1.75, 'vUpside'], [2.4, 'vLaunch'], [2.8, 'vBack']],
+    apos: [[0, 0, 0, 0, 0], [.6, 0, 0, -.3, 0], [.9, 0, 0, 0, 0]],
+    vpos: [[0, 0, 0, 1.3, 0], [.6, 0, 0, 1.5, 0], [1.3, 0, 2.2, 1.8, 3.14], [1.75, 0, 2.6, 1.9, 6.28], [2.05, 0, 2.4, 1.9, 6.6], [2.45, 0, 4.2, 2.5, 6.6], [2.8, 0, 5.5, 3.2, 7]],
+    ev: [
+      { t: .2, text: '¿Una reverencia?', who: 'att' },
+      { t: .9, fx: 'magic', hit: 2 },
+      { t: 1.35, fx: 'ring', r: 2.5, hit: 2 },
+      { t: 1.75, fx: 'magic' },
+      { t: 2.05, fx: 'clone', a: 1.57 },
+      { t: 2.3, fx: 'copies' },
+      { t: 2.45, rel: { dmg: 10, kb: 6, up: 14, rag: 2.4 }, fx: 'xcut', slow: .35 },
+      { t: 2.5, fx: 'flash', op: .4 },
+      { t: 2.8, text: 'Todo era un truco.', who: 'att' },
+      { t: .15, fx: 'ring', at: 'att', r: 2, face: 1 },
+      { t: 1.15, fx: 'charge', at: 'vic', sfx: 'tp' },
+      { t: 1.5, twirl: [1, .6] },
+      { t: 1.7, fx: 'line', at: 'vic' },
+      { t: 2.25, fx: 'charge', at: 'att' },
+      { t: 2.6, fx: 'ring', at: 'ground', r: 3, big: 1 },
+    ],
+    shots: [[0, 'hero', { s: -1, fov: 50 }], [.55, 'faceA', { fov: 38 }], [.95, 'lowV', { fov: 54 }], [1.45, 'orbit', { r: 4.2, h: 1.5, spd: -2.2, fov: 50 }], [2.0, 'faceV', { fov: 38 }], [2.28, 'up', { fov: 56 }], [2.5, 'wide'], [2.8, 'faceA', { s: -1, fov: 36 }], [3.2, 'hero']],
+  };
+});
+
+/* ===== personajes/gato/Skills/Animation/_sin_habilidad/gatoCopies.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: gato · habilidad: (sin habilidad asignada) · id: gatoCopies
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// cuatro copias aparecen alrededor y lo pasan de una a otra como pelota; el verdadero espera y lo remata
+CF.coreografia('gatoCopies', function () {
+  return {
+    dur: 3.2, catch: 2, attClip: 'cine_copias', vicClip: 'cine_vic_copias',
+    att: [[.1, 'cast'], [.35, 'signs'], [1.6, 'signs'], [1.9, 'scepterW'], [2.15, 'scepterSmash'], [2.6, 'aTaunt'], [3.1, 'elegant']],
+    vic: [[.35, 'hurtSideL'], [.6, 'hurtSideR'], [.85, 'vGut'], [1.1, 'vSpinA'], [1.4, 'vFlip'], [1.75, 'vFloat'], [2.15, 'vLaunch'], [2.6, 'vBack']],
+    apos: [[0, 0, 0, 0, 0], [.35, 0, 0, -2.2, 0, 'c'], [1.8, 0, 0, -2.2, 0], [2.0, 0, 0, .6, 0]],
+    vpos: [[0, 0, 0, 1.2, 0], [.35, .8, .2, 1.4, .9], [.6, -.8, .4, 1.5, -.9], [.85, 0, .6, 2.3, 0], [1.1, 0, 1.6, 1.5, 3], [1.4, 0, 2.4, .9, 6], [1.75, 0, 1.6, 1.2, 6.28], [2.15, 0, 1.4, 1.4, 6.28], [2.6, 0, 3.4, 5, 6.28]],
+    ev: [
+      { t: .2, fx: 'copies', text: '¿Cuál soy yo?', who: 'att' },
+      { t: .35, hit: 2, fx: 'clone', a: 0 },
+      { t: .6, hit: 2, fx: 'clone', a: 1.57 },
+      { t: .85, hit: 2, fx: 'clone', a: 3.14 },
+      { t: 1.1, hit: 2, fx: 'clone', a: -1.57, imp: 1 },
+      { t: 1.4, fx: 'magic' },
+      { t: 2.15, rel: { dmg: 8, kb: 16, up: 10, rag: 2.2 }, fx: 'impact', big: 1, slow: .3 },
+      { t: 2.17, fx: 'magic' },
+      { t: .35, fx: 'line' },
+      { t: .6, fx: 'line' },
+      { t: .85, fx: 'line' },
+      { t: 1.1, fx: 'line' },
+      { t: 1.6, text: 'Por aquí...', who: 'att' },
+      { t: 1.78, twirl: [1, .5] },
+      { t: 2.0, fx: 'charge', at: 'att' },
+      { t: 2.6, text: '¡Era yo!', who: 'att' },
+    ],
+    shots: [[0, 'two', { fov: 52 }], [.3, 'top'], [.8, 'orbit', { r: 5, spd: 3.4 }], [1.35, 'lowV', { s: -1, fov: 54 }], [1.8, 'ots', { fov: 42 }], [2.15, 'faceA', { fov: 40 }], [2.6, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/sekza/Skills/Animation/Cacería/sekHunt.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sekza · habilidad: Cacería · id: sekHunt
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// Cacería: lo atrapa con las garras, lo sube hasta las nubes y lo suelta en picada contra el piso
+CF.coreografia('sekHunt', function () {
+  return {
+    dur: 3.4,
+    att: [[.1, 'aCollar'], [.5, 'castUp'], [.9, 'aCollar'], [1.7, 'aCollar'], [2.0, 'fall'], [2.5, 'land'], [3.2, 'ninja']],
+    vic: [[.1, 'vLifted'], [.9, 'vDangle'], [1.7, 'vDangle'], [2.0, 'vBack'], [2.45, 'downB']],
+    apos: [[0, 0, 0, 0, 0], [.45, 0, 0, .2, 0], [1.1, 0, 8.4, .3, 0], [1.7, 0, 9.4, .3, 0], [2.3, 0, 0, .2, 0, 'i']],
+    vpos: [[0, 0, 0, 1.1, 0], [.45, 0, .8, 1.1, 0], [1.1, 0, 8.3, 1.2, 0], [1.7, 0, 9.1, 1.25, 0], [2.3, 0, .2, 1.5, 0, 'i']],
+    ev: [
+      { t: .1, text: '¡A CAZAR!', who: 'att' },
+      { t: .5, hit: 2, fx: 'impact' },
+      { t: .6, fx: 'ring', at: 'att', r: 4, face: 1 },
+      { t: 1.0, fx: 'magic', at: 'att' },
+      { t: 1.7, text: '¡ADIÓS!', who: 'att' },
+      { t: 2.28, rel: { dmg: 14, kb: 6, up: 0, rag: 1.8 }, fx: 'boom', at: 'ground', r: 3.4, big: 1, slow: .25 },
+      { t: 2.3, fx: 'crack', at: 'ground' },
+    ],
+    shots: [[0, 'two'], [.45, 'lowA'], [1.0, 'up'], [1.5, 'orbit', { r: 5, spd: 2, h: 1 }], [2.0, 'top'], [2.3, 'ground'], [2.8, 'hero']],
+  };
+});
+
+/* ===== personajes/rocket/Skills/Animation/Capullo Mortal/rkCocoon.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: rocket · habilidad: Capullo Mortal · id: rkCocoon
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// Capullo Mortal: lo envuelve en seda, lo alza, lo hace girar sobre su cabeza y lo estrella contra el piso
+CF.coreografia('rkCocoon', function () {
+  return {
+    dur: 3.4, catch: 2, attClip: 'cine_capullo', vicClip: 'cine_vic_capullo',
+    att: [[.1, 'aCatch'], [3.2, 'ninja']], vic: [[.1, 'vConfused'], [3.0, 'vBack']],
+    apos: [[0, 0, 0, 0, 0]],
+    vpos: [[0, 0, 0, 1.5, 0], [.5, 0, 0, 1.5, 0], [.9, 0, .8, 1.5, .4], [1.4, 0, 3.4, 1.5, 2.4], [1.9, 0, 4.4, 1.5, 5.4], [2.1, 0, 4.2, 1.5, 6.3], [2.3, 0, .4, 1.7, 6.3, 'i']],
+    ev: [
+      { t: .1, text: '¡Quietito!', who: 'att' },
+      { t: .45, cocoon: 1.9, fx: 'line', at: 'vic', sfx: 'zap' },
+      { t: .5, hit: 2, fx: 'impact' },
+      { t: .75, fx: 'line', at: 'vic' },
+      { t: 1.0, fx: 'ring', at: 'vic', r: 2, face: 1 },
+      { t: 1.4, fx: 'charge', at: 'att' },
+      { t: 1.9, text: '¡A dormir!', who: 'att', fx: 'ring', at: 'vic', r: 3, face: 1 },
+      { t: 2.28, rel: { dmg: 11, kb: 5, up: 0, rag: 1.8 }, fx: 'boom', at: 'ground', r: 3.4, big: 1, slow: .25 },
+      { t: 2.3, fx: 'crack', at: 'ground' },
+    ],
+    shots: [[0, 'two', { fov: 50 }], [.5, 'lowA'], [1.2, 'up'], [1.8, 'orbit', { r: 5, spd: 2.4, h: 1 }], [2.15, 'top'], [2.3, 'ground'], [2.8, 'hero']],
+  };
+});
+
+/* ===== personajes/ukyo/Skills/Animation/Corte Instantáneo/ukIai.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: ukyo · habilidad: Corte Instantáneo · id: ukIai
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// Corte Instantáneo: la mano en la empuñadura, un destello, ya está detrás del rival envainando... y recién entonces los cortes lo alcanzan
+CF.coreografia('ukIai', function () {
+  return {
+    dur: 3.0, catch: 2, attClip: 'cine_iai', vicClip: 'cine_vic_iai',
+    att: [[.1, 'aCatch'], [2.8, 'idle']], vic: [[.1, 'vConfused'], [2.8, 'vBack']],
+    apos: [[0, 0, 0, 0, 0], [.6, 0, 0, -.3, 0], [.78, 0, 0, -.3, 0], [.9, 0, 0, 3.6, 0, 'o'], [1.0, 0, 0, 3.6, 3.14], [3.0, 0, 0, 3.6, 3.14]],
+    vpos: [[0, 0, 0, 1.8, 0], [1.9, 0, 0, 1.8, 0], [2.1, 0, 1.2, 2.2, 0], [2.4, 0, 3.0, 2.8, 0], [2.7, 0, 0, 3.0, 0, 'i'], [3.0, 0, 0, 3.0, 0]],
+    ev: [
+      { t: .2, fx: 'charge', at: 'att', text: '...', who: 'att' },
+      { t: .6, fx: 'charge', at: 'att' },
+      { t: .85, fx: 'ghost', sfx: 'dash', slow: .3 },
+      { t: .9, fx: 'xcut', at: 'vic', imp: 1, sfx: 'slash' },
+      { t: .95, fx: 'ring', at: 'vic', r: 2.5, face: 1 },
+      { t: 1.9, sfx: 'draw', text: 'Ya estás cortado.', who: 'att' },
+      { t: 2.0, hit: 3, fx: 'xcut', imp: 1, slow: .25 },
+      { t: 2.1, rel: { dmg: 16, kb: 10, up: 8, rag: 2 }, fx: 'boom', at: 'vic', r: 3, big: 1, slow: .3 },
+      { t: 2.12, fx: 'flash', op: .5 },
+    ],
+    shots: [[0, 'two', { fov: 50 }], [.5, 'lowA'], [.85, 'wide'], [.95, 'ots', { s: -1, fov: 44 }], [1.4, 'faceA', { s: -1, fov: 36 }], [1.95, 'faceV', { fov: 36 }], [2.1, 'wide'], [2.6, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/sebolla/Skills/Animation/Dúo Dinámico/sebDuo.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: Dúo Dinámico · id: sebDuo
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('sebDuo', function () {
+  return {
+  dur: 4.2, catch: 2, dest: 1.5, attClip: 'cine_duo', vicClip: 'cine_vic_duo',
+  att: [[.1, 'aCatch'], [4.0, 'idle']], vic: [[.1, 'vConfused'], [4.0, 'vBack']],
+  apos: [[0, 0, 0, 0, 0]],
+  vpos: [[0, 0, 0, 1.6, 0], [.5, 0, 0, 1.6, 0], [2.3, 0, 1.3, 1.7, 0], [2.8, 0, 2.2, 1.8, 0], [3.05, 0, .2, 1.8, 0, 'i'], [3.2, 0, 0, 1.8, 0]],
+  ev: [
+    { t: .35, text: '¡ORA ORA ORA ORA!', who: 'att' }, ...sebFlurry(.55, 2.23, .17, 1.3),
+    { t: 2.4, vg: 'top', text: '¡Verity, remata!', who: 'att', fx: 'ring', at: 'vic', r: 3, face: 1 },
+    { t: 2.9, vg: 'slam', text: '¡PUÑO GIGANTE!', who: 'att' },
+    { t: 3.05, fx: 'crack', at: 'ground', r: 6.5 },
+    { t: 3.08, rel: { dmg: 12, kb: 4, up: 6, rag: 2.2 }, fx: 'boom', at: 'vic', r: 5, big: 1, slow: .35 },
+    { t: 3.1, fx: 'flash', op: .6 }, { t: 3.4, vg: 'leave' },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.5, 'ots', { s: 1, fov: 42 }], [.85, 'faceV', { fov: 32 }], [1.2, 'otsV', { fov: 42 }], [1.55, 'lowA', { fov: 50 }], [1.9, 'ots', { s: -1, fov: 42 }], [2.4, 'top'], [2.9, 'ground'], [3.1, 'wide'], [3.7, 'hero', { s: -1 }]],
+};
+});
+
+/* ===== personajes/sebolla/Skills/Animation/Maratón de Verity/sebMarathon.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: Maratón de Verity · id: sebMarathon
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('sebMarathon', function () {
+  return {
+  dur: 3.4, catch: 2, dest: 1, attClip: 'cine_maraton', vicClip: 'cine_vic_maraton',
+  att: [[.1, 'aCatch'], [3.2, 'idle']], vic: [[.1, 'vConfused'], [3.2, 'vBack']],
+  apos: [[0, 0, 0, 0, 0], [.35, 1.9, 0, 1.6, -1.57, 'o'], [.65, -1.9, 0, 1.6, 1.57, 'o'], [.95, 0, 0, 3.5, 3.14, 'o'], [1.25, 1.4, 0, 3.0, -2.36, 'o'], [1.55, -1.4, 0, .3, .82, 'o'], [1.85, 1.9, 0, 1.6, -1.57, 'o'], [2.15, -1.9, 0, 1.6, 1.57, 'o'], [2.5, 0, 0, 0, 0, 'o'], [2.9, 0, 0, .6, 0]],
+  vpos: [[0, 0, 0, 1.6, 0]],
+  ev: [
+    { t: .2, text: '¡Demasiado lento!', who: 'att' },
+    ...[.45, .75, 1.05, 1.35, 1.65, 1.95, 2.25].map((t, i) => ({ t, hit: 1.9, fx: i % 2 ? 'xcut' : 'impact', hs: .04, shake: .2, sfx: 'hit' })),
+    ...[.35, .65, .95, 1.25, 1.55, 1.85, 2.15, 2.5].map(t => ({ t, fx: 'ghost', sfx: 'dash' })),
+    { t: 2.55, text: '¡Y esto es por Verity!', who: 'att' },
+    { t: 2.75, rel: { dmg: 10, kb: 12, up: 10, rag: 1.8 }, fx: 'boom', at: 'vic', r: 3, big: 1, slow: .3 },
+    { t: 2.77, fx: 'flash', op: .5 },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.35, 'orbit', { r: 5, spd: 1.2 }], [1.2, 'wide'], [1.6, 'orbit', { r: 4.5, spd: -1.4 }], [2.3, 'lowA'], [2.55, 'wide'], [2.9, 'hero', { s: -1 }]],
+};
+});
+
+/* ===== personajes/sebolla/Skills/Animation/Rayo a Quemarropa/sebPoint.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: Rayo a Quemarropa · id: sebPoint
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('sebPoint', function () {
+  return {
+  dur: 3.6, catch: 2, dest: 1.3, attClip: 'cine_punto', vicClip: 'cine_vic_punto',
+  att: [[.1, 'aCatch'], [3.4, 'idle']], vic: [[.1, 'vConfused'], [3.4, 'vBack']],
+  apos: [[0, 0, 0, 0, 0]],
+  vpos: [[0, 0, 0, 1.3, 0], [2.2, 0, .3, 1.3, 0], [2.45, 0, 1.0, 3.7, 0, 'o'], [2.6, 0, 1.0, 3.7, 0]],
+  ev: [
+    { t: .2, text: '¡Ven acá!', who: 'att' }, { t: .3, vg: 'behind', fx: 'ring', at: 'vic', r: 2.5, face: 1, sfx: 'tp' },
+    { t: .8, hit: 2.2, fx: 'impact', big: 1 }, { t: 1.1, hit: 2.2, fx: 'impact', big: 1 }, { t: 1.4, hit: 2.2, fx: 'impact', big: 1 },
+    { t: 1.0, vg: 'stare', text: 'Ella lo sabe todo.', who: 'att' },
+    { t: 1.5, fx: 'charge', at: 'vic' }, { t: 1.8, fx: 'charge', at: 'vic' }, { t: 2.0, fx: 'charge', at: 'vic' },
+    { t: 2.2, text: '¡Verity, fuego!', who: 'att' },
+    { t: 2.45, vg: 'fire', fx: 'impact', imp: 1 },
+    { t: 2.55, rel: { dmg: 20, kb: 14, up: 10, rag: 2.2 }, fx: 'boom', at: 'vic', r: 3.4, big: 1, slow: .3 },
+    { t: 2.57, fx: 'flash', op: .6 }, { t: 3.0, vg: 'leave' },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.5, 'faceV', { fov: 34 }], [.8, 'ots', { s: 1, fov: 44 }], [1.5, 'faceA', { s: -1, fov: 36 }], [2.0, 'wide'], [2.4, 'otsV', { fov: 40 }], [2.6, 'wide'], [3.1, 'hero', { s: -1 }]],
+};
+});
+
+/* ===== personajes/sebolla/Skills/Animation/_sin_habilidad/sebBrawl.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: (sin habilidad asignada) · id: sebBrawl
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('sebBrawl', function () {
+  return {
+  dur: 3.4, catch: 2, dest: .8, attClip: 'cine_paliza', vicClip: 'cine_vic_paliza',
+  att: [[.1, 'aCatch'], [3.2, 'idle']], vic: [[.1, 'vConfused'], [3.2, 'vBack']],
+  apos: [[0, 0, 0, 0, 0]],
+  vpos: [[0, 0, 0, 1.5, 0], [2.2, 0, 0, 1.5, 0], [2.32, 0, .9, 1.7, 0]],
+  ev: [
+    { t: .2, text: '¡Verity, mira esto!', who: 'att' }, ...sebFlurry(.45, 1.55, .22, 1.7),
+    { t: 1.6, vg: 'left', text: '¡Ahora tú!', who: 'att' },
+    { t: 1.9, vg: 'punch', hit: 3, fx: 'boom', at: 'vic', r: 2, shake: .4, hs: .08 },
+    { t: 2.2, vg: 'leave', text: '¡Y arriba!', who: 'att' },
+    { t: 2.35, rel: { dmg: 9, kb: 8, up: 14, rag: 1.6 }, fx: 'boom', at: 'vic', r: 3, big: 1, slow: .3 },
+    { t: 2.37, fx: 'flash', op: .5 },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.45, 'ots', { s: 1, fov: 44 }], [.9, 'faceV', { fov: 34 }], [1.3, 'lowA'], [1.6, 'wide'], [2.0, 'otsV', { fov: 44 }], [2.35, 'wide'], [2.8, 'hero', { s: -1 }]],
+};
+});
+
+/* ===== personajes/sebolla/Skills/Animation/_sin_habilidad/sebHug.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: (sin habilidad asignada) · id: sebHug
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+// Abrazo de Verity: la presenta, aparece detrás del rival, lo mira fijo con su sonrisa enorme y lo lanza de un rayo
+CF.coreografia('sebHug', function () {
+  return {
+    dur: 3.2, catch: 2, attClip: 'cine_abrazo', vicClip: 'cine_vic_abrazo',
+    att: [[.1, 'aCatch'], [3.0, 'idle']], vic: [[.1, 'vConfused'], [3.0, 'vBack']],
+    apos: [[0, 0, 0, 0, 0]],
+    vpos: [[0, 0, 0, 1.7, 0], [1.9, 0, 0, 1.7, 0], [2.1, 0, .8, 1.9, 0], [2.4, 0, 3.0, 3.0, 0], [2.8, 0, 0, 3.4, 0, 'i'], [3.2, 0, 0, 3.4, 0]],
+    ev: [
+      { t: .2, text: '¿Conoces a Verity?', who: 'att' },
+      { t: .5, vg: 'behind', fx: 'ring', at: 'vic', r: 2.5, face: 1, sfx: 'tp' },
+      { t: .9, fx: 'charge', at: 'vic' },
+      { t: 1.2, vg: 'stare', text: 'Ella lo sabe todo.', who: 'att', fx: 'ring', at: 'vic', r: 3, face: 1 },
+      { t: 1.8, vg: 'fire', hit: 3, fx: 'impact', imp: 1 },
+      { t: 2.1, rel: { dmg: 15, kb: 12, up: 8, rag: 2 }, fx: 'boom', at: 'vic', r: 3, big: 1, slow: .3 },
+      { t: 2.12, fx: 'flash', op: .5 },
+      { t: 2.6, vg: 'leave' },
+    ],
+    shots: [[0, 'two', { fov: 50 }], [.45, 'lowA'], [.9, 'up', { fov: 54 }], [1.25, 'faceV', { fov: 34 }], [1.8, 'otsV', { fov: 44 }], [2.1, 'wide'], [2.7, 'hero', { s: -1 }]],
+  };
+});
+
+/* ===== personajes/sebolla/Skills/Animation/_sin_habilidad/sebPinball.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: (sin habilidad asignada) · id: sebPinball
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('sebPinball', function () {
+  return {
+  dur: 3.4, catch: 2, dest: 1, attClip: 'cine_pelota', vicClip: 'cine_vic_pelota',
+  att: [[.1, 'aCatch'], [3.2, 'idle']], vic: [[.1, 'vConfused'], [3.2, 'vBack']],
+  apos: [[0, 0, 0, 0, 0]],
+  vpos: [[0, 0, 0, 1.5, 0], [.5, 0, 0, 1.5, 0], [.62, 0, 3.4, 1.8, 0, 'o'], [1.05, 0, 4.0, 2.0, 0], [1.32, 0, .2, 1.8, 0, 'i'], [1.65, 0, 2.4, 1.9, 0, 'o'], [1.95, 0, .4, 1.8, 0, 'i'], [2.1, 0, .9, 1.7, 0], [2.3, 0, 2.2, 2.3, 0], [2.45, 0, 2.2, 2.3, 0]],
+  ev: [
+    { t: .2, text: '¡Pelota!', who: 'att' },
+    { t: .55, hit: 4, fx: 'impact', big: 1, sfx: 'heavy', hs: .08, shake: .35 },
+    { t: 1.05, vg: 'top', text: '¡Remata, Verity!', who: 'att' },
+    { t: 1.3, vg: 'punch', hit: 4, fx: 'boom', at: 'vic', r: 2.2, shake: .5, hs: .09 },
+    { t: 1.34, fx: 'crack', at: 'ground', r: 3.6 },
+    { t: 1.7, hit: 3, fx: 'impact', sfx: 'heavy' },
+    { t: 1.8, vg: 'left' },
+    { t: 2.0, vg: 'punch', hit: 3, fx: 'impact', big: 1 },
+    { t: 2.28, hit: 3, fx: 'xcut', imp: 1 },
+    { t: 2.45, rel: { dmg: 8, kb: 12, up: 10, rag: 2 }, fx: 'boom', at: 'vic', r: 3, big: 1, slow: .3 },
+    { t: 2.47, fx: 'flash', op: .5 }, { t: 2.6, vg: 'leave' },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.5, 'lowA', { fov: 52 }], [.8, 'top'], [1.25, 'ground'], [1.7, 'wide'], [2.0, 'ots', { s: -1, fov: 46 }], [2.3, 'faceV', { fov: 36 }], [2.5, 'wide'], [2.9, 'hero', { s: -1 }]],
+};
+});
+
+/* ===== personajes/sebolla/Skills/Animation/_sin_habilidad/sebSandwich.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: sebolla · habilidad: (sin habilidad asignada) · id: sebSandwich
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('sebSandwich', function () {
+  return {
+  dur: 3.2, catch: 2, dest: 1.1, attClip: 'cine_sandwich', vicClip: 'cine_vic_sandwich',
+  att: [[.1, 'aCatch'], [3.0, 'idle']], vic: [[.1, 'vConfused'], [3.0, 'vBack']],
+  apos: [[0, 0, 0, 0, 0]],
+  vpos: [[0, 0, 0, 1.5, 0], [.45, 0, 0, 1.5, 0], [.62, 0, 0, 2.7, 0, 'o'], [.82, 0, 0, 2.7, 0], [.95, 0, 0, 1.5, 0, 'o'], [1.3, 0, 0, 1.5, 0], [1.47, 0, 0, 2.7, 0, 'o'], [1.67, 0, 0, 2.7, 0], [1.8, 0, 0, 1.5, 0, 'o'], [2.15, 0, 0, 1.5, 0], [2.35, 0, 0, 2.4, 0, 'o'], [2.5, 0, .6, 2.2, 0]],
+  ev: [
+    { t: .2, text: '¡Sándwich!', who: 'att' }, { t: .3, vg: 'behindV', fx: 'ring', at: 'vic', r: 2.5, face: 1, sfx: 'tp' },
+    { t: .5, hit: 3, fx: 'impact', big: 1, hs: .07 },
+    { t: .85, vg: 'butt', hit: 3, fx: 'impact', big: 1, hs: .07 },
+    { t: 1.35, hit: 3, fx: 'impact', big: 1, hs: .07 },
+    { t: 1.7, vg: 'butt', hit: 3, fx: 'impact', big: 1, hs: .07 },
+    { t: 2.2, hit: 3, fx: 'impact', big: 1, hs: .07 },
+    { t: 2.4, text: '¡CLAP!', who: 'att', fx: 'ring', at: 'vic', r: 3, face: 1 },
+    { t: 2.55, rel: { dmg: 11, kb: 6, up: 12, rag: 1.8 }, fx: 'boom', at: 'vic', r: 3.2, big: 1, slow: .3 },
+    { t: 2.57, fx: 'flash', op: .55 }, { t: 2.7, vg: 'leave' },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.3, 'wide'], [.5, 'ots', { s: 1, fov: 44 }], [1.0, 'otsV', { fov: 44 }], [1.4, 'ots', { s: -1, fov: 44 }], [1.85, 'lowA'], [2.3, 'faceV', { fov: 34 }], [2.55, 'wide'], [2.9, 'hero', { s: -1 }]],
+};
+});
+
+/* ===== personajes/randi/Skills/Animation/_sin_habilidad/randiDomain.coreografia.js ===== */
+/* Coreografía (cinemática) · personaje: randi · habilidad: (sin habilidad asignada) · id: randiDomain
+   Línea de tiempo de la escena: att = pose del atacante, vic = pose de la víctima, ev = eventos (golpes, efectos), shots = cámara.
+   Puedes usar cualquier función del juego (applyHit, sfx, ...) dentro de los eventos. */
+CF.coreografia('randiDomain', function () {
+  return {
+  dur: 7.0, catch: 2, attClip: 'cine_dominio', vicClip: 'cine_vic_dominio',
+  att: [[.1, 'idle'], [6.8, 'idle']], vic: [[.1, 'vConfused'], [6.8, 'vConfused']],
+  apos: [[0, 0, 0, 0, 0]],
+  vpos: [[0, 0, 0, 3.2, 0]],
+  ev: [
+    { t: .05, text: 'Expansión de dominio…', who: 'att', fx: 'ring', at: 'att', r: 3 },
+    { t: .2, dom: 'open' },
+    { t: 1.7, text: '¿Dónde estoy…?', who: 'vic' },
+    { t: 3.2, text: '¡Perú Eterno!', who: 'att', fx: 'ring', at: 'att', r: 3.5 },
+    { t: 6.35, dom: 'close', fx: 'boom', at: 'att', r: 3, big: 1 },
+    { t: 6.4, fx: 'flash', op: .6 },
+  ],
+  shots: [[0, 'two', { fov: 50 }], [.9, 'lowA'], [1.9, 'faceV', { fov: 34 }], [3.0, 'up', { fov: 56 }], [4.2, 'wide'], [5.2, 'otsV', { fov: 44 }], [6.0, 'hero', { s: -1 }], [6.5, 'wide']],
+};
+});
+
+  }
+});

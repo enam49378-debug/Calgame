@@ -65,7 +65,26 @@ escribe en `js/animations.js`, corre `python tools/actualizar_personajes.py --im
 El juego busca las voces en estas carpetas (lo decide el nombre del archivo):
 `activar_ulti*`, `ulti_lista*`, `habilidad_ulti*` -> `Skills/Ulti/Sound/` · `golpe*` -> `Ataques basicos/Sound/` · el resto -> `Sound/`.
 La musica de la ulti es `Skills/Ulti/Sound/ulti.mp3`. Las voces de Clippy estan en `jesuluto/Sound/clippy/`.
-Los sonidos por habilidad (`Skills/Sound/<Habilidad>/`) todavia no los usa el juego: las carpetas estan listas.
+
+### Sonidos de cada habilidad
+
+Deja los audios en `Skills/Sound/<Habilidad>/` (mp3, ogg o wav) y el juego los reproduce al usar esa habilidad:
+
+| Nombre del archivo | Cuando suena |
+|---|---|
+| `lanzar*.mp3` (`lanzar_1.mp3`, `lanzar_2.mp3`...) | efecto al usar la habilidad (si hay varios, elige uno al azar) |
+| `voz*.mp3` (`voz_1.mp3`...) | frase del personaje al usarla |
+
+Para la ulti se usa la misma regla en `Skills/Ulti/Sound/`. Las carpetas de habilidades de despierto se llaman como
+la habilidad (si el nombre se repite con una normal, termina en ` (despierto)`).
+Despues abre el juego con `Iniciar_Editor.bat` (o corre `Actualizar_Personajes.bat`) para que se vea el archivo nuevo.
+
+## Coreografias (cinematicas)
+
+Las habilidades con escena (agarres, cinematicas) tienen su coreografia en
+`Skills/Animation/<Habilidad>/<id>.coreografia.js`: la linea de tiempo del atacante (`att`), la victima (`vic`), los
+eventos (`ev`: golpes, efectos, sonidos) y la camara (`shots`). Las que no pertenecen a ninguna habilidad estan en
+`Skills/Animation/_sin_habilidad/`.
 
 ## Anadir un personaje nuevo
 

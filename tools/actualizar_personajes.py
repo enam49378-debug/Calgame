@@ -46,9 +46,7 @@ def clip_files(cid):
 
 def sha(path):
     # se normaliza el fin de línea: git en Windows puede convertir LF <-> CRLF y no debe contar como cambio
-    return hashlib.sha256(open(path, 'rb').read().replace(b'
-', b'
-')).hexdigest() if os.path.exists(path) else ''
+    return hashlib.sha256(open(path, 'rb').read().replace(bytes([13, 10]), bytes([10]))).hexdigest() if os.path.exists(path) else ''
 
 
 def generar():
@@ -85,6 +83,23 @@ def _lista_orden():
     return json.loads(m.group(1))
 
 
+def sonidos_habilidades():
+    """{personaje: {carpeta_de_habilidad: [archivos de audio]}} de Skills/Sound/<Habilidad>/"""
+    out = {}
+    for cid in _lista_orden():
+        base = os.path.join(PERS, cid, 'Skills', 'Sound')
+        if not os.path.isdir(base):
+            continue
+        for fold in sorted(os.listdir(base)):
+            d = os.path.join(base, fold)
+            if not os.path.isdir(d):
+                continue
+            files = sorted(f for f in os.listdir(d) if f.lower().endswith(('.mp3', '.ogg', '.wav')) and not f.startswith('_'))
+            if files:
+                out.setdefault(cid, {})[fold] = files
+    return out
+
+
 def generar_personajes():
     """js/personajes.js: registro + personaje.js de cada personaje (en el orden del menú) + sus ataques básicos"""
     cab = ('// GENERADO por tools/actualizar_personajes.py  ·  NO editar a mano\n'
@@ -101,6 +116,9 @@ def generar_personajes():
             for fn in sorted(os.listdir(d)):
                 if fn.endswith('.js'):
                     partes.append('\n/* ===== personajes/%s/Ataques basicos/Code/%s ===== */\n' % (cid, fn) + _leer(os.path.join(d, fn)))
+    nl = chr(10)
+    partes.append(nl + '/* ===== sonidos propios de cada habilidad (personajes/<id>/Skills/Sound/<Habilidad>/) ===== */' + nl +
+                  'window.CF_SONIDOS_HAB = ' + json.dumps(sonidos_habilidades(), ensure_ascii=False, indent=1) + ';' + nl)
     return ''.join(partes)
 
 
@@ -124,6 +142,25 @@ def generar_habilidades():
               '  with (A) {\n'
               '    const CF = { mover: function (nombre, fn) { MOVES[nombre] = fn; } };\n']
     for cid, path in archivos:
+        rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
+        partes.append('\n/* ===== %s ===== */\n' % rel + _leer(path))
+    partes.append('\n  }\n});\n')
+    # coreografías (cinemáticas): personajes/<id>/**/Animation/**/*.coreografia.js  -> se registran antes que los movimientos
+    coreos = []
+    for cid in _lista_orden():
+        base = os.path.join(PERS, cid)
+        for dp, dn, fn in os.walk(base):
+            dn.sort()
+            rel = os.path.relpath(dp, base).replace(os.sep, '/')
+            if 'Animation' in rel.split('/'):
+                for f in sorted(fn):
+                    if f.endswith('.coreografia.js'):
+                        coreos.append(os.path.join(dp, f))
+    partes.append('\n// ---- coreografías (cinemáticas) ----\n'
+                  '(window.CF_COREOGRAFIAS = window.CF_COREOGRAFIAS || []).push(function (A) {\n'
+                  '  with (A) {\n'
+                  '    const CF = { coreografia: function (id, fn) { CHORE[id] = fn(); } };\n')
+    for path in coreos:
         rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
         partes.append('\n/* ===== %s ===== */\n' % rel + _leer(path))
     partes.append('\n  }\n});\n')

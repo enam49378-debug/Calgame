@@ -647,3 +647,6 @@ window.CF_ORDEN = ["javi", "redbird", "gato", "sekza", "rocket", "ukyo", "mattux
     dmgMul: .9,
   };
 })();
+
+/* ===== sonidos propios de cada habilidad (personajes/<id>/Skills/Sound/<Habilidad>/) ===== */
+window.CF_SONIDOS_HAB = {};
