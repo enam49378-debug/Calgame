@@ -4032,15 +4032,15 @@ const CHARS = {
   },
   gato: {
     name: 'elGatopro300', title: 'Dios del Engaño', role: 'ILUSIONISTA', color: '#3ddc84', hp: 90, spd: 1.08, ai: 'mid', stance: 'elegant', weapon: 'scepter', m1set: GATO_M1, introDraw: .45,
-    desc: 'Maestro de las ilusiones: crea copias de sí mismo que persiguen y explotan, aparece a tus espaldas dejando un señuelo y hechiza con su cetro.',
+    desc: 'Loki, el Dios del Engaño: nada es lo que parece. Deja dobles que estallan, lanza dagas en dos oleadas, marca el suelo con runas verdes y cambia de sitio con su rival dejándolo sobre su propia trampa. Al despertar se vuelve Mil Rostros, dispara el Rayo del Cetro y cierra con sus trucos finales.',
     stats: [2, 4, 4, 4, 5],
     skinData: 'data:image/png;base64,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',
     skin: { skin: '#f3bdab', hair: '#ebebeb', eye: '#4c3b3b', shirt: '#84292d', pants: '#48698c', shoes: '#2e2728', sleeve: 12 },
     skills: [
-      { n: 'Ilusiones', d: 'Crea dos copias de sí mismo que persiguen al rival y explotan.', k: 'illusion', cd: 8, o: { count: 2, dmg: 5.5, bbClip: 'habilidad_1_ilusiones' }, r: [3, 18], tags: 'proj' },
-      { n: 'Dagas Arrojadizas', d: 'Cuatro dagas que persiguen y aturden.', k: 'shoot', cd: 5, o: { count: 4, spread: .12, speed: 44, dmg: 3.5, stun: .5, size: .25, long: 3, homing: 2.5, anim: 'throw', bbClip: 'habilidad_2_dagas' }, r: [3, 24], tags: 'proj' },
-      { n: 'Engaño', d: 'Deja un señuelo que explota y aparece a la espalda del rival.', k: 'blink', cd: 8, o: { dmg: 8, kb: 12, up: 9, ragdoll: 1, decoy: true, bbClip: 'habilidad_3_enganio' }, r: [3, 20], tags: 'gap gb' },
-      { n: 'Hechizo del Cetro', d: 'Rayo de energía del cetro que deja al rival hechizado y quieto.', k: 'shoot', cd: 9, o: { count: 1, speed: 30, dmg: 5, stun: 1.6, size: .55, homing: 3, bbClip: 'habilidad_4_hechizo' }, r: [3, 22], tags: 'proj' },
+      { n: 'Falso Doble', d: 'Deja un doble verde que explota al cabo de un segundo y se escabulle 8 bloques hacia delante. Quien persiga al falso Loki se lleva la explosión.', k: 'lokiDouble', cd: 7, o: { dmg: 7, dist: 8 }, r: [0, 10], tags: 'gap' },
+      { n: 'Dagas del Engaño', d: 'Tres dagas en abanico y, un instante después, dos más que buscan al rival: si esquiva la primera oleada, la segunda lo persigue.', k: 'lokiDaggers', cd: 6, o: { dmg: 3.2, stun: .4 }, r: [3, 26], tags: 'proj' },
+      { n: 'Runa Embaucadora', d: 'Marca tres veces el suelo bajo el rival, cada una un poco por delante de él. Cada runa avisa con un círculo verde y luego estalla: hay que seguir moviéndose.', k: 'lokiRunes', cd: 11, o: { dmg: 4 }, r: [3, 26], tags: 'aoe proj' },
+      { n: 'Intercambio', d: 'Cambia de lugar con el rival: lo deja aturdido un segundo justo encima del doble que acaba de plantar, que estalla enseguida.', k: 'lokiSwap', cd: 12, o: { dmg: 4, dmg2: 7 }, r: [3, 20], tags: 'gap gb' },
     ],
     ult: { n: 'Ejército de Ilusiones', d: 'Seis copias salen en círculo, persiguen a todos y explotan.', k: 'illusion', o: { count: 5, dmg: 5.5, speed: 14, life: 3, army: true }, r: [0, 22] },
     intro: [[0, 'cross', 500], [.45, 'signs', 600], [.8, 'point', 700], [1.2, 'elegant', 400]],
@@ -4276,9 +4276,9 @@ const AWK = {
     { n: 'Empalamiento', d: 'Lo agarra de la cabeza, lo derriba, lo inmoviliza con el pie y remata con una estaca.', k: 'chore', cd: 14, o: { id: 'javiImpale' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   gato: [
-    { n: 'Espejismo', d: 'Campo de ilusiones que aturde y daña a quien esté adentro.', k: 'zone', cd: 10, o: { r: 6, dur: 5, dmg: 2.5, stun: .45, fx: 'magic' }, r: [0, 6], tags: 'aoe' },
+    { n: 'Mil Rostros', d: 'Se vuelve intocable un instante mientras cuatro dobles rodean al rival y explotan; luego aparece a su espalda con un tajo enorme.', k: 'lokiFaces', cd: 12, o: { dmg: 6 }, r: [0, 22], tags: 'aoe gap gb' },
     { n: 'Copias Asesinas', d: 'Cuatro copias se lo pasan como pelota y el verdadero lo remata.', k: 'chore', cd: 12, o: { id: 'gatoCopies' }, r: [0, 6], tags: 'gap gb', cine: 1 },
-    { n: 'Cadena Mágica', d: 'Lo atrae con magia, lo frena, golpecito en la frente... y estalla.', k: 'chore', cd: 12, o: { id: 'gatoChain' }, r: [4, 20], tags: 'proj gap', cine: 1 },
+    { n: 'Rayo del Cetro', d: 'Un rayo verde enorme y veloz que atraviesa la distancia, golpea fuerte y deja al rival hechizado e inmóvil más de un segundo.', k: 'shoot', cd: 10, o: { count: 1, speed: 62, dmg: 13, stun: 1.3, size: .9, long: 6, range: 36, kb: 9, up: 4, homing: 1.2 }, r: [4, 34], tags: 'proj' },
     { n: 'Truco Final', d: 'Reverencia burlona, lo da vuelta en el aire y una copia lo remata.', k: 'chore', cd: 14, o: { id: 'gatoTrick' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
   ],
   redbird: [
@@ -8793,6 +8793,76 @@ const MOVES = {
     steps.push({ at: 2.28, fn: () => bfStrike(f, o, new Set(), true, 26, true) });
     startAction(f, { name: 'fistrain', dur: 2.7, aim: true, noControl: true, speedMul: 0, anim: an, steps });
   },
+  // ---------- Loki (Dios del Engaño) ----------
+  lokiDouble(f, o) {
+    startAction(f, {
+      name: 'lokidouble', dur: .5, noControl: true, aim: true, speedMul: 0, anim: [[0, 'cross', 350], [.12, 'point', 600]],
+      start: () => {
+        decoy(f, o, f.pos.clone(), { static: true, fuse: 1.1, dmg: o.dmg || 7, r: 2.8, life: 1.4 });
+        ghost(f, o.color, .6, .4); burst(chestOf(f), 18, o.color, 6, .2, .4, -.2); sfx('tp', f.pos);
+        const F = fwd(f.yaw), d = o.dist || 8; f.pos.x += F.x * d; f.pos.z += F.z * d; f.pos.y = Math.max(f.pos.y, groundAt(f.pos.x, f.pos.z, f.pos.y)); f.vel.set(0, 0, 0); f.iframes = Math.max(f.iframes, .35);
+        slashLine(new V3(f.pos.x - F.x * d, f.pos.y + 1, f.pos.z - F.z * d), chestOf(f), o.color, .3, .1); burst(chestOf(f), 14, o.color, 6, .2, .4, -.2);
+      },
+    });
+  },
+  lokiDaggers(f, o) {
+    const P = { color: o.color, speed: 46, dmg: o.dmg || 3.2, stun: o.stun || .4, size: .25, long: 3, homing: 2.5, range: 26 };
+    startAction(f, {
+      name: 'lokidaggers', dur: .85, aim: true, speedMul: .3, anim: [[0, 'throwW', 500], [.12, 'throw', 900], [.5, 'throw', 900]],
+      steps: [
+        { at: .14, fn: () => { for (let i = -1; i <= 1; i++) spawnProj(f, f.yaw + i * .2, P); sfx('zap', f.pos, .7); } },
+        { at: .55, fn: () => { f.yaw = aimYawFor(f); for (let i = -1; i <= 1; i += 2) spawnProj(f, f.yaw + i * .07, Object.assign({}, P, { homing: 4.5, speed: 40 })); sfx('zap', f.pos, .7); } },
+      ],
+    });
+  },
+  lokiRunes(f, o) {
+    const tg = findTarget(f, 26); if (!tg) return false;
+    startAction(f, {
+      name: 'lokirunes', dur: .9, aim: true, speedMul: .35, anim: [[0, 'magicPalm', 600], [.3, 'castUp', 700]],
+      start: () => { sfx('zap', f.pos, .7); },
+      steps: [.1, .45, .8].map(at => ({ at, fn: () => {
+        if (!tg.alive) return;
+        const p = new V3(tg.pos.x + (tg.vel ? tg.vel.x * .25 : 0), tg.pos.y, tg.pos.z + (tg.vel ? tg.vel.z * .25 : 0)); p.y = Math.max(tg.pos.y, groundAt(p.x, p.z, tg.pos.y));
+        warnCircle(p, 2.5, o.color, .75); sfx('tp', p, .4);
+        later(.75, () => { const c = new V3(p.x, p.y + .6, p.z); explode(f, c, 2.5, { dmg: o.dmg || 4, kb: 4, up: 7, stun: .5, color: o.color }); burst(c, 18, o.color, 6, .2, .5, -.2); });
+      } })),
+    });
+  },
+  lokiSwap(f, o) {
+    const tg = findTarget(f, 22); if (!tg) return false;
+    startAction(f, {
+      name: 'lokiswap', dur: .7, noControl: true, aim: true, speedMul: 0, anim: [[0, 'cross', 350], [.12, 'point', 600]],
+      start: () => {
+        const A = f.pos.clone(), B = tg.pos.clone();
+        decoy(f, o, A, { static: true, fuse: 1.15, dmg: o.dmg2 || 7, r: 3, life: 1.4 });
+        ghost(f, o.color, .6, .4); slashLine(chestOf(f), chestOf(tg), o.color, .3, .1); burst(chestOf(f), 16, o.color, 6, .2, .4, -.2); burst(chestOf(tg), 16, o.color, 6, .2, .4, -.2); sfx('tp', f.pos);
+        f.pos.set(B.x, B.y, B.z); f.vel.set(0, 0, 0);
+        if (!tg.remote) { tg.pos.set(A.x, A.y, A.z); tg.vel.set(0, 0, 0); }
+        f.yaw = yawTo(f, tg);
+        applyHit(f, tg, { dmg: o.dmg || 4, stun: 1, kb: 0, color: o.color, hitstop: .05 });
+      },
+    });
+  },
+  lokiFaces(f, o) {
+    const tg = findTarget(f, 22) || enemiesOf(f).filter(g => g.alive).sort((x, y) => dist2d(f, x) - dist2d(f, y))[0]; if (!tg) return false;
+    startAction(f, {
+      name: 'lokifaces', dur: 1.7, noControl: true, aim: true, ghost: true, speedMul: 0, anim: [[0, 'signs', 500], [.3, 'castUp', 700], [1.15, 'mega', 900]],
+      start: () => { f.iframes = Math.max(f.iframes, 1.2); sfx('tp', f.pos); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), o.color, 5, .5); },
+      steps: [
+        { at: .3, fn: () => {
+          for (let i = 0; i < 4; i++) { const p = f.pos.clone().add(fwd(f.yaw + i / 4 * TAU).multiplyScalar(2.6)); p.y = Math.max(f.pos.y, groundAt(p.x, p.z, f.pos.y)); decoy(f, o, p, { dmg: o.dmg || 6, life: 2.4, speed: 13 }); }
+          burst(chestOf(f), 36, o.color, 9, .2, .6, -.2);
+        } },
+        { at: 1.15, fn: () => {
+          if (!tg.alive) return; const from = chestOf(f), back = fwd(tg.yaw);
+          ghost(f, o.color, .6, .4); f.pos.set(tg.pos.x - back.x * 1.5, tg.pos.y, tg.pos.z - back.z * 1.5); f.vel.set(0, 0, 0); f.yaw = yawTo(f, tg);
+          slashLine(from, chestOf(f), o.color, .3, .08); burst(chestOf(f), 18, o.color, 6, .2, .4, -.2); sfx('tp', f.pos);
+          arcSlash(f, o.color, { tilt: .3, r: 1.7, w: .65, len: 2.5 });
+          hitArea(f, front(f, 1.2, 1.1), 1.6, { dmg: 9, kb: 12, up: 8, ragdoll: 1, color: o.color, guardBreak: true, hitstop: .08, shake: .4 });
+        } },
+      ],
+    });
+  },
   // ---------- Mattux (temática Sonic) ----------
   sonSpin(f, o) {
     const sup = !!o.sup, T = sup ? .38 : .5, D = sup ? .8 : .58; let hitT = 0, set = new Set();
@@ -9302,7 +9372,7 @@ function updLoyal(p, i, dt) {
 const DEST_DEFAULT = {
   sonSpin: .8, sonHoming: .5, sonBoom: .6, sonCyclone: .3, sonBoost: 1.1, sonBlast: 2,
   fistDiv: .8, blackFlash: 1.4, manjiKick: .9, fistFlurry: .7, bf3: 1.6, groundBreak: 2.2, shoulderDash: 1.2, fistRain: 1.4,
-  serious: 0, chore: 1.2, zone: .5, shoot: .3, orbitals: .3, slam: 1.5, beam: .9, rush: .8, airCombo: .6, dashCombo: .6, pillar: 1.3, blink: 0, wave: 1.3, illusion: 0, barrage: .5,
+  serious: 0, chore: 1.2, zone: .5, shoot: .3, orbitals: .3, slam: 1.5, beam: .9, rush: .8, airCombo: .6, dashCombo: .6, pillar: 1.3, blink: 0, wave: 1.3, illusion: 0, barrage: .5, lokiDouble: 0, lokiDaggers: .2, lokiRunes: .4, lokiSwap: 0, lokiFaces: 0,
   slash: .7, lunge: .5, spearThrow: .6, whirl: .6, spearRain: 1.1, eyeBolts: .5, optoJump: .5, sekBoomerang: .4, sekDive: 1, sekParry: 0, sekUpdraft: .6, rkWeb: 0, rkZip: .2, rkBite: .3, rkTraps: .3,
   ukSweep: .6, ukLunge: .5, ukKnives: .3, ukFireball: 1, sebPackage: .5, sebPearl: .4, sebCreeper: 1.8, sebAnvil: 1.4, randiPaloma: .2, randiCuyes: .7, randiNazca: 1, randiLlamas: 1.2, randiPisco: 0, capAdapt: 0,
   jlError: .3, jlClippy: .2, jlUndo: 0, jlFormat: .4, cuts: .5, flameline: .9, nova: 1.5, iceage: 1, grab: 0, counter: 0, meteor: 2, rbOverload: 1.2, rbMirrors: .2, rbSatellite: 1, rbChain: .4,
@@ -16163,13 +16233,13 @@ const SK_TIPS = {
   'redbird.A3': 'La marca persigue con retraso: obligá al rival a moverse o usala cuando esté atrapado.',
   'redbird.A4': 'Prestá atención a las flechas que aparecen y tocá W A S D (o las flechas) a tiempo. Con las 4 bien, el remate del cielo es enorme.',
   'redbird.U': 'Un rayo gigante que rompe guardias: apuntalo a una fila de rivales.',
-  'gato.S1': 'Las copias persiguen solas: lanzalas y aprovechá para atacar por otro lado.',
-  'gato.S2': 'Cuatro dagas que persiguen y aturden: buenas para frenar a alguien que viene corriendo.',
-  'gato.S3': 'Te deja a la espalda del rival: después pegale con el combo, que de espaldas no se puede bloquear.',
-  'gato.S4': 'Deja al rival quieto 1,6 s: el tiempo justo para encadenar otra habilidad.',
-  'gato.A1': 'Plantate en el medio de una pelea grande: aturde y daña a todos los que queden adentro durante 5 s.',
+  'gato.S1': 'El doble explota solo: úsalo para escapar o como trampa si te persiguen en línea recta.',
+  'gato.S2': 'Dos oleadas: la segunda persigue, así que sirve contra quien esquiva la primera.',
+  'gato.S3': 'Cada círculo verde estalla a los 0,75 s: el rival tiene que moverse sin parar, y tú aprovecha.',
+  'gato.S4': 'Lo aturde encima de tu doble: si no bloquea, se come la explosión. Cambia de lugar también para huir.',
+  'gato.A1': 'Eres intocable un instante: los dobles rodean al rival y tú caes a su espalda con un tajo enorme.',
   'gato.A2': 'Cinemática de cerca: las copias se lo pasan como pelota y no se puede escapar.',
-  'gato.A3': 'Atrae al rival de lejos (4 a 20 bloques): perfecta para traer a alguien que huye.',
+  'gato.A3': 'Rayo muy rápido y largo: perfecto para cortar a alguien que huye y dejarlo quieto 1,3 s.',
   'gato.A4': 'La más vistosa: usala de cerca para cerrar la pelea.',
   'gato.U': 'Seis copias salen en círculo y persiguen a todos: ideal cuando hay varios rivales alrededor.',
   'sekza.S1': 'La hoz vuelve a tu mano y arrastra a los que cruza: tirala más allá del rival para traerlo hacia vos.',
