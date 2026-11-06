@@ -1,6 +1,8 @@
 /* Escena del espacio de "Ojo del Cosmos" (personaje: redbird)
-   Construye la Tierra, las estrellas y la ruptura de UNA PARTE del planeta (por donde sale el rayo) en un grupo de
-   three.js lejos de la ciudad. Se usa desde rbCosmos.js:  const E = rbCosmosEspacio(origen);  E.update(s, dt, camPos);  E.dispose();
+   La Tierra tiene estilo anime (sombreado por bandas, contorno oscuro, borde de atmósfera, océano brillante y costas turquesa)
+   y el espacio es oscuro y apagado, más realista (Vía Láctea tenue, estrellas de varios colores, reflejo del sol).
+   Se rompe UN trozo del planeta por donde sale el rayo. Se usa desde rbCosmos.js:
+     const E = rbCosmosEspacio(origen);  E.update(s, dt, camPos);  E.dispose();
    Este archivo se carga antes que rbCosmos.js (orden alfabético), así que lo que declara aquí lo ve el otro. */
 const rbCosmosEspacio = function (O) {
   const R = 45, CAP = .5, g = new THREE.Group();   // CAP = radio angular (en radianes) del trozo que se rompe
@@ -9,63 +11,137 @@ const rbCosmosEspacio = function (O) {
   const track = (m) => { mats.push(m); return m; };
   const trackG = (x) => { geos.push(x); return x; };
   const dir = new V3(-.6, .42, .68).normalize();   // hacia dónde sale el rayo
+  const sunDir = new V3(170, 70, 130).normalize();
   const pivot = new THREE.Group(); pivot.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir); g.add(pivot);   // el eje +Y del planeta apunta al rayo
 
-  // ---- estrellas
-  const N = 1100, sp = new Float32Array(N * 3);
+  // ---- fondo: Vía Láctea muy tenue + estrellas de distintos colores y tamaños
+  const mv = document.createElement('canvas'); mv.width = 1024; mv.height = 512; const m2 = mv.getContext('2d');
+  m2.fillStyle = '#01020a'; m2.fillRect(0, 0, 1024, 512);
+  for (let i = 0; i < 70; i++) {   // neblina azul-violeta a lo largo de una banda
+    const x = rand(0, 1024), y = 256 + Math.sin(x / 1024 * TAU) * 95 + rand(-45, 45), r = rand(50, 140), gr = m2.createRadialGradient(x, y, 0, x, y, r);
+    const a = rand(.025, .07); gr.addColorStop(0, i % 3 ? 'rgba(90,110,190,' + a + ')' : 'rgba(150,100,170,' + a + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); m2.fillStyle = gr; m2.beginPath(); m2.arc(x, y, r, 0, TAU); m2.fill();
+  }
+  for (let i = 0; i < 3200; i++) {   // polvo de estrellas concentrado en la banda
+    const x = rand(0, 1024), y = 256 + Math.sin(x / 1024 * TAU) * 95 + (rand(-1, 1) + rand(-1, 1)) * 55;
+    m2.fillStyle = 'rgba(255,255,255,' + rand(.08, .55) + ')'; m2.fillRect(x, y, rand(.5, 1.4), rand(.5, 1.4));
+  }
+  const mwTex = new THREE.CanvasTexture(mv); texs.push(mwTex);
+  const sky = new THREE.Mesh(trackG(new THREE.SphereGeometry(330, 40, 24)), track(new THREE.MeshBasicMaterial({ map: mwTex, side: THREE.BackSide, depthWrite: false, fog: false })));
+  sky.rotation.set(.5, 1.1, .3); g.add(sky);
+  const N = 1500, sp = new Float32Array(N * 3), sc = new Float32Array(N * 3), tint = [[1, 1, 1], [.75, .85, 1], [1, .88, .72], [.9, .92, 1]];
   for (let i = 0; i < N; i++) {
-    const a = rand(0, TAU), b = Math.acos(rand(-1, 1)), r = rand(260, 340);
+    const a = rand(0, TAU), b = Math.acos(rand(-1, 1)), r = rand(250, 320), t = tint[Math.floor(rand(0, tint.length))], br = Math.pow(rand(.15, 1), 1.6);
     sp[i * 3] = Math.sin(b) * Math.cos(a) * r; sp[i * 3 + 1] = Math.cos(b) * r; sp[i * 3 + 2] = Math.sin(b) * Math.sin(a) * r;
+    sc[i * 3] = t[0] * br; sc[i * 3 + 1] = t[1] * br; sc[i * 3 + 2] = t[2] * br;
   }
-  const sg = trackG(new THREE.BufferGeometry()); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-  g.add(new THREE.Points(sg, track(new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true, transparent: true, opacity: .95, depthWrite: false, fog: false }))));
+  const sg = trackG(new THREE.BufferGeometry()); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3)); sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
+  g.add(new THREE.Points(sg, track(new THREE.PointsMaterial({ size: 1.25, sizeAttenuation: true, vertexColors: true, transparent: true, opacity: .95, depthWrite: false, fog: false }))));
+  // reflejo del sol (destello)
+  const gv = document.createElement('canvas'); gv.width = gv.height = 256; const g2 = gv.getContext('2d'), gg = g2.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gg.addColorStop(0, 'rgba(255,244,220,1)'); gg.addColorStop(.18, 'rgba(255,214,160,.55)'); gg.addColorStop(.5, 'rgba(255,170,110,.12)'); gg.addColorStop(1, 'rgba(255,140,90,0)'); g2.fillStyle = gg; g2.fillRect(0, 0, 256, 256);
+  const glareTex = new THREE.CanvasTexture(gv); texs.push(glareTex);
+  const glare = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: glareTex, transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
+  glare.position.copy(sunDir).multiplyScalar(300); glare.scale.set(150, 150, 1); g.add(glare);
 
-  // ---- texturas de la Tierra (océano, continentes, casquetes) y de las nubes
+  // ---- texturas de la Tierra: océano con degradado, costas turquesa, continentes, desiertos, hielo
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512; const c = cv.getContext('2d');
-  const grad = c.createLinearGradient(0, 0, 0, 512); grad.addColorStop(0, '#2a6fd6'); grad.addColorStop(.5, '#1c56b5'); grad.addColorStop(1, '#2a6fd6');
+  const grad = c.createLinearGradient(0, 0, 0, 512); grad.addColorStop(0, '#1d58b8'); grad.addColorStop(.5, '#1f6ad0'); grad.addColorStop(1, '#1d58b8');
   c.fillStyle = grad; c.fillRect(0, 0, 1024, 512);
-  const land = ['#3d8b3b', '#4f9d44', '#8c7b46', '#2f7a36', '#6b9a3f'];
-  for (let i = 0; i < 46; i++) {
-    const cx = rand(0, 1024), cy = rand(60, 450), n = 6 + Math.floor(rand(0, 8)); c.fillStyle = land[Math.floor(rand(0, land.length))];
-    for (let j = 0; j < n; j++) { c.beginPath(); c.arc(cx + rand(-70, 70), cy + rand(-34, 34), rand(14, 52), 0, TAU); c.fill(); }
+  const land = ['#4fb04a', '#63c256', '#9ab84a', '#3a9a4a', '#7bc552'], blobs = [];
+  for (let i = 0; i < 30; i++) {
+    const cx = rand(0, 1024), cy = rand(70, 440), n = 6 + Math.floor(rand(0, 8)), col = land[Math.floor(rand(0, land.length))], parts = [];
+    for (let j = 0; j < n; j++) parts.push([cx + rand(-70, 70), cy + rand(-34, 34), rand(14, 52)]);
+    blobs.push({ col, parts });
   }
-  c.fillStyle = '#f3f8ff'; c.fillRect(0, 0, 1024, 24); c.fillRect(0, 488, 1024, 24);
+  c.shadowColor = '#6fe4ee'; c.shadowBlur = 30;   // aguas poco profundas junto a la costa
+  for (const b of blobs) { c.fillStyle = b.col; for (const p of b.parts) { c.beginPath(); c.arc(p[0], p[1], p[2], 0, TAU); c.fill(); } }
+  c.shadowBlur = 0;
+  for (const b of blobs) { c.fillStyle = b.col; for (const p of b.parts) { c.beginPath(); c.arc(p[0], p[1], p[2], 0, TAU); c.fill(); } }
+  for (let i = 0; i < 70; i++) {   // desiertos y zonas altas
+    const b = blobs[Math.floor(rand(0, blobs.length))], p = b.parts[Math.floor(rand(0, b.parts.length))];
+    c.fillStyle = i % 3 ? 'rgba(214,190,110,.55)' : 'rgba(40,110,60,.45)'; c.beginPath(); c.arc(p[0] + rand(-14, 14), p[1] + rand(-10, 10), rand(8, 22), 0, TAU); c.fill();
+  }
+  c.fillStyle = '#f6fbff'; c.shadowColor = '#ffffff'; c.shadowBlur = 14; c.fillRect(0, 0, 1024, 22); c.fillRect(0, 490, 1024, 22); c.shadowBlur = 0;
   const earthTex = new THREE.CanvasTexture(cv); texs.push(earthTex);
   const cv2 = document.createElement('canvas'); cv2.width = 1024; cv2.height = 512; const c2 = cv2.getContext('2d');
-  for (let i = 0; i < 150; i++) {
-    const x = rand(0, 1024), y = rand(30, 480), r = rand(18, 70), gr = c2.createRadialGradient(x, y, 0, x, y, r);
-    gr.addColorStop(0, 'rgba(255,255,255,.62)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c2.fillStyle = gr; c2.beginPath(); c2.ellipse(x, y, r * 1.5, r * .7, 0, 0, TAU); c2.fill();
+  for (let i = 0; i < 52; i++) {   // nubes esponjosas con sombra azul por debajo
+    const x = rand(0, 1024), y = rand(40, 470), n = 4 + Math.floor(rand(0, 5)), parts = [];
+    for (let j = 0; j < n; j++) parts.push([x + rand(-28, 28), y + rand(-8, 8), rand(7, 18)]);
+    c2.fillStyle = 'rgba(150,185,235,.8)'; for (const p of parts) { c2.beginPath(); c2.arc(p[0], p[1] + 5, p[2], 0, TAU); c2.fill(); }
+    c2.fillStyle = 'rgba(255,255,255,.96)'; for (const p of parts) { c2.beginPath(); c2.arc(p[0], p[1], p[2], 0, TAU); c2.fill(); }
   }
   const cloudTex = new THREE.CanvasTexture(cv2); texs.push(cloudTex);
-  const earthMat = track(new THREE.MeshLambertMaterial({ map: earthTex, emissive: 0x000000 })), cloudMat = track(new THREE.MeshLambertMaterial({ map: cloudTex, transparent: true, depthWrite: false }));
-  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 64, 44)), earthMat);
-  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.014, 64, 44)), cloudMat);
+
+  // ---- sombreado anime (por bandas) de la Tierra y de las nubes
+  const VERT = 'varying vec2 vUv; varying vec3 vN; varying vec3 vW; void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
+  const earthMat = track(new THREE.ShaderMaterial({
+    uniforms: { map: { value: earthTex }, L: { value: sunDir.clone() }, emi: { value: 0 } }, vertexShader: VERT,
+    fragmentShader: `uniform sampler2D map; uniform vec3 L; uniform float emi; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+      void main(){
+        vec3 N = normalize(vN), V = normalize(cameraPosition - vW), base = texture2D(map, vUv).rgb;
+        float d = dot(N, normalize(L));
+        float band = smoothstep(-.06, .06, d) * .5 + smoothstep(.22, .34, d) * .5;
+        vec3 col = mix(base * vec3(.10, .15, .34), base * .92, band);
+        col += vec3(1., .55, .25) * smoothstep(-.12, 0., d) * (1. - smoothstep(0., .16, d)) * .28;
+        float ocean = step(.2, base.b - base.r) * step(base.g, base.b + .05);
+        vec3 H = normalize(normalize(L) + V); float spec = pow(max(dot(N, H), 0.), 120.);
+        col += vec3(1.) * step(.55, spec) * ocean * .65;
+        float rim = pow(1. - max(dot(N, V), 0.), 3.);
+        col += vec3(.35, .7, 1.) * rim * .6 * clamp(d * 2. + .5, 0., 1.);
+        col += vec3(1., .3, .06) * emi;
+        gl_FragColor = vec4(col, 1.);
+      }`,
+  }));
+  const cloudMat = track(new THREE.ShaderMaterial({
+    uniforms: { map: { value: cloudTex }, L: { value: sunDir.clone() } }, vertexShader: VERT, transparent: true, depthWrite: false,
+    fragmentShader: `uniform sampler2D map; uniform vec3 L; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+      void main(){
+        vec4 t = texture2D(map, vUv); vec3 N = normalize(vN); float d = dot(N, normalize(L));
+        float band = smoothstep(-.05, .1, d) * .6 + smoothstep(.25, .4, d) * .4;
+        vec3 col = mix(t.rgb * vec3(.18, .22, .4), t.rgb, band);
+        gl_FragColor = vec4(col, t.a * .78);
+      }`,
+  }));
+  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 72, 48)), earthMat);
+  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, 72, 48)), cloudMat);
   // versiones con el casquete roto (falta un trozo de planeta donde sale el rayo)
-  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 64, 44, 0, TAU, CAP, Math.PI - CAP)), earthMat);
-  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.014, 64, 44, 0, TAU, CAP, Math.PI - CAP)), cloudMat);
+  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 72, 48, 0, TAU, CAP, Math.PI - CAP)), earthMat);
+  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, 72, 48, 0, TAU, CAP, Math.PI - CAP)), cloudMat);
   earthB.visible = cloudsB.visible = false;
-  const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.09, 48, 32)), track(new THREE.MeshBasicMaterial({ color: 0x6fb2ff, transparent: true, opacity: .2, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
+  // contorno oscuro (estilo anime) y atmósfera brillante en el borde
+  const outline = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.02, 56, 36)), track(new THREE.MeshBasicMaterial({ color: 0x07163a, side: THREE.BackSide, fog: false })));
+  const atmoMat = track(new THREE.ShaderMaterial({
+    uniforms: { L: { value: sunDir.clone() } }, vertexShader: VERT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    fragmentShader: `uniform vec3 L; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+      void main(){
+        vec3 N = normalize(vN), V = normalize(cameraPosition - vW);
+        float rim = pow(1. - abs(dot(N, V)), 3.2), sun = clamp(dot(N, normalize(L)) * .8 + .5, 0., 1.);
+        vec3 col = mix(vec3(.18, .45, 1.), vec3(.65, .92, 1.), rim) * rim * 1.7 * (.3 + .7 * sun);
+        gl_FragColor = vec4(col, 1.);
+      }`,
+  }));
+  const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.12, 56, 36)), atmoMat);
   // magma que se ve por el agujero, y borde incandescente
   const magma = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * .96, 40, 28)), track(new THREE.MeshBasicMaterial({ color: 0xff4a12, fog: false })));
   const rimR = R * Math.sin(CAP), rim = new THREE.Mesh(trackG(new THREE.TorusGeometry(rimR, 1.1, 8, 64)), track(new THREE.MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: .95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
   rim.rotation.x = Math.PI / 2; rim.position.y = R * Math.cos(CAP); rim.visible = false;
   pivot.add(earth, clouds, earthB, cloudsB, magma, rim); magma.visible = false;
-  g.add(halo);
-  const sunL = new THREE.DirectionalLight(0xfff2dc, 1.15); sunL.position.set(170, 70, 130); g.add(sunL, sunL.target);
-  g.add(new THREE.AmbientLight(0x3a4f7a, .32));
+  g.add(outline, halo);
+  const sunL = new THREE.DirectionalLight(0xfff2dc, 1.15); sunL.position.copy(sunDir).multiplyScalar(220); g.add(sunL, sunL.target);
+  g.add(new THREE.AmbientLight(0x3a4f7a, .3));
 
   // ---- grietas rojas alrededor del trozo que se romperá
   const pts = [];
   for (let i = 0; i < 46; i++) {
     const th = rand(.05, CAP * 1.9), ph = rand(0, TAU);
-    let p = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)).normalize(), prev = p.clone().multiplyScalar(R * 1.004);
+    let p = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)).normalize(), prev = p.clone().multiplyScalar(R * 1.006);
     for (let j = 0; j < 8; j++) {
       p = p.clone().add(new V3(rand(-.14, .14), rand(-.14, .14), rand(-.14, .14))).normalize();
-      const q = p.clone().multiplyScalar(R * 1.004); pts.push(prev.x, prev.y, prev.z, q.x, q.y, q.z); prev = q;
+      const q = p.clone().multiplyScalar(R * 1.006); pts.push(prev.x, prev.y, prev.z, q.x, q.y, q.z); prev = q;
     }
   }
   const lg = trackG(new THREE.BufferGeometry()); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3)); lg.setDrawRange(0, 0);
-  const cracks = new THREE.LineSegments(lg, track(new THREE.LineBasicMaterial({ color: 0xff4a1f, transparent: true, opacity: 1, fog: false })));
+  const cracks = new THREE.LineSegments(lg, track(new THREE.LineBasicMaterial({ color: 0xff5a22, transparent: true, opacity: 1, fog: false })));
   pivot.add(cracks);
   const total = pts.length / 3;
 
@@ -91,15 +167,16 @@ const rbCosmosEspacio = function (O) {
     group: g, origin: O, dir, radius: R, boomed: () => boomed,
     // s = segundos desde que empieza la escena del espacio
     update(s, dt, camPos) {
-      earth.rotation.y += dt * .05; clouds.rotation.y += dt * .07; earthB.rotation.y = earth.rotation.y; cloudsB.rotation.y = clouds.rotation.y;
+      earth.rotation.y += dt * .05; clouds.rotation.y += dt * .068; earthB.rotation.y = earth.rotation.y; cloudsB.rotation.y = clouds.rotation.y;
+      sky.rotation.y += dt * .004;
       if (!boomed) {
         const k = clamp((s - .35) / 1.7, 0, 1);
         lg.setDrawRange(0, Math.floor(total * k / 2) * 2);
         cracks.material.opacity = .55 + .45 * Math.abs(Math.sin(s * 14));
-        earthMat.emissive.setRGB(.28 * k * k, .06 * k * k, .01 * k * k);
+        earthMat.uniforms.emi.value = .32 * k * k * (.8 + .2 * Math.sin(s * 22));
         if (s > 2.2) {
           boomed = true; boomT = s; earth.visible = false; clouds.visible = false; earthB.visible = cloudsB.visible = true; magma.visible = true; rim.visible = true; cracks.visible = false;
-          frags.forEach(m => { m.visible = true; }); beam.visible = true; earthMat.emissive.setRGB(.05, .01, 0);
+          frags.forEach(m => { m.visible = true; }); beam.visible = true; earthMat.uniforms.emi.value = .06;
         }
         return;
       }

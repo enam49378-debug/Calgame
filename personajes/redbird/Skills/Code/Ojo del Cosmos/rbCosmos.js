@@ -57,11 +57,60 @@ CF.mover('rbCosmos', function (f, o) {
   };
   const killBeam = () => { if (beamG) { scene.remove(beamG); beamG.children.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); beamG = null; } };
 
-  // ---- cámara
-  const setCam = (pos, look, fov, roll) => {
+  // ---- efecto de cine: desenfoque (de zoom y de bordes), viñeta, grano y menos color; solo mientras dura la escena
+  let cos = null, bloom0 = null, fxPulse = 0;
+  const fxT = { blur: 0, edge: .25, vig: .28, desat: .05 }, fxC = { blur: 0, edge: 0, vig: 0, desat: 0 };
+  if (composer && THREE.ShaderPass) {
+    try {
+      cos = new THREE.ShaderPass({
+        uniforms: { tDiffuse: { value: null }, amt: { value: 0 }, edge: { value: 0 }, vig: { value: 0 }, grain: { value: .04 }, desat: { value: 0 }, time: { value: 0 } },
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform sampler2D tDiffuse; uniform float amt, edge, vig, grain, desat, time; varying vec2 vUv;
+          float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+          void main(){
+            vec2 d = vUv - .5; float r = length(d), b = amt + edge * smoothstep(.22, .85, r);
+            vec3 c = vec3(0.);
+            for (int i = 0; i < 9; i++) { float k = float(i) / 8.; c += texture2D(tDiffuse, vUv - d * b * k * .16).rgb; }
+            c /= 9.;
+            float l = dot(c, vec3(.299, .587, .114)); c = mix(c, vec3(l), desat);
+            c *= 1. - smoothstep(.3, .95, r) * vig;
+            c += (h(vUv * 800. + time) - .5) * grain;
+            gl_FragColor = vec4(c, 1.);
+          }`,
+      });
+      composer.addPass(cos);
+    } catch (e) { cos = null; }
+  }
+  const fxTo = (blur, edge, vig, desat) => { fxT.blur = blur; fxT.edge = edge; fxT.vig = vig; fxT.desat = desat; };
+  const applyFx = (dt) => {
+    const k = Math.min(1, dt * 7);
+    for (const n in fxT) fxC[n] += (fxT[n] - fxC[n]) * k;
+    if (cos) { const u = cos.uniforms; u.amt.value = fxC.blur + fxPulse * 1.1; u.edge.value = fxC.edge; u.vig.value = fxC.vig; u.desat.value = fxC.desat; u.time.value = (performance.now() % 100000) / 1000; }
+  };
+  // brillo naranja al entrar en la atmósfera
+  let glow = document.getElementById('cosmosglow');
+  if (!glow) { glow = document.createElement('div'); glow.id = 'cosmosglow'; glow.style.cssText = 'position:fixed;inset:0;z-index:54;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center, rgba(255,210,150,0) 25%, rgba(255,140,60,.55) 62%, rgba(255,70,20,.9) 100%);'; document.body.appendChild(glow); }
+
+  // ---- cámara: pulso de cámara en mano, mezcla suave entre planos (con desenfoque de barrido) y temblor
+  let lastShot = null, blend = null;
+  const setCam = (pos, look, fov, roll, shot, bd, hand) => {
+    hand = hand == null ? 1 : hand;
+    const tn = performance.now() / 1000;
+    if (shot !== lastShot) {
+      blend = (lastShot !== null && bd) ? { t0: tn, dur: bd, p: camera.position.clone(), q: camera.quaternion.clone(), fov: camera.fov } : null;
+      lastShot = shot;
+    }
     camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(look); if (roll) camera.rotateZ(roll);
-    if (G.shake > 0) { const s = G.shake * .2; camera.position.x += rand(-s, s); camera.position.y += rand(-s, s); G.shake = Math.max(0, G.shake - .016 * 2.2); }
-    cam.fov = fov; camera.fov = fov; camera.updateProjectionMatrix();
+    camera.rotateX((Math.sin(tn * 1.3) * .0045 + Math.sin(tn * 3.1) * .0018) * hand); camera.rotateY((Math.sin(tn * 1.7 + 1) * .0045 + Math.sin(tn * 2.9) * .0016) * hand); camera.rotateZ(Math.sin(tn * .9 + 2) * .003 * hand);
+    camera.position.x += Math.sin(tn * 1.9) * .012 * hand; camera.position.y += Math.sin(tn * 2.3 + 1) * .012 * hand;
+    if (G.shake > 0) { const sh = G.shake * .2; camera.position.x += rand(-sh, sh); camera.position.y += rand(-sh, sh); G.shake = Math.max(0, G.shake - .016 * 2.2); }
+    let fv = fov; fxPulse = 0;
+    if (blend) {
+      const k = ease((tn - blend.t0) / blend.dur);
+      camera.position.lerpVectors(blend.p, camera.position, k); camera.quaternion.copy(blend.q.clone().slerp(camera.quaternion, k)); fv = blend.fov + (fov - blend.fov) * k;
+      fxPulse = (1 - k) * (1 - k); if (k >= 1) blend = null;
+    }
+    cam.fov = fv; camera.fov = fv; camera.updateProjectionMatrix();
   };
   // pose que tendría la cámara normal del juego (para que el descenso termine justo ahí y se quede sola)
   const normalPose = () => {
@@ -75,66 +124,73 @@ CF.mover('rbCosmos', function (f, o) {
     if (finished) return; finished = true;
     killBeam(); if (space) { try { space.dispose(); } catch (e) { } space = null; } if (desc) { try { desc.dispose(); } catch (e) { } desc = null; }
     if (graded) { cineGrade(false); graded = false; }
-    setFx(0, 0, 1); document.body.classList.remove('cine');
+    setFx(0, 0, 1); glow.style.opacity = 0; document.body.classList.remove('cine');
+    if (cos && composer) { const i = composer.passes.indexOf(cos); if (i >= 0) composer.passes.splice(i, 1); cos = null; }
+    if (bloom0 != null && bloomPass) bloomPass.strength = bloom0;
     f.cineHide = false; f.iframes = Math.min(f.iframes, .6);
     if (mine && G.camScript === mine) G.camScript = null;
   };
 
   const camFn = (dt) => {
     if (finished || f.action !== A) { cleanup(); return false; }
-    const t = A.t, gl = gy + .16;
+    const t = A.t, gl = gy + .16; glow.style.opacity = 0;
     if (t < T_CAM_UP) {   // escenas 1 y 2: cámara fija a ras del suelo (la misma): primero no se ve nada, luego entran los pies
-      setCam(new V3(C0.x, gl, C0.z), new V3(E.x, gy + .13, E.z), 18, 0);
+      fxTo(0, .3, .32, .05); setCam(new V3(C0.x, gl, C0.z), new V3(E.x, gy + .13, E.z), 18, 0, 'low', 0, .5);
     } else if (t < T_FACE) {   // sube hacia la cara
       const k = ease((t - T_CAM_UP) / (T_FACE - T_CAM_UP)), face = new V3(E.x + F.x * 2.7 + Rr.x * .35, gy + 1.62, E.z + F.z * 2.7 + Rr.z * .35);
-      setCam(lerpV(new V3(C0.x, gl, C0.z), face, k), lerpV(new V3(E.x, gy + .13, E.z), new V3(E.x, gy + 1.6, E.z), k), 18 + 10 * k, -.05 * k);
+      fxTo(0, .35, .34, .05); setCam(lerpV(new V3(C0.x, gl, C0.z), face, k), lerpV(new V3(E.x, gy + .13, E.z), new V3(E.x, gy + 1.6, E.z), k), 18 + 10 * k, -.05 * k, 'rise', 0, .9);
     } else if (t < T_COLLAPSE) {   // primer plano de la cara, cada vez más tenso
       const k = (t - T_FACE) / (T_COLLAPSE - T_FACE), face = new V3(E.x + F.x * (2.7 - k * .5) + Rr.x * .35, gy + 1.62, E.z + F.z * (2.7 - k * .5) + Rr.z * .35);
-      G.shake = Math.max(G.shake, .03 + k * .12); setCam(face, new V3(E.x, gy + 1.6, E.z), 28 - 4 * k, -.05);
+      G.shake = Math.max(G.shake, .03 + k * .12); fxTo(k * .25, .45, .4, .05); setCam(face, new V3(E.x, gy + 1.6, E.z), 28 - 4 * k, -.05, 'rise', 0, 1.2 + k);
     } else if (t < T_KNEEL) {   // se desploma: la cámara se aleja y baja
       const k = ease((t - T_COLLAPSE) / (T_KNEEL - T_COLLAPSE)), from = new V3(E.x + F.x * 2.2 + Rr.x * .35, gy + 1.62, E.z + F.z * 2.2 + Rr.z * .35), to = new V3(E.x + F.x * 4.2 + Rr.x, gy + .55, E.z + F.z * 4.2 + Rr.z);
-      setCam(lerpV(from, to, k), new V3(E.x, gy + 1.6 - .6 * k, E.z), 26 + 22 * k, .06 * k);
+      fxTo((1 - k) * .5, .4, .36, .05); setCam(lerpV(from, to, k), new V3(E.x, gy + 1.6 - .6 * k, E.z), 26 + 22 * k, .06 * k, 'rise', 0, 2);
     } else if (t < T_FIRE) {   // de rodillas, cargando
       const k = (t - T_KNEEL) / (T_FIRE - T_KNEEL);
-      G.shake = Math.max(G.shake, .05 + k * .2);
-      setCam(new V3(E.x + F.x * (4.2 - k) + Rr.x * (1 - .35 * k), gy + .55 - .1 * k, E.z + F.z * (4.2 - k) + Rr.z * (1 - .35 * k)), new V3(E.x, gy + .95, E.z), 48 - 8 * k, .06);
+      G.shake = Math.max(G.shake, .05 + k * .2); fxTo(0, .35, .34, .05);
+      setCam(new V3(E.x + F.x * (4.2 - k) + Rr.x * (1 - .35 * k), gy + .55 - .1 * k, E.z + F.z * (4.2 - k) + Rr.z * (1 - .35 * k)), new V3(E.x, gy + .95, E.z), 48 - 8 * k, .06, 'rise', 0, 1.6 + k);
     } else if (!powered && !space && !desc) {   // cámara libre: solo se ve el rayo
-      const s = t - fireT;
-      setCam(new V3(E.x - F.x * (6.5 + s * .5) + Rr.x * 1.8, gy + 2.3 + s * .25, E.z - F.z * (6.5 + s * .5) + Rr.z * 1.8), new V3(E.x + F.x * (18 + s * 2), gy + 1.3, E.z + F.z * (18 + s * 2)), 64 + Math.sin(s * .1) * 2, .04);
+      const s = t - fireT; fxTo(0, .3, .3, .02);
+      setCam(new V3(E.x - F.x * (6.5 + s * .5) + Rr.x * 1.8, gy + 2.3 + s * .25, E.z - F.z * (6.5 + s * .5) + Rr.z * 1.8), new V3(E.x + F.x * (18 + s * 2), gy + 1.3, E.z + F.z * (18 + s * 2)), 64 + Math.sin(s * .1) * 2, .04, 'free', .55, 2);
       G.shake = Math.max(G.shake, .22);
     } else if (powered && !space && !desc) {   // costado izquierdo de Redbird: el rayo se hace más fuerte
-      const s = t - (fireT + BEAM_EVAL), k = clamp(s / POWER_DUR, 0, 1);
-      setCam(new V3(E.x - Rr.x * (6.2 - k * .8) - F.x * (3.2 - k * 1.2), gy + 3 + k * .3, E.z - Rr.z * (6.2 - k * .8) - F.z * (3.2 - k * 1.2)), new V3(E.x + F.x * (2.2 + k * 2), gy + 1.1, E.z + F.z * (2.2 + k * 2)), 52 - 6 * k, -.05 * k);
+      const s = t - (fireT + BEAM_EVAL), k = clamp(s / POWER_DUR, 0, 1); fxTo(0, .35, .32, .03);
+      setCam(new V3(E.x - Rr.x * (6.2 - k * .8) - F.x * (3.2 - k * 1.2), gy + 3 + k * .3, E.z - Rr.z * (6.2 - k * .8) - F.z * (3.2 - k * 1.2)), new V3(E.x + F.x * (2.2 + k * 2), gy + 1.1, E.z + F.z * (2.2 + k * 2)), 52 - 6 * k, -.05 * k, 'power', .6, 1.8);
       G.shake = Math.max(G.shake, .25 + k * .25);
-    } else if (space) {   // espacio: se rompe un trozo de la Tierra y la cámara se lanza al planeta
+    } else if (space) {   // espacio: oscuro y apagado; se rompe un trozo de la Tierra y la cámara se lanza al planeta
       const s = t - spaceT0, O = space.origin, d = space.dir, R = space.radius;
       space.update(s, dt, camera.position);
       if (s < 2.2) {
-        const a = .5 + s * .12, dist = 170 - s * 22, e = ease(s / 2.2);
-        setCam(new V3(O.x + Math.cos(a) * dist, O.y + 28 - e * 10, O.z + Math.sin(a) * dist), O, 42 - e * 4, 0);
+        const a = .5 + s * .12, dist = 170 - s * 22, e = ease(s / 2.2); fxTo(.0, .55, .45, .22); G.shake = Math.max(G.shake, .02 + e * .08);
+        setCam(new V3(O.x + Math.cos(a) * dist, O.y + 28 - e * 10, O.z + Math.sin(a) * dist), O, 42 - e * 4, 0, 'sp1', 0, 1.1);
       } else if (s < 4) {   // corte anime: el rayo sale del agujero
-        if (!did.boom) { did.boom = true; impactFrame('#ffffff', .14); screenFlash(1); G.shake = 1.4; sfx('boom', f.pos); sfx('beam', f.pos); G.linesI = 1; }
+        if (!did.boom) { did.boom = true; impactFrame('#ffffff', .14); screenFlash(1); G.shake = 1.6; sfx('boom', f.pos); sfx('beam', f.pos); G.linesI = 1; }
         const k = (s - 2.2) / 1.8, hole = new V3(O.x + d.x * R, O.y + d.y * R, O.z + d.z * R);
-        setCam(new V3(hole.x - 55 + k * 12, hole.y - 8, hole.z + 62 - k * 8), new V3(hole.x + d.x * 22, hole.y + d.y * 22, hole.z + d.z * 22), 62 - k * 6, .12 - k * .1);
-        G.shake = Math.max(G.shake, .6 * (1 - k));
+        fxTo(Math.max(0, 1 - (s - 2.2) * 1.6), .5, .42, .15);
+        setCam(new V3(hole.x - 55 + k * 12, hole.y - 8, hole.z + 62 - k * 8), new V3(hole.x + d.x * 22, hole.y + d.y * 22, hole.z + d.z * 22), 62 - k * 6, .12 - k * .1, 'sp2', 0, 2.2);
+        G.shake = Math.max(G.shake, .7 * (1 - k));
       } else if (s < 5.2) {   // plano abierto: el planeta con su agujero y los pedazos
-        const k = (s - 4) / 1.2;
-        setCam(new V3(O.x + 215 - k * 30, O.y + 55 - k * 15, O.z + 115), new V3(O.x + d.x * 20, O.y + d.y * 20, O.z + d.z * 20), 50 + k * 4, 0);
+        const k = (s - 4) / 1.2; fxTo(0, .6, .45, .22); G.shake = Math.max(G.shake, .08);
+        setCam(new V3(O.x + 215 - k * 30, O.y + 55 - k * 15, O.z + 115), new V3(O.x + d.x * 20, O.y + d.y * 20, O.z + d.z * 20), 50 + k * 4, 0, 'sp3', .5, 1.2);
       } else {   // la cámara se lanza al planeta a toda velocidad y entra en la atmósfera
         const k = clamp((s - 5.2) / (SPACE_DUR - 5.2), 0, 1), e = k * k * k, from = new V3(O.x + 185, O.y + 40, O.z + 115);
         const side = new V3(d.z, 0, -d.x).normalize(), tgt = new V3(O.x + side.x * R * 1.04, O.y + 8, O.z + side.z * R * 1.04);
-        setCam(lerpV(from, tgt, e), O, 54 + 36 * e, k * .4);
-        G.linesI = 1; const cl = clamp((k - .55) / .45, 0, 1); setFx(cl, clamp((k - .85) / .15, 0, 1), 1 + cl * 1.4);
+        fxTo(.2 + k * 1.5, .6, .35, .2 * (1 - k)); G.shake = Math.max(G.shake, .1 + k * .6);
+        setCam(lerpV(from, tgt, e), O, 54 + 36 * e, k * .4, 'sp4', .5, 1.5);
+        G.linesI = 1; const cl = clamp((k - .55) / .45, 0, 1); setFx(cl, clamp((k - .85) / .15, 0, 1), 1 + cl * 1.4); glow.style.opacity = clamp((k - .35) / .45, 0, 1) * (1 - clamp((k - .85) / .15, 0, 1)) * .9;
       }
     } else if (desc) {   // descenso: nubes y pájaros pasando a toda velocidad hasta quedar en la cámara normal
       const u = clamp((t - descT0) / DESC_DUR, 0, 1), P = f.pos, np = normalPose();
-      desc.update(dt); G.linesI = 1;
+      desc.update(dt); G.linesI = 1; fxTo((1 - u) * 1.4, .4 * (1 - u) + .15, .3, 0); G.shake = Math.max(G.shake, .35 * (1 - u));
       const start = new V3(P.x + 22, P.y + 235, P.z - 28), e = ease2(u) * .35 + u * u * .65;
-      const pos = lerpV(start, np.pos, e);
-      camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(P.x, P.y + 1.3, P.z);
+      const pos = lerpV(start, np.pos, e), tn = performance.now() / 1000, hand = (1 - u) * 1.6;
+      camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(P.x, P.y + 1.3, P.z); camera.rotateZ((1 - u) * (1 - u) * .25);
+      camera.rotateX(Math.sin(tn * 1.3) * .0045 * hand); camera.rotateY(Math.sin(tn * 1.7 + 1) * .0045 * hand);
       const w = ease2(clamp((u - .55) / .45, 0, 1)); if (w > 0) camera.quaternion.slerp(np.quat, w);
+      lastShot = 'desc'; blend = null;
       const fov = 80 + (np.fov - 80) * ease2(u); cam.fov = fov; camera.fov = fov; camera.updateProjectionMatrix();
     }
+    applyFx(dt);
     return true;
   };
 
@@ -211,7 +267,7 @@ CF.mover('rbCosmos', function (f, o) {
       if (success && !did.space && t >= fireT + BEAM_EVAL + POWER_DUR) {
         did.space = true; killBeam();
         if (isP) {
-          spaceT0 = t; cineGrade(true, f); graded = true; scene.fog = null; scene.background = new THREE.Color(0x000004);
+          spaceT0 = t; cineGrade(true, f); graded = true; scene.fog = null; scene.background = new THREE.Color(0x01020a); if (bloomPass) { if (bloom0 == null) bloom0 = bloomPass.strength; bloomPass.strength = bloom0 * 2.4; }
           space = rbCosmosEspacio(new V3(f.pos.x, 2600, f.pos.z)); screenFlash(1); sfx('whoosh');
         } else spaceT0 = t;
       }
@@ -220,6 +276,7 @@ CF.mover('rbCosmos', function (f, o) {
         did.desc = true;
         if (space) { space.dispose(); space = null; }
         if (graded) { cineGrade(false); graded = false; }
+        if (bloom0 != null && bloomPass) bloomPass.strength = bloom0;
         a.bbClip = 'idle_combate'; a.anim = null; descT0 = t;
         if (isP) { desc = rbCosmosDescenso(f.pos); fadeFx(1); }
         screenFlash(.9); sfx('whoosh');
