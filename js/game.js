@@ -4099,7 +4099,7 @@ const CHARS = {
   },
   mattux: {
     name: 'Mattux', title: 'Velocista Sónico', role: 'VELOCISTA', color: '#2f6bff', hp: 88, spd: 1.16, ai: 'melee', stance: 'idle',
-    desc: 'El más rápido del juego: corre, rueda y rebota. Se hace bola en un Spin Dash, salta de rival en rival con el ataque teledirigido, lanza ondas sónicas y detiene el tiempo con el Control del Caos. Al despertar se vuelve Súper: dorado, más veloz y con el poder de las esmeraldas.',
+    desc: 'El más rápido del juego: corre, rueda y rebota. Se hace bola en un Spin Dash, salta de rival en rival con el ataque teledirigido, lanza ondas sónicas y se teletransporta con el Control del Caos. Al despertar se vuelve Súper: dorado, más veloz y con el poder de las esmeraldas.',
     stats: [3, 3, 5, 3, 4],
     skin: { skin: '#f0c9a8', hair: '#1c2e8c', eye: '#2f6bff', shirt: '#2f6bff', pants: '#2f6bff', shoes: '#c4162a', sleeve: 12 },
     skinData: 'data:image/png;base64,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',
@@ -4107,7 +4107,7 @@ const CHARS = {
       { n: 'Spin Dash', d: 'Se hace bola, carga un instante y sale disparado girando: arrolla a todos los que toca en el camino.', k: 'sonSpin', cd: 9, o: { dmg: 5.5 }, r: [3, 14], tags: 'gap gb' },
       { n: 'Ataque Teledirigido', d: 'Salta hacia el rival más cercano convertido en bola y rebota para encadenar hasta tres rivales.', k: 'sonHoming', cd: 10, o: { dmg: 5.5 }, r: [3, 18], tags: 'gap proj' },
       { n: 'Onda Sónica', d: 'Dos tajos de viento azul salen en abanico y cortan todo a su paso.', k: 'sonBoom', cd: 10, o: { dmg: 5 }, r: [2, 24], tags: 'proj' },
-      { n: 'Control del Caos', d: 'Detiene el tiempo: congela a todos los rivales cercanos, aparece junto a cada uno golpeándolos a velocidad de luz y, cuando el tiempo vuelve, todos reciben el golpe de golpe.', k: 'sonChaos', cd: 18, o: {}, r: [0, 12], tags: 'aoe close gb' },
+      { n: 'Control del Caos', d: 'Marca a un rival con un aro y, un instante después, se teletransporta detrás de él para acuchillarlo a la velocidad de la luz. Si te mueves a tiempo, falla: se puede esquivar, bloquear o contraatacar.', k: 'sonChaos', cd: 12, o: {}, r: [0, 14], tags: 'gap close' },
     ],
     ult: { n: 'Súper Mattux', d: 'Se vuelve dorado: más velocidad y habilidades nuevas con el poder del caos.', k: 'serious', o: {}, r: [0, 15] },
     intro: [[0, 'idle', 400], [.45, 'jabR_w', 600], [.65, 'jabR', 900], [1.2, 'idle', 400]],
@@ -8849,21 +8849,30 @@ const MOVES = {
     });
   },
   sonChaos(f, o) {
-    const foes = enemiesOf(f).filter(g => g.alive && dist2d(f, g) < 14), frozen = foes.slice(0, 4); if (!frozen.length) return false;
-    const steps = [];
-    for (let i = 0; i < 7; i++) steps.push({ at: .7 + i * .17, fn: () => {
-      const g = frozen.filter(x => x.alive)[i % Math.max(1, frozen.filter(x => x.alive).length)]; if (!g) return;
-      if (!f.remote) { const ang = rand(0, TAU); f.pos.set(g.pos.x + Math.cos(ang) * 1.5, g.pos.y, g.pos.z + Math.sin(ang) * 1.5); f.vel.set(0, 0, 0); f.yaw = yawTo(f, g); }
-      const c = chestOf(g); ghost(f, '#ffd23f', .5, .25); slashLine(front(f, .2, 1.2), c, '#ffffff', .12, .14); impactStar(c, i % 2 ? '#ffd23f' : '#ffffff', 1.5, .14); sfx('swing', f.pos, .5);
-      applyHit(f, g, { dmg: 2.4, kb: 0, stun: 2, color: '#ffd23f', hitstop: .02, noCounter: true });
+    // Teletransporte del Caos: avisa, aparece detrás del rival y lo acuchilla. Sin congelar: se esquiva, bloquea o contraataca.
+    const tg = findTarget(f, 16) || enemiesOf(f).filter(g => g.alive && dist2d(f, g) < 16).sort((x, y) => dist2d(f, x) - dist2d(f, y))[0]; if (!tg || !tg.alive) return false;
+    const steps = [], near = g => g && g.alive && dist2d(f, g) < 3.4;
+    steps.push({ at: .45, fn: () => { // marca el sitio: el rival aún puede moverse
+      const c = new V3(tg.pos.x, tg.pos.y + .2, tg.pos.z); ringAt(c, '#ffd23f', 3.2, .55); ringAt(c, '#ffffff', 2, .4); sfx('zap', tg.pos, .5);
+    } });
+    steps.push({ at: .95, fn: () => { // salta al rival donde esté ahora (pierde el golpe si ya escapó lejos)
+      if (!tg.alive) return; const d = dist2d(f, tg); ghost(f, '#ffd23f', .5, .3);
+      if (d > 9) { popText(chestOf(f), '¡FALLÓ!', '#ffffff', 16); return; }
+      if (!f.remote) { const back = fwd(tg.yaw); f.pos.set(tg.pos.x - back.x * 1.6, tg.pos.y, tg.pos.z - back.z * 1.6); f.vel.set(0, 0, 0); f.yaw = yawTo(f, tg); }
+      ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffd23f', 5, .35); sfx('dash', f.pos, .7);
+    } });
+    for (let i = 0; i < 3; i++) steps.push({ at: 1.2 + i * .2, fn: () => {
+      if (!near(tg)) return; const c = chestOf(tg); ghost(f, '#ffd23f', .4, .2); slashLine(front(f, .2, 1.2), c, '#ffffff', .12, .14); impactStar(c, i % 2 ? '#ffd23f' : '#ffffff', 1.5, .14); sfx('swing', f.pos, .5);
+      applyHit(f, tg, { dmg: 2.4, kb: 1.5, stun: .12, color: '#ffd23f', hitstop: .02 });
+    } });
+    steps.push({ at: 1.85, fn: () => {
+      if (!near(tg)) return; applyHit(f, tg, { dmg: 6, kb: 15, up: 6, ragdoll: 1, color: '#ffd23f', hitstop: .12, shake: .7 });
+      const c = chestOf(tg); impactStar(c, '#ffffff', 3, .3); ringAt(c, '#ffd23f', 4, .4); sfx('break', f.pos); G.hitstop = Math.max(G.hitstop, .1);
     } });
     startAction(f, {
-      name: 'sonchaos', dur: 2.6, noControl: true, armor: true, speedMul: 0, anim: [[0, 'castUp', 500], [.45, 'charge', 700], [.7, 'dash', 800]],
-      start: () => { f.iframes = Math.max(f.iframes, 2.6); sfx('ult', f.pos); popText(chestOf(f), '¡CONTROL DEL CAOS!', '#ffd23f', 26); ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffd23f', 14, .8); ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffffff', 9, .6); for (const g of frozen) { g.frozen = Math.max(g.frozen, 2.1); burst(chestOf(g), 12, '#ffd23f', 4, .12, .5, 0); } },
-      steps: steps.concat([{ at: 2.0, fn: () => {
-        for (const g of frozen) { if (!g.alive) continue; g.frozen = 0; applyHit(f, g, { dmg: 7, kb: 17, up: 6, ragdoll: 1.2, color: '#ffd23f', hitstop: .14, shake: .8, guardBreak: true, noCounter: true }); const c = chestOf(g); impactStar(c, '#ffffff', 3, .3); ringAt(c, '#ffd23f', 4, .4); }
-        sfx('break', f.pos); G.hitstop = Math.max(G.hitstop, .12);
-      } }]),
+      name: 'sonchaos', dur: 2.3, aim: true, noControl: true, speedMul: 0, anim: [[0, 'castUp', 450], [.5, 'charge', 500], [1.0, 'dash', 900]],
+      steps,
+      start: () => { sfx('ult', f.pos); popText(chestOf(f), '¡CONTROL DEL CAOS!', '#ffd23f', 24); ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffd23f', 8, .6); },
     });
   },
   sonBoost(f, o) {
@@ -16193,7 +16202,7 @@ const SK_TIPS = {
   'mattux.S1': 'Carga un instante y sale disparado: arrolla a todos en línea y rompe guardia.',
   'mattux.S2': 'Busca solo al rival más cercano y rebota hasta tres: genial contra grupos.',
   'mattux.S3': 'Dos tajos en abanico a distancia: sirven para pegar sin acercarte.',
-  'mattux.S4': 'Congela a todos los rivales cercanos y les pega a todos: guardala para cuando estén juntos.',
+  'mattux.S4': 'Marca al rival y se teletransporta detrás de él para acuchillarlo: el aro avisa, así que úsala cuando no pueda moverse o esquivar.',
   'mattux.A1': 'Más largo y más fuerte que el normal: cruza media ciudad.',
   'mattux.A2': 'Atraviesa a todos y cierra con una onda de choque: también sirve para escapar.',
   'mattux.A3': 'Cinco lanzas doradas disparan solas durante 7 s mientras peleás.',
