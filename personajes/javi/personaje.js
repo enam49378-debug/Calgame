@@ -8,16 +8,8 @@
    ============================================================================= */
 (function () {
   const TAU = Math.PI * 2;
-  // Ataques básicos (combo de 5 golpes del clic izquierdo)
-  const ataquesBasicos = [
-  { anim: [[0, 'thrust_w', 900], [.05, 'thrust', 1400], [.16, 'thrustRec', 500]], stab: true, reach: 1.9, r: 1.15 },
-  { anim: [[0, 'sweep_w', 900], [.06, 'sweep', 1400], [.17, 'sweepRec', 500]], arc: { tilt: .12, len: 2.8, r: 2.2, w: .5, dir: 1 }, reach: 1.4, r: 1.6 },
-  { anim: [[0, 'lancerAlt', 900], [.05, 'thrust', 1400], [.16, 'thrustRec', 500]], stab: true, reach: 1.9, r: 1.15 },
-  { anim: [[0, 'overhead', 900], [.09, 'plunge', 1400], [.26, 'javiHero', 450]], arc: { tilt: 1.57, len: 2.2, r: 2.2, w: .6, dir: -1 }, reach: 1.7, r: 1.4, twirl: true },
-  { anim: [[0, 'thrust_w', 900], [.08, 'upthrust', 1400]], arc: { tilt: 1.57, len: 1.6, r: 2.2, dir: 1 }, reach: 1.6, r: 1.3, twirl: true },
-  ];
   CF_PERSONAJES['javi'] = {
-    name: 'Javicubito', title: 'Lancero Cúbico', role: 'LANCERO', color: '#3fa9ff', hp: 92, spd: 1.02, ai: 'melee', stance: 'lancer', weapon: 'spear', m1set: ataquesBasicos, introDraw: .15,
+    name: 'Javicubito', title: 'Lancero Cúbico', role: 'LANCERO', color: '#3fa9ff', hp: 92, spd: 1.02, ai: 'melee', stance: 'lancer', weapon: 'spear', m1set: [] /* ver Ataques basicos/Code/ataques-basicos.js */, introDraw: .15,
     desc: 'Pelea con una lanza de Minecraft que lleva en la espalda y saca al atacar. Golpea de lejos, embiste y arroja una lanza que vuelve sola a su mano.',
     stats: [3, 4, 3, 4, 3],
     skinData: 'personajes/javi/skin.png',

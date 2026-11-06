@@ -3,42 +3,77 @@
 Cada personaje vive en su propia carpeta: `personajes/<id>/`
 
 ```
-personajes/
-  _lista.js          orden en el menú + registro (se carga primero)
-  mattux/
-    personaje.js     estadísticas, habilidades, despertar, ataques básicos, consejos
-    skin.png         su skin (reemplázala por otra del mismo tamaño y listo)
-  gato/ ...
-  _sin_usar/         Kaiza, Nyx, Volt, Brasa, Yuki y Titán (no se cargan, ver su LEEME)
+personajes/<id>/
+  personaje.js              estadisticas, habilidades, despertar, ult, consejos
+  skin.png                  su skin
+  Animation/                animaciones generales (idle, caminar, correr, salto, golpeado...)
+  Sound/                    voces generales (baja, dano, muerte, reposo, menu...)
+  Ataques basicos/
+    Animation/              combo_1 ... combo_4
+    Code/                   ataques-basicos.js  (el combo de 5 golpes del clic izquierdo)
+    Sound/                  golpe_1, golpe_2...
+  Skills/
+    Animation/<Habilidad>/  animaciones de esa habilidad (un .json por animacion)
+    Code/<Habilidad>/       codigo y logica de esa habilidad (.js)
+    Sound/<Habilidad>/      sonidos de esa habilidad
+    Ulti/
+      Animation/            animaciones de la ulti
+      Code/                 codigo de la ulti
+      Sound/                activar_ulti, ulti_lista y la musica ulti.mp3
 ```
 
-## Qué se edita en `personaje.js`
+Cada habilidad (normal o de despertar) tiene su carpeta con su nombre dentro de `Animation`, `Code` y `Sound`.
+`Skills/Animation/_sin_usar/` guarda animaciones que ya no usa ninguna habilidad.
 
-| Campo | Qué es |
+## Como se usa
+
+1. Editas los archivos de la carpeta del personaje.
+2. Abres el juego con `Iniciar_Editor.bat`: el servidor vuelve a juntar todo solo.
+   (Sin servidor: doble clic en `Actualizar_Personajes.bat`.)
+3. Para publicar, sube tambien los archivos generados: `js/animations.js`, `js/personajes.js`, `js/habilidades.js`.
+
+El juego lee esos tres archivos generados (no los edites a mano; los regenera `tools/actualizar_personajes.py`).
+
+## Que va en cada sitio
+
+| Quiero cambiar... | Archivo |
 |---|---|
-| `name`, `title`, `role`, `desc`, `color` | texto y color que salen en el menú |
-| `hp`, `spd`, `dmgMul` | vida, velocidad y multiplicador de daño (equilibrio) |
-| `skills` | las 4 habilidades normales: `cd` recarga, `o.dmg` daño, `r` alcance, `tags` |
-| `awk` | las 4 habilidades que reemplazan a las normales al despertar |
-| `ult` | la habilidad definitiva |
-| `m1set` | combo de 5 golpes del clic izquierdo (animación, alcance, arco) |
-| `consejos` | textos del Libro de habilidades (S1-S4, A1-A4, U) |
-| `skinData` | ruta de la skin (`personajes/<id>/skin.png`) |
+| vida, velocidad, dano, recarga, alcance, texto | `personaje.js` (`hp`, `spd`, `skills[].cd`, `o.dmg`, `r`...) |
+| como funciona una habilidad | `Skills/Code/<Habilidad>/<movimiento>.js` |
+| una animacion | `.json` dentro de `Animation/` (el nombre del archivo es el nombre de la animacion) |
+| los golpes del clic izquierdo | `Ataques basicos/Code/ataques-basicos.js` |
+| una voz o sonido | el `.mp3` en la carpeta `Sound` que corresponda |
 
-El campo `k` de cada habilidad es el nombre del movimiento. Esos movimientos están
-programados en `js/game.js`, dentro del objeto `MOVES`. Para cambiar **cómo funciona**
-una habilidad hay que editar ahí; para cambiar su **daño, recarga o alcance** basta con
-este archivo.
+Si una habilidad usa un movimiento compartido (por ejemplo `rush`, `shoot`, `dashCombo`), su carpeta `Code`
+tiene un aviso `usa-movimiento-compartido.txt`; ese movimiento esta en `js/game.js` dentro de `MOVES`.
+Para darle logica propia crea un `.js` ahi con `CF.mover('nombre', function (f, o) { ... });` y pon ese
+nombre en el campo `k` de la habilidad en `personaje.js`.
 
-## Añadir un personaje nuevo
+## Codigo de habilidades
 
-1. Copia una carpeta (por ejemplo `personajes/mattux`) y cámbiale el nombre.
-2. Dentro de `personaje.js` cambia el id en `CF_PERSONAJES['...']` y los datos.
-3. Añade el id a `CF_ORDEN` en `personajes/_lista.js`.
-4. Añade `<script src="personajes/<id>/personaje.js"></script>` en `index.html`, antes de `js/game.js`.
-5. Si cambias archivos, sube el número `?v=` de los scripts para que el navegador no use la caché.
+Los archivos de `Code` se escriben como si estuvieran dentro de `js/game.js`: puedes usar `startAction`, `applyHit`,
+`hitArea`, `spawnProj`, `fwd`, `V3`, `sfx`... directamente. Si algun dia necesitas una funcion nueva que creaste en
+`game.js`, anade su nombre a la lista del bloque `CF_API` (al final de `game.js`).
 
-## Qué sigue en `js/game.js` (todavía no separado)
+## Animaciones
 
-- Los movimientos de las habilidades (`MOVES`), las cinemáticas (`CHORE`) y las voces/sonidos
-  de cada personaje (`sonidos/<id>/`, `musica/ulti/<id>.mp3`).
+Cada animacion es un `.json` (mismo formato que antes). Si una herramienta antigua (`gen_*_movement.py`, `import_bbs_*.py`)
+escribe en `js/animations.js`, corre `python tools/actualizar_personajes.py --importar` para pasar los cambios a las carpetas.
+
+## Sonidos
+
+El juego busca las voces en estas carpetas (lo decide el nombre del archivo):
+`activar_ulti*`, `ulti_lista*`, `habilidad_ulti*` -> `Skills/Ulti/Sound/` · `golpe*` -> `Ataques basicos/Sound/` · el resto -> `Sound/`.
+La musica de la ulti es `Skills/Ulti/Sound/ulti.mp3`. Las voces de Clippy estan en `jesuluto/Sound/clippy/`.
+Los sonidos por habilidad (`Skills/Sound/<Habilidad>/`) todavia no los usa el juego: las carpetas estan listas.
+
+## Anadir un personaje nuevo
+
+1. Copia una carpeta (por ejemplo `personajes/mattux`) y cambiale el nombre.
+2. En `personaje.js` cambia el id en `CF_PERSONAJES['...']` y los datos.
+3. Anade el id a `CF_ORDEN` en `personajes/_lista.js`.
+4. Si tiene animaciones propias, anade su nombre global en `GLOBAL_OF` de `tools/actualizar_personajes.py`.
+
+## Personajes sin usar
+
+`_sin_usar/` guarda Kaiza, Nyx, Volt, Brasa, Yuki y Titan (ver su LEEME).

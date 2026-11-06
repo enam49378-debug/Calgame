@@ -5,13 +5,14 @@ Sirve el juego en http://127.0.0.1:8767 y deja que los editores (mapa y audio) g
   POST /upload?p=sonidos/javi/x.mp3     sube un audio (mp3/wav/ogg/m4a; si no es mp3 y hay ffmpeg, lo convierte)
   GET  /ls?p=sonidos/javi               lista los archivos de una carpeta de audio
   GET  /ping                            para saber que este servidor está
-Solo escucha en 127.0.0.1 (nadie más de tu red puede escribir) y no sale de config/, sonidos/ y musica/.
+  GET  /js/animations.js                vuelve a juntar personajes/<id>/**/Animation en js/animations.js (tools/actualizar_personajes.py)
+Solo escucha en 127.0.0.1 (nadie más de tu red puede escribir) y no sale de config/, sonidos/, musica/ y personajes/ (en esta última solo audios).
 Uso:  python tools/dev-server.py   (o doble clic en Iniciar_Editor.bat)
 """
 import http.server, json, os, shutil, subprocess, sys, tempfile, urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WRITE_DIRS = {'config': {'.json'}, 'sonidos': {'.mp3', '.wav', '.ogg', '.m4a', '.json'}, 'musica': {'.mp3', '.wav', '.ogg', '.m4a'}}
+WRITE_DIRS = {'config': {'.json'}, 'sonidos': {'.mp3', '.wav', '.ogg', '.m4a', '.json'}, 'musica': {'.mp3', '.wav', '.ogg', '.m4a'}, 'personajes': {'.mp3', '.wav', '.ogg', '.m4a'}}
 MAX = 40 * 1024 * 1024
 
 
@@ -49,6 +50,13 @@ class H(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
+        if u.path == '/js/animations.js':   # las animaciones viven en personajes/<id>/**/Animation: se vuelven a juntar al pedirlas
+            try:
+                import importlib.util
+                sp = importlib.util.spec_from_file_location('actualizar_personajes', os.path.join(ROOT, 'tools', 'actualizar_personajes.py'))
+                mod = importlib.util.module_from_spec(sp); sp.loader.exec_module(mod); mod.main()
+            except Exception as e:
+                sys.stderr.write('  (no se pudieron juntar las animaciones: %s)' % e + chr(10))
         if u.path == '/ping':
             b = b'calfight-dev'; self.send_response(200); self.send_header('Content-Type', 'text/plain'); self.send_header('Content-Length', str(len(b))); self.end_headers(); self.wfile.write(b); return
         if u.path == '/ls':
@@ -111,7 +119,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         u = urllib.parse.urlparse(self.path)
         rel = urllib.parse.parse_qs(u.query).get('p', [''])[0]
         dest = safe(rel, {'.mp3', '.wav', '.ogg', '.m4a'})
-        if u.path == '/del' and dest and os.path.isfile(dest) and rel.replace('\\', '/').startswith('sonidos/'):
+        if u.path == '/del' and dest and os.path.isfile(dest) and rel.replace('\\', '/').startswith(('sonidos/', 'personajes/')):
             os.unlink(dest); self._json(200, {'ok': True}); return
         self._json(400, {'error': 'no se puede borrar eso'})
 

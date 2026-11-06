@@ -1,0 +1,14 @@
+{
+ "lunge": "habilidad_1_embestida",
+ "sthrow": "habilidad_2_lanza_leal",
+ "whirl": "habilidad_3_torbellino",
+ "slam": "habilidad_4_picado_del_dragón",
+ "rain": "ulti_lluvia_de_lanzas",
+ "orbit": "lanzas_orbitales",
+ "draw": "sacar_lanza",
+ "stow": "guardar_lanza",
+ "flourish": "lucimiento",
+ "awaken": "despertar_accion",
+ "chorereach": "alcance_cinematico",
+ "chorethrow": "lanzamiento_cadena"
+}

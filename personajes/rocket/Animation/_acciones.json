@@ -1,0 +1,11 @@
+{
+ "rkWeb": "habilidad_1_tela",
+ "rkZip": "habilidad_2_gancho",
+ "rkBite": "habilidad_3_picadura",
+ "rkTraps": "habilidad_4_trampas",
+ "rkLegStabs": "despertar_patas",
+ "rkWebField": "despertar_red",
+ "rkSwarm": "despertar_enjambre",
+ "awaken": "despertar_accion",
+ "flourish": "lucimiento"
+}

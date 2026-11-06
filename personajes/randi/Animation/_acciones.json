@@ -1,0 +1,12 @@
+{
+ "randiPaloma": "habilidad_1_paloma",
+ "randiCuyes": "habilidad_2_cuyes",
+ "randiNazca": "habilidad_3_nazca",
+ "randiPisco": "habilidad_4_pisco",
+ "randiCondor": "despertar_condor",
+ "randiPerros": "despertar_perros",
+ "randiTinku": "despertar_tinku",
+ "randiSummon": "despertar_patada",
+ "awaken": "despertar_accion",
+ "flourish": "lucimiento"
+}

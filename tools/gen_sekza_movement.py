@@ -17,7 +17,7 @@ y generando las 11 animaciones pedidas:
   8. Dash left   (ráfaga lateral izquierda)
   9. Dash right  (ráfaga lateral derecha)
   10. Dash back  (salto aéreo de corriente ascendente hacia atrás)
-  11. Idle voz 1 (sincronizada al frame con `sonidos/sekza/reposo_1.mp3`: "Ehh... estoy quieto.")
+  11. Idle voz 1 (sincronizada al frame con `personajes/sekza/Sound/reposo_1.mp3`: "Ehh... estoy quieto.")
 
 Además compila las 11 animaciones a `SEK_BB_DATA` en `index.html` (`--apply-html`)
 preservando intactos todos sus combos, habilidades, vuelo (`despertar_vuelo`),

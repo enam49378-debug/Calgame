@@ -6,7 +6,7 @@ Actions & Stuff (cartoon/anime) para:
   - ElRandi    (`randi/reposo_1..6` -> `Idle voz 1..6`)
 
 Sincronizado frame a frame (@ 24fps en Blockbench, @ 60fps en index.html) con
-los picos reales de audio de `sonidos/javi/reposo_*.mp3` y `sonidos/randi/reposo_*.mp3`.
+los picos reales de audio de `personajes/javi/Sound/reposo_*.mp3` y `personajes/randi/Sound/reposo_*.mp3`.
 """
 
 import json

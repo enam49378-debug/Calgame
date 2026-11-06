@@ -1,0 +1,12 @@
+{
+ "sekBoomerang": "habilidad_1_viento",
+ "sekDive": "habilidad_2_picada",
+ "sekParry": "habilidad_3_parry",
+ "counterHit": "habilidad_3_parry_contra",
+ "sekUpdraft": "habilidad_4_corriente",
+ "sekRain": "despertar_lluvia",
+ "sekFlight": "despertar_vuelo",
+ "sekLock": "despertar_mirada",
+ "awaken": "despertar_accion",
+ "flourish": "lucimiento"
+}

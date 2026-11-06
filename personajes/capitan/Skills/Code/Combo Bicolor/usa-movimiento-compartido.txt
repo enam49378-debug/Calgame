@@ -1,0 +1,4 @@
+Esta habilidad usa el movimiento compartido "airCombo" (esta programado en js/game.js, dentro de MOVES).
+Sus numeros (dano, recarga, alcance...) estan en personajes/capitan/personaje.js.
+Si quieres darle logica propia, crea aqui un archivo .js con CF.mover('nombreNuevo', function (f, o) { ... });
+y cambia su k en personaje.js por 'nombreNuevo'.

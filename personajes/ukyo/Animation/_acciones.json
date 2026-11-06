@@ -1,0 +1,13 @@
+{
+ "ukSweep": "habilidad_1_barrido",
+ "ukLunge": "habilidad_2_estocada",
+ "ukKnives": "habilidad_3_cuchillas",
+ "ukFireball": "habilidad_4_bola",
+ "ukSun": "despertar_corte",
+ "ukPhoenix": "despertar_fenix",
+ "ukRing": "despertar_anillo",
+ "awaken": "despertar_accion",
+ "draw": "sacar_espada",
+ "stow": "guardar_espada",
+ "flourish": "lucimiento"
+}

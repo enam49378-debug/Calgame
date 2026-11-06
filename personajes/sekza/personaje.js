@@ -8,16 +8,8 @@
    ============================================================================= */
 (function () {
   const TAU = Math.PI * 2;
-  // Ataques básicos (combo de 5 golpes del clic izquierdo)
-  const ataquesBasicos = [
-  { anim: [[0, 'jabR_w', 900], [.05, 'jabR', 1400], [.15, 'ninja', 500]], arc: { tilt: .35, dir: 1, len: 2.2 }, reach: 1.3, r: 1.3 },
-  { anim: [[0, 'jabL_w', 900], [.05, 'jabL', 1400], [.15, 'ninja', 500]], arc: { tilt: -.35, dir: -1, len: 2.2 }, reach: 1.3, r: 1.3 },
-  { anim: [[0, 'kick_w', 900], [.06, 'kick', 1400], [.16, 'ninja', 500]], arc: { tilt: -.5, dir: 1, len: 2.4, r: 1.9 }, reach: 1.5, r: 1.4 },
-  { anim: [[0, 'kick_w', 900], [.08, 'kickHigh', 1400], [.26, 'ninja', 450]], arc: { tilt: .9, len: 2.8, r: 2.1, w: .6, dir: -1 }, reach: 1.7, r: 1.5 },
-  { anim: [[0, 'upper_w', 900], [.08, 'upper', 1400]], arc: { tilt: 1.57, r: 1.6, len: 2.4 }, reach: 1.5, r: 1.3 },
-  ];
   CF_PERSONAJES['sekza'] = {
-    name: 'Sekza', title: 'Garra del Cielo', role: 'AÉREO', color: '#ffb020', hp: 92, spd: 1.1, ai: 'mid', stance: 'ninja', m1set: ataquesBasicos, wings: true,
+    name: 'Sekza', title: 'Garra del Cielo', role: 'AÉREO', color: '#ffb020', hp: 92, spd: 1.1, ai: 'mid', stance: 'ninja', m1set: [] /* ver Ataques basicos/Code/ataques-basicos.js */, wings: true,
     special: {n:'Especial · Corriente del Cielo',key:'R',d:'R: vuela brevemente con WASD; Espacio sube y C baja. Doble R en la playa: ordena a las gaviotas atacar a rivales cercanos.'},
     desc: 'Pelea como un águila: zarpazos veloces, plumas que persiguen y picadas rasantes. Al despertar le salen alas, planea en el aire y su poder se vuelve una tormenta.',
     stats: [3, 4, 4, 3, 3],

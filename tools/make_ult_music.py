@@ -1,4 +1,4 @@
-"""Genera la música de la ulti de cada personaje (musica/ulti/<id>.mp3, ~20 s): golpe de entrada, tema propio y golpe final.
+"""Genera la música de la ulti de cada personaje (personajes/<id>/Skills/Ulti/Sound/ulti.mp3, ~20 s): golpe de entrada, tema propio y golpe final.
 Uso:  python tools/make_ult_music.py            -> todas (necesita numpy, scipy y ffmpeg)
       python tools/make_ult_music.py javi yuki  -> solo esas
 Cada personaje tiene su receta en SPEC: tempo, tonalidad, escala, acordes, instrumentos y ritmos. Cambiar la semilla (seed) da otra melodía."""
@@ -7,7 +7,8 @@ import numpy as np
 from scipy import signal
 
 SR = 44100
-OUT = pathlib.Path(__file__).resolve().parent.parent / 'musica' / 'ulti'
+ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
+def out_dir(cid): return ROOT_DIR / 'personajes' / cid / 'Skills' / 'Ulti' / 'Sound'
 
 SCALES = {
     'major': [0, 2, 4, 5, 7, 9, 11], 'minor': [0, 2, 3, 5, 7, 8, 10], 'dorian': [0, 2, 3, 5, 7, 9, 10], 'lydian': [0, 2, 4, 6, 7, 9, 11],
@@ -375,11 +376,11 @@ def save(cid, out):
     wav = OUT / (cid + '.wav')
     with wave.open(str(wav), 'wb') as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(out, -1, 1) * 32767).astype('<i2').tobytes())
-    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', str(wav), '-q:a', '5', str(OUT / (cid + '.mp3'))], check=True)
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-i', str(wav), '-q:a', '5', str(OUT / 'ulti.mp3')], check=True)
     wav.unlink()
 
 if __name__ == '__main__':
     ids = sys.argv[1:] or list(SPEC)
     for cid in ids:
         out, d = render(cid, SPEC[cid]); save(cid, out)
-        print('listo: musica/ulti/%s.mp3 (%.1f s)' % (cid, d))
+        print('listo: personajes/%s/Skills/Ulti/Sound/ulti.mp3 (%.1f s)' % (cid, d))

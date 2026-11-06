@@ -3,7 +3,7 @@
 Uso (desde la carpeta del juego):
     python tools/voces.py                      # mira la carpeta sonidos/entrada y arma todo
     python tools/voces.py "C:/ruta/mis audios" # o una carpeta cualquiera
-    python tools/voces.py --solo-actualizar    # no copia nada, solo vuelve a leer sonidos/<personaje>/
+    python tools/voces.py --solo-actualizar    # no copia nada, solo vuelve a leer personajes/<personaje>/Sound
 
 Los audios se nombran como los de Javi:  <Personaje> <Evento> [número]
     Javi Consegir Ult_2.mp3     Rocket al matar.mp3     itsukio idle 1.mp3     Redbird Activar la Ulti.wav
@@ -11,13 +11,30 @@ Para otro personaje solo se cambia el nombre ("Javi" -> "Rocket"). Si no pones n
 Eventos:  Activar la Ulti | Consegir Ulti | al matar | Cuando esta apunto de matar | Al morir | idle | daño | Habilidad Ulti
           Al golpear | Cuando llama las gaviotas | Cuando vuela | Variantes Menu (al elegir el personaje en el selector)
 Si los archivos no llevan el nombre del personaje:  python tools/voces.py "carpeta" --personaje Sekza
-Cada audio se pasa a mp3 en sonidos/<id>/<evento>_<n>.mp3 y se actualiza el bloque VOCES de index.html.
+Cada audio se pasa a mp3 en personajes/<id>/Sound/<evento>_<n>.mp3 (los de la ulti en Skills/Ulti/Sound y los golpes en
+Ataques basicos/Sound) y se actualiza el bloque VOCES de js/game.js.
 """
 import json, os, re, shutil, subprocess, sys, unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HTML = os.path.join(ROOT, 'index.html')
+HTML = os.path.join(ROOT, 'js', 'game.js')   # el bloque VOCES vive en game.js
 SND = os.path.join(ROOT, 'sonidos')
+PERS = os.path.join(ROOT, 'personajes')
+
+
+def sound_dirs(cid):
+    """carpetas de audio de un personaje (las mismas que usa charSoundDirs en game.js)"""
+    if cid == 'clippy':
+        return [os.path.join(PERS, 'jesuluto', 'Sound', 'clippy')]
+    b = os.path.join(PERS, cid)
+    return [os.path.join(b, 'Sound'), os.path.join(b, 'Ataques basicos', 'Sound'), os.path.join(b, 'Skills', 'Ulti', 'Sound')]
+
+
+def sound_dir_for(cid, ev):
+    d = sound_dirs(cid)
+    if len(d) == 1: return d[0]
+    return d[2] if re.match(r'^(activar_ulti|ulti_lista|habilidad_ulti)', ev) else d[1] if ev.startswith('golpe') else d[0]
+
 
 # nombre escrito en el archivo -> id del personaje en el juego
 CHARS = {'javi': 'javi', 'javicubito': 'javi', 'redbird': 'redbird', 'sobrecargador': 'redbird', 'gato': 'gato', 'elgatopro300': 'gato', 'elgatopro': 'gato', 'gatopro': 'gato',
@@ -98,8 +115,8 @@ def ingest(folder, default=None):
         c = classify(fn, default)
         if not c: print('  ? no entendí el nombre:', fn); continue
         cid, ev, num = c
-        dest = os.path.join(SND, cid); os.makedirs(dest, exist_ok=True)
-        used = {int(m.group(1)) for f in os.listdir(dest) for m in [re.fullmatch(re.escape(ev) + r'_(\d+)\.mp3', f)] if m}
+        dest = sound_dir_for(cid, ev); os.makedirs(dest, exist_ok=True)
+        used = {int(m.group(1)) for dd in sound_dirs(cid) if os.path.isdir(dd) for f in os.listdir(dd) for m in [re.fullmatch(re.escape(ev) + r'_(\d+)\.mp3', f)] if m}
         if num is None or num in used:
             num = 1
             while num in used: num += 1
@@ -112,15 +129,16 @@ def ingest(folder, default=None):
 
 def scan():
     packs, durs = {}, {}
-    for cid in sorted(os.listdir(SND)):
-        d = os.path.join(SND, cid)
-        if not os.path.isdir(d) or cid in ('clippy', 'entrada'): continue
-        for f in sorted(os.listdir(d)):
-            m = re.fullmatch(r'([a-z_]+?)_?(\d*)\.mp3', f)
-            if not m or (m.group(1) not in set(EVENTS.values()) and not m.group(1).startswith(DYNAMIC)): continue
-            packs.setdefault(cid, {}).setdefault(m.group(1), []).append(f[:-4])
-            dur = duration(os.path.join(d, f))
-            if dur: durs[cid + '/' + f[:-4]] = dur
+    for cid in sorted(os.listdir(PERS)):
+        if cid.startswith('_') or not os.path.isdir(os.path.join(PERS, cid)): continue
+        for d in sound_dirs(cid):
+            if not os.path.isdir(d): continue
+            for f in sorted(os.listdir(d)):
+                m = re.fullmatch(r'([a-z_]+?)_?(\d*)\.mp3', f)
+                if not m or (m.group(1) not in set(EVENTS.values()) and not m.group(1).startswith(DYNAMIC)): continue
+                packs.setdefault(cid, {}).setdefault(m.group(1), []).append(f[:-4])
+                dur = duration(os.path.join(d, f))
+                if dur: durs[cid + '/' + f[:-4]] = dur
     # el juego usa nombres de evento en inglés interno
     ev = {'golpe': 'hit', 'gaviotas': 'gulls', 'vuelo': 'fly', 'menu': 'menu', 'muerte': 'death', 'ulti_lista': 'ready', 'casi_baja': 'near', 'baja': 'kill', 'reposo': 'idle', 'activar_ulti': 'activate', 'dano': 'hurt', 'habilidad_ulti': 'skill'}
     return {c: {ev.get(k, k): sorted(v, key=lambda x: int((re.search(r'(\d+)$', x) or [0, 0])[1])) for k, v in e.items()} for c, e in packs.items()}, durs

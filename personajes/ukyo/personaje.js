@@ -8,16 +8,8 @@
    ============================================================================= */
 (function () {
   const TAU = Math.PI * 2;
-  // Ataques básicos (combo de 5 golpes del clic izquierdo)
-  const ataquesBasicos = [
-  { anim: [[0, 'scepterW', 900], [.06, 'sweep', 1400], [.17, 'sweepRec', 500]], arc: { tilt: .5, len: 2.6, r: 2.1, w: .45, dir: 1 }, reach: 1.6, r: 1.5 },
-  { anim: [[0, 'sweep', 900], [.06, 'sweep_w', 1400], [.17, 'sweepRec', 500]], arc: { tilt: -.4, len: 2.6, r: 2.1, w: .45, dir: -1 }, reach: 1.6, r: 1.5 },
-  { anim: [[0, 'thrust_w', 900], [.06, 'thrust', 1400], [.16, 'thrustRec', 500]], stab: true, reach: 1.95, r: 1.15 },
-  { anim: [[0, 'scepterW', 900], [.09, 'scepterSmash', 1400], [.26, 'gatoHero', 450]], arc: { tilt: 1.4, len: 2.4, r: 2.2, w: .7, dir: -1 }, reach: 1.7, r: 1.6 },
-  { anim: [[0, 'thrust_w', 900], [.08, 'upthrust', 1400]], arc: { tilt: 1.57, len: 1.6, r: 2.2 }, reach: 1.6, r: 1.3 },
-  ];
   CF_PERSONAJES['ukyo'] = {
-    name: 'ItzUkyo', title: 'Espada Carmesí', role: 'ESPADACHÍN', color: '#e0263a', hp: 100, spd: 1.04, ai: 'melee', stance: 'idle', weapon: 'sword', m1set: ataquesBasicos, introDraw: .2, fireSword: true,
+    name: 'ItzUkyo', title: 'Espada Carmesí', role: 'ESPADACHÍN', color: '#e0263a', hp: 100, spd: 1.04, ai: 'melee', stance: 'idle', weapon: 'sword', m1set: [] /* ver Ataques basicos/Code/ataques-basicos.js */, introDraw: .2, fireSword: true,
     desc: 'Espadachín de fuego: barre el piso con la hoja, atraviesa a los rivales de una estocada, lanza cuchillas que vuelven solas y escupe bolas de fuego que dejan el suelo ardiendo. Al despertar su espada se envuelve en llamas.',
     stats: [3, 4, 4, 3, 3],
     skin: { skin: '#ffcdc5', hair: '#2e0300', eye: '#e0263a', shirt: '#16142b', pants: '#2b2d3b', shoes: '#150100', sleeve: 12 },

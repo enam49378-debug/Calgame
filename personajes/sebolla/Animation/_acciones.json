@@ -1,0 +1,13 @@
+{
+ "sebBrawlA": "habilidad_1_paliza",
+ "sebBallA": "habilidad_2_pelota",
+ "sebSandA": "habilidad_3_sandwich",
+ "sebParry": "habilidad_4_parry",
+ "sebCounter": "habilidad_4_parry_contra",
+ "sebMount": "despertar_montura",
+ "sebBuffer": "despertar_buffering",
+ "sebGlitch": "despertar_glitch",
+ "sebSee": "despertar_observado",
+ "awaken": "despertar_accion",
+ "flourish": "lucimiento"
+}
