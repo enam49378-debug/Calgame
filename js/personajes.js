@@ -38,7 +38,7 @@ window.CF_ORDEN = ["javi", "redbird", "gato", "sekza", "rocket", "ukyo", "mattux
     flourish: { dur: 1.1, anim: [[0, 'twirlPose', 600], [.45, 'lancerAlt', 700], [.85, 'lancer', 400]], twirl: [2, .45], needWeapon: true },
     // Habilidades que reemplazan a las normales al despertar (ulti)
     awk: [
-    { n: 'Parry del Dragón', d: 'Cruza la lanza y espera el golpe 1.6 s: si lo golpean, lo desvía y se desata un duelo de lanza (el rival intenta frenar la punta con las manos, forcejean, giran, saltan) que termina con un lanzamiento.', k: 'javiParry', cd: 14, o: { window: 1.6 }, r: [0, 4], tags: 'counter close gb' },
+    { n: 'Parry del Dragón', d: 'Cruza la lanza en guardia diagonal durante 1.6 s: si lo golpean, desvía el ataque y desata un contraataque anime (ráfaga relámpago de estocadas, paso fantasma a la espalda, ascenso del dragón y picado celestial).', k: 'javiParry', cd: 14, o: { window: 1.6 }, r: [0, 4], tags: 'counter close gb' },
     { n: 'Embestida Relámpago', d: 'Choque de lanza: lo atraviesa tres veces como un rayo y cae del cielo sobre él.', k: 'chore', cd: 12, o: { id: 'javiDash' }, r: [0, 6], tags: 'gap gb', cine: 1 },
     { n: 'Cadena de Lanza', d: 'Engancha al rival de lejos, salta por encima y lo ensarta por la espalda.', k: 'chore', cd: 12, o: { id: 'javiChain' }, r: [4, 20], tags: 'proj gap', cine: 1 },
     { n: 'Empalamiento', d: 'Lo agarra de la cabeza, lo derriba, lo inmoviliza con el pie y remata con una estaca.', k: 'chore', cd: 14, o: { id: 'javiImpale' }, r: [0, 3.5], tags: 'close gb', cine: 1 },
@@ -49,7 +49,7 @@ window.CF_ORDEN = ["javi", "redbird", "gato", "sekza", "rocket", "ukyo", "mattux
       'S2': 'Apuntá con la cámara (mejor con Shift lock). Si mata, la lanza queda clavada y peleás a puño limpio hasta recuperarla: no la tires si el rival está casi muerto y lejos.',
       'S3': 'Metete en medio de varios rivales: los atrae con cortes y al final los expulsa. Combina muy bien después de la Embestida.',
       'S4': 'Salta y busca solo al rival: buena para caer sobre un grupo o seguir a alguien que lanzaste por el aire.',
-      'A1': 'Cruza la lanza y espera: si alguien te golpea durante 1,6 s, se desata el duelo (la escena dura ~9 s). Si nadie te golpea, no pasa nada.',
+      'A1': 'Cruza la lanza y espera: si alguien te golpea durante 1,6 s, desvías el golpe y desatás un contraataque anime devastador (~4,5 s). Si nadie te golpea, no pasa nada.',
       'A2': 'Cinemática: si conecta, el rival no puede hacer nada hasta el final. Usala de cerca (hasta 6 bloques).',
       'A3': 'La única cinemática que agarra de lejos (4 a 20 bloques): perfecta para traer a alguien que se escapa.',
       'A4': 'La más larga y la que más daño hace: guardala para terminar la pelea. Necesitás estar pegado al rival.',
