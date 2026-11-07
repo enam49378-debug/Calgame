@@ -87,11 +87,12 @@
     const cubes = geo.userData.cubes;
     if (!cubes || !geo.index) return;
     mesh.updateMatrixWorld(true);
-    mesh.userData.idx0 = geo.index.array.slice();
+    mesh.userData.idx0 = geo.userData.idx0 || (geo.userData.idx0 = geo.index.array.slice());
     const L = window.DESTR || (window.DESTR = []);
     const M = mesh.matrixWorld;
     const v = new THREE.Vector3();
     const isBldg = !!(mesh.userData && mesh.userData.isBuilding);
+    let bmnx = 1e9, bmny = 1e9, bmnz = 1e9, bmxx = -1e9, bmxy = -1e9, bmxz = -1e9;
 
     for (const c of cubes) {
       const a = c.a;
@@ -108,6 +109,8 @@
       const w = mxx - mnx, h = mxy - mny, d = mxz - mnz;
       const vol = w * h * d;
       if (vol > 7000 || Math.max(w, h, d) < .08 || mxy < -.6) continue;
+      bmnx = Math.min(bmnx, mnx); bmny = Math.min(bmny, mny); bmnz = Math.min(bmnz, mnz);
+      bmxx = Math.max(bmxx, mxx); bmxy = Math.max(bmxy, mxy); bmxz = Math.max(bmxz, mxz);
 
       // Para edificios: el cuerpo estructural gigante (cubo_1) y el tejado NO se rompen completos,
       // pero todas las ventanas, maceteros, marcos, puertas y adornos SÍ se registran para romperse visiblemente.
@@ -122,6 +125,7 @@
         isCoreBody
       });
     }
+    if (bmnx <= bmxx) mesh.userData.wbox = [bmnx, bmny, bmnz, bmxx, bmxy, bmxz];
   }
 
   const BBF = {
@@ -335,7 +339,7 @@
       DEST_GEO = DEST_GEO || new THREE.BoxGeometry(1, 1, 1);
       DEB_MAT = DEB_MAT || new THREE.MeshLambertMaterial({ color: 0xffffff });
       const mesh = new THREE.InstancedMesh(DEST_GEO, d.bb ? DEB_MAT : d.m.material, keep.length);
-      mesh.receiveShadow = true; mesh.castShadow = true;
+      mesh.receiveShadow = true; mesh.castShadow = false;
       if (d.bb) {
         mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(keep.length * 3), 3);
       }
@@ -432,7 +436,12 @@
     for (let k = 0; k < L.length; k++) {
       const d = L[k];
       if (d.off || d.dead) continue;
+      if (d.bb && d.bb.mesh && d.bb.mesh.userData.wbox) {
+        const wb = d.bb.mesh.userData.wbox;
+        if (c.x + r < wb[0] || c.x - r > wb[3] || c.z + r < wb[2] || c.z - r > wb[5] || c.y + r < wb[1] || c.y - r > wb[4]) continue;
+      }
       const q = d.p;
+      if (Math.abs(c.x - q[0]) > r + q[3] * 0.5 || Math.abs(c.z - q[2]) > r + q[5] * 0.5) continue;
 
       // FILTRO DE ALTURA ESTRICTO PARA EDIFICIOS:
       // Si el elemento está en un piso superior o en el tejado, JAMÁS se toca.

@@ -116,7 +116,12 @@ LOADER.init();
 // ================= Renderer y escenas =================
 const WEAK_PC = (navigator.hardwareConcurrency || 8) <= 2 || (navigator.deviceMemory || 8) <= 2, LOW_PC = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;   // equipo modesto: sin antialias y arranca con menos efectos
 let PERF_FX = 1, PERF_DEST = 1;   // multiplicadores de partículas y de destrucción según la calidad
-const renderer = new THREE.WebGLRenderer({ antialias: !WEAK_PC, powerPreference: 'high-performance', desynchronized: true });
+const renderer = (() => {
+  try { return new THREE.WebGLRenderer({ antialias: !WEAK_PC && !LOW_PC, powerPreference: 'high-performance' }); }
+  catch (e) { return new THREE.WebGLRenderer({ antialias: false }); }
+})();
+renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); if (typeof GFX !== 'undefined') { GFX.post = false; if (GFX.level < 3 && typeof gfxSet === 'function') gfxSet(3, GFX.auto, false); } }, false);
+renderer.domElement.addEventListener('webglcontextrestored', () => { try { if (typeof gfxApply === 'function') gfxApply(false); } catch (e) {} }, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.92;
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.0));
@@ -326,7 +331,7 @@ const MAPED = (() => {
     let txt = null, dev = /^(localhost|127\.|\[::1\])/.test(location.hostname);
     try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); if (d && Date.now() - d.t < 30 * 864e5) dev = true; } catch (e) { }
     if (dev) { try { txt = localStorage.getItem('bsb_mapedit'); } catch (e) { } }
-    if (!txt) { const x = new XMLHttpRequest(); x.open('GET', 'config/mapa.json?v=' + Date.now(), false); x.send(); if (x.status === 200) txt = x.responseText; }
+    if (!txt && dev) { const x = new XMLHttpRequest(); x.open('GET', 'config/mapa.json?v=' + Date.now(), false); x.send(); if (x.status === 200) txt = x.responseText; }
     const j = txt && JSON.parse(txt);
     if (j && j.v === 1) {
       for (const k in (j.mv || {})) if (typeof k === 'string' && k.length < 120) E.mv[k] = { x: num(j.mv[k].x), z: num(j.mv[k].z), ry: num(j.mv[k].ry) };
@@ -751,7 +756,7 @@ function cityGrassAt(x,z) {
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),new THREE.MeshLambertMaterial({color:b.color}));mesh.position.set(b.x,b.h/2,b.z);scene.add(mesh);
     }));
   }
-  Promise.all(bbLoads).then(()=>{sharpenTextures();setTimeout(sharpenTextures,2500);CITY.modelsReady=true;if(typeof rebuildCityNav==='function')rebuildCityNav();});
+  Promise.all(bbLoads).then(()=>{sharpenTextures();CITY.modelsReady=true;if(typeof rebuildCityNav==='function')rebuildCityNav();});
   // Torre Aurora: el edificio más alto, con ascensor en el vestíbulo que lleva a la azotea y un pararrayos
   {
     const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA'),face=T.z<0?1:-1,rx=T.x,rz=T.z;
@@ -918,7 +923,11 @@ function cityGrassAt(x,z) {
   addP('rocas_a',-78,SHORE(-78)-2,.5);addP('rocas_b',78,SHORE(78)-2,2.1);addP('faro',86,SHORE(86)-5,0);
   for(const a of MAPED.add)if(a.kind==='p'&&a.model){MAP_ITEMS.push({key:a.id,kind:'p',model:a.model,label:'',ox:a.x,oz:a.z,ory:a.ry,x:a.x,z:a.z,ry:a.ry,added:true,from:a.from});PR.push({m:a.model,x:a.x,z:a.z,ry:a.ry});}
   for(const pr of PR)bbLoads.push(loadBBModel(pr.m).then(({geo,mat})=>{
-    const pGeo = geo.clone();
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.attributes = geo.attributes;
+    if (geo.index) pGeo.setIndex(geo.index.clone());
+    pGeo.boundingBox = geo.boundingBox;
+    pGeo.boundingSphere = geo.boundingSphere;
     pGeo.userData = Object.assign({}, geo.userData);
     const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;
     mesh.userData.model = pr.m;
@@ -1015,15 +1024,17 @@ function cityGrassAt(x,z) {
   for (let i = 0; i < 9000; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * (ARENA - 1), x = Math.cos(a) * r, z = Math.sin(a) * r; if (!cityGrassAt(x,z) || COL.some(c => Math.abs(x - c.x) < c.hx + .3 && Math.abs(z - c.z) < c.hz + .3)) continue; (Math.random() < .1 ? flowers : tufts).push([x, z]); }
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new V3(), Pp = new V3(), E = new THREE.Euler();
   const tm = new THREE.InstancedMesh(new THREE.BoxGeometry(.045, 1, .045), new THREE.MeshLambertMaterial({ color: 0xffffff }), tufts.length);
+  tm.frustumCulled = false; tm.matrixAutoUpdate = false;
   tufts.forEach(([x, z], i) => { const h = rand(.1, .28); E.set(rand(-.3, .3), rand(0, TAU), rand(-.3, .3)); Q.setFromEuler(E); M.compose(Pp.set(x, h / 2, z), Q, S.set(1, h, 1)); tm.setMatrixAt(i, M); tm.setColorAt(i, _c.setHSL(rand(.24, .32), rand(.4, .6), rand(.32, .46))); });
-  scene.add(tm);
+  scene.add(tm); CITY.grassMesh = tm; CITY.grassMax = tufts.length;
   const fm = new THREE.InstancedMesh(new THREE.BoxGeometry(.14, .14, .14), new THREE.MeshLambertMaterial({ color: 0xffffff }), flowers.length * 2);
+  fm.frustumCulled = false; fm.matrixAutoUpdate = false;
   flowers.forEach(([x, z], i) => {
     const h = rand(.25, .4), col = ['#ff4d6d', '#ffd54f', '#ffffff', '#b388ff', '#4fc3f7'][i % 5];
     M.compose(Pp.set(x, h / 2, z), Q.identity(), S.set(.35, h / .14, .35)); fm.setMatrixAt(i * 2, M); fm.setColorAt(i * 2, _c.set('#3e8f2c'));
     M.compose(Pp.set(x, h + .05, z), Q.setFromEuler(E.set(0, rand(0, TAU), 0)), S.set(1, 1, 1)); fm.setMatrixAt(i * 2 + 1, M); fm.setColorAt(i * 2 + 1, _c.set(col));
   });
-  scene.add(fm);
+  scene.add(fm); CITY.flowerMesh = fm; CITY.flowerMax = flowers.length * 2;
 }
 // ================= Atmósfera de Ciudad Aurora =================
 // Efectos visuales independientes de la física y del daño. Un único lote por efecto de lluvia.
@@ -4349,7 +4360,7 @@ const AUDIO_CFG = (() => {
     let txt = null, dev = /^(localhost|127\.|\[::1\])/.test(location.hostname);
     try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); if (d && Date.now() - d.t < 30 * 864e5) dev = true; } catch (e) { }
     if (dev) { try { txt = localStorage.getItem('bsb_audiocfg'); } catch (e) { } }
-    if (!txt) { const x = new XMLHttpRequest(); x.open('GET', 'config/audio.json?v=' + Date.now(), false); x.send(); if (x.status === 200) txt = x.responseText; }
+    if (!txt && dev) { const x = new XMLHttpRequest(); x.open('GET', 'config/audio.json?v=' + Date.now(), false); x.send(); if (x.status === 200) txt = x.responseText; }
     const j = txt && JSON.parse(txt);
     if (j && j.v === 1) {
       const num = (v, a, b, d) => (Number.isFinite(+v) && v !== null && v !== '' ? Math.min(b, Math.max(a, +v)) : d), path = s => typeof s === 'string' && /^[a-z0-9_\-\/\.]{1,120}$/i.test(s) && !s.includes('..') && /^(sonidos|musica)\//.test(s);
@@ -4445,6 +4456,7 @@ function playCharacterClip(f,key,priority){
       h.source=AC.createBufferSource();h.source.buffer=SND.buf[key];h.gain=AC.createGain();h.gain.gain.value=volume;
       h.source.connect(h.gain);h.pan=connectSpatial(h.gain,'voices',f.isPlayer?null:f.pos);h.source.onended=finish;h.source.start();
     }else{
+      lazyLoadVoice(key);
       h.el=new Audio(voiceRel(key));h.htmlRecord=trackHtmlAudio(h.el,volume*.5,'voices');h.el.addEventListener('ended',finish,{once:true});h.el.addEventListener('error',finish,{once:true});playTrackedAudio(h.htmlRecord).then(ok=>{if(!ok)finish();});
     }
   }catch(error){finish();reportFrameError('voz:javi',error);return null;}
@@ -4860,7 +4872,16 @@ addEventListener('keydown',e=>{if(e.code==='KeyM'&&!e.repeat&&!['INPUT','SELECT'
 // se reproducen con elementos <audio> (solo volumen).
 const SND_LIST = ['city', 'birds', 'breeze', 'wind_strong', 'night', 'rain', 'thunder1', 'thunder2', 'cafe', 'clink1', 'clink2', 'sizzle', 'market', 'cash', 'arcade', 'library', 'page',
   'workshop', 'drill', 'hammer', 'mall', 'fountain', 'chime', 'lobby', 'elev_ride', 'door_close', 'door_open', 'waves', 'gull1', 'gull2', 'vhit', 'vland', 'whistle', 'applause', 'randi_voz1', 'randi_voz2', 'randi_waaa', ...CHARACTER_VOICE_FILES];
-const SND = {buf:{},state:'idle',base:'sonidos/',ambientReady:false,missing:new Set()};
+const SND = {buf:{},state:'idle',base:'sonidos/',ambientReady:false,missing:new Set(),loading:new Set(),voiceQueue:[]};
+function lazyLoadVoice(name){
+  if(!AC||location.protocol==='file:'||SND.buf[name]||SND.missing.has(name)||SND.loading.has(name))return;
+  SND.loading.add(name);
+  fetch(sndUrl(name)).then(r=>{if(r.status===404)SND.missing.add(name);if(!r.ok)throw 0;return r.arrayBuffer();})
+    .then(ab=>AC.decodeAudioData(ab)).then(buf=>{
+      SND.buf[name]=buf;SND.voiceQueue.push(name);
+      while(SND.voiceQueue.length>24){const old=SND.voiceQueue.shift();if(old&&old!==name)delete SND.buf[old];}
+    }).catch(()=>{}).finally(()=>SND.loading.delete(name));
+}
 async function preloadSounds(names){
   let next=0;
   const context=AC;
@@ -4874,7 +4895,7 @@ async function preloadSounds(names){
       }catch(e){/* Se prueba el reproductor HTML cuando se necesita el archivo. */}
     }
   }
-  await Promise.all(Array.from({length:Math.min(5,names.length)},worker));
+  await Promise.all(Array.from({length:Math.min(2,names.length)},worker));
 }
 function loadSounds(){
   if(SND.state!=='idle'||!AC)return;
@@ -4884,7 +4905,6 @@ function loadSounds(){
   (async()=>{
     await preloadSounds(SND_LIST.filter(name=>!voices.has(name)));
     SND.ambientReady=true;
-    await preloadSounds(SND_LIST.filter(name=>voices.has(name)));
     SND.state=Object.keys(SND.buf).length?'ready':'fallback';
   })();
 }
@@ -7830,6 +7850,19 @@ function cityCull() {
     const c = mesh.userData.cull; CULL.sp.center.copy(c.center); CULL.sp.radius = c.radius + 40;
     mesh.visible = cp.distanceToSquared(c.center)<(c.radius+range)**2 && (CULL.fr.intersectsSphere(CULL.sp) || cp.distanceToSquared(c.center) < (c.radius + 45) ** 2);
   }
+  if (window.BBM && !(typeof ME !== 'undefined' && ME.open)) {
+    const shDistSq = GFX.level === 0 ? 75 * 75 : (GFX.level === 1 ? 48 * 48 : 0);
+    const propRangeSq = (range * 0.72) ** 2;
+    const bldgRangeSq = (range + 35) ** 2;
+    for (let i = 0; i < window.BBM.length; i++) {
+      const m = window.BBM[i];
+      if (!m || (m.userData.mapItem && m.userData.mapItem.del)) continue;
+      const dx = cp.x - m.position.x, dz = cp.z - m.position.z, dSq = dx * dx + dz * dz;
+      const maxSq = m.userData.isProp ? propRangeSq : bldgRangeSq;
+      m.visible = dSq < maxSq;
+      m.castShadow = m.visible && shDistSq > 0 && dSq < shDistSq;
+    }
+  }
   if (SEA.root) SEA.root.visible = cp.z > 60 || cp.y > 12 && cp.z > 30;
 }
 // ---- fondo marino, corales, algas, naufragios, peces y boyas (determinista: igual para todos)
@@ -8578,11 +8611,9 @@ let composer = null, renderPass = null, bloomPass = null, caPass = null, gradePa
 function initPostProcessing(){if(composer)return;
 try {
   if (THREE.EffectComposer && THREE.RenderPass && THREE.UnrealBloomPass) {
-    let rt = null;
-    try { if (renderer.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget) { const pr = renderer.getPixelRatio(); rt = new THREE.WebGLMultisampleRenderTarget(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr), { format: THREE.RGBAFormat }); rt.samples = 0; } } catch (e) { rt = null; }
-    composer = rt ? new THREE.EffectComposer(renderer, rt) : new THREE.EffectComposer(renderer);
+    composer = new THREE.EffectComposer(renderer);
     renderPass = new THREE.RenderPass(scene, camera);
-    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.floor(innerWidth / 2), Math.floor(innerHeight / 2)), .14, .20, .94);
+    bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(Math.min(512, Math.floor(innerWidth / 2)), Math.min(512, Math.floor(innerHeight / 2))), .14, .20, .94);
     composer.addPass(renderPass); composer.addPass(bloomPass);
     if (THREE.ShaderPass) {
       caPass = new THREE.ShaderPass({
@@ -8793,15 +8824,17 @@ function gfxSet(level, auto, save = true) {
   gfxApplyPreset(level, auto, save);
 }
 
-const gfxAutoLevel = () => GFX.soft ? 4 : TOUCH.enabled ? 3 : WEAK_PC ? 3 : LOW_PC ? 2 : 0;
+const gfxAutoLevel = () => GFX.soft ? 4 : TOUCH.enabled ? 3 : WEAK_PC ? 3 : (LOW_PC || GFX.integrated) ? 2 : 0;
 
 function gfxInit() {
   let savedCfg = null, savedV3 = null;
   try { savedCfg = JSON.parse(localStorage.getItem('bsb_gfx_cfg_v2') || 'null'); } catch (e) {}
   try { savedV3 = JSON.parse(localStorage.getItem('bsb_gfx_v3') || 'null'); } catch (e) {}
   try {
-    const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'), name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
-    GFX.soft = /swiftshader|llvmpipe|software|basic render|softpipe/i.test(name); GFX.gpu = name;
+    const gl = renderer.getContext(), ext = gl && gl.getExtension('WEBGL_debug_renderer_info'), name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+    GFX.soft = /swiftshader|llvmpipe|software|basic render|softpipe/i.test(name);
+    GFX.integrated = /intel.*(hd|uhd|iris)|radeon.*graphics|vega|mali|adreno|powervr|apple gpu|angle.*intel/i.test(name);
+    GFX.gpu = name;
   } catch (e) {}
   if (savedCfg && typeof savedCfg === 'object') {
     Object.assign(GFX_CFG, savedCfg);
@@ -8867,15 +8900,21 @@ function gfxInit() {
 // llamado cada cuadro con el tiempo real: si durante 3 s seguidos va por debajo de ~42 FPS, baja un nivel
 // Auto reduce calidad después de varias mediciones malas; nunca cambia la física ni la frecuencia de red.
 function gfxWatch(rawDt){
-  if(document.hidden||rawDt<=0||rawDt>.5||G.state!=='play'||G.paused||G.cine||G.viewer||roomInputBlocked()){GFX.acc=GFX.frames=GFX.bad=0;return;}
+  if(document.hidden||rawDt<=0||rawDt>.5||!['play','title','menu'].includes(G.state)||G.paused||G.cine||G.viewer||roomInputBlocked()){GFX.acc=GFX.frames=GFX.bad=0;return;}
   GFX.acc+=rawDt;GFX.frames++;GFX.cool=Math.max(0,GFX.cool-rawDt);if(GFX.acc<1)return;
   const elapsed=GFX.acc;GFX.fps=GFX.frames/elapsed;GFX.acc=GFX.frames=0;
   if(!GFX.auto)return;
-  GFX.bad=GFX.fps<42?GFX.bad+elapsed:Math.max(0,GFX.bad-elapsed*2);
-  if(GFX.bad>=3&&GFX.cool===0&&GFX.level<4){const next=GFX.level+1;GFX.best=Math.max(GFX.best,next);gfxSet(next,true);GFX.bad=0;GFX.cool=10;}
+  const weight=GFX.fps<25?elapsed*2:GFX.fps<42?elapsed:0;
+  GFX.bad=weight>0?GFX.bad+weight:Math.max(0,GFX.bad-elapsed*2);
+  if(GFX.bad>=2.2&&GFX.cool===0&&GFX.level<4){const next=Math.min(4,GFX.level+(GFX.fps<22?2:1));GFX.best=Math.max(GFX.best,next);gfxSet(next,true);GFX.bad=0;GFX.cool=6;}
 }
 const PERF_FRAME={sea:0,far:0,plate:0,frame:0};
-function performanceDecorations(){document.body.classList.toggle('lite-profiles',GFX.level>=2);}
+function performanceDecorations(){
+  document.body.classList.toggle('lite-profiles',GFX.level>=2);
+  const gMul = [1, 0.6, 0.25, 0, 0][GFX.level] ?? 0;
+  if (CITY.grassMesh) { CITY.grassMesh.visible = gMul > 0; CITY.grassMesh.count = Math.floor((CITY.grassMax || 0) * gMul); }
+  if (CITY.flowerMesh) { CITY.flowerMesh.visible = gMul > 0; CITY.flowerMesh.count = Math.floor((CITY.flowerMax || 0) * gMul); }
+}
 
 function renderView(sc,cm){
   if(!composer||!GFX.post){renderer.render(sc,cm);return;}
@@ -14419,7 +14458,7 @@ function titleStart(force) {
   if (!CHARS[G.charId]) G.charId = 'javi';
   let idx = 0; try { idx = (parseInt(localStorage.getItem('bsb_title_idx') || '-1') + 1) % 2; localStorage.setItem('bsb_title_idx', String(idx)); } catch (e) { }
   TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; TITLE.nextSek = 7; TITLE.boomShake = 0; G.state = 'title';
-  $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(GFX.post?innerWidth:16, GFX.post?innerHeight:16); }   // el inicio siempre a máxima nitidez
+  $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(GFX.post?innerWidth:16, GFX.post?innerHeight:16); }
    $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
   TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode }; if (bloomPass) { TITLE.bloom = bloomPass.enabled; bloomPass.enabled = false; }   // sin bloom en el inicio: difuminaba las siluetas
   WX.mode = 'clear'; WX.hour = 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado

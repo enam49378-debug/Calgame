@@ -13,7 +13,7 @@
   let DEST_GEO = null;
 
   // Colección de partículas físicas de escombros
-  const DEB = { m: null, a: [], max: 3500 };
+  const DEB = { m: null, a: [], max: 1200 };
 
   // Spawnea un bloque de escombro con masa y física 3D propia
   function spawnDebris(x, y, z, sx, sy, sz, col, vx, vy, vz) {
@@ -25,7 +25,7 @@
       DEB.m.count = 0;
       DEB.m.visible = false;
       DEB.m.frustumCulled = false;
-      DEB.m.castShadow = true;
+      DEB.m.castShadow = false;
       DEB.m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEB.max * 3), 3);
       scene.add(DEB.m);
     }
