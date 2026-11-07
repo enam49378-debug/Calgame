@@ -12,7 +12,7 @@ Cómo lo adapta al motor del juego:
   - transform del cuerpo (espacio de la entidad, frente = +Z): el giro en X se suma a `ix` SIN invertir el signo (+ = hacia adelante) y la altura (bloques) se suma a `by` (×16 = píxeles).
     El avance hacia adelante (z) NO va en el clip: el juego mueve al luchador de verdad. Se imprime como "RECORRIDO" para copiarlo en el movimiento.
   - salida: {"length","loop","contacts","channels","samples":[[t, canal...]]} a 60 cuadros por segundo, el mismo formato de personajes/<id>/**/Animation/*.json."""
-import json, os, sys
+import json, math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bbsparse import load
 
@@ -91,6 +91,19 @@ def value(c, t):
 n_frames = int(LEN * 60 + 1e-6) + 1
 rows = [[round(i / 60, 6)] + [round(value(c, i / 60), 6) for c in chans] for i in range(n_frames)]
 if rows[-1][0] < LEN - 1e-6: rows.append([round(LEN, 6)] + [round(value(c, LEN), 6) for c in chans])
+# El giro del cuerpo entero en BBS gira alrededor de LOS PIES (el origen del formulario); en el juego `ix` gira alrededor de la cintura (16 px de altura).
+# Para que agacharse, tirarse al suelo o dar una voltereta se vea igual (y el cuerpo toque el suelo en vez de quedarse flotando) se mueve la cintura
+# a donde quedaría si girara sobre los pies: altura  16·(cos θ − 1)  y adelante  16·sen θ  (px). θ = giro del cuerpo entero en ese instante.
+PIVOT_H = 16.0
+for need in ('by', 'bz'):
+    if need not in chans:
+        chans.append(need)
+        for r_ in rows: r_.append(0.0)
+by_i, bz_i = chans.index('by') + 1, chans.index('bz') + 1
+for r_ in rows:
+    th = sum(sample(k, r_[0]) for k in root_rx)
+    r_[by_i] = round(r_[by_i] + PIVOT_H * (math.cos(th) - 1), 6)
+    r_[bz_i] = round(r_[bz_i] + PIVOT_H * math.sin(th), 6)
 # una voltereta completa termina en -2π (o +2π): visualmente es la pose de reposo, pero el juego la "desenrollaría" al terminar. Al quedar quieta,
 # se resta la vuelta entera (mismo aspecto, sin giro de regreso)
 import math
