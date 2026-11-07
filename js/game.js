@@ -5710,9 +5710,9 @@ function choreTick(st, dt) {
     const vp = hermArr(st.vpos, t);
     tg.pos.copy(L2W(st.origin, st.yaw, vp[0], vp[1], vp[2])); tg.yaw = st.yaw + Math.PI + vp[3]; tg.vel.set(0, 0, 0); tg.choreTime = t; tg.stun = Math.max(tg.stun, .5);
     syncChorePose(tg, dt, st, true);
-    choreAnchor(st, t);
+    choreAnchor(st, t); choreLock(st, t);
     tg.model.root.position.copy(tg.pos); tg.model.root.updateMatrixWorld(true);
-    choreContacts(st, t);
+    choreContacts(st, t); choreHolds(st, t);
   }
   D.ev.forEach((e, i) => { if (!st.fired.has(i) && t >= e.t) { st.fired.add(i); choreEvent(st, e); } });
   if (t >= D.dur) st.done = true;
@@ -5736,9 +5736,39 @@ function choreAnchor(st, t) {
     tg.pos.lerp(goal, w); tg.pos.y = Math.max(groundAt(tg.pos.x, tg.pos.z), tg.pos.y);
   }
 }
+// bloqueo cuerpo a cuerpo con la lanza: durante [t0, t1] el torso de la víctima queda a `d` de la PUNTA de la lanza, medido a lo largo
+// del eje de la lanza (d>0 = más allá de la punta), con `side` de desvío lateral. Así, si Javi empuja, la víctima retrocede arrastrada
+// por la lanza, y si la gira, la víctima gira con ella (la reacción sale de la lanza, no de dos recorridos pegados por separado).
+// {t0,t1,d,side,fade,y}: y=true también sigue la altura.
+function choreLock(st, t) {
+  const { f, tg, D } = st; if (!D.lock || !f.spear || !f.spearOut) return;
+  for (const L of D.lock) {
+    if (t < L.t0 || t > L.t1) continue;
+    const fade = L.fade || .15, a = clamp((t - L.t0) / fade, 0, 1), b = clamp((L.t1 - t) / fade, 0, 1), w = a * a * (3 - 2 * a) * b * b * (3 - 2 * b);
+    f.model.root.updateMatrixWorld(true); tg.model.root.updateMatrixWorld(true);
+    const tip = f.spear.localToWorld(new V3(0, 0, 26 * PX)), tail = f.spear.localToWorld(new V3(0, 0, -11 * PX));
+    const ax = tip.clone().sub(tail); ax.y = 0; if (ax.lengthSq() < .04) ax.copy(fwd(f.yaw)); ax.normalize();
+    const off = tg.model.torso.localToWorld(new V3(0, 6 * PX, 0)).sub(tg.model.root.position);
+    const goal = tip.clone().addScaledVector(ax, L.d || 0).addScaledVector(new V3(ax.z, 0, -ax.x), L.side || 0).sub(off);
+    tg.pos.x += (goal.x - tg.pos.x) * w; tg.pos.z += (goal.z - tg.pos.z) * w;
+    if (L.y) tg.pos.y += (Math.max(groundAt(goal.x, goal.z), goal.y) - tg.pos.y) * w;
+  }
+}
+// manos sobre la lanza: durante [t0, t1] el brazo `arm` de `who` ('att' o 'vic') va a un punto de la lanza (z en píxeles a lo largo del asta;
+// la punta está en 26 y el agarre del atacante en 0). Es lo que hace que la víctima ATRAPE la lanza con las manos de verdad.
+function choreHolds(st, t) {
+  const { f, tg, D } = st; if (!D.holds || !f.spear || !f.spearOut) return;
+  for (const H of D.holds) {
+    if (t < H.t0 || t > H.t1) continue;
+    const fade = H.fade || .1, a = clamp((t - H.t0) / fade, 0, 1), b = clamp((H.t1 - t) / fade, 0, 1), w = a * a * (3 - 2 * a) * b * b * (3 - 2 * b);
+    f.model.root.updateMatrixWorld(true); tg.model.root.updateMatrixWorld(true);
+    const who = H.who === 'att' ? f : tg, target = f.spear.localToWorld(new V3(H.x || 0, H.y || 0, H.z * PX));
+    solveR6Contact(who, H.arm, target, w);
+  }
+}
 function choreEvent(st, e) {
   const { f, tg } = st, col = f.ch.color, at = e.at || 'vic';
-  const P = at === 'head' ? headPos(tg) : at === 'att' ? poseChest(f) : at === 'ground' ? new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z) : at === 'eyes' ? front(f, .35, 1.72) : poseChest(tg);
+  const P = at === 'head' ? headPos(tg) : at === 'att' ? poseChest(f) : at === 'ground' ? new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z) : at === 'groundA' ? new V3(f.pos.x, groundAt(f.pos.x, f.pos.z), f.pos.z) : at === 'eyes' ? front(f, .35, 1.72) : poseChest(tg);
   if (e.fx) choreFx(e.fx, st, P, col, e);
   if (e.hit) { applyHit(f, tg, { dmg: e.hit, stun: 9, kb: 0, color: col, guardBreak: true, hitstop: e.hs || (e.hit >= 3 ? .09 : .06), shake: e.shake || .3, noCounter: true }); if (G.chore === st) { camPunch(e.hit >= 3 ? .7 : .45, Math.random() < .5 ? 1 : -1); G.hitstop = Math.max(G.hitstop, e.hs || (e.hit >= 3 ? .09 : .06)); } }
   if (e.rel) {
@@ -5784,6 +5814,8 @@ function choreFx(name, st, P, col, e) {
     case 'charge': for (let i = 0; i < 14; i++) { const a = rand(0, TAU), r = rand(.8, 1.6); emit(P.x + Math.cos(a) * r, P.y + rand(-1, 1), P.z + Math.sin(a) * r, -Math.cos(a) * 5, rand(-1, 1), -Math.sin(a) * 5, i % 3 ? col : '#ffffff', .1, .25, 0, 0); } break;
     case 'magic': burst(P, 24, col, 7, .14, .5, -.3); burst(P, 10, '#ffd54f', 5, .1, .4, -.3); ringAt(P, col, 2, .35, 'face', f.yaw); sfx('tp', P); break;
     case 'shatter': burst(P, 50, '#dff6ff', 12, .25, .8, .8); burst(P, 20, col, 9, .2, .6, .6); sparkLines(P, '#ffffff', 10, 2.4); sfx('break', P); break;
+    case 'dust': { const n = e.n || 10; burst(new V3(P.x, P.y + .12, P.z), n, '#9c8c6a', e.v || 5, .22, .6, .9, 3); burst(new V3(P.x, P.y + .1, P.z), Math.ceil(n / 2), '#d8ccb0', (e.v || 5) * .6, .3, .7, .4, 2); break; }
+    case 'clang': sparkLines(P, '#ffe9a8', e.n || 8, e.len || 1.7); burst(P, 14, '#fff2c0', 8, .1, .3, 0); impactStar(P, '#ffffff', e.sz || 1.1, .1); sfx('block', P); break;
     case 'flash': screenFlash(e.op || .5); break;
     case 'lines': G.linesI = 1; break;
   }
@@ -5829,6 +5861,17 @@ function fitBoth(pos, look, fov, pts) {
   }
   return look.clone().addScaledVector(back, d);
 }
+// la cámara de las escenas no atraviesa jardineras, paredes ni el piso: si algo tapa el rayo mira->cámara, se acerca justo antes de eso
+function camClear(look, pos) {
+  const d = pos.clone().sub(look), L = d.length(); if (L < .6) return pos;
+  const n = Math.ceil(L / .2), p = new V3();
+  for (let i = 1; i <= n; i++) {
+    p.copy(look).addScaledVector(d, i / n);
+    const g = groundAt(p.x, p.z, p.y);
+    if (g > .06 && p.y < g + .06) { const u = Math.max(.35 / L, (i - 2.5) / n); return look.clone().addScaledVector(d, u); }
+  }
+  return pos;
+}
 function choreCam(st, dt) {
   const D = st.D, t = st.t, S = choreShots(D); let si = 0; for (let i = 0; i < S.length; i++) if (t >= S[i][0]) si = i;
   const sh = S[si], op = sh[2] || {}, t1 = S[si + 1] ? S[si + 1][0] : D.dur + .5, k = clamp((t - sh[0]) / Math.max(.05, t1 - sh[0]), 0, 1);
@@ -5858,6 +5901,20 @@ function choreCam(st, dt) {
     case 'ground': pos = V.clone().addScaledVector(perp, (op.d || 4.2) * s).addScaledVector(dir, 1); pos.y = gy + .25; look = mid.clone().lerp(V, .6); fov = fov || 58; roll = roll || .07 * s; break;
     case 'follow': pos = A.clone().addScaledVector(dir, -(op.d || 3.6)).add(new V3(0, 2, 0)).addScaledVector(perp, 1 * s); look = mid.clone().lerp(V, .5); fov = fov || 56; break;
     case 'hero': { pos = A.clone().addScaledVector(fwd(f.yaw), 3.6 - k * .5).addScaledVector(rightOf(f.yaw), 1.4 * s); pos.y = gy + .5; look = A.clone().add(new V3(0, .35, 0)); fov = fov || 44; roll = roll || .06 * s; fit = false; break; }
+    // 'rig': plano dirigido a mano, con movimiento de cámara de verdad (dolly, grúa, órbita, rack de enfoque).
+    //   at/at1 = a qué mira al empezar / al terminar el plano ('A' Javi, 'V' víctima, 'mid', 'tip' punta de la lanza, 'hands' contacto lanza-víctima,
+    //            'headA', 'headV', 'ground' el piso entre ambos); ly = altura extra de la mira.
+    //   a0/a1 = ángulo en grados alrededor de ese punto (0 = detrás de Javi mirando hacia la víctima, 90 = a su derecha, 180 = desde la víctima);
+    //   r0/r1 = distancia; h0/h1 = altura de la cámara sobre el punto de mira; fov0/fov1, roll0/roll1 (grados); ease: 'io' (def.), 'o', 'i', 'l'; lag = suavidad.
+    case 'rig': {
+      const e0 = clamp(k, 0, 1), e = op.ease === 'l' ? e0 : op.ease === 'o' ? 1 - Math.pow(1 - e0, 3) : op.ease === 'i' ? e0 * e0 * e0 : e0 * e0 * (3 - 2 * e0);
+      const tipP = f.spear && f.spearOut ? anchorPoint(f, 'tip') : A, tgt = n => n === 'A' ? A : n === 'V' ? V : n === 'tip' ? tipP : n === 'hands' ? tipP.clone().lerp(V, .35) : n === 'headA' ? headPos(f) : n === 'headV' ? headPos(tg) : n === 'ground' ? new V3(mid.x, gy, mid.z) : mid;
+      const T0 = tgt(op.at || 'mid'), T1 = op.at1 ? tgt(op.at1) : T0, mix = (a, b, d) => a == null ? d : b == null ? a : a + (b - a) * e;
+      look = T0.clone().lerp(T1, e); look.y += mix(op.ly, op.ly1, 0);
+      const ang = mix(op.a0, op.a1, 90) * Math.PI / 180 * s, r = mix(op.r0, op.r1, 4), hh = mix(op.h0, op.h1, .3);
+      pos = look.clone().addScaledVector(dir, -Math.cos(ang) * r).addScaledVector(perp, Math.sin(ang) * r); pos.y = look.y + hh;
+      fov = mix(op.fov0, op.fov1, op.fov || 44); roll = mix(op.roll0, op.roll1, 0) * Math.PI / 180 * s; fit = false; break;
+    }
     case 'wide': pos = mid.clone().addScaledVector(perp, 9 * s).add(new V3(0, 3.2, 0)); look = mid; fov = fov || 48; break;
     case 'up': pos = V.clone().addScaledVector(perp, (op.d || 3.4) * s).addScaledVector(dir, 1.6); pos.y = gy + .2; look = mid.clone().lerp(V, .45).add(new V3(0, .5, 0)); fov = fov || 64; break;
     default: pos = mid.clone().addScaledVector(perp, 5).add(new V3(0, 1.2, 0)); look = mid; fov = 50;
@@ -5866,10 +5923,10 @@ function choreCam(st, dt) {
   // En el visor reservamos el área inferior para los controles de reproducción.
   if (G.viewer && fit) look = look.clone().add(new V3(0, -.5, 0));
   if (fit) pos = fitBoth(pos, look, fov, cineFramePoints(f).concat(cineFramePoints(tg)));
-  pos.y = Math.max(gy + .15, pos.y);
+  pos.y = Math.max(gy + .15, pos.y); pos = camClear(look, pos);
   // suave dentro del plano, corte seco al cambiar
   if (cut || !st.cp) { st.cp = pos.clone(); st.cl = look.clone(); st.roll = roll; }
-  else { const a = 1 - Math.exp(-dt * 9); st.cp.lerp(pos, a); st.cl.lerp(look, 1 - Math.exp(-dt * 14)); st.roll += (roll - st.roll) * a; }
+  else { const a = 1 - Math.exp(-dt * (op.lag || 9)); st.cp.lerp(pos, a); st.cl.lerp(look, 1 - Math.exp(-dt * (op.lag ? op.lag * 1.5 : 14))); st.roll += (roll - st.roll) * a; }
   camera.position.copy(st.cp); camera.up.set(0, 1, 0); camera.lookAt(st.cl); camera.rotateZ(st.roll + CAMFX.roll);
   if (G.shake > 0) { const q = G.shake * .22; camera.position.x += rand(-q, q); camera.position.y += rand(-q, q); G.shake = Math.max(0, G.shake - dt * 2.4); }
   const want = fov * (1 - CAMFX.zoom * .16);
@@ -8207,6 +8264,8 @@ function animate(f, dt) {
     else m.gripRot.rotation.set(f.anim.x.sx + f.twA, f.anim.x.sy || 0, f.anim.x.sz || 0);
   }
   m.root.position.copy(f.pos); m.root.rotation.y = f.yaw + (a && a.spin ? a.t * a.spin : 0);
+  // a.grips: [{arm:'armL', z:7, t0:.3}] = esa mano agarra el asta de la lanza (IK) mientras dure la acción; z = píxeles a lo largo del asta
+  if (a && a.grips && f.spear && f.spearOut) { m.root.updateMatrixWorld(true); for (const g of a.grips) { const w = clamp((a.t - (g.t0 || 0)) / .15, 0, 1); if (w > 0) solveR6Contact(f, g.arm, f.spear.localToWorld(new V3(0, 0, g.z * PX)), w * w * (3 - 2 * w)); } }
   eyeGlow(m, !!(a && a.eyes) || f.awak > 0, T); updateWings(f, m, dt, T); updateSpiderLegs(f, m, dt, T);
   if (bbSet(f.ch.id) && f.alive) javiMotionFx(f, dt, sp);
   updateAura(f, dt, T);

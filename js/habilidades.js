@@ -105,18 +105,29 @@ CF.mover('spearThrow', function (f, o) {
 
 /* ===== personajes/javi/Skills/Code/Parry del Dragón/javiParry.js ===== */
 /* Habilidad: Parry del Dragón  ·  personaje: javi  ·  movimiento: javiParry   (habilidad 1 del despertar)
-   Javi cruza la lanza delante del cuerpo y espera el golpe. Si alguien lo golpea durante la ventana, el golpe se anula
-   y se desata el duelo de lanza (coreografía javiParry): el rival intenta frenar la punta con las manos, forcejean
-   deslizándose, giran, saltan, patada y remate final. Si nadie lo golpea, solo pierde la guardia y vuelve a la normalidad.
+   Javi hace girar la lanza y la cruza delante del cuerpo en diagonal, a dos manos, bien agachado, y espera el golpe.
+   Si alguien lo golpea durante la ventana, el golpe se anula y se desata el duelo de lanza (coreografía javiParry):
+   el rival intenta frenar la punta con las manos, forcejean deslizándose, giran, saltan, patada y remate final.
+   Si nadie lo golpea, solo pierde la guardia y vuelve a la normalidad.
    Los números (ventana, daño, recarga) están en personaje.js; la escena está en Skills/Animation/Parry del Dragón. */
 CF.mover('javiParry', function (f, o) {
   const WINDOW = o.window || 1.6;
-  const STANCE = Object.assign({}, POSE.counter, { by: -2, ix: .1, ty: -.25, llx: -.5, lrx: .45 });
+  // U(pose, up): ángulo real de la lanza (rad, + = punta arriba) compensando la inclinación del cuerpo y del brazo
+  const U = (p, up) => Object.assign({}, p, { sx: -up - ((p.ix || 0) + (p.tx || 0) + (p.arx || 0)) });
+  const base = { ix: .12, by: -3.2, tx: .1, ty: .5, hy: -.45, llx: -.6, lrx: .5, llz: .15, lrz: -.15 };
+  const GUARD = U(Object.assign({}, base, { arx: -1.6, arz: -.3, sy: .8, sz: .3 }), .85);                       // lanza cruzada en diagonal, a dos manos
+  const SINK = U(Object.assign({}, base, { by: -4.2, ix: .2, ty: .7, tx: .18, arx: -1.6, arz: -.3, sy: .8, sz: .3, llx: -.75, lrx: .65, llz: .22, lrz: -.22 }), .9);
   if (f.spear && !f.spearOut) setSpear(f, true);
+  startTwirl(f, 2, .4);   // la lanza gira antes de cruzarse
   startAction(f, {
-    name: 'javiParry', dur: WINDOW, counter: true, speedMul: 0, noControl: true, anim: [[0, STANCE, 700]],
-    start: () => { ringAt(chestOf(f), o.color, 2.2, .4, 'face', f.yaw); sfx('block', f.pos); popText(chestOf(f), '¡GUARDIA!', o.color, 20); },
-    tick: (a, t) => { if (Math.floor(t * 8) !== Math.floor((t - .016) * 8)) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(.6, 1.6), f.pos.z + rand(-.5, .5), 0, rand(.5, 2), 0, o.color, .1, .3, -.1, 1); },
+    name: 'javiParry', dur: WINDOW, counter: true, speedMul: 0, noControl: true,
+    anim: [[0, 'twirlPose', 300], [.36, GUARD, 1100], [.55, SINK, 500], [.95, GUARD, 400], [1.25, SINK, 500]],
+    grips: [{ arm: 'armL', z: 7, t0: .3 }],
+    start: () => { ringAt(chestOf(f), o.color, 2.4, .45, 'face', f.yaw); sfx('block', f.pos); popText(chestOf(f), '¡GUARDIA!', o.color, 20); },
+    tick: (a, t) => {
+      if (Math.floor(t * 8) !== Math.floor((t - .016) * 8)) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(.6, 1.6), f.pos.z + rand(-.5, .5), 0, rand(.5, 2), 0, o.color, .1, .3, -.1, 1);
+      if (t > .36 && Math.floor(t * 4) !== Math.floor((t - .016) * 4)) ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), o.color, 1.4, .5, 'flat', f.yaw);   // pulso de energía en el piso mientras espera
+    },
     // el golpe se anula y empieza el duelo (a quien lo golpeó lo sujeta la escena)
     onCounter: (t, att) => {
       if (!att.alive || att.cineLock || att.grabbed) { counterHit(t, att); return; }
@@ -2696,74 +2707,158 @@ CF.coreografia('javiFury', function () {
 
 /* ===== personajes/javi/Skills/Animation/Parry del Dragón/javiParry.coreografia.js ===== */
 /* Coreografía (cinemática) · personaje: javi · habilidad: Parry del Dragón · id: javiParry
-   Duelo de lanza que se desata cuando alguien golpea a Javi durante su guardia. Dura ~9 s y pasa por:
-   choque de la lanza (parry) -> desvío con giro -> estocada que el rival frena con las MANOS -> forcejeo deslizándose ->
-   el rival desvía la lanza y empuja -> Javi salta hacia atrás -> barrido bajo, el rival salta por encima -> choque de lado ->
-   patada que lo hace resbalar cubriéndose -> carrera, salto y golpe desde arriba (el rival lo frena con las manos) ->
-   giro que arranca la lanza y estocada final que lo lanza.
-   att = poses de Javi, vic = poses del rival, apos/vpos = posiciones [t, x(derecha), y(altura), z(adelante), giro], ev = eventos, shots = cámara. */
+   Duelo de lanza que se desata cuando alguien golpea a Javi durante su guardia. Dura ~10 s, en actos:
+     I   PARRY      el golpe choca contra la lanza cruzada, Javi lo barre hacia arriba y el rival se tambalea
+     II  ESTOCADA   Javi gira, se agacha y lanza; el rival ATRAPA la lanza con las dos manos (manos pegadas al asta por IK)
+     III FORCEJEO   Javi empuja y el rival resbala hacia atrás arrastrado por la lanza (el cuerpo del rival sale de la punta)
+     IV  CONTRA     el rival desvía el asta con un giro, Javi pierde el equilibrio y recibe una palma que lo manda resbalando
+     V   BARRIDO    voltereta hacia atrás, barrido bajo con giro completo; el rival salta por encima
+     VI  GUARDIA    patada del rival contra la guardia de Javi, que gira y lo corta
+     VII ENCIMA     Javi salta y baja la lanza; el rival la frena arrodillado con las manos, el piso se agrieta
+     VIII REMATE    giro de lanza, la estocada se cuela entre los brazos del rival y lo lanza
+   att = poses de Javi, vic = poses del rival, apos/vpos = [t, x(derecha), y(altura), z(adelante), giro],
+   lock = el cuerpo del rival cuelga de la punta de la lanza, holds = manos sobre la lanza, ev = eventos, shots = cámara. */
 CF.coreografia('javiParry', function () {
   const P = (n, o) => Object.assign({}, POSE[n], o || {});
-  // ---- poses de Javi
-  const GUARD = P('counter', { by: -2, ix: .1, ty: -.25, llx: -.5, lrx: .45 });
-  const CLASH = P('counter', { by: -2.6, ix: .16, tx: .1, ty: -.32, alx: -1.6, arx: -1.7 });
-  const PUSH = P('lancerAlt', { ix: .3, by: -3, tx: .2 }), PUSH2 = P('lancerAlt', { ix: .36, by: -3.5, tx: .25, ty: .1 });
-  const LOW_SWEEP = P('sweep', { by: -4, ix: .35 });
-  // ---- poses del rival
-  const GRAB = P('vGGrab'), GRAB2 = P('vJPierced'), COVER = P('block', { by: -1.5, ix: .1 });
+  const S = 1;   // sentido de los giros (+1 / -1)
+  // U(pose, up): fija el ángulo REAL de la lanza (rad, + = punta hacia arriba) compensando la inclinación del cuerpo (ix+tx) y del brazo (arx)
+  const U = (o, up) => Object.assign({}, o, { sx: -up - ((o.ix || 0) + (o.tx || 0) + (o.arx || 0)) });
+  // ================= JAVI =================
+  const base = { ix: .12, by: -3, tx: .1, ty: .5, hy: -.45, llx: -.6, lrx: .5, llz: .15, lrz: -.15 };
+  const G_GUARD = U(Object.assign({}, base, { by: -3.2, arx: -1.6, arz: -.3, sx: .3, sy: .8, sz: .3 }), 0.85);       // lanza cruzada en diagonal, a dos manos
+  const G_SINK = U(Object.assign({}, G_GUARD, { by: -4.2, ix: .2, ty: .7, tx: .18, llx: -.75, lrx: .65, llz: .22, lrz: -.22 }), 0.9);
+  const SWAT = U(Object.assign({}, base, { by: -2.4, ix: .02, ty: -.7, tx: .0, hy: .35, arx: -2.0, arz: -.2, sx: .55, sy: -.7, sz: -.2, llx: -.5, lrx: .55 }), 1.05);
+  const SWAT2 = U(Object.assign({}, SWAT, { ty: -.85, arx: -2.15, by: -2.8 }), 1.25);
+  const STEP = U(Object.assign({}, base, { ty: .3, by: -3, arx: -1.2, sx: 1.2, sy: .1 }), 0.1);
+  const COIL = U(Object.assign({}, base, { by: -3.8, ix: .25, tx: .2, ty: 1.0, hy: -.6, bz: -2, arx: -.9, sx: .9, sy: .0, llx: -.9, lrx: .7, llz: .2, lrz: -.2 }), 0.1);
+  const THRUST = U(Object.assign({}, base, { by: -2.3, ix: .2, tx: .15, ty: .2, bz: 3, arx: -1.55, sy: 0, hy: -.25, llx: -1.0, lrx: .8 }), .02);
+  const PUSH = U(Object.assign({}, THRUST, { by: -2.6, ix: .24, tx: .2, bz: 2.8, llx: -.9, lrx: .75 }), .02);
+  const PUSH2 = U(Object.assign({}, PUSH, { by: -2.9, ix: .3, tx: .25, ty: .3, bz: 2.4 }), .06);
+  const OVER = U(Object.assign({}, PUSH2, { by: -2.2, ix: .5, tx: .4, ty: -.2, sy: .6, hy: -.1 }), -.2);             // se pasa de largo: pierde el equilibrio
+  const HIT_B = P('hurtFwd', { by: -2.5, ix: -.25 });                                                       // recibe la palma
+  const SKID = U(Object.assign({}, base, { by: -4.2, ix: -.1, tx: -.05, ty: -.5, arx: -1.3, sx: 1.3, sy: .3, llx: -.9, lrx: .8, llz: .3, lrz: -.3 }), 0.3);
+  const FLIP = i => Object.assign({}, base, { by: -1, ix: i, tx: 0, ty: 0, arx: -1.1, sx: .6, llx: -1.3, lrx: -1.2, llz: .25, lrz: -.25 });
+  const LAND = U(Object.assign({}, base, { by: -5.2, ix: .3, tx: .25, ty: .2, arx: -.5, sx: 1.5, sy: .1, llx: -1.2, lrx: .9 }), -0.3);
+  const SWEEP = U(Object.assign({}, base, { by: -5.4, ix: .45, tx: .35, ty: 1.2, arx: -1.35, sx: 1.55, sy: 0, arz: -.9, llx: -1.1, lrx: .9, llz: .5, lrz: -.5 }), -0.12);
+  const SWEEP2 = U(Object.assign({}, SWEEP, { ty: -.8, arz: -.2 }), -0.12);
+  const BLOCKB = U(Object.assign({}, base, { by: -3.6, ix: .1, ty: 0, tx: .05, arx: -1.5, sx: 1.5, sy: 1.57, arz: -.1, hy: .3, llx: -.7, lrx: .6 }), 0);   // asta horizontal, de través
+  const SPIN_CUT = U(Object.assign({}, base, { by: -3.4, ix: .2, tx: .2, ty: -1.0, arx: -1.5, sx: 1.55, sy: -.4, hy: .5, llx: -.8, lrx: .7 }), 0.05);
+  const LEAP = U(Object.assign({}, base, { by: -1.5, ix: -.1, tx: -.1, ty: .3, arx: -2.6, sx: 2.3, sy: 0, llx: -1.2, lrx: -.5, llz: .3, lrz: -.3 }), 1.4);
+  const DIVE = U(Object.assign({}, base, { by: -2.8, ix: .55, tx: .5, ty: 0, arx: -1.9, sx: 2.4, sy: 0, llx: -.9, lrx: .7 }), -0.9);
+  const PRESS = U(Object.assign({}, base, { by: -5, ix: .5, tx: .55, ty: .1, arx: -1.5, sx: 2.1, sy: 0, llx: -1.0, lrx: .9, llz: .3, lrz: -.3 }), -0.75);
+  const PRESS2 = U(Object.assign({}, PRESS, { by: -5.6, ix: .6, tx: .62 }), -0.8);
+  const WIND = U(Object.assign({}, base, { by: -3.6, ix: -.05, tx: .05, ty: .8, arx: -.6, sx: .6, sy: -.2, hy: -.3, llx: -.9, lrx: .7 }), 0.3);
+  const FINAL = U(Object.assign({}, base, { by: -3.2, ix: .38, tx: .35, ty: .1, bz: 4.2, arx: -1.55, sx: 1.55, sy: 0, hy: -.15, llx: -1.15, lrx: .9, llz: .25, lrz: -.25 }), 0.02);
+  // ================= RIVAL =================
+  const V_HOOK = P('jabR', { ty: -.5, ix: .12 });
+  const V_RECOIL = P('hurtA', { ix: -.2, tx: -.3, ty: .6, hy: .5 });
+  const V_RECOIL2 = P('hurtA', { ix: -.1, tx: -.2, ty: .5, hy: .3, by: -2 });
+  const V_READY = P('vJReady');
+  const V_WIDE = { ix: .2, tx: .25, by: -3, hx: .1, alx: -1.2, alz: .9, arx: -1.2, arz: -.9, llx: -.7, lrx: .6, llz: .22, lrz: -.22 };   // brazos abiertos para atrapar
+  const V_CATCH = { ix: .1, tx: .2, by: -2.4, hx: .2, alx: -1.45, arx: -1.45, llx: -.85, lrx: .75, llz: .25, lrz: -.25 };
+  const V_STRAIN = { ix: .02, tx: .12, by: -3.2, hx: .3, alx: -1.45, arx: -1.45, llx: -1.0, lrx: .9, llz: .32, lrz: -.32 };
+  const V_STRAIN2 = Object.assign({}, V_STRAIN, { by: -3.6, ix: -.06, tx: .06, hx: .4 });
+  const V_TWIST = { ix: .1, tx: .1, ty: -.9, by: -3.2, hy: .5, alx: -1.2, arx: -1.6, llx: -.6, lrx: .6, llz: .3, lrz: -.3 };
+  const V_PALM = P('jabR', { ty: -1.0, ix: .25, tx: .3, by: -3 });
+  const V_SPRINT = P('jSprint');
+  const V_TUCK = { ix: .6, tx: .5, by: -1, alx: -.8, alz: .5, arx: -.8, arz: -.5, llx: -1.5, lrx: -1.4, hx: .3 };
+  const V_COVER = P('block', { by: -2.4, ix: .15 });
+  const V_KICK_W = P('kick_w'), V_KICK = P('kick');
+  const V_OVER = { ix: .2, tx: .1, by: -3.6, hx: -.35, alx: -2.8, arx: -2.8, llx: -.9, lrx: .8, llz: .3, lrz: -.3 };
+  const V_KNEEL = { ix: .3, tx: .35, by: -7, hx: -.3, alx: -2.8, arx: -2.8, llx: -1.55, lrx: -1.2, llz: .2, lrz: -.2 };
+  const V_FAIL = { ix: .3, tx: .3, by: -6, hx: -.1, alx: -2.4, arx: -2.5, llx: -1.4, lrx: -1.2 };
+  const V_PIERCE = P('vJPierced');
+  // ---- tras la voltereta Javi queda con -2π de giro del cuerpo (ix): así la rotación es continua y no se "desenrolla"
+  const W = -6.283, Z = o => Object.assign({}, o, { ix: (o.ix || 0) + W });
   const att = [
-    [0, GUARD], [.14, CLASH], [.46, CLASH], [.52, P('sweep_w')], [.72, P('sweep')], [.96, P('lancerAlt')], [1.3, P('thrust')], [1.52, PUSH],
-    [2.2, PUSH2], [2.9, PUSH], [3.12, P('sweep', { ix: .2 })], [3.42, P('hurtA')], [3.62, P('hurtFwd')], [3.8, P('jVault')], [4.05, P('land')],
-    [4.3, P('sweep_w', { by: -3 })], [4.55, LOW_SWEEP], [4.8, P('lancerRest')], [4.98, P('counter', { by: -2, ty: .3 })], [5.2, P('kick_w')], [5.36, P('kick')],
-    [5.6, P('jSprint')], [5.85, P('jSprint', { ix: .5 })], [6.1, P('jVault')], [6.3, P('overhead')], [6.5, P('plunge')], [6.9, P('plunge', { by: -3 })],
-    [7.2, P('sweep_w', { ty: .5 })], [7.45, P('lancerAlt', { by: -3 })], [7.8, P('thrust', { ix: .35 })], [8.15, P('lancer')], [8.6, P('javiHero')],
+    [0, G_GUARD], [.1, G_SINK], [.15, SWAT], [.32, SWAT2], [.6, SWAT],
+    [.8, STEP], [1.0, COIL], [1.2, THRUST],
+    [1.55, PUSH], [1.9, PUSH2], [2.3, PUSH], [2.7, PUSH2], [3.0, OVER], [3.25, OVER],
+    [3.4, HIT_B], [3.7, SKID], [4.05, SKID],
+    [4.15, FLIP(-.5)], [4.4, FLIP(-2.9)], [4.65, FLIP(-5.2)], [4.85, Z(LAND)], [5.0, Z(LAND)],
+    [5.1, Z(SWEEP)], [5.3, Z(SWEEP2)], [5.55, Z(SWEEP)],
+    [5.85, Z(BLOCKB)], [6.05, Z(BLOCKB)], [6.3, Z(SPIN_CUT)],
+    [6.55, Z(LEAP)], [6.8, Z(DIVE)], [7.05, Z(PRESS)], [7.5, Z(PRESS2)], [7.9, Z(PRESS2)],
+    [8.1, Z(WIND)], [8.35, Z(FINAL)], [8.6, Z(FINAL)], [9.1, Z(P('lancer'))], [10, Z(P('javiHero'))],
   ];
-  // el rival: golpe, retroceso, atrapa la lanza con las dos manos, tiembla mientras empuja, desvía y empuja, salta, patada, cubre, atrapa de nuevo
-  const vic = [[0, P('jabR')], [.14, P('jabR')], [.46, P('hurtA')], [.76, P('vStagger')], [1.06, P('vJReady')], [1.4, P('vJReady')], [1.52, GRAB]];
-  for (let t = 1.64; t < 2.95; t += .12) vic.push([+t.toFixed(2), Math.round((t - 1.64) / .12) % 2 ? GRAB2 : GRAB]);
-  vic.push([3.0, P('jabR', { ty: .5 })], [3.28, P('jabR', { ty: .4 })], [3.55, P('vJReady')], [3.95, P('vJReady', { ix: .2 })], [4.3, P('jump')], [4.55, P('jump', { ix: .3 })], [4.85, P('land')],
-    [4.96, P('jabL')], [5.2, P('vShock1')], [5.38, P('hurtFwd')], [5.6, COVER], [6.1, COVER], [6.42, P('vGGrab', { alx: -2.6, arx: -2.7 })]);
-  for (let t = 6.55; t < 7.4; t += .1) vic.push([+t.toFixed(2), Math.round((t - 6.55) / .1) % 2 ? P('hurtA', { by: -4.5, ix: .45, alx: -2.6, arx: -2.7 }) : P('vGGrab', { by: -4, alx: -2.6, arx: -2.7 })]);
-  vic.push([7.55, P('vJPierced')], [7.8, P('vJPierced')]);
+  const vic = [
+    [0, V_HOOK], [.14, V_HOOK], [.28, V_RECOIL], [.6, V_RECOIL2],
+    [.85, V_READY], [1.1, V_WIDE], [1.28, V_CATCH],
+    [1.55, V_CATCH], [1.9, V_STRAIN], [2.3, V_STRAIN2], [2.7, V_STRAIN], [3.0, V_TWIST], [3.3, V_PALM], [3.55, V_PALM],
+    [3.9, V_READY], [4.3, V_READY], [4.5, V_SPRINT], [4.8, V_SPRINT], [5.0, V_TUCK], [5.2, V_TUCK], [5.4, P('land')],
+    [5.5, V_KICK_W], [5.65, V_KICK], [5.85, V_COVER], [6.2, V_COVER], [6.4, V_READY],
+    [6.65, V_OVER], [7.0, V_OVER], [7.3, V_KNEEL], [7.9, V_KNEEL], [8.15, V_FAIL], [8.35, V_FAIL], [8.55, V_PIERCE], [9, V_PIERCE],
+  ];
+  const Y = 9.425 * S;   // 3π: de espaldas a donde empezó
   return {
-    dur: 9, catch: 3, reach: 'counter', trails: [[.5, .8], [1.25, 1.55], [4.3, 4.65], [7.5, 7.9]],
-    att,
-    vic,
-    apos: [[0, 0, 0, 0, 0], [.5, 0, 0, -.15, 0], [.96, 0, 0, .1, 0], [1.3, 0, 0, .65, 0], [2.2, 0, 0, 1.05, 0], [2.95, 0, 0, 1.35, 0], [3.15, 0, 0, 1.2, 0], [3.45, 0, 0, .75, 0],
-      [3.78, 0, .75, .15, 0], [4.05, 0, 0, -.2, 0], [4.45, 0, 0, -.2, 0], [4.9, 0, 0, -.2, 1.57], [5.35, 0, 0, -.2, 1.57], [5.65, .5, 0, -.2, 1.57], [6.1, 2.3, .8, -.2, 1.57], [6.42, 3.5, 0, -.2, 1.57],
-      [7.0, 3.55, 0, -.2, 1.57], [7.5, 3.5, 0, -.2, 1.57 + Math.PI * 2], [7.85, 3.9, 0, -.2, 1.57 + Math.PI * 2], [9, 3.9, 0, -.2, 1.57 + Math.PI * 2]],
-    vpos: [[0, 0, 0, 1.35, 0], [.46, 0, 0, 1.6, 0], [.76, 0, 0, 2.1, 0], [1.06, 0, 0, 2, 0], [1.5, 0, 0, 2.05, 0], [1.7, .1, 0, 2.35, 0], [2.9, .45, 0, 3.2, 0], [3, .4, 0, 3.1, .45],
-      [3.3, .3, 0, 2.1, .2], [3.55, .3, 0, 2.4, 0], [3.95, 0, 0, 1.5, 0], [4.3, .3, .25, 1.3, 0], [4.55, .9, 1, .9, .8], [4.85, 1.7, 0, .4, 1.57], [5.2, 1.75, 0, .4, 1.57], [5.4, 1.9, 0, .4, 1.57],
-      [6, 4.2, 0, .4, 1.57], [6.45, 4.3, 0, .4, 1.57], [7.3, 4.3, 0, .4, 1.57], [7.85, 4.45, 0, .4, 1.57], [9, 4.45, 0, .4, 1.57]],
-    ev: [
-      { t: .14, fx: 'impact', at: 'att', big: 1, imp: 1, sfx: 'block', shake: .6, text: '¡PARRY!', who: 'att', slow: .25 },
-      { t: .14, fx: 'ring', at: 'att', r: 3.4, face: 1 },
-      { t: .56, fx: 'slash', sfx: 'swing', tilt: .3 },
-      { t: .74, hit: 2.5, fx: 'impact', sfx: 'hit', shake: .3 },
-      { t: .98, fx: 'charge', at: 'att' },
-      { t: 1.32, fx: 'line', sfx: 'swing' },
-      { t: 1.52, hit: 2, fx: 'impact', big: 1, imp: 1, sfx: 'block', shake: .5, text: '¡LA ATRAPA CON LAS MANOS!', who: 'vic', slow: .2 },
-      { t: 1.55, fx: 'ring', at: 'vic', r: 3 },
-      { t: 1.9, fx: 'ring', at: 'ground', r: 1.8, shake: .15 }, { t: 2.2, fx: 'line', sfx: 'swing', shake: .2 }, { t: 2.45, fx: 'ring', at: 'ground', r: 2, shake: .2 },
-      { t: 2.7, fx: 'impact', at: 'vic', sfx: 'block', shake: .3 }, { t: 2.9, fx: 'charge', at: 'att', text: '¡NO PASARÁS!', who: 'att' },
-      { t: 3.28, fx: 'impact', at: 'att', big: 1, imp: 1, sfx: 'heavy', shake: .7, text: '¡EMPUJÓN!', who: 'vic' },
-      { t: 3.78, fx: 'ghost' }, { t: 3.8, fx: 'ring', at: 'ground', r: 2.4 },
-      { t: 4.3, fx: 'slash', tilt: .1, sfx: 'swing' }, { t: 4.5, fx: 'line', sfx: 'swing' }, { t: 4.55, fx: 'ghost' },
-      { t: 4.98, fx: 'impact', at: 'att', big: 1, imp: 1, sfx: 'block', shake: .6, text: '¡Y OTRA VEZ!', who: 'att' },
-      { t: 5.36, hit: 3.5, fx: 'impact', big: 1, imp: 1, sfx: 'heavy', shake: .6, text: '¡FUERA!', who: 'att' },
-      { t: 5.5, fx: 'ring', at: 'ground', r: 2.2 }, { t: 5.7, fx: 'ring', at: 'ground', r: 2.4 }, { t: 5.9, fx: 'ring', at: 'ground', r: 2.6 },
-      { t: 6.1, fx: 'ghost' },
-      { t: 6.5, hit: 4, fx: 'boom', big: 1, r: 2.2, imp: 1, shake: .9, text: '¡LO FRENA OTRA VEZ!', who: 'vic' }, { t: 6.52, fx: 'crack', at: 'ground', r: 5 },
-      { t: 6.9, fx: 'impact', at: 'vic', sfx: 'block', shake: .4 }, { t: 7.1, fx: 'impact', at: 'vic', sfx: 'block', shake: .4 },
-      { t: 7.2, fx: 'charge', at: 'att', slow: .15, text: '¡GIRA LA LANZA!', who: 'att' },
-      { t: 7.82, fx: 'stab', sfx: 'slash' },
-      { t: 7.85, rel: { dmg: 24, kb: 22, up: 7, rag: 2.4 }, slow: .35, fx: 'boom', big: 1, r: 3.6, imp: 1, shake: 1 },
+    dur: 10, catch: 3, reach: 'counter',
+    trails: [[.15, .5], [1.0, 1.4], [5.1, 5.6], [5.9, 6.4], [6.5, 7.0], [8.2, 8.6]],
+    att, vic,
+    apos: [[0, 0, 0, 0, 0], [.15, 0, 0, -.2, 0], [.5, 0, 0, -.1, 0], [.9, 0, 0, .1, .15 * S], [1.2, 0, 0, .45, 0], [1.5, 0, 0, .9, 0], [3.0, 0, 0, 1.65, 0], [3.25, 0, 0, 1.85, 0],
+      [3.4, 0, 0, 1.75, 0], [3.9, 0, 0, .4, 0], [4.1, 0, 0, .4, 0], [4.2, 0, 0, .3, 0], [4.45, 0, .9, -.6, 0], [4.85, 0, 0, -1.6, 0], [5.0, 0, 0, -1.6, 0],
+      [5.55, 0, 0, -1.6, -6.283 * S], [5.85, 0, 0, -1.6, -Y], [6.1, 0, 0, -1.7, -Y], [6.4, 0, 0, -1.9, -Y], [6.55, 0, .2, -2.2, -Y], [6.8, 0, 1.1, -2.7, -Y],
+      [7.05, 0, 0, -3.3, -Y], [7.9, 0, 0, -3.4, -Y], [8.2, 0, 0, -3.3, -Y], [8.5, 0, 0, -3.9, -Y], [10, 0, 0, -4.4, -Y]],
+    vpos: [[0, 0, 0, 1.35, 0], [.15, 0, 0, 1.4, 0], [.5, .1, 0, 2.1, .3], [.9, 0, 0, 2.0, 0], [1.25, 0, 0, 2.05, 0], [1.3, 0, 0, 2.1, 0], [3.0, -.3, 0, 3.8, 0],
+      [3.15, .3, 0, 3.5, -.3], [3.3, .9, 0, 2.9, -.5], [3.5, .7, 0, 2.3, -.3], [3.8, .5, 0, 1.8, 0], [4.3, .5, 0, 1.7, 0],
+      [4.6, .4, 0, .7, 0], [4.85, .2, .3, -.1, 0], [5.05, .1, 1.3, -1.6, 1.57], [5.35, .1, 0, -3.0, 3.14], [5.6, .1, 0, -2.8, 3.14],
+      [5.75, .1, 0, -3.5, 3.14], [6.1, .1, 0, -4.3, 3.14], [6.6, .1, 0, -4.6, 3.14], [7.9, .1, 0, -4.6, 3.14], [8.35, .1, 0, -4.7, 3.14], [10, .1, 0, -7, 3.14]],
+    lock: [{ t0: 1.28, t1: 3.05, d: .38, fade: .08 }, { t0: 7.0, t1: 8.1, d: -.05, fade: .12 }],
+    holds: [
+      { t0: 0, t1: 3.3, who: 'att', arm: 'armL', z: 7, fade: .08 },
+      { t0: 1.3, t1: 3.05, who: 'vic', arm: 'armL', z: 21, fade: .06 }, { t0: 1.3, t1: 3.05, who: 'vic', arm: 'armR', z: 14, fade: .06 },
+      { t0: 3.4, t1: 4.1, who: 'att', arm: 'armL', z: 7, fade: .1 },
+      { t0: 5.0, t1: 6.5, who: 'att', arm: 'armL', z: 7, fade: .1 },
+      { t0: 6.7, t1: 8.1, who: 'att', arm: 'armL', z: 6, fade: .1 },
+      { t0: 7.0, t1: 8.1, who: 'vic', arm: 'armL', z: 16, fade: .08 }, { t0: 7.0, t1: 8.1, who: 'vic', arm: 'armR', z: 9, fade: .08 },
+      { t0: 8.3, t1: 9.0, who: 'att', arm: 'armL', z: 7, fade: .1 },
     ],
-    shots: [[0, 'cl', { s: 1, d: 3.6, fov: 50 }], [.46, 'faceA', { s: -1, fov: 42 }], [.9, 'two', { fov: 48 }], [1.3, 'tip', { d: 2.4, fov: 40 }], [1.9, 'faceV', { s: 1, fov: 40 }],
-      [2.45, 'cl', { s: -1, d: 3.4, fov: 46, roll: -.05 }], [3.0, 'ground', { fov: 56 }], [3.45, 'otsV', { fov: 48 }], [3.9, 'lowA', { fov: 56 }],
-      [4.3, 'pass', { d: 4.5, fov: 50 }], [4.75, 'orbit', { r: 4.2, spd: 1.3, h: .3, fov: 50 }], [5.2, 'clv', { s: -1, d: 3.6, fov: 48 }], [5.6, 'follow', { d: 3.8, fov: 56 }],
-      [6.1, 'up', { d: 3.2, fov: 62 }], [6.4, 'cl', { s: 1, d: 4.6, fov: 50, roll: .06 }], [6.9, 'faceA', { s: 1, fov: 40 }], [7.5, 'lowV', { fov: 54 }],
-      [7.85, 'clv', { s: -1, d: 4, fov: 48, roll: -.06 }], [8.4, 'hero', { s: -1 }]],
+    ev: [
+      { t: .14, fx: 'clang', at: 'att', sz: 1.6, imp: 1, shake: .6, text: '¡PARRY!', who: 'att', slow: .25 }, { t: .14, fx: 'ring', at: 'att', r: 3.4, face: 1 },
+      { t: .2, fx: 'slash', sfx: 'swing', tilt: -.5 },
+      { t: .95, fx: 'charge', at: 'att' }, { t: 1.2, fx: 'line', sfx: 'swing' },
+      { t: 1.3, hit: 2, fx: 'clang', at: 'vic', sz: 1.5, imp: 1, shake: .5, text: '¡LA ATRAPA CON LAS MANOS!', who: 'vic', slow: .2 }, { t: 1.32, fx: 'ring', at: 'vic', r: 3 },
+      { t: 1.7, fx: 'dust', at: 'ground' }, { t: 2.0, fx: 'dust', at: 'ground' }, { t: 2.3, fx: 'dust', at: 'ground' }, { t: 2.6, fx: 'dust', at: 'ground' },
+      { t: 1.9, fx: 'clang', at: 'vic', n: 5, sz: .7 }, { t: 2.5, fx: 'clang', at: 'vic', n: 5, sz: .7 }, { t: 2.9, fx: 'charge', at: 'att', text: '¡NO PASARÁS!', who: 'att' },
+      { t: 3.32, hit: 3, fx: 'impact', at: 'att', big: 1, imp: 1, sfx: 'heavy', shake: .7, text: '¡EMPUJÓN!', who: 'vic' },
+      { t: 3.5, fx: 'dust', at: 'groundA', n: 14 }, { t: 3.7, fx: 'dust', at: 'groundA' }, { t: 3.9, fx: 'dust', at: 'groundA' },
+      { t: 4.3, fx: 'ghost' }, { t: 4.86, fx: 'ring', at: 'groundA', r: 2.4 }, { t: 4.88, fx: 'dust', at: 'groundA', n: 16 },
+      { t: 5.15, fx: 'slash', tilt: 0, sfx: 'swing', len: 3.6 }, { t: 5.3, fx: 'line', sfx: 'swing' }, { t: 5.5, fx: 'slash', tilt: .1, sfx: 'swing', len: 3.6 },
+      { t: 5.05, fx: 'impact', at: 'vic', sfx: 'swing', text: '¡LO ESQUIVA!', who: 'vic' },
+      { t: 5.55, fx: 'ring', at: 'groundA', r: 2.2, shake: .2 },
+      { t: 5.65, fx: 'clang', at: 'att', sz: 1.6, imp: 1, shake: .6, text: '¡LA DETIENE!', who: 'att' },
+      { t: 5.75, fx: 'dust', at: 'ground', n: 16 }, { t: 5.95, fx: 'dust', at: 'ground' }, { t: 6.15, fx: 'dust', at: 'ground' },
+      { t: 6.3, fx: 'slash', tilt: -.2, sfx: 'swing', len: 3.4 }, { t: 6.55, fx: 'ghost' },
+      { t: 6.9, fx: 'line', sfx: 'swing' },
+      { t: 7.05, hit: 4, fx: 'boom', at: 'vic', big: 1, r: 2.2, imp: 1, shake: .9, text: '¡NO LA SUELTA!', who: 'vic' }, { t: 7.07, fx: 'crack', at: 'ground', r: 5 },
+      { t: 7.4, fx: 'clang', at: 'vic', n: 6 }, { t: 7.7, fx: 'clang', at: 'vic', n: 6 }, { t: 7.7, fx: 'ring', at: 'ground', r: 2 },
+      { t: 8.1, fx: 'charge', at: 'att', slow: .15, text: '¡GIRA LA LANZA!', who: 'att' },
+      { t: 8.6, fx: 'stab', sfx: 'slash' },
+      { t: 8.65, rel: { dmg: 24, kb: 22, up: 7, rag: 2.4 }, slow: .35, fx: 'boom', big: 1, r: 3.6, imp: 1, shake: 1 },
+    ],
+    // rig: a = grados alrededor del punto de mira (0 = detrás de Javi mirando a la víctima, 90 = a su derecha, 180 = desde la víctima); desde el acto V la pelea va hacia -z, por eso allí el ángulo suma 180
+    shots: [
+      [0, 'rig', { at: 'A', a0: 140, a1: 122, r0: 4.0, r1: 3.1, h0: .1, h1: .2, ly: .2, fov0: 48, fov1: 42, roll0: 4, ease: 'o' }],
+      [.14, 'rig', { at: 'hands', a0: 85, a1: 100, r0: 1.8, r1: 2.4, h0: .1, fov: 36, roll0: -5, ease: 'o' }],
+      [.5, 'rig', { at: 'A', at1: 'mid', a0: 120, a1: 80, r0: 3.4, r1: 3.8, h0: .5, fov: 46 }],
+      [1.0, 'rig', { at: 'A', a0: 20, a1: 60, r0: 2.9, r1: 3.7, h0: -.1, h1: .2, ly: .3, fov: 44, roll0: 5 }],
+      [1.28, 'rig', { at: 'hands', a0: 90, a1: 70, r0: 2.5, r1: 2.9, h0: .1, fov: 38, roll0: -4 }],
+      [1.7, 'rig', { at: 'hands', at1: 'V', a0: 70, a1: 150, r0: 3.4, r1: 3.4, h0: .15, fov: 44, ease: 'l' }],
+      [2.25, 'faceV', { s: 1, fov: 38 }], [2.6, 'faceA', { s: -1, fov: 38 }],
+      [2.9, 'rig', { at: 'ground', a0: 80, a1: 95, r0: 3.4, h0: -.4, fov: 52, roll0: 5 }],
+      [3.2, 'rig', { at: 'mid', a0: 100, a1: 80, r0: 3.8, r1: 3.8, h0: .15, fov: 42, roll0: -6 }],
+      [3.55, 'rig', { at: 'A', a0: 95, a1: 125, r0: 4.8, r1: 5.4, h0: .3, fov: 46, ease: 'l' }],
+      [4.15, 'rig', { at: 'A', a0: 80, a1: 100, r0: 4.2, r1: 3.4, h0: .2, h1: .6, fov: 48 }],
+      [4.75, 'rig', { at: 'groundA', ly: .5, a0: 25, a1: 40, r0: 3.8, r1: 3.2, h0: .1, fov: 46 }],
+      [5.05, 'rig', { at: 'mid', a0: 30, a1: 150, r0: 4.8, h0: .3, fov0: 50, fov1: 46, ease: 'l' }],
+      [5.55, 'rig', { at: 'A', at1: 'V', a0: 255, a1: 270, r0: 3.2, h0: .1, fov: 42, roll0: -5 }],
+      [6.15, 'rig', { at: 'A', a0: 330, a1: 310, r0: 3, h0: .3, fov: 46 }],
+      [6.5, 'rig', { at: 'A', at1: 'V', a0: 260, a1: 275, r0: 4.6, h0: .1, h1: .2, fov: 52, roll0: 6 }],
+      [7.02, 'rig', { at: 'V', a0: 285, a1: 250, r0: 3.6, r1: 2.9, h0: .35, h1: .25, fov: 42, roll0: 4 }],
+      [7.6, 'faceV', { s: -1, fov: 36 }],
+      [8.05, 'rig', { at: 'A', a0: 205, a1: 200, r0: 2.2, r1: 1.7, h0: -.1, fov: 36, roll0: -4 }],
+      [8.5, 'rig', { at: 'mid', a0: 270, a1: 265, r0: 3.6, r1: 3.0, h0: .1, fov: 40, roll0: 4 }],
+      [8.8, 'hero', { s: -1 }],
+    ],
   };
 });
 
