@@ -1,0 +1,101 @@
+/* ============================================================================
+   CalFight · capa de TELÉFONO / TABLET (se carga después de style.css)
+   Idea: que TODO se pueda usar con el dedo desde el navegador del celular:
+     - nada se sale de la pantalla ni obliga a hacer zoom (el viewport queda fijo);
+     - los botones de los menús (Jugar, Volver, Guardar…) siempre quedan a la vista, aunque el menú sea más alto que la pantalla;
+     - los botones tienen tamaño de dedo (≥ 40 px) y no se selecciona texto ni aparece el brillo azul al tocar;
+     - el celular de lado (horizontal) usa menos relleno y letras algo más chicas; en vertical se apila todo.
+   Las reglas están agrupadas por pantalla.
+   ============================================================================ */
+
+/* ---- base táctil -------------------------------------------------------- */
+@media (pointer: coarse) {
+  html { -webkit-text-size-adjust: 100%; overscroll-behavior: none; }
+  body { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; overscroll-behavior: none; }
+  #hud, #touch-controls, #skills, #wrap, .tm-big, .slot, .tab, #roster, #title { -webkit-user-select: none; user-select: none; }   /* sin selección de texto al mantener el dedo en el juego y los botones (el chat y los códigos sí se pueden copiar) */
+  button, select, summary, .tm-big, .slot, .tab, label { touch-action: manipulation; }
+  button:not(.sw):not(.touch-btn):not([data-touch]):not(.tm-x) { min-height: 40px; }
+  select, input[type=text], input[type=password], input[type=email], input[type=search], input[type=number], textarea { font-size: 16px; min-height: 40px; }   /* 16 px: iOS no hace zoom al escribir */
+  input[type=range] { min-height: 30px; }
+  input[type=checkbox] { width: 22px; height: 22px; }
+  .tm-x { min-width: 44px; min-height: 44px; }
+  #banner { overflow: visible; max-width: 100vw; }
+}
+
+/* ---- ventanas del título (Jugar, Jugar solo, Salas públicas, Crear sala) --- */
+@media (pointer: coarse) and (max-height: 520px) {
+  #tmodal { padding: 6px max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left)); align-items: start; }
+  .tm-box { width: min(620px, 100%); padding: 10px 16px 0; border-width: 3px; border-top-width: 4px; box-shadow: 5px 5px 0 #000; max-height: calc(100dvh - 12px); }
+  .tm-box h2 { margin: 0 44px 8px 0; font-size: 24px; text-shadow: 2px 2px 0 #000; }
+  .tm-view { gap: 8px; }
+  .tm-big { padding: 8px 14px; }
+  .tm-big b { font-size: 18px; }
+  .tm-big small { font-size: 12px; }
+  .tm-field { gap: 2px; }
+  .tm-field label { font-size: 12px; }
+  .tm-field input[type=text], .tm-field select { padding: 6px 10px; }
+  .tm-chk { font-size: 13px; }
+  .tm-seg button { padding: 7px 10px; }
+  .tm-x { top: 4px; right: 6px; }
+  /* los botones de abajo (Volver / ¡Jugar!) se quedan pegados abajo mientras se desplaza el contenido */
+  .tm-row { position: sticky; bottom: 0; margin: 4px -16px 0; padding: 8px 16px; background: linear-gradient(#0d0f1900, #0d0f19 28%); z-index: 3; }
+  .tm-sec, .tm-go { padding: 8px 18px; font-size: 16px; }
+  #tm-list { max-height: 34vh; }
+}
+
+/* ---- pausa, fin de partida, paneles y cuadros de diálogo ------------------ */
+@media (pointer: coarse) and (max-height: 520px) {
+  .overlay { padding-block: 8px; }
+  .obox { padding: 12px 18px; gap: 8px; max-height: calc(100dvh - 16px); }
+  .obox h2 { font-size: clamp(26px, 9vh, 44px); }
+  .big { padding: 7px 18px; font-size: 18px; }
+  .btns { gap: 8px; }
+  table th, table td { padding: 3px 8px; font-size: 13px; }
+  #pause .obox { gap: 6px; }
+  #pause .obox .btns, #over .obox .btns { position: sticky; bottom: -12px; background: linear-gradient(#0000, var(--panel) 30%); padding: 6px 0 4px; }
+  #board { max-height: calc(100dvh - 12px); }
+  #socialdlg, #acctdlg, #playerdlg, #uidlg { padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left)); }
+}
+
+/* ---- teléfono vertical ----------------------------------------------------- */
+@media (pointer: coarse) and (orientation: portrait) {
+  .tm-box { padding: 16px 16px 0; }
+  .tm-row { position: sticky; bottom: 0; margin: 8px -16px 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(#0d0f1900, #0d0f19 24%); z-index: 3; }
+  .tm-seg { grid-template-columns: 1fr; }
+  .obox .btns { flex-direction: column; align-items: stretch; width: 100%; }
+  .obox .btns > button, .obox .btns > a { width: 100%; }
+}
+
+/* ---- durante la partida: controles táctiles respetan las esquinas del celular ---- */
+@media (pointer: coarse) {
+  body.touch-play .touch-actions { right: max(10px, env(safe-area-inset-right)); }
+  body.touch-play .touch-top { right: max(8px, env(safe-area-inset-right)); top: max(6px, env(safe-area-inset-top)); }
+  body.touch-play #skills { max-width: calc(100vw - 20px); }
+}
+
+/* ---- el botón flotante AMIGOS no tapa los menús en pantallas bajas ---- */
+@media (pointer: coarse) and (max-height: 520px) {
+  body.has-match #friendsbtn { top: auto; bottom: max(8px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); padding: 6px 12px; }
+  body.has-match.touch-play #friendsbtn { display: none; }   /* ya está en la barra táctil de arriba */
+}
+
+/* ---- Opciones (pausa) en pantallas bajas: el encabezado ocupa poco y queda más sitio para los ajustes ---- */
+@media (pointer: coarse) and (max-height: 520px) {
+  #pause .obox h2 { font-size: 26px; margin: 0; text-shadow: 2px 2px 0 #000; }
+  #pause [role=tablist] { gap: 4px; margin: 0; }
+  #pause [role=tab] { padding: 5px 14px; font-size: 14px; min-height: 34px; }
+  #pause .pause-back { padding: 4px 16px; font-size: 16px; min-height: 36px; }
+  #pause .obox { padding: 8px 14px; }
+  #pause select, #pause input[type=range] { max-width: 100%; }
+}
+
+/* en el menú de peleadores (pantalla baja) el botón flotante AMIGOS tapaba PELEAR: ahí se oculta (los amigos siguen en CUENTA y en la barra táctil de la partida) */
+@media (pointer: coarse) and (max-height: 520px) {
+  body:has(#menu:not(.hidden)) #friendsbtn { display: none; }
+}
+
+/* el aviso largo de "En celular…" ocupaba media pantalla en horizontal */
+@media (pointer: coarse) and (max-height: 520px) {
+  #touchnote { font-size: 11px; line-height: 1.25; padding: 3px 8px; margin: 0 0 4px; }
+  html body #menu .mtop { padding-block: 2px; }
+}
