@@ -22,8 +22,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
 
 <!-- Estilos modulares del juego -->
-<link rel="stylesheet" href="css/style.css?v=6.4">
-<link rel="stylesheet" href="css/mobile.css?v=6.4">
+<link rel="stylesheet" href="css/style.css?v=6.5">
+<link rel="stylesheet" href="css/mobile.css?v=6.5">
 
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -310,10 +310,10 @@
     <div class="chip hidden" id="slchip"><b>SHIFT LOCK</b></div>
     <button class="chip" id="weatherbtn" type="button" aria-label="Abrir clima y hora"><span id="weatherstate">11:00 · Despejado</span></button>
     <button class="chip" id="panelbtn" type="button" style="pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer">Panel <b>H</b></button>
-    <button class="chip" id="bookbtn" type="button" title="Guía de combate (B)" aria-label="Guía de combate"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 4.5C4 3.7 4.7 3 5.5 3H11v16H5.5c-.6 0-1 .2-1.5.5V4.5zM13 3h5.5c.8 0 1.5.7 1.5 1.5v15c-.5-.3-.9-.5-1.5-.5H13V3zM4 21h7v-.2c0-.4-.3-.8-.8-.8H5.5c-.8 0-1.5.4-1.5 1zm9 0h7c0-.6-.7-1-1.5-1h-4.7c-.5 0-.8.4-.8.8v.2z"/></svg><span>Guía</span> <b>B</b></button>
+    <button class="chip" id="bookbtn" type="button" title="Guía de combate (B)" aria-label="Guía de combate"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 4.5C4 3.7 4.7 3 5.5 3H11v16H5.5c-.6 0-1 .2-1.5.5V4.5zM13 3h5.5c.8 0 1.5.7 1.5 1.5v15c-.5-.3-.9-.5-1.5-.5H13V3zM4 21h7v-.2c0-.4-.3-.8-.8-.8H5.5c-.8 0-1.5.4-1.5 1zm9 0h7c0-.6-.7-1-1.5-1h-4.7c-.5 0-.8.4-.8.8v.2z"/></svg><span>Guía</span> <b id="bookkbd">B</b></button>
   </div>
-  <canvas id="minimap" width="352" height="352" aria-label="Minimapa"></canvas>
-  <div id="combo"><b id="combon">0</b><small>GOLPES</small></div>
+  <canvas id="minimap" width="432" height="432" aria-label="Minimapa"></canvas>
+  <div id="combo"><b id="combon">0</b><small id="combolbl">GOLPES</small><div id="combodmg"><span id="combodmg-total">0 DAÑO</span><em id="combodmg-last">+0</em></div></div>
   <div id="feed"></div>
   <div id="vitals">
     <canvas id="hface" class="px" width="8" height="8"></canvas>
@@ -447,15 +447,16 @@
       <div class="field"><label for="nbots">Rivales <output id="nbots-o">5</output></label><input id="nbots" type="range" min="1" max="9" value="5"></div>
       <div class="field"><label for="lvl">Nivel de los bots <output id="lvl-o">5 · Peleador</output></label><input id="lvl" type="range" min="1" max="10" step="1" value="5"></div>
       <label class="chk"><input id="auto" type="checkbox" checked><span>Auto-equilibrio<small>Si vas ganando muy fácil los bots suben de nivel; si perdés seguido, bajan (hasta 3 niveles).</small></span></label>
-      <div class="field"><label>Calidad gráfica (si va lento, bájala)</label><select class="gfxsel" aria-label="Calidad gráfica"><option value="auto">Auto (recomendado)</option><option value="0">Alta</option><option value="1">Media</option><option value="2">Baja</option><option value="3">Mínima</option><option value="4">Ultra baja (PC muy modesta)</option></select></div>
+      <div class="field"><label>Calidad gráfica (si va lento, bájala)</label><select class="gfxsel" aria-label="Calidad gráfica"><option value="auto">Auto (recomendado)</option><option value="0">Alta</option><option value="1">Media</option><option value="2">Baja</option><option value="3">Mínima</option><option value="4">Ultra baja (PC muy modesta)</option><option value="custom">Personalizada</option></select></div>
       <div class="field"><label for="goalsel">Meta de K.O.</label><select id="goalsel"><option>5</option><option selected>10</option><option>20</option></select></div>
     </div>
-    <div class="keys">
-      <span><kbd>WASD</kbd>moverse</span><span><kbd>MOUSE</kbd>cámara</span>
-      <span><kbd>CLIC</kbd>combo de 4</span><span><kbd>ESPACIO</kbd>saltar</span>
-      <span><kbd>F</kbd>bloquear</span><span><kbd>Q</kbd>esquive</span>
-      <span><kbd>1-4</kbd>habilidades</span><span><kbd>G</kbd>ulti</span>
+    <div class="keys" id="cfg-keys">
+      <span><kbd data-bind-lbl="move">WASD</kbd>moverse</span><span><kbd>MOUSE</kbd>cámara</span>
+      <span><kbd>CLIC</kbd>combo de 4</span><span><kbd data-bind-lbl="jump">ESPACIO</kbd>saltar</span>
+      <span><kbd data-bind-lbl="block">F</kbd>bloquear</span><span><kbd data-bind-lbl="dash">Q</kbd>esquive</span>
+      <span><kbd data-bind-lbl="skills">1-4</kbd>habilidades</span><span><kbd data-bind-lbl="ult">G</kbd>ulti</span>
     </div>
+    <button class="btn" id="cfg-open-binds" type="button" style="margin-top:8px;width:100%">⌨ Cambiar controles y pantalla…</button>
   </section>
   <div id="roster"></div>
   <button id="play" type="button">PELEAR ▸</button>
@@ -521,7 +522,7 @@
     </div>
     <div id="pause-settings" class="pause-view hidden">
       <h2 id="pause-options-title">OPCIONES</h2>
-      <div class="set-tabs" role="tablist"><button type="button" role="tab" data-cat="snd" class="on">Sonido</button><button type="button" role="tab" data-cat="gfx">Gráficos</button><button type="button" role="tab" data-cat="misc">Misceláneos</button></div>
+      <div class="set-tabs" role="tablist"><button type="button" role="tab" data-cat="snd" class="on">Sonido</button><button type="button" role="tab" data-cat="gfx">Gráficos</button><button type="button" role="tab" data-cat="ctl">Controles</button><button type="button" role="tab" data-cat="hud">Pantalla</button><button type="button" role="tab" data-cat="misc">Misceláneos</button></div>
       <section class="audio-settings" data-cat="snd" aria-labelledby="audio-settings-title">
         <h3 id="audio-settings-title">SONIDOS</h3>
         <div class="field audio-field">
@@ -648,12 +649,40 @@
           <button type="button" id="gfx-reset">Restablecer gráficos recomendados</button>
         </div>
       </section>
+      <section data-cat="ctl" class="hidden" aria-labelledby="ctl-title">
+        <h3 id="ctl-title">PERSONALIZAR CONTROLES</h3>
+        <p class="set-note" style="margin:0 0 10px">Hacé clic en una acción y presioná la nueva tecla que quieras usar (Esc para cancelar).</p>
+        <div id="binds-list" class="binds-grid"></div>
+        <div class="audio-actions" style="margin-top:10px">
+          <button type="button" id="binds-reset">Restablecer controles originales</button>
+        </div>
+      </section>
+      <section data-cat="hud" class="hidden" aria-labelledby="hud-title">
+        <h3 id="hud-title">ELEMENTOS EN PANTALLA (HUD)</h3>
+        <label class="chk"><input id="hud-hide-all" type="checkbox"><span>Ocultar toda la interfaz (Modo limpio / Cine)<small>Esconde todas las barras, botones y textos de la pantalla durante la pelea.</small></span></label>
+        <label class="chk"><input id="opt-mm" type="checkbox" checked><span>Mostrar Minimapa<small>Mapa de la ciudad y la costa arriba a la derecha.</small></span></label>
+        <div class="field"><label for="mm-zoom">Zoom del minimapa <output id="mm-zoom-o">2.0×</output></label><input id="mm-zoom" type="range" min="1" max="3" step="0.25" value="2"></div>
+        <label class="chk"><input id="opt-fps" type="checkbox"><span>Mostrar contador de FPS<small>Cuadros por segundo arriba a la derecha (también con F2).</small></span></label>
+        <label class="chk"><input id="hud-vitals" type="checkbox" checked><span>Mostrar barra de vida y despertar<small>Retrato, nombre, salud y barra de ulti abajo a la izquierda.</small></span></label>
+        <label class="chk"><input id="hud-skills" type="checkbox" checked><span>Mostrar barra de habilidades<small>Casillas 1–4 y Despertar abajo a la derecha.</small></span></label>
+        <label class="chk"><input id="hud-combo" type="checkbox" checked><span>Mostrar contador de golpes y daño<small>Contador a la izquierda con el daño acumulado y del último ataque.</small></span></label>
+        <label class="chk"><input id="hud-nums" type="checkbox" checked><span>Mostrar números de daño flotantes y efectos cómic<small>Cifras de daño y onomatopeyas al golpear.</small></span></label>
+        <label class="chk"><input id="hud-feed" type="checkbox" checked><span>Mostrar registro de K.O. (Kills)<small>Avisos de quién derrotó a quién debajo del minimapa.</small></span></label>
+        <label class="chk"><input id="hud-topl" type="checkbox" checked><span>Mostrar barra superior (Guía, Amigos, Personaje, Clima)<small>Botones rápidos arriba a la izquierda.</small></span></label>
+        <label class="chk"><input id="hud-plates" type="checkbox" checked><span>Mostrar nombres y vida sobre los rivales<small>Barras flotantes encima de cada peleador en la arena.</small></span></label>
+        <div class="audio-actions" style="margin-top:8px">
+          <button type="button" id="hud-reset">Mostrar todos los elementos</button>
+        </div>
+      </section>
       <section data-cat="misc" class="hidden" aria-labelledby="misc-title">
-        <h3 id="misc-title">MISCELÁNEOS</h3>
-        <label class="chk"><input id="opt-fps" type="checkbox"><span>Mostrar FPS<small>Cuadros por segundo arriba a la derecha (también con F2).</small></span></label>
+        <h3 id="misc-title">PARTIDA Y EVENTOS MARINOS</h3>
+        <div class="audio-actions" style="margin:0 0 10px">
+          <button type="button" id="btn-whale-now">🐋 Evento marino: ¡Salto de Ballena!</button>
+        </div>
+        <label class="chk"><input id="opt-sharks" type="checkbox" checked><span>Tiburones en mar profundo<small>Tiburones que patrullan las aguas profundas y persiguen a quienes nadan lejos de la costa.</small></span></label>
+        <label class="chk"><input id="opt-whale" type="checkbox" checked><span>Evento de ballena saltando en el mar<small>Una ballena gigante emerge del océano periódicamente con espuma y olas.</small></span></label>
         <label class="chk"><input id="opt-nocine" type="checkbox"><span>Desactivar cinemáticas<small>No se ven las cámaras animadas ni las escenas de las habilidades y ultis: ves la acción desde fuera, igual que la ven los demás jugadores.</small></span></label>
-        <label class="chk"><input id="opt-mm" type="checkbox" checked><span>Minimapa<small>Mapa de la ciudad desde arriba con la posición de los jugadores.</small></span></label>
-        <label class="chk"><input id="st-opt" type="checkbox" checked><span>Enviar estadísticas anónimas<small>Solo números (partidas, tiempo jugado, personaje elegido) con un código al azar: sin tu nombre ni tu IP. Ayudan a mejorar el juego. Si lo apagás se borran.</small></span></label>
+        <label class="chk"><input id="st-opt" type="checkbox" checked><span>Enviar estadísticas anónimas<small>Solo números (partidas, tiempo jugado, personaje elegido) con un código al azar: sin tu nombre ni tu IP.</small></span></label>
         <div class="field"><label for="plvl">Nivel de los bots <output id="plvl-o">5</output></label><input id="plvl" type="range" min="1" max="10" step="1" value="5"></div>
         <label class="chk"><input id="pauto" type="checkbox" checked><span>Auto-equilibrio</span></label>
       </section>
@@ -704,24 +733,25 @@
 <!-- ==================================================================== -->
 <!-- Librerías de motor 3D y red (Locales para juego 100% offline)        -->
 <!-- ==================================================================== -->
-<script src="lib/three.min.js?v=6.4"></script>
-<script src="lib/CopyShader.js?v=6.4"></script>
-<script src="lib/LuminosityHighPassShader.js?v=6.4"></script>
-<script src="lib/EffectComposer.js?v=6.4"></script>
-<script src="lib/RenderPass.js?v=6.4"></script>
-<script src="lib/ShaderPass.js?v=6.4"></script>
-<script src="lib/UnrealBloomPass.js?v=6.4"></script>
-<script src="lib/mqtt.min.js?v=6.4"></script>
+<script src="lib/three.min.js?v=6.5"></script>
+<script src="lib/CopyShader.js?v=6.5"></script>
+<script src="lib/LuminosityHighPassShader.js?v=6.5"></script>
+<script src="lib/EffectComposer.js?v=6.5"></script>
+<script src="lib/RenderPass.js?v=6.5"></script>
+<script src="lib/ShaderPass.js?v=6.5"></script>
+<script src="lib/UnrealBloomPass.js?v=6.5"></script>
+<script src="lib/mqtt.min.js?v=6.5"></script>
 
 <!-- ==================================================================== -->
 <!-- Scripts modulares del juego                                          -->
 <!-- ==================================================================== -->
-<script src="js/physics.js?v=6.4"></script>
-<script src="js/destruction.js?v=6.4"></script>
-<script src="js/animations.js?v=6.4"></script>
-<script src="js/personajes.js?v=6.4"></script>
-<script src="js/habilidades.js?v=6.4"></script>
-<script src="js/game.js?v=6.4"></script>
+<script src="js/physics.js?v=6.5"></script>
+<script src="js/destruction.js?v=6.5"></script>
+<script src="js/animations.js?v=6.5"></script>
+<script src="js/personajes.js?v=6.5"></script>
+<script src="js/habilidades.js?v=6.5"></script>
+<script src="js/emotes.js?v=1"></script>
+<script src="js/game.js?v=6.5"></script>
 
 </body>
 </html>
