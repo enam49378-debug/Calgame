@@ -1926,7 +1926,7 @@ CF.mover('sekAbduct', function (f, o) {
   javiSpeak(f, 'fly');
   const RANGE = o.range || 9, CLIP = 1.75;
   // metros hacia adelante según la animación de BBS: [segundos, distancia acumulada]
-  const PATH = [[0, 0], [.6, 0], [.793, 1.03], [.843, 1.312], [.9, 1.56], [.95, 1.847], [1.05, 2.944], [1.1, 3.733], [1.15, 4.587], [1.25, 6.094], [1.4, 7.163], [CLIP, 7.163]];
+  const PATH = [[0, 0], [.6, 0], [.793, 1.084], [.843, 1.312], [.9, 1.599], [.95, 1.847], [1.05, 2.944], [1.1, 3.64], [1.15, 4.532], [1.25, 6.094], [1.4, 7.163], [CLIP, 7.163]];
   const speedAt = t => { for (let i = 0; i < PATH.length - 1; i++) if (t >= PATH[i][0] && t < PATH[i + 1][0]) return (PATH[i + 1][1] - PATH[i][1]) / (PATH[i + 1][0] - PATH[i][0]); return 0; };
   let grabbed = false;
   const tg0 = findTarget(f, RANGE);
