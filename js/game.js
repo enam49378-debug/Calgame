@@ -8384,7 +8384,7 @@ function localPublicProfile() {
   let g = 0, m = 0, f = '', best = 0;
   for (const [id, c] of Object.entries(ST.d?.c || {})) { g += +c[0] || 0; if (CHAR_IDS.includes(id) && c[0] > best) { best = c[0]; f = id; } }
   for (const day of Object.values(ST.d?.dy || {})) m += +day[2] || 0;
-  const p = cleanPublicProfile({ v: 1, uid: ACCT.user?.emailVerified ? ACCT.user.uid : '', ...cosmeticsGet(), n: ACCT.user?.displayName || $('pname-in').value || 'Jugador', a: avatarGet() || ACCT.user?.photoURL, b: bannerGet(), acct: !!ACCT.user, g, m, f });
+  const p = cleanPublicProfile({ v: 1, uid: ACCT.user?.uid || '', ...cosmeticsGet(), n: ACCT.user?.displayName || $('pname-in').value || 'Jugador', a: avatarGet() || ACCT.user?.photoURL, b: bannerGet(), acct: !!ACCT.user, g, m, f });
   p.b = bannerGet(); return p;
 }
 let publicBannerSource = '', publicBannerData = '', profileShareTicket = 0;
@@ -8440,7 +8440,9 @@ function roomEntries() {
 }
 function rawEntryProfile(e) {
   if (e.me) return localPublicProfile();
-  return cleanPublicProfile(NET.named?.profiles?.get(e.key) || e.pr.pf) || { v: 1, n: e.f.name, a: '', b: { k: 'char:' + e.f.ch.id }, acct: false, g: 0, m: 0, f: '' };
+  const base = cleanPublicProfile(NET.named?.profiles?.get(e.key) || e.pr.pf) || { v: 1, uid: '', n: e.f.name, a: '', b: { k: 'char:' + e.f.ch.id }, acct: false, g: 0, m: 0, f: '' };
+  if (!base.uid && validAccountId(e.pr?.uid)) { base.uid = e.pr.uid; base.acct = true; }
+  return base;
 }
 function entryProfile(e) { const p=rawEntryProfile(e),uid=socialEntryUid(e);return !e.me&&uid&&SOC.profiles.has(uid)?{...p,...SOC.profiles.get(uid)}:p; }
 function profileAvatar(img, p, e) {
@@ -12605,12 +12607,16 @@ function socialReset(){SOC.epoch++;for(const off of SOC.off)off();SOC.off=[];for
 async function socialAuthChanged(){
   socialReset();const u=ACCT.user,epoch=SOC.epoch;if(!u){socialRender();return;}
   SOC.uid=u.uid;SOC.owner=!!(u.emailVerified&&u.email&&ACCT.ownerH.includes(await acctSha(u.email)));if(epoch!==SOC.epoch)return;
-  try{await socialLoad();if(epoch!==SOC.epoch)return;if(!u.emailVerified){SOC.error='Verificá tu correo para usar amigos y mensajes.';socialRender();return;}
+  try{await socialLoad();if(epoch!==SOC.epoch)return;
+    socialWatchRole(u.uid);
+    if(!u.emailVerified){SOC.error='Verificá tu correo para usar amigos y mensajes.';netShareProfile();socialRender();return;}
     if(localStorage.getItem(cosmeticKey())===null){const saved=await socialWait(SOC.db.collection('cf_profiles').doc(u.uid).get({source:'server'}));if(epoch!==SOC.epoch)return;if(saved.exists){const p=cleanPublicProfile(saved.data());if(p){cosmeticSave(p);localStorage.setItem(bannerKey(),JSON.stringify(p.b));if(p.a.startsWith('data:'))localStorage.setItem(cosmeticKey()+'_avatar',p.a);acctPaint();}}}
     if(!await socialSaveProfile(true))throw Error(SOC.error);if(epoch!==SOC.epoch)return;
     SOC.ready=true;SOC.error='';acctPaint();
-    if(SOC.owner)await SOC.db.collection('cf_roles').doc(u.uid).set({role:'owner',by:u.uid,updated:socialStamp()});
-    socialWatchRole(u.uid);
+    if(SOC.owner){
+      await SOC.db.collection('cf_roles').doc(u.uid).set({role:'owner',by:u.uid,updated:socialStamp()});
+      SOC.off.push(SOC.db.collection('cf_roles').onSnapshot(s=>{if(epoch!==SOC.epoch)return;s.forEach(d=>{const r=d.data()?.role||'';SOC.roles.set(d.id,['owner','calsito'].includes(r)?r:'');});ROOM_UI.signature='';socialRefreshVisible();if(SOC.open)socialRender();},()=>{}));
+    }
     SOC.off.push(SOC.db.collection('cf_links').where('members','array-contains',u.uid).limit(100).onSnapshot(s=>{if(epoch!==SOC.epoch)return;SOC.links.clear();s.forEach(d=>{SOC.links.set(d.id,{id:d.id,...d.data()});});if(SOC.thread&&SOC.links.get(SOC.thread)?.status!=='accepted')socialChatStop();socialRender();socialBadge();},socialError));
     await socialPublishSession();netShareProfile();socialRender();
   }catch(e){if(epoch===SOC.epoch){SOC.ready=false;socialError(e);socialRender();}}
@@ -12644,7 +12650,7 @@ async function socialPublishSession(){
   if(!SOC.ready||!ACCT.user?.emailVerified||!NET.named)return;
   const peer=NET.named.myId||NET.myPeer;if(!/^u[a-z0-9]{6,16}$/.test(peer||''))return;
   if(SOC.sessionAt&&SOC.sessionPeer===peer&&Date.now()-SOC.sessionAt<90000)return;
-  try{await SOC.db.collection('cf_sessions').doc(peer).set({uid:ACCT.user.uid,expires:firebase.firestore.Timestamp.fromMillis(Date.now()+300000)});SOC.sessionAt=Date.now();SOC.sessionPeer=peer;}catch(e){socialError(e);}
+  try{await SOC.db.collection('cf_sessions').doc(peer).set({uid:ACCT.user.uid,expires:firebase.firestore.Timestamp.fromMillis(Date.now()+240000)});SOC.sessionAt=Date.now();SOC.sessionPeer=peer;}catch(e){socialError(e);}
 }
 function socialWatchRole(uid){
   if(!SOC.db||!validAccountId(uid)||SOC.watched.has(uid))return;
@@ -12655,12 +12661,19 @@ async function socialCheckEntry(e){
   const p=rawEntryProfile(e);if(e.bot||e.me||!validAccountId(p.uid))return;
   const cached=SOC.verified.get(e.key);if(cached?.uid===p.uid&&cached.until>Date.now())return;
   if(SOC.checking.has(e.key))return;SOC.checking.add(e.key);const epoch=SOC.epoch;
-  try{await socialLoad();const session=await SOC.db.collection('cf_sessions').doc(e.key).get();if(epoch!==SOC.epoch)return;const d=session.data();if(!session.exists||d.uid!==p.uid||!d.expires?.toMillis||d.expires.toMillis()<Date.now()){SOC.verified.delete(e.key);return;}
-    SOC.verified.set(e.key,{uid:d.uid,until:Math.min(d.expires.toMillis(),Date.now()+60000)});socialWatchRole(d.uid);await socialGetProfile(d.uid);ROOM_UI.signature='';socialRefreshVisible();
-  }catch(e){}finally{SOC.checking.delete(e.key);}
+  try{await socialLoad();if(epoch!==SOC.epoch)return;
+    socialWatchRole(p.uid);
+    const [session,prof]=await Promise.all([SOC.db.collection('cf_sessions').doc(e.key).get().catch(()=>null),socialGetProfile(p.uid).catch(()=>null)]);
+    if(epoch!==SOC.epoch)return;
+    const d=session?.exists?session.data():null;
+    if(d&&d.uid&&d.uid!==p.uid){SOC.verified.delete(e.key);return;}
+    const exp=d?.expires?.toMillis?d.expires.toMillis():0;
+    const until=exp>Date.now()?Math.min(exp,Date.now()+60000):Date.now()+60000;
+    if(d?.uid===p.uid||prof||SOC.owner||p.acct){SOC.verified.set(e.key,{uid:p.uid,until});ROOM_UI.signature='';socialRefreshVisible();}
+  }catch(e){}finally{SOC.checking.delete(e.key);socialRefreshVisible();}
 }
 async function socialGetProfile(uid){if(!validAccountId(uid))return null;if(SOC.profiles.has(uid))return SOC.profiles.get(uid);await socialLoad();const d=await SOC.db.collection('cf_profiles').doc(uid).get();const p=d.exists?cleanPublicProfile(d.data()):null;if(p)SOC.profiles.set(uid,p);return p;}
-function socialEntryUid(e){if(e.me)return ACCT.user?.emailVerified?ACCT.user.uid:'';const p=rawEntryProfile(e),v=SOC.verified.get(e.key);return v&&validAccountId(p.uid)&&v.uid===p.uid&&v.until>Date.now()?v.uid:'';}
+function socialEntryUid(e){if(e.me)return ACCT.user?.uid||'';const p=rawEntryProfile(e),v=SOC.verified.get(e.key);if(v&&validAccountId(p.uid)&&v.uid===p.uid&&v.until>Date.now())return v.uid;return validAccountId(p.uid)&&(SOC.owner||SOC.profiles.has(p.uid)||!SOC.checking.has(e.key))?p.uid:'';}
 function roleOfEntry(e){const uid=socialEntryUid(e);return e.me&&SOC.owner?'owner':uid?SOC.roles.get(uid)||'':'';}
 function roleBadge(role){const el=document.createElement('span');el.className='account-role role-'+role;if(role==='calsito'){const img=document.createElement('img');img.src='assets/cal-role.png';img.alt='';el.appendChild(img);}el.appendChild(document.createTextNode(role==='owner'?'Owner':'Calsito'));return el;}
 function socialDecorateIdentity(bt,e){const role=roleOfEntry(e);bt.querySelector('.account-role')?.remove();if(role)bt.querySelector('.rp-text').appendChild(roleBadge(role));const p=entryProfile(e);bt.style.setProperty('--profile-accent',p.accent||'#a5a0ff');bt.dataset.aura=p.aura||'none';bt.querySelector('.rp-avatar').dataset.aura=p.aura||'none';socialCheckEntry(e);}
@@ -12669,9 +12682,10 @@ function socialRefreshVisible(){
   if(ROOM_UI.profile&&$('playerdlg')&&!$('playerdlg').classList.contains('hidden')){const e=roomEntries().find(x=>x.key===ROOM_UI.profile)||SOC.viewEntry;if(e){const p=entryProfile(e);const roleArea=$('playerdlg').querySelector('.public-role');if(roleArea){roleArea.replaceChildren();const r=roleOfEntry(e);if(r)roleArea.appendChild(roleBadge(r));}socialProfileActions(e);}}
 }
 async function socialSetRole(uid,role){
+  if(!await socialRequire())return;
   if(!SOC.owner||!validAccountId(uid)||!['none','calsito'].includes(role))return;
   const go=await uiDialog({title:role==='calsito'?'ROL CALSITO':'QUITAR ROL',msg:role==='calsito'?'Este jugador tendrá la insignia CAL y el título amarillo Calsito en sus partidas.':'Este jugador dejará de mostrar la insignia Calsito.',ok:role==='calsito'?'Dar Calsito':'Quitar Calsito',cancel:'Cancelar'});if(!go)return;
-  try{await SOC.db.collection('cf_roles').doc(uid).set({role,by:SOC.uid,updated:socialStamp()});SOC.roles.set(uid,role==='none'?'':role);socialRefreshVisible();}catch(e){socialError(e);}
+  try{await SOC.db.collection('cf_roles').doc(uid).set({role,by:SOC.uid,updated:socialStamp()});SOC.roles.set(uid,role==='none'?'':role);ROOM_UI.signature='';socialRefreshVisible();if(SOC.open)socialRender();socialStatus(role==='calsito'?'Rol Calsito entregado.':'Rol Calsito quitado.');}catch(e){socialError(e);if(!SOC.open)await uiAlert(SOC.error||'No se pudo cambiar el rol.','ERROR DE ROL');}
 }
 function socialProfileActions(e){
   const area=$('playerdlg')?.querySelector('.public-actions');if(!area)return;area.replaceChildren();const uid=socialEntryUid(e);
@@ -12728,12 +12742,47 @@ async function socialRender(){
   socialBadge();if(!SOC.open||!$('friend-list'))return;socialStatus();const ticket=++socialRenderTicket,list=$('friend-list');list.replaceChildren();
   const links=[...SOC.links.values()].filter(l=>['accepted','pending'].includes(l.status));links.sort((a,b)=>a.status.localeCompare(b.status));
   if(!links.length){const t=document.createElement('p');t.className='social-empty';t.textContent=ACCT.user?'Tu lista empieza con una solicitud. Tocá el perfil de alguien en Tab para añadirlo.':'Entrá a tu cuenta para encontrar a tus amigos.';list.appendChild(t);}
-  for(const l of links){const uid=l.members.find(x=>x!==SOC.uid);let p;try{p=await socialGetProfile(uid);}catch(e){}if(ticket!==socialRenderTicket||!SOC.open)return;const query=$('friend-search').value.trim().toLocaleLowerCase();if(query&&!(p?.n||'Jugador').toLocaleLowerCase().includes(query))continue;const row=document.createElement('div');row.className='friend-row'+(l.status==='pending'?' pending':'')+(SOC.thread===l.id?' active':'');const av=document.createElement('img');av.src=p?.a||'assets/calfight_icon.png';av.alt='';const info=document.createElement('button');info.className='friend-info';const b=document.createElement('b'),s=document.createElement('small');b.textContent=p?.n||'Jugador';s.textContent=l.status==='accepted'?'Amigo · abrir chat':l.by===SOC.uid?'Solicitud enviada':'Quiere ser tu amigo';info.append(b,s);info.onclick=()=>l.status==='accepted'?socialChat(uid):socialViewAccount(uid);row.append(av,info);
-    const action=(label,fn)=>{const b=document.createElement('button');b.textContent=label;b.onclick=fn;row.appendChild(b);};
+  const query=$('friend-search').value.trim().toLocaleLowerCase();
+  const seenUids=new Set([SOC.uid]);
+  for(const l of links){const uid=l.members.find(x=>x!==SOC.uid);seenUids.add(uid);socialWatchRole(uid);let p;try{p=await socialGetProfile(uid);}catch(e){}if(ticket!==socialRenderTicket||!SOC.open)return;if(query&&!(p?.n||'Jugador').toLocaleLowerCase().includes(query))continue;const row=document.createElement('div');row.className='friend-row'+(l.status==='pending'?' pending':'')+(SOC.thread===l.id?' active':'');const av=document.createElement('img');av.src=p?.a||'assets/calfight_icon.png';av.alt='';const info=document.createElement('button');info.className='friend-info';const b=document.createElement('b'),s=document.createElement('small');b.textContent=p?.n||'Jugador';const role=SOC.roles.get(uid);if(role)b.appendChild(roleBadge(role));s.textContent=l.status==='accepted'?'Amigo · abrir chat':l.by===SOC.uid?'Solicitud enviada':'Quiere ser tu amigo';info.append(b,s);info.onclick=()=>l.status==='accepted'?socialChat(uid):socialViewAccount(uid);row.append(av,info);
+    const action=(label,fn,cls='')=>{const bt=document.createElement('button');bt.textContent=label;if(cls)bt.className=cls;bt.onclick=fn;row.appendChild(bt);};
+    if(SOC.owner&&uid!==SOC.uid&&role!=='owner')action(role==='calsito'?'Quitar Calsito':'Dar Calsito',()=>socialSetRole(uid,role==='calsito'?'none':'calsito'),'owner-role-action');
     if(l.status==='pending'){if(l.by!==SOC.uid)action('Aceptar',()=>socialLinkAction(l.id,'accepted'));action(l.by===SOC.uid?'Cancelar':'Rechazar',()=>socialLinkAction(l.id,'declined'));}
     else{action('Perfil',()=>socialViewAccount(uid));action('×',async()=>{if(await uiDialog({title:'QUITAR AMIGO',msg:'Podrán volver a añadirse después.',ok:'Quitar',cancel:'Cancelar'}))socialLinkAction(l.id,'removed');});}list.appendChild(row);
   }
   if(links.length&&!list.children.length){const empty=document.createElement('p');empty.className='social-empty';empty.textContent='No encontramos amigos con ese nombre.';list.appendChild(empty);}
+  if(SOC.owner&&SOC.db){
+    try{
+      const snap=await SOC.db.collection('cf_profiles').limit(20).get();
+      if(ticket!==socialRenderTicket||!SOC.open)return;
+      snap.forEach(d=>{const p=cleanPublicProfile(d.data());if(p)SOC.profiles.set(d.id,p);});
+    }catch(e){}
+    const extraUids=new Set([...SOC.profiles.keys(),...SOC.roles.keys()]);
+    for(const e of roomEntries()){const u=socialEntryUid(e)||rawEntryProfile(e).uid;if(validAccountId(u))extraUids.add(u);}
+    const others=[...extraUids].filter(u=>validAccountId(u)&&!seenUids.has(u));
+    if(SOC.owner){
+      const h=document.createElement('h3');h.textContent='ROL CALSITO · JUGADORES';h.style.margin='12px 0 6px';h.style.fontSize='12px';list.appendChild(h);
+      const codeRow=document.createElement('div');codeRow.className='friend-row';
+      const codeBtn=document.createElement('button');codeBtn.textContent='Dar/Quitar Calsito al código de arriba';codeBtn.className='owner-role-action';
+      codeBtn.onclick=()=>{const c=($('friend-code')?.value||'').trim();if(!validAccountId(c)||c===SOC.uid)return socialStatus('Pegá el código del jugador arriba en "Añadir por código de amigo".');socialSetRole(c,SOC.roles.get(c)==='calsito'?'none':'calsito');};
+      codeRow.appendChild(codeBtn);list.appendChild(codeRow);
+      for(const uid of others){
+        socialWatchRole(uid);
+        const p=SOC.profiles.get(uid);
+        const nm=p?.n||roomEntries().find(e=>(socialEntryUid(e)||rawEntryProfile(e).uid)===uid)?.f?.name||('Jugador '+uid.slice(0,6));
+        if(query&&!nm.toLocaleLowerCase().includes(query))continue;
+        const row=document.createElement('div');row.className='friend-row';
+        const av=document.createElement('img');av.src=p?.a||'assets/calfight_icon.png';av.alt='';
+        const info=document.createElement('button');info.className='friend-info';
+        const b=document.createElement('b'),s=document.createElement('small');b.textContent=nm;
+        const role=SOC.roles.get(uid);if(role)b.appendChild(roleBadge(role));
+        s.textContent=role==='calsito'?'Tiene rol Calsito · ver perfil':'Cuenta registrada · ver perfil';
+        info.append(b,s);info.onclick=()=>socialViewAccount(uid);row.append(av,info);
+        if(role!=='owner'){const bt=document.createElement('button');bt.className='owner-role-action';bt.textContent=role==='calsito'?'Quitar Calsito':'Dar Calsito';bt.onclick=()=>socialSetRole(uid,role==='calsito'?'none':'calsito');row.appendChild(bt);}
+        list.appendChild(row);
+      }
+    }
+  }
   socialRenderMessages();
 }
 function socialRenderMessages(){
@@ -12744,7 +12793,7 @@ function socialRenderMessages(){
   let lastDay='';for(const m of SOC.messages){const date=m.at?.toDate?.(),day=date?date.toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'}):'';if(day&&day!==lastDay){const sep=document.createElement('div');sep.className='dm-day';sep.textContent=day;box.appendChild(sep);lastDay=day;}const row=document.createElement('div');row.className='dm-message'+(m.from===SOC.uid?' mine':'');const text=document.createElement('p');text.textContent=m.text;const t=document.createElement('time');t.textContent=date?date.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}):'Enviando…';row.append(text,t);box.appendChild(row);}
   if(!SOC.messages.length){const e=document.createElement('p');e.className='social-empty';e.textContent=SOC.thread?'Todavía no hay mensajes. Saludá a tu amigo.':'Las conversaciones aparecen acá.';box.appendChild(e);}if(nearBottom||first)box.scrollTop=box.scrollHeight;
 }
-async function socialViewAccount(uid){const p=await socialGetProfile(uid);if(!p)return;SOC.verified.set('account-'+uid,{uid,until:Date.now()+60000});SOC.viewEntry={key:'account-'+uid,me:uid===SOC.uid,bot:false,pr:{pf:p},f:{name:p.n,ch:CHARS[p.f]||CHARS.javi,kills:0,deaths:0,remote:true}};socialWatchRole(uid);socialClose();playerProfileOpen(SOC.viewEntry.key,document.activeElement);}
+async function socialViewAccount(uid){const p=(await socialGetProfile(uid).catch(()=>null))||{v:1,uid,n:'Jugador',a:'',b:{k:'pre:sunset'},acct:true,g:0,m:0,f:''};SOC.verified.set('account-'+uid,{uid,until:Date.now()+60000});SOC.viewEntry={key:'account-'+uid,me:uid===SOC.uid,bot:false,pr:{pf:p,uid},f:{name:p.n||'Jugador',ch:CHARS[p.f]||CHARS.javi,kills:0,deaths:0,remote:true}};socialWatchRole(uid);socialClose();playerProfileOpen(SOC.viewEntry.key,document.activeElement);}
 function socialTick(){
   document.body.classList.toggle('has-match',G.state==='play');
   const entries=roomEntries();for(const e of entries){socialCheckEntry(e);const f=e.f,role=roleOfEntry(e);if(e.me&&role&&!f.plate){const p=document.createElement('div');p.className='plate self-role-plate';$('plates').appendChild(p);f.plate=p;f.plateBar=document.createElement('b');}
@@ -12987,7 +13036,7 @@ function localRoom(code, onStatus = () => { }) {
       const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
       return Promise.resolve();
     };
-    R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (!R.myProfile) return; R.profiles.set(myId, R.myProfile); send({ t: 'pf', d: R.myProfile }); notify(); };
+    R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (!R.myProfile) return; R.profiles.set(myId, R.myProfile); send({ t: 'pf', d: R.myProfile }); R.profileAt = Date.now(); notify(); };
     R.weatherCommand = d => send({t:'wx',d});
     R.setSkin = d => { R.mySkin = d; send({ t: 'sk', d: d || '' }); };
     R.pubAs = (id, obj) => send({ t: 'pa', id, d: obj });
@@ -13025,6 +13074,7 @@ function localRoom(code, onStatus = () => { }) {
       if (R.closed) return;
       const now = Date.now();
       if (now - R.lastSend > 1500 && Object.keys(R.my).length) R.presence({});
+      if (R.myProfile && now - (R.profileAt || 0) > 15000) { send({ t: 'pf', d: R.myProfile }); R.profileAt = now; }
       send({ t: 'pi', ts: now });
       for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) forget(id);
     }, 1000);
@@ -13212,7 +13262,7 @@ function renderLobby() {
 }
 function netMenuPresence() {
   if (typeof NET === 'undefined' || !NET.named || G.state === 'play') return;
-  NET.named.presence({ v: 1, st: 'menu', nm: ($('pname-in').value || 'Jugador').trim().slice(0, 16), ch: G.charId, jt: NET.joinT }).catch(() => { });
+  NET.named.presence({ v: 1, st: 'menu', nm: ($('pname-in').value || 'Jugador').trim().slice(0, 16), ch: G.charId, jt: NET.joinT, uid: ACCT.user?.uid || undefined }).catch(() => { });
 }
 function netSendPlay() {
   if (!NET.named || !G.player) return;
@@ -13223,7 +13273,7 @@ function netSendPlay() {
 }
 function presenceOf(f, ch) {
   return {
-    v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
+    v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
     dx: f.isPlayer && NET.destOut ? NET.destOut.filter(e => G.time - e.t < 2.5) : undefined, vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
@@ -13236,6 +13286,7 @@ function sanePr(pr) {   // lo que manda otro jugador nunca se usa tal cual: núm
   if (pr.x != null) { pr.x = c(pr.x, -420, 420); pr.z = c(pr.z, -420, 420); pr.y = c(pr.y, -60, 500); }
   pr.hp = c(pr.hp, 0, 600); pr.mh = c(pr.mh, 1, 600, 100); pr.k = c(pr.k, 0, 9999); pr.d = c(pr.d, 0, 9999);
   if (typeof pr.nm === 'string') pr.nm = pr.nm.replace(/[<>&\u0000-\u001f]/g, '').slice(0, 16);
+  if (pr.uid != null && !validAccountId(pr.uid)) delete pr.uid;
   if (pr.jt != null) { const j = +pr.jt; pr.jt = Number.isFinite(j) && j > Date.now() - 864e5 && j < Date.now() + 120000 ? j : Date.now(); }
   return pr;
 }
