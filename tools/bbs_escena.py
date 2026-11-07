@@ -29,11 +29,11 @@ Z0 = ruta_s[0][3]                                   # cuánto había avanzado el
 f3 = lambda v: round(float(v), 3)
 
 
-def path(ruta, step=.05):
+def path(ruta, step=.05, giro=0):
     out = []; last = -1
     for r in ruta:
         if r[0] - last >= step - 1e-6 or r is ruta[-1]:
-            out.append([f3(r[0]), f3(r[1]), f3(r[2]), f3(r[3] - Z0), 0]); last = r[0]
+            out.append([f3(r[0]), f3(r[1]), f3(r[2]), f3(r[3] - Z0), f3(giro)]); last = r[0]
     return out
 
 
@@ -60,11 +60,11 @@ def lit(a): return json.dumps(a, separators=(',', ':'))
 
 
 block = ('// <<BBS-ESCENA1  (generado por tools/bbs_escena.py a partir de %s: no editar a mano)\n' % os.path.basename(film_path) +
-         '  const BB_APOS = %s;\n  const BB_VPOS = %s;\n  const BB_CAM = %s;\n' % (lit(path(ruta_s)), lit(path(ruta_v)), lit(rows)) +
+         '  const BB_APOS = %s;\n  const BB_VPOS = %s;\n  const BB_CAM = %s;\n' % (lit(path(ruta_s)), lit(path(ruta_v, giro=math.pi)), lit(rows)) +
          '  // BBS-ESCENA1>>')
 js = open(out_path, encoding='utf-8').read()
 new, k = re.subn(r'// <<BBS-ESCENA1.*?// BBS-ESCENA1>>', lambda m: block, js, flags=re.S)
 if not k: sys.exit('faltan las marcas // <<BBS-ESCENA1 ... // BBS-ESCENA1>> en ' + out_path)
 open(out_path, 'w', encoding='utf-8', newline='').write(new)
-print('escena escrita: atacante %d puntos, víctima %d, cámara %d cuadros (desde t=%.2f)' % (len(path(ruta_s)), len(path(ruta_v)), len(rows), t_clip0))
+print('escena escrita: atacante %d puntos, víctima %d, cámara %d cuadros (desde t=%.2f)' % (len(path(ruta_s)), len(path(ruta_v, giro=math.pi)), len(rows), t_clip0))
 print('yaw del atacante %.3f°, origen BBS (%.2f, %.2f, %.2f), avance al empezar %.3f m' % (Y0, OX, OY, OZ, Z0))
