@@ -108,86 +108,85 @@ CF.mover('spearThrow', function (f, o) {
    Pose de guardia diagonal a dos manos inspirada en el modelo de Blockbench, con movimiento vivo,
    respiración marcial, giro de entrada y destellos de energía mientras espera el golpe. */
 CF.habilidad('javiParry', function () {
-  // arx + sx = 0 apunta la lanza recto al frente (+Z); up > 0 la inclina hacia arriba (+Y)
-  const U = (o, up = 0) => (o.sx = -(o.arx || 0) - up, o);
+  // Compensamos ix + tx + arx para que `up` sea la inclinación real de la lanza respecto al horizonte
+  const U = (o, up = 0) => (o.sx = -(o.ix || 0) - (o.tx || 0) - (o.arx || 0) - up, o);
 
-  // 1) Anticipación: recoge la lanza al costado derecho flexionando rodillas
+  // 1) Anticipación: recoge la lanza en diagonal baja flexionando rodillas
   const WIND = U({
-    ix: -.10, tx: -.08, ty: -.58, tz: -.06, hx: .06, hy: .52, by: -2.4, bz: -1.1,
-    arx: -.42, arz: .48, ary: .22, sy: -.45, sz: -.20,
-    alx: -.88, alz: .36, aly: -.18,
-    llx: -.42, lrx: .46, llz: .14, lrz: -.14,
-    tpx: -.6, tpz: -.8, arpx: -1.4, arpy: .4, arpz: -1.2, alpx: 1.1, alpz: .6,
-    llpz: .8, lrpz: -.8, tscx: 1.04, tscy: .96
-  }, .18);
+    ix: .06, tx: .06, ty: -.42, tz: -.05, hx: -.04, hy: .38, by: -2.4, bz: -.8,
+    arx: -.68, arz: .32, ary: -.12, sy: .72, sz: .18, spx: .6, spy: .3, spz: 1.0,
+    alx: -1.08, alz: -.28, aly: .24,
+    llx: -.46, lrx: .44, llz: .14, lrz: -.14,
+    tpx: -.4, tpz: -.5, arpx: -.9, arpy: -.2, arpz: .8, alpx: .8, alpz: 1.2,
+    llpz: 1.0, lrpz: -1.0, tscx: 1.04, tscy: .96
+  }, .22);
 
   // 2) Latigazo diagonal: cruza la lanza frente al pecho con smear de velocidad
   const SNAP = U({
-    ix: .18, tx: .16, ty: .36, tz: .05, hx: -.10, hy: -.32, by: -4.2, bz: .9,
-    arx: -.96, arz: .12, ary: -.26, sy: 1.12, sz: .34, spx: 1.2, spy: .6, spz: 1.8,
+    ix: .16, tx: .14, ty: .34, tz: .05, hx: -.12, hy: -.30, by: -4.2, bz: .8,
+    arx: -.92, arz: .14, ary: -.24, sy: 1.10, sz: .34, spx: 1.2, spy: .6, spz: 1.8,
     alx: -1.36, alz: -.48, aly: .38,
     llx: -.78, lrx: .66, llz: .18, lrz: -.18,
-    tpx: .5, tpz: .9, arpx: -.9, arpy: -.5, arpz: 1.8, ars: 1.14,
-    alpx: 1.2, alpy: -.2, alpz: 2.0, als: 1.08,
-    llpx: .6, llpz: 1.8, lrpx: -.6, lrpz: -1.8, tscx: 1.08, tscy: .92
-  }, .52);
+    tpx: .5, tpz: .8, arpx: -.8, arpy: -.4, arpz: 1.6, ars: 1.12,
+    alpx: 1.1, alpy: -.2, alpz: 1.9, als: 1.06,
+    llpx: .6, llpz: 1.8, lrpx: -.6, lrpz: -1.8, tscx: 1.07, tscy: .93
+  }, .36);
 
   // 3) Pose principal de Parry (Blockbench mejorada): lanza cruzada en diagonal de abajo-derecha
-  //    a arriba-izquierda (~24° arriba), mano derecha abajo, mano izquierda sujetando cerca del collar dorado,
-  //    pierna izquierda adelantada y rodillas flexionadas con peso atlético.
+  //    a arriba-izquierda (~22° arriba), mano derecha abajo, mano izquierda sujetando detrás del collar dorado
   const GUARD = U({
-    ix: .13, tx: .11, ty: .26, tz: .04, hx: -.08, hy: -.24, by: -3.3, bz: .5,
-    arx: -.84, arz: .16, ary: -.20, sy: 1.04, sz: .28, spx: 1.0, spy: .5, spz: 1.5,
+    ix: .11, tx: .09, ty: .24, tz: .03, hx: -.08, hy: -.22, by: -3.2, bz: .4,
+    arx: -.82, arz: .16, ary: -.18, sy: 1.04, sz: .28, spx: 1.0, spy: .5, spz: 1.5,
     alx: -1.28, alz: -.42, aly: .34,
-    llx: -.66, lrx: .56, llz: .15, lrz: -.15,
-    tpx: .3, tpz: .5, arpx: -.7, arpy: -.4, arpz: 1.4,
+    llx: -.64, lrx: .54, llz: .15, lrz: -.15,
+    tpx: .3, tpz: .4, arpx: -.7, arpy: -.3, arpz: 1.4,
     alpx: .9, alpy: -.1, alpz: 1.7,
     llpx: .5, llpz: 1.5, lrpx: -.5, lrpz: -1.5, tscx: 1.03, tscy: .97
-  }, .46);
+  }, .30);
 
-  // 4) Oscilaciones vivas durante la ventana de parry (evita quedarse congelado)
+  // 4) Oscilaciones vivas durante la ventana de parry (cambio de peso, torsión y altura de lanza)
   const COIL = U({
-    ix: .16, tx: .14, ty: .32, tz: .06, hx: -.11, hy: -.30, by: -3.9, bz: .8,
-    arx: -.90, arz: .14, ary: -.24, sy: 1.08, sz: .32, spx: 1.1, spy: .6, spz: 1.7,
-    alx: -1.34, alz: -.45, aly: .36,
-    llx: -.74, lrx: .62, llz: .17, lrz: -.17,
-    tpx: .4, tpz: .7, arpx: -.8, arpy: -.5, arpz: 1.6,
+    ix: .16, tx: .14, ty: .36, tz: .06, hx: -.14, hy: -.34, by: -4.1, bz: .8,
+    arx: -.90, arz: .12, ary: -.24, sy: 1.12, sz: .34, spx: 1.1, spy: .6, spz: 1.7,
+    alx: -1.36, alz: -.46, aly: .38,
+    llx: -.76, lrx: .64, llz: .17, lrz: -.17,
+    tpx: .5, tpz: .7, arpx: -.8, arpy: -.4, arpz: 1.6,
     alpx: 1.0, alpy: -.2, alpz: 1.9,
-    llpx: .6, llpz: 1.7, lrpx: -.6, lrpz: -1.7, tscx: 1.05, tscy: .95
-  }, .52);
+    llpx: .6, llpz: 1.8, lrpx: -.6, lrpz: -1.8, tscx: 1.06, tscy: .94
+  }, .38);
 
   const SWAY = U({
-    ix: .10, tx: .08, ty: .18, tz: .02, hx: -.05, hy: -.16, by: -2.8, bz: .2,
-    arx: -.78, arz: .18, ary: -.16, sy: .98, sz: .24, spx: .9, spy: .4, spz: 1.3,
-    alx: -1.22, alz: -.38, aly: .30,
-    llx: -.58, lrx: .50, llz: .14, lrz: -.14,
-    tpx: .1, tpz: .3, arpx: -.6, arpy: -.3, arpz: 1.2,
-    alpx: .8, alpy: 0, alpz: 1.5,
-    llpx: .4, llpz: 1.3, lrpx: -.4, lrpz: -1.3, tscx: .99, tscy: 1.02
-  }, .40);
+    ix: .07, tx: .06, ty: .12, tz: -.02, hx: -.04, hy: -.10, by: -2.5, bz: 0,
+    arx: -.74, arz: .20, ary: -.12, sy: .94, sz: .22, spx: .8, spy: .4, spz: 1.3,
+    alx: -1.18, alz: -.36, aly: .28,
+    llx: -.52, lrx: .46, llz: .14, lrz: -.14,
+    tpx: 0, tpz: .2, arpx: -.5, arpy: -.2, arpz: 1.2,
+    alpx: .7, alpy: 0, alpz: 1.5,
+    llpx: .4, llpz: 1.2, lrpx: -.4, lrpz: -1.2, tscx: .98, tscy: 1.03
+  }, .22);
 
   const SINK = U({
-    ix: .17, tx: .15, ty: .30, tz: .05, hx: -.10, hy: -.28, by: -4.1, bz: .7,
-    arx: -.88, arz: .15, ary: -.22, sy: 1.06, sz: .30, spx: 1.1, spy: .5, spz: 1.6,
-    alx: -1.32, alz: -.44, aly: .35,
+    ix: .15, tx: .13, ty: .30, tz: .05, hx: -.11, hy: -.28, by: -3.9, bz: .7,
+    arx: -.88, arz: .14, ary: -.22, sy: 1.08, sz: .30, spx: 1.1, spy: .5, spz: 1.6,
+    alx: -1.32, alz: -.44, aly: .36,
     llx: -.72, lrx: .60, llz: .16, lrz: -.16,
     tpx: .4, tpz: .6, arpx: -.8, arpy: -.4, arpz: 1.5,
     alpx: 1.0, alpy: -.1, alpz: 1.8,
-    llpx: .5, llpz: 1.6, lrpx: -.5, lrpz: -1.6, tscx: 1.06, tscy: .94
-  }, .50);
+    llpx: .5, llpz: 1.6, lrpx: -.5, lrpz: -1.6, tscx: 1.05, tscy: .95
+  }, .35);
 
-  // 5) Salida suave si nadie golpea
+  // 5) Salida suave manteniendo la lanza en diagonal
   const OPEN = U({
-    ix: .05, tx: .06, ty: -.18, hx: -.02, hy: .16, by: -1.6, bz: 0,
-    arx: -.62, arz: .28, ary: -.10, sy: .25, sz: 0,
-    alx: -.75, alz: .22, aly: .12,
-    llx: -.36, lrx: .32, llz: .10, lrz: -.10
-  }, .22);
+    ix: .06, tx: .06, ty: .10, hx: -.04, hy: -.08, by: -1.8, bz: .1,
+    arx: -.68, arz: .22, ary: -.12, sy: .76, sz: .16, spx: .6, spy: .3, spz: 1.0,
+    alx: -.96, alz: -.26, aly: .20,
+    llx: -.42, lrx: .36, llz: .12, lrz: -.12
+  }, .18);
 
   return function (f) {
     prepWeapon(f);
     sfx('draw', f.pos);
-    startTwirl(f, 2, .22);
+    startTwirl(f, 2, .18);
     f.counter = 1.55;
     const sparkTip = () => {
       if (!f.spear || !f.spearOut) return;
@@ -196,22 +195,21 @@ CF.habilidad('javiParry', function () {
       burst(mid, 3, '#ffd54f', 2.0, .07, .22, -.15);
     };
     startAction(f, {
-      name: 'javiParry', dur: 1.8, speedMul: .22, eyes: true, counter: true, noControl: true,
-      // La mano izquierda agarra el asta justo detrás del collar dorado (z=11) como en Blockbench
-      grips: [{ arm: 'armL', z: 11, t0: .16 }],
+      name: 'javiParry', dur: 1.8, speedMul: .22, eyes: true,
+      grips: [{ arm: 'armL', z: 11, t0: .08 }],
       anim: [
         [0, WIND, 1100],
-        [.13, SNAP, 1400],
-        [.24, GUARD, 950],
-        [.52, COIL, 520],
-        [.82, SWAY, 520],
-        [1.12, SINK, 520],
-        [1.40, GUARD, 560],
-        [1.58, OPEN, 650],
+        [.12, SNAP, 1400],
+        [.22, GUARD, 950],
+        [.50, COIL, 560],
+        [.80, SWAY, 560],
+        [1.10, SINK, 560],
+        [1.38, GUARD, 580],
+        [1.60, OPEN, 650],
       ],
       steps: [
         {
-          at: .13, fn: () => {
+          at: .12, fn: () => {
             arcSlash(f, '#4fc3f7', { tilt: .42, r: 1.85, len: 2.7, dir: 1, w: .62, dur: .22 });
             ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#4fc3f7', 2.4, .28);
             burst(front(f, 1.0, 1.25), 12, '#ffd54f', 4.5, .11, .32, 0);
@@ -233,12 +231,10 @@ CF.habilidad('javiParry', function () {
         ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd54f', 3.4, .32);
         burst(clash, 24, '#ffd54f', 9, .15, .38, .1);
         burst(clash, 18, '#4fc3f7', 8, .14, .36, 0);
-        sfx('block', clash, 1.0);
+        sfx('clang', clash, 1.0);
         sfx('counter', f.pos);
         popText(chestOf(f), '¡PARRY DEL DRAGÓN!', '#4fc3f7', 24);
-        if (!att.alive || att.cineLock || att.grabbed) return counterHit(f, att);
-        f.yaw = yawTo(f, att); f.iframes = Math.max(f.iframes, 2.5);
-        runChore(f, att, CHORE.javiParry);   // arranca el duelo (coreografía javiParry)
+        startChoreo(f, att, 'javiParry');
       },
     });
   };
@@ -422,6 +418,22 @@ CF.mover('optoJump', function (f, o) {
     });
   });
 
+/* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/calidad-cosmos.js ===== */
+/* "Ojo del Cosmos" · calidad gráfica de la escena. Lee los gráficos que eligió el jugador (GFX.level: 0 Alta · 1 Media · 2 Baja · 3 Mínima · 4 Ultra baja)
+   y devuelve cuánto detalle usar: segmentos de las esferas, cantidad de nubes/pájaros/polvo/escombros, y qué adornos se apagan.
+   Uso:  const Q = rbCalidad();   Q.q (1 .. .15)  Q.seg (multiplicador de segmentos)  Q.n(base, min) = cantidad escalada  Q.level  Q.post (¿hay post-proceso?) */
+const rbCalidad = function () {
+  const L = Math.max(0, Math.min(4, GFX.level | 0)), q = [1, .75, .5, .3, .15][L];
+  return {
+    level: L, q, seg: [1, .78, .56, .4, .28][L],
+    post: GFX.post !== false && GFX_CFG.bloom !== 'off',          // ¿hay bloom/gradación de color?
+    fancy: L <= 1,                                                  // auroras, 2.ª capa de nubes, planetas lejanos…
+    lite: L >= 3,                                                   // lo mínimo: sin extras
+    n: (base, min) => Math.max(min == null ? 1 : min, Math.round(base * q)),
+    s: (n) => Math.max(8, Math.round(n * [1, .78, .56, .4, .28][L])),
+  };
+};
+
 /* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/cosmos-sonido.js ===== */
 /* Sonidos de "Ojo del Cosmos" (personaje: redbird), generados con el motor de audio del juego (no hacen falta archivos).
    Capas realistas: reverb de sala grande (respuesta de impulso generada), estéreo, graves profundos, ruido filtrado con variación,
@@ -598,6 +610,7 @@ const rbCosmosSnd = (function () {
    que cruzan de repente: un avión a reacción, Sekza volando o (muy rara vez) un platillo.
    Uso desde rbCosmos.js:  const D = rbCosmosDescenso(posRedbird);  D.update(dt);  D.spawn('jet'|'sekza'|'ufo', camPos, mirarA, lado);  D.dispose(); */
 const rbCosmosDescenso = function (P) {
+  const Q = rbCalidad();
   const g = new THREE.Group(), mats = [], geos = [], texs = [];
   const M = (o) => { const m = new THREE.MeshLambertMaterial(o); mats.push(m); return m; };
   const B = (w, h, d, mat) => { const ge = new THREE.BoxGeometry(w, h, d); geos.push(ge); return new THREE.Mesh(ge, mat); };
@@ -608,7 +621,7 @@ const rbCosmosDescenso = function (P) {
   }
   const tex = new THREE.CanvasTexture(cv); texs.push(tex);
   // nubes: sprites que siempre miran a la cámara; la cámara baja entre ellas
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < Q.n(70, 20); i++) {
     const m = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: rand(.5, .95), depthWrite: false, fog: false }); mats.push(m);
     const sp = new THREE.Sprite(m), s = rand(60, 150); sp.scale.set(s, s * .65, 1);
     sp.position.set(P.x + rand(-80, 80), rand(15, 235), P.z + rand(-80, 80)); g.add(sp);
@@ -617,7 +630,7 @@ const rbCosmosDescenso = function (P) {
   const wingG = new THREE.PlaneGeometry(2.6, .9); geos.push(wingG);
   const wingM = new THREE.MeshBasicMaterial({ color: 0x1d2433, side: THREE.DoubleSide }); mats.push(wingM);
   const birds = [];
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < Q.n(14, 4); i++) {
     const b = new THREE.Group(), l = new THREE.Mesh(wingG, wingM), r = new THREE.Mesh(wingG, wingM); l.position.x = -1.3; r.position.x = 1.3; b.add(l, r);
     const sc = rand(1.2, 2.6); b.scale.set(sc, sc, sc);
     b.position.set(P.x + rand(-45, 45), rand(25, 220), P.z + rand(-45, 45));
@@ -696,7 +709,7 @@ const rbCosmosDescenso = function (P) {
      const E = rbCosmosEspacio(origen);  E.update(s, dt, camPos);  E.dispose();
    Este archivo se carga antes que rbCosmos.js (orden alfabético), así que lo que declara aquí lo ve el otro. */
 const rbCosmosEspacio = function (O) {
-  const R = 45, CAP = .5, g = new THREE.Group();   // CAP = radio angular (en radianes) del trozo que se rompe
+  const Q = rbCalidad(), R = 45, CAP = .5, g = new THREE.Group();   // Q: cuanto detalle usar segun los graficos del jugador   // CAP = radio angular (en radianes) del trozo que se rompe
   g.position.copy(O);
   const mats = [], geos = [], texs = [];
   const track = (m) => { mats.push(m); return m; };
@@ -708,16 +721,16 @@ const rbCosmosEspacio = function (O) {
   // ---- fondo: Vía Láctea muy tenue + estrellas de distintos colores y tamaños
   const mv = document.createElement('canvas'); mv.width = 1024; mv.height = 512; const m2 = mv.getContext('2d');
   m2.fillStyle = '#01020a'; m2.fillRect(0, 0, 1024, 512);
-  for (let i = 0; i < 70; i++) {   // neblina azul-violeta a lo largo de una banda
+  for (let i = 0; i < Q.n(70, 20); i++) {   // neblina azul-violeta a lo largo de una banda
     const x = rand(0, 1024), y = 256 + Math.sin(x / 1024 * TAU) * 95 + rand(-45, 45), r = rand(50, 140), gr = m2.createRadialGradient(x, y, 0, x, y, r);
     const a = rand(.025, .07); gr.addColorStop(0, i % 3 ? 'rgba(90,110,190,' + a + ')' : 'rgba(150,100,170,' + a + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); m2.fillStyle = gr; m2.beginPath(); m2.arc(x, y, r, 0, TAU); m2.fill();
   }
-  for (let i = 0; i < 3200; i++) {   // polvo de estrellas concentrado en la banda
+  for (let i = 0; i < Q.n(3200, 700); i++) {   // polvo de estrellas concentrado en la banda
     const x = rand(0, 1024), y = 256 + Math.sin(x / 1024 * TAU) * 95 + (rand(-1, 1) + rand(-1, 1)) * 55;
     m2.fillStyle = 'rgba(255,255,255,' + rand(.08, .55) + ')'; m2.fillRect(x, y, rand(.5, 1.4), rand(.5, 1.4));
   }
   const mwTex = new THREE.CanvasTexture(mv); texs.push(mwTex);
-  const sky = new THREE.Mesh(trackG(new THREE.SphereGeometry(330, 40, 24)), track(new THREE.MeshBasicMaterial({ map: mwTex, side: THREE.BackSide, depthWrite: false, fog: false })));
+  const sky = new THREE.Mesh(trackG(new THREE.SphereGeometry(330, Q.s(40), Q.s(24))), track(new THREE.MeshBasicMaterial({ map: mwTex, side: THREE.BackSide, depthWrite: false, fog: false })));
   sky.rotation.set(.5, 1.1, .3); g.add(sky);
   const N = 1500, sp = new Float32Array(N * 3), sc = new Float32Array(N * 3), tint = [[1, 1, 1], [.75, .85, 1], [1, .88, .72], [.9, .92, 1]];
   for (let i = 0; i < N; i++) {
@@ -748,12 +761,12 @@ const rbCosmosEspacio = function (O) {
   for (const b of blobs) { c.fillStyle = b.col; for (const p of b.parts) { c.beginPath(); c.arc(p[0], p[1], p[2], 0, TAU); c.fill(); } }
   c.shadowBlur = 0;
   for (const b of blobs) { c.fillStyle = b.col; for (const p of b.parts) { c.beginPath(); c.arc(p[0], p[1], p[2], 0, TAU); c.fill(); } }
-  for (let i = 0; i < 70; i++) {   // desiertos y zonas altas
+  for (let i = 0; i < Q.n(70, 20); i++) {   // desiertos y zonas altas
     const b = blobs[Math.floor(rand(0, blobs.length))], p = b.parts[Math.floor(rand(0, b.parts.length))];
     c.fillStyle = i % 3 ? 'rgba(214,190,110,.55)' : 'rgba(40,110,60,.45)'; c.beginPath(); c.arc(p[0] + rand(-14, 14), p[1] + rand(-10, 10), rand(8, 22), 0, TAU); c.fill();
   }
   c.fillStyle = '#f6fbff'; c.shadowColor = '#ffffff'; c.shadowBlur = 14; c.fillRect(0, 0, 1024, 22); c.fillRect(0, 490, 1024, 22); c.shadowBlur = 0;
-  for (let i = 0; i < 5200; i++) {   // relieve: manchas finas de vegetación y tierra
+  for (let i = 0; i < Q.n(5200, 900); i++) {   // relieve: manchas finas de vegetación y tierra
     const b = blobs[Math.floor(rand(0, blobs.length))], p = b.parts[Math.floor(rand(0, b.parts.length))], x = p[0] + rand(-p[2], p[2]), y = p[1] + rand(-p[2], p[2]);
     c.fillStyle = 'rgba(' + (30 + Math.floor(rand(0, 60))) + ',' + (70 + Math.floor(rand(0, 80))) + ',' + (30 + Math.floor(rand(0, 40))) + ',.22)'; c.fillRect(x, y, rand(1, 3), rand(1, 3));
   }
@@ -762,7 +775,7 @@ const rbCosmosEspacio = function (O) {
   for (const b of blobs) for (const p of b.parts) for (let i = 0; i < 16; i++) { cl.fillStyle = 'rgba(255,' + Math.floor(170 + rand(0, 60)) + ',' + Math.floor(90 + rand(0, 50)) + ',' + rand(.5, 1) + ')'; cl.fillRect(p[0] + rand(-p[2], p[2]) * .8, p[1] + rand(-p[2], p[2]) * .6, 1.6, 1.6); }
   const lightsTex = new THREE.CanvasTexture(cvL); texs.push(lightsTex);
   const cv2 = document.createElement('canvas'); cv2.width = 1024; cv2.height = 512; const c2 = cv2.getContext('2d');
-  for (let i = 0; i < 52; i++) {   // nubes esponjosas con sombra azul por debajo
+  for (let i = 0; i < Q.n(52, 18); i++) {   // nubes esponjosas con sombra azul por debajo
     const x = rand(0, 1024), y = rand(40, 470), n = 4 + Math.floor(rand(0, 5)), parts = [];
     for (let j = 0; j < n; j++) parts.push([x + rand(-28, 28), y + rand(-8, 8), rand(7, 18)]);
     c2.fillStyle = 'rgba(150,185,235,.8)'; for (const p of parts) { c2.beginPath(); c2.arc(p[0], p[1] + 5, p[2], 0, TAU); c2.fill(); }
@@ -802,16 +815,16 @@ const rbCosmosEspacio = function (O) {
       }`,
   }));
   const cloudMat2 = track(cloudMat.clone()); cloudMat2.uniforms = { map: { value: cloudTex }, L: { value: sunDir.clone() }, off: { value: .37 }, mul: { value: .5 } };
-  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 72, 48)), earthMat);
-  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, 72, 48)), cloudMat);
+  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, Q.s(72), Q.s(48))), earthMat);
+  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, Q.s(72), Q.s(48))), cloudMat);
   // versiones con el casquete roto (falta un trozo de planeta donde sale el rayo)
-  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 72, 48, 0, TAU, CAP, Math.PI - CAP)), earthMat);
-  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, 72, 48, 0, TAU, CAP, Math.PI - CAP)), cloudMat);
-  const clouds2 = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, 72, 48)), cloudMat2);
-  const clouds2B = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, 72, 48, 0, TAU, CAP, Math.PI - CAP)), cloudMat2);
+  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, Q.s(72), Q.s(48), 0, TAU, CAP, Math.PI - CAP)), earthMat);
+  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, Q.s(72), Q.s(48), 0, TAU, CAP, Math.PI - CAP)), cloudMat);
+  const clouds2 = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, Q.s(72), Q.s(48))), cloudMat2);
+  const clouds2B = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, Q.s(72), Q.s(48), 0, TAU, CAP, Math.PI - CAP)), cloudMat2);
   earthB.visible = cloudsB.visible = clouds2B.visible = false;
   // contorno oscuro (estilo anime) y atmósfera brillante en el borde
-  const outline = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.02, 56, 36)), track(new THREE.MeshBasicMaterial({ color: 0x07163a, side: THREE.BackSide, fog: false })));
+  const outline = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.02, Q.s(56), Q.s(36))), track(new THREE.MeshBasicMaterial({ color: 0x07163a, side: THREE.BackSide, fog: false })));
   const atmoMat = track(new THREE.ShaderMaterial({
     uniforms: { L: { value: sunDir.clone() } }, vertexShader: VERT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     fragmentShader: `uniform vec3 L; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
@@ -823,9 +836,9 @@ const rbCosmosEspacio = function (O) {
         gl_FragColor = vec4(col, 1.);
       }`,
   }));
-  const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.12, 56, 36)), atmoMat);
+  const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.12, Q.s(56), Q.s(36))), atmoMat);
   // magma que se ve por el agujero, y borde incandescente
-  const magma = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * .96, 40, 28)), track(new THREE.MeshBasicMaterial({ color: 0xff4a12, fog: false })));
+  const magma = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * .96, Q.s(40), Q.s(28))), track(new THREE.MeshBasicMaterial({ color: 0xff4a12, fog: false })));
   const rimR = R * Math.sin(CAP), rim = new THREE.Mesh(trackG(new THREE.TorusGeometry(rimR, 1.1, 8, 64)), track(new THREE.MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: .95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
   rim.rotation.x = Math.PI / 2; rim.position.y = R * Math.cos(CAP); rim.visible = false;
   pivot.add(earth, clouds, clouds2, earthB, cloudsB, clouds2B, magma, rim); magma.visible = false;
@@ -856,7 +869,7 @@ const rbCosmosEspacio = function (O) {
   const ring = new THREE.Mesh(trackG(new THREE.RingGeometry(.92, 1, 72)), track(new THREE.MeshBasicMaterial({ color: 0xffd0a0, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
   ring.position.copy(dir).multiplyScalar(R); g.add(ring);
   const frags = [], fcols = [0x2a62c0, 0x3f8a3a, 0x7a6a3c, 0xeef4ff, 0x264f9c], fgeo = trackG(new THREE.DodecahedronGeometry(1, 0)), fmats = fcols.map(col => track(new THREE.MeshLambertMaterial({ color: col, emissive: 0x3a0800 })));
-  for (let i = 0; i < 140; i++) {
+  for (let i = 0; i < Q.n(140, 40); i++) {
     const th = rand(0, CAP * .95), ph = rand(0, TAU), loc = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)).applyQuaternion(pivot.quaternion);
     const m = new THREE.Mesh(fgeo, fmats[i % fmats.length]), s = rand(1.8, 6.5);
     m.position.copy(loc).multiplyScalar(R * rand(.8, 1)); m.scale.set(s, s * rand(.5, 1), s * rand(.6, 1)); m.visible = false;
@@ -874,7 +887,7 @@ const rbCosmosEspacio = function (O) {
     sp.userData = { v: dir.clone().multiplyScalar(rand(10, 34)).add(new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(11)), life: rand(2.2, 4.2), delay: rand(0, .5), s0: rand(6, 14), s1: rand(26, 60), fire };
     puffs.push(sp); g.add(sp);
   }
-  const SN = 650, sPos = new Float32Array(SN * 3), sCol = new Float32Array(SN * 3), sVel = new Float32Array(SN * 3), sLife = new Float32Array(SN), sMax = new Float32Array(SN);
+  const SN = Q.n(650, 160), sPos = new Float32Array(SN * 3), sCol = new Float32Array(SN * 3), sVel = new Float32Array(SN * 3), sLife = new Float32Array(SN), sMax = new Float32Array(SN);
   const bu = new V3(0, 1, 0).cross(dir).normalize(), bw = dir.clone().cross(bu);
   for (let i = 0; i < SN; i++) {
     const ph = rand(0, TAU), rr = Math.pow(rand(0, 1), .6), sp = rand(40, 150), lat = rand(10, 75) * rr;
@@ -888,7 +901,7 @@ const rbCosmosEspacio = function (O) {
   shock.position.copy(craterPos); shock.quaternion.setFromUnitVectors(new V3(0, 0, 1), dir); shock.visible = false; g.add(shock);
   // ---- el vecindario: Luna, Marte, Venus, Júpiter y Saturno (más lejos cuanto más grandes se ven) y satélites en órbita
   const ptex = (draw) => { const c9 = document.createElement('canvas'); c9.width = 512; c9.height = 256; const x = c9.getContext('2d'); draw(x); const t = new THREE.CanvasTexture(c9); texs.push(t); return t; };
-  const planet = (r, pos, tex, tilt) => { const m = new THREE.Mesh(trackG(new THREE.SphereGeometry(r, 44, 30)), track(new THREE.MeshLambertMaterial({ map: tex, emissive: 0x060606 }))); m.position.copy(pos); m.rotation.z = tilt || 0; g.add(m); return m; };
+  const planet = (r, pos, tex, tilt) => { const m = new THREE.Mesh(trackG(new THREE.SphereGeometry(r, Q.s(44), Q.s(30))), track(new THREE.MeshLambertMaterial({ map: tex, emissive: 0x060606 }))); m.position.copy(pos); m.rotation.z = tilt || 0; g.add(m); return m; };
   const moonTex = ptex(x => {
     x.fillStyle = '#9b9ba2'; x.fillRect(0, 0, 512, 256);
     for (let i = 0; i < 120; i++) { const cx = rand(0, 512), cy = rand(10, 246), r = rand(3, 24), gr = x.createRadialGradient(cx, cy, r * .15, cx, cy, r); gr.addColorStop(0, 'rgba(70,70,78,.7)'); gr.addColorStop(.85, 'rgba(110,110,118,.5)'); gr.addColorStop(1, 'rgba(210,210,220,.35)'); x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill(); }
@@ -908,6 +921,7 @@ const rbCosmosEspacio = function (O) {
   const venTex = ptex(x => { x.fillStyle = '#e9d7a2'; x.fillRect(0, 0, 512, 256); for (let i = 0; i < 80; i++) { x.fillStyle = i % 2 ? 'rgba(255,250,225,.25)' : 'rgba(200,170,110,.22)'; x.beginPath(); x.ellipse(rand(0, 512), rand(0, 256), rand(40, 130), rand(3, 12), rand(-.3, .3), 0, TAU); x.fill(); } });
   const satTex = ptex(x => { const cols = ['#dcc48a', '#c9ad70', '#e8d6a6', '#b89a5e']; let y0 = 0; while (y0 < 256) { const h = rand(8, 20); x.fillStyle = cols[Math.floor(rand(0, cols.length))]; x.fillRect(0, y0, 512, h + 1); y0 += h; } });
   const moon = planet(20, new V3(-55, 15, -151), moonTex), mars = planet(9, new V3(-205, 38, -35), marsTex), venus = planet(13, new V3(-130, 75, -340), venTex, .1), jup = planet(75, new V3(-330, -30, -330), jupTex, .05), sat = planet(48, new V3(-470, 90, 20), satTex, .35);
+  if (Q.lite) mars.visible = venus.visible = jup.visible = sat.visible = false;   // graficos minimos: solo la Luna
   const rv = document.createElement('canvas'); rv.width = 512; rv.height = 8; const rx = rv.getContext('2d');
   for (let i = 0; i < 512; i++) { const k = i / 512, a = (k > .08 && k < .93) ? (.35 + .55 * Math.abs(Math.sin(k * 38))) * (k > .45 && k < .52 ? .1 : 1) : 0; rx.fillStyle = 'rgba(225,205,160,' + a + ')'; rx.fillRect(i, 0, 1, 8); }
   const ringTex = new THREE.CanvasTexture(rv); texs.push(ringTex);
@@ -924,9 +938,10 @@ const rbCosmosEspacio = function (O) {
     const light = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: glareTex, color: big ? 0xff4040 : 0x40ff90, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }))); light.scale.setScalar(big ? 7 : 4); light.position.y = .7; sg.add(light);
     sg.scale.setScalar(scale); g.add(sg); sats.push({ sg, rad, incl, yaw0, speed, phase, light });
   };
-  mkSat(2.4, R * 1.3, .5, .3, .35, 0, true); mkSat(1.2, R * 1.22, 1.15, 2.1, -.5, 1.6); mkSat(1.1, R * 1.4, .2, 4, .28, 3.2); mkSat(1, R * 1.18, 1.4, 5.5, .6, 4.5); mkSat(1.1, R * 1.5, .85, 1.2, -.22, 5.4);
+  mkSat(2.4, R * 1.3, .5, .3, .35, 0, true); mkSat(1.2, R * 1.22, 1.15, 2.1, -.5, 1.6);
+  if (Q.level < 2) { mkSat(1.1, R * 1.4, .2, 4, .28, 3.2); mkSat(1, R * 1.18, 1.4, 5.5, .6, 4.5); mkSat(1.1, R * 1.5, .85, 1.2, -.22, 5.4); }   // en graficos bajos, menos satelites
   // polvo cósmico: da profundidad cuando la cámara se mueve
-  const DN = 320, dPos = new Float32Array(DN * 3), dVel = new Float32Array(DN * 3);
+  const DN = Q.n(320, 60), dPos = new Float32Array(DN * 3), dVel = new Float32Array(DN * 3);
   for (let i = 0; i < DN; i++) { dPos[i * 3] = rand(-170, 170); dPos[i * 3 + 1] = rand(-90, 90); dPos[i * 3 + 2] = rand(-170, 170); dVel[i * 3] = rand(-1.2, 1.2); dVel[i * 3 + 1] = rand(-.6, .6); dVel[i * 3 + 2] = rand(-1.2, 1.2); }
   const dG = trackG(new THREE.BufferGeometry()); dG.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
   g.add(new THREE.Points(dG, track(new THREE.PointsMaterial({ color: 0xbcc8e0, size: .9, transparent: true, opacity: .4, depthWrite: false, sizeAttenuation: true, fog: false }))));
@@ -944,7 +959,7 @@ const rbCosmosEspacio = function (O) {
         gl_FragColor = vec4(col * band * cur * night * view * 1.6 * fade, 1.);
       }`,
   }));
-  const aurora = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.04, 64, 40)), auroraMat); pivot.add(aurora);
+  const aurora = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.04, Q.s(64), Q.s(40))), auroraMat); if (Q.level < 3) pivot.add(aurora);
   // destello alargado (anamórfico) del sol y del cráter
   const av = document.createElement('canvas'); av.width = 512; av.height = 64; const ax = av.getContext('2d'), ag = ax.createRadialGradient(256, 32, 0, 256, 32, 256); ag.addColorStop(0, 'rgba(255,255,255,1)'); ag.addColorStop(.12, 'rgba(255,230,190,.7)'); ag.addColorStop(1, 'rgba(255,200,150,0)');
   ax.save(); ax.translate(256, 32); ax.scale(1, .075); ax.translate(-256, -32); ax.fillStyle = ag; ax.fillRect(0, -200, 512, 500); ax.restore();
@@ -954,9 +969,11 @@ const rbCosmosEspacio = function (O) {
   const craterStreak = new THREE.Sprite(streakMat(0xff8a4a, 0)); craterStreak.position.copy(dir).multiplyScalar(R * 1.02); craterStreak.scale.set(R * 7, R * .55, 1); g.add(craterStreak);
   scene.add(g);
 
+  // la Maquina del Tiempo (modelo de Blockbench, referencia a Bobicraft) cruza volando en dos momentos: de lejos al empezar y muy cerca justo antes de lanzarse al planeta
+  const maq = rbMaquinaTiempo(g); let maqA = false, maqB = false, maquinaCue = 0;
   let boomed = false, boomT = 0;
   const api = {
-    group: g, origin: O, dir, radius: R, boomed: () => boomed,
+    group: g, origin: O, dir, radius: R, boomed: () => boomed, maquinaCue: () => maquinaCue,
     // s = segundos desde que empieza la escena del espacio
     update(s, dt, camPos) {
       earth.rotation.y += dt * .05; clouds.rotation.y += dt * .068; earthB.rotation.y = earth.rotation.y; cloudsB.rotation.y = clouds.rotation.y;
@@ -966,6 +983,12 @@ const rbCosmosEspacio = function (O) {
       for (let i = 0; i < DN; i++) { dPos[i * 3] += dVel[i * 3] * dt; dPos[i * 3 + 1] += dVel[i * 3 + 1] * dt; dPos[i * 3 + 2] += dVel[i * 3 + 2] * dt; for (let a = 0; a < 3; a++) { const lim = a === 1 ? 90 : 170; if (dPos[i * 3 + a] > lim) dPos[i * 3 + a] = -lim; else if (dPos[i * 3 + a] < -lim) dPos[i * 3 + a] = lim; } }
       dG.attributes.position.needsUpdate = true;
       sky.rotation.y += dt * .004;
+      maq.update(dt);
+      if (camPos && Q.level < 4) {   // en 'Ultra baja' no aparece
+        const fw = new V3().subVectors(O, camPos).normalize(), rt = new V3().crossVectors(fw, new V3(0, 1, 0)).normalize(), loc = p => p.clone().sub(O);
+        if (!maqA && s >= .3) { maqA = true; maquinaCue++; maq.fly(loc(camPos.clone().addScaledVector(fw, 66).addScaledVector(rt, -50).add(new V3(0, -2, 0))), loc(camPos.clone().addScaledVector(fw, 72).addScaledVector(rt, 50).add(new V3(0, 3, 0))), 3, 2.5); }
+        if (!maqB && s >= 5.3) { maqB = true; maquinaCue++; maq.fly(loc(camPos.clone().addScaledVector(fw, 34).addScaledVector(rt, -22).add(new V3(0, 2, 0))), loc(camPos.clone().addScaledVector(fw, 28).addScaledVector(rt, 22).add(new V3(0, 7, 0))), 1.5, 2.4); }
+      }
       if (!boomed) {
         const k = clamp((s - .35) / 1.7, 0, 1);
         lg.setDrawRange(0, Math.floor(total * k / 2) * 2);
@@ -1008,9 +1031,54 @@ const rbCosmosEspacio = function (O) {
       shock.scale.setScalar(1 + b * R * .75); shock.material.opacity = Math.max(0, .85 - b * .33);
     },
     dispose() {
-      scene.remove(g);
+      scene.remove(g); maq.dispose();
       mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose()); texs.forEach(t => t.dispose());
     },
+  };
+  return api;
+};
+
+/* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/maquina-tiempo.js ===== */
+/* "Ojo del Cosmos" · la Máquina del Tiempo (referencia a Bobicraft) volando por el espacio.
+   El modelo es assets/maquina_tiempo/model.bbmodel (Blockbench) con su textura texture.png: son 8 cubos con texturas en rectángulos (UV de caja).
+   Aquí se arma con three.js leyendo esos cubos (por si se cambia el modelo: tools/gen_maquina.py los vuelve a sacar del .bbmodel).
+   Uso desde espacio-cosmos.js:  const M = rbMaquinaTiempo(grupo);  M.fly(desde, hasta, segundos, escala);  M.update(s, dt);  M.dispose(); */
+const rbMaquinaTiempo = function (parent) {
+  const CUBES = [{"from":[-40,0,-40],"to":[40,16,40],"uv":[[0,80,80,96],[160,80,240,96],[160,80,80,0],[240,0,160,80],[240,80,320,96],[80,80,160,96]]},{"from":[24,16,-40],"to":[40,64,40],"uv":[[0,272,80,320],[96,272,176,320],[96,272,80,192],[112,192,96,272],[176,272,192,320],[80,272,96,320]]},{"from":[-40,16,-40],"to":[-24,64,40],"uv":[[192,272,272,320],[288,272,368,320],[288,272,272,192],[304,192,288,272],[368,272,384,320],[272,272,288,320]]},{"from":[8,16,-40],"to":[24,48,-24],"uv":[[320,48,336,80],[352,48,368,80],[352,48,336,32],[368,32,352,48],[368,48,384,80],[336,48,352,80]]},{"from":[-24,16,-40],"to":[-8,48,-24],"uv":[[320,96,336,128],[352,96,368,128],[352,96,336,80],[368,80,352,96],[368,96,384,128],[336,96,352,128]]},{"from":[-24,48,-40],"to":[24,64,-24],"uv":[[320,16,336,32],[384,16,400,32],[384,16,336,0],[432,0,384,16],[400,16,448,32],[336,16,384,32]]},{"from":[-24,16,24],"to":[24,64,40],"uv":[[0,336,16,384],[64,336,80,384],[64,336,16,320],[112,320,64,336],[80,336,128,384],[16,336,64,384]]},{"from":[-40,64,-40],"to":[40,80,40],"uv":[[0,176,80,192],[160,176,240,192],[160,176,80,96],[240,96,160,176],[240,176,320,192],[80,176,160,192]]}];   // [{from, to, uv:[este, oeste, arriba, abajo, sur, norte]}] en píxeles de Blockbench (res. 512)
+  const RES = 512, g = new THREE.Group(), geos = [], mats = [];
+  const tex = new THREE.TextureLoader().load('assets/maquina_tiempo/texture.png'); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  const mat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0x2a2a2a, transparent: true, alphaTest: .35 }); mats.push(mat);
+  const body = new THREE.Group(); g.add(body);
+  for (const c of CUBES) {
+    const w = c.to[0] - c.from[0], h = c.to[1] - c.from[1], d = c.to[2] - c.from[2];
+    const ge = new THREE.BoxGeometry(w * PX, h * PX, d * PX); geos.push(ge);
+    const uv = ge.attributes.uv;   // BoxGeometry: +x, -x, +y, -y, +z, -z, 4 vértices cada una (arriba-izq, arriba-der, abajo-izq, abajo-der)
+    c.uv.forEach((r, i) => { const u1 = r[0] / RES, v1 = 1 - r[1] / RES, u2 = r[2] / RES, v2 = 1 - r[3] / RES; uv.setXY(i * 4, u1, v1); uv.setXY(i * 4 + 1, u2, v1); uv.setXY(i * 4 + 2, u1, v2); uv.setXY(i * 4 + 3, u2, v2); });
+    const me = new THREE.Mesh(ge, mat); me.position.set((c.from[0] + c.to[0]) / 2 * PX, ((c.from[1] + c.to[1]) / 2 - 40) * PX, (c.from[2] + c.to[2]) / 2 * PX); body.add(me);
+  }
+  // resplandor del portal temporal y estela
+  const gc = document.createElement('canvas'); gc.width = gc.height = 64; const gx = gc.getContext('2d'), gr = gx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(120,220,255,.55)'); gr.addColorStop(1, 'rgba(60,140,255,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 64, 64);
+  const glowTex = new THREE.CanvasTexture(gc), mk = (col, op) => { const m2 = new THREE.SpriteMaterial({ map: glowTex, color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }); mats.push(m2); return m2; };
+  const halo = new THREE.Sprite(mk(0x9be7ff, .8)); halo.scale.set(9, 9, 1); g.add(halo);
+  const trail = []; for (let i = 0; i < 10; i++) { const sp = new THREE.Sprite(mk(i % 2 ? 0xffd34a : 0x6ad8ff, 0)); g.add(sp); sp.visible = false; trail.push(sp); }
+  g.visible = false; parent.add(g);
+  let run = null, spin = 0;
+  const api = {
+    group: g,
+    // vuela en línea recta de A a B durante `dur` segundos (posiciones en el mismo sistema que `parent`), dando vueltas; `scale` multiplica el tamaño
+    fly(A, B, dur, scale) { run = { A: A.clone(), B: B.clone(), dur, t: 0, scale: scale || 4, ph: Math.random() * 6 }; g.visible = true; g.scale.setScalar(run.scale); halo.scale.set(9, 9, 1).multiplyScalar(1); },
+    update(dt) {
+      if (!run) return; run.t += dt; const k = run.t / run.dur;
+      if (k >= 1) { g.visible = false; run = null; return; }
+      const e = k * k * (3 - 2 * k) * .35 + k * .65; g.position.lerpVectors(run.A, run.B, e);
+      spin += dt; body.rotation.set(Math.sin(spin * .9 + run.ph) * .45, spin * 1.35, Math.sin(spin * .7) * .3);
+      halo.material.opacity = .55 + .3 * Math.sin(spin * 9); const sc = 9 * (1 + .12 * Math.sin(spin * 7)); halo.scale.set(sc, sc, 1);
+      const dir = new V3().subVectors(run.B, run.A).normalize();
+      trail.forEach((sp, i) => { const u = (i + 1) / trail.length; sp.visible = true; sp.position.copy(dir).multiplyScalar(-u * 6.5 * (1 + run.scale * .2)); sp.position.x += Math.sin(spin * 5 + i) * .25; sp.material.opacity = (1 - u) * .55 * Math.min(1, run.t * 3); const s2 = (1 - u * .7) * 5; sp.scale.set(s2, s2, 1); });
+    },
+    active: () => !!run,
+    dispose() { parent.remove(g); mats.forEach(m2 => m2.dispose()); geos.forEach(x => x.dispose()); tex.dispose(); glowTex.dispose(); },
   };
   return api;
 };
@@ -1024,12 +1092,13 @@ const rbCosmosEspacio = function (O) {
    Uso desde rbCosmos.js:  const M = rbCosmosMundo();  M.setApoc(1);  M.update(dt, { center, rain, quake });
                            M.water(origen, direccion, largo, ancho, potenciado, dt);  M.hideFoam();  M.dispose(); */
 const rbCosmosMundo = function () {
+  const Q = rbCalidad();
   const g = new THREE.Group(), mats = [], geos = [], rocks = []; scene.add(g);
   const boxG = new THREE.BoxGeometry(1, 1, 1); geos.push(boxG);
   const rockMats = [0x5e5046, 0x7a6a5c, 0x463b34].map(c => { const m = new THREE.MeshLambertMaterial({ color: c }); mats.push(m); return m; });
   const hotMat = new THREE.MeshBasicMaterial({ color: 0xff7a2a, fog: false }); mats.push(hotMat);
   const wet = (x, z) => z > SHORE(x) + .2 && z < 290 && Math.abs(x) < 190;   // ¿es mar?
-  let apoc = 0, apocT = 0, acc = 0, hornT = 0, geyT = 0, sndT = 0, foam = null, MAX = 64;
+  let apoc = 0, apocT = 0, acc = 0, hornT = 0, geyT = 0, sndT = 0, foam = null, MAX = Q.n(64, 12);
 
   // ---- escombros
   const spawn = (c) => {
@@ -1058,7 +1127,7 @@ const rbCosmosMundo = function () {
     update(dt, o) {
       o = o || {}; apoc += (apocT - apoc) * (1 - Math.exp(-dt * 1.4)); G.apoc = apoc; sndT -= dt;
       if (o.quake) G.shake = Math.max(G.shake, o.quake * (.8 + .2 * Math.sin(performance.now() * .02)));
-      if (o.rain && o.center) { acc += o.rain * dt; while (acc >= 1) { acc -= 1; spawn(o.center); } }
+      if (o.rain && o.center) { acc += o.rain * Q.q * dt; while (acc >= 1) { acc -= 1; spawn(o.center); } }
       for (let i = rocks.length - 1; i >= 0; i--) {
         const r = rocks[i], p = r.m.position; p.addScaledVector(r.v, dt); r.m.rotation.x += r.spin.x * dt; r.m.rotation.y += r.spin.y * dt; r.m.rotation.z += r.spin.z * dt;
         if (r.hot) emit(p.x, p.y, p.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), Math.random() < .5 ? '#ff8a3a' : '#ffd27a', .14, .4, 0, 0);
@@ -1076,7 +1145,7 @@ const rbCosmosMundo = function () {
       foam.visible = true; foam.position.set(org.x + F2.x * mid, SEA_Y + .07, org.z + F2.z * mid); foam.rotation.set(-Math.PI / 2, Math.atan2(F2.x, F2.z), 0); foam.scale.set(w * 1.7 * pulse, L, 1); foam.material.opacity = .42 + Math.sin(performance.now() * .015) * .1;
       geyT -= dt;
       if (geyT <= 0) {
-        geyT = powered ? .07 : .12;
+        geyT = (powered ? .07 : .12) / Math.max(.35, Q.q);
         for (let k = 0; k < (powered ? 3 : 2); k++) {
           const dd = rand(d0, d1), lat = rand(-w * .7, w * .7), x = org.x + F2.x * dd + F2.z * lat, z = org.z + F2.z * dd - F2.x * lat; if (!wet(x, z)) continue;
           const P = new V3(x, SEA_Y + .08, z);
@@ -1179,7 +1248,8 @@ CF.mover('rbCosmos', function (f, o) {
   // ---- efecto de cine: desenfoque (de zoom y de bordes), viñeta, grano y menos color; solo mientras dura la escena
   let cos = null, bloom0 = null, fxPulse = 0;
   const fxT = { blur: 0, edge: .25, vig: .28, desat: .05, grade: .25 }, fxC = { blur: 0, edge: 0, vig: 0, desat: 0, grade: 0 };
-  if (composer && THREE.ShaderPass) {
+  const QL = rbCalidad();   // graficos del jugador: en 'Minima' o peor (o sin post-proceso) no se usa el pase de cine, solo barras y vineta CSS
+  if (composer && THREE.ShaderPass && QL.level < 3 && QL.post) {
     try {
       cos = new THREE.ShaderPass({
         uniforms: { tDiffuse: { value: null }, amt: { value: 0 }, edge: { value: 0 }, vig: { value: 0 }, grain: { value: .04 }, desat: { value: 0 }, grade: { value: 0 }, time: { value: 0 } },
@@ -1286,6 +1356,7 @@ CF.mover('rbCosmos', function (f, o) {
     } else if (space) {   // espacio: oscuro y apagado; se rompe un trozo de la Tierra y la cámara se lanza al planeta
       const s = t - spaceT0, O = space.origin, d = space.dir, R = space.radius;
       space.update(s, dt, camera.position);
+      if (space.maquinaCue() !== (did.maqCue || 0)) { did.maqCue = space.maquinaCue(); rbCosmosSnd.whoosh(.9, 1500, 220, .5); sfx('tp', f.pos, .6); }   // pasa la Maquina del Tiempo
       bloomKick *= Math.exp(-dt * 2.2); if (bloomPass && bloom0 != null) bloomPass.strength = bloom0 * 2.4 + bloomKick;
       if (s < 2.2) {
         const a = .5 + s * .12, dist = 170 - s * 22, e = ease(s / 2.2); fxTo(.0, .55, .45, .22, .85); G.shake = Math.max(G.shake, .02 + e * .08);

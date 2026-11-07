@@ -77,7 +77,8 @@ CF.mover('rbCosmos', function (f, o) {
   // ---- efecto de cine: desenfoque (de zoom y de bordes), viñeta, grano y menos color; solo mientras dura la escena
   let cos = null, bloom0 = null, fxPulse = 0;
   const fxT = { blur: 0, edge: .25, vig: .28, desat: .05, grade: .25 }, fxC = { blur: 0, edge: 0, vig: 0, desat: 0, grade: 0 };
-  if (composer && THREE.ShaderPass) {
+  const QL = rbCalidad();   // graficos del jugador: en 'Minima' o peor (o sin post-proceso) no se usa el pase de cine, solo barras y vineta CSS
+  if (composer && THREE.ShaderPass && QL.level < 3 && QL.post) {
     try {
       cos = new THREE.ShaderPass({
         uniforms: { tDiffuse: { value: null }, amt: { value: 0 }, edge: { value: 0 }, vig: { value: 0 }, grain: { value: .04 }, desat: { value: 0 }, grade: { value: 0 }, time: { value: 0 } },
@@ -184,6 +185,7 @@ CF.mover('rbCosmos', function (f, o) {
     } else if (space) {   // espacio: oscuro y apagado; se rompe un trozo de la Tierra y la cámara se lanza al planeta
       const s = t - spaceT0, O = space.origin, d = space.dir, R = space.radius;
       space.update(s, dt, camera.position);
+      if (space.maquinaCue() !== (did.maqCue || 0)) { did.maqCue = space.maquinaCue(); rbCosmosSnd.whoosh(.9, 1500, 220, .5); sfx('tp', f.pos, .6); }   // pasa la Maquina del Tiempo
       bloomKick *= Math.exp(-dt * 2.2); if (bloomPass && bloom0 != null) bloomPass.strength = bloom0 * 2.4 + bloomKick;
       if (s < 2.2) {
         const a = .5 + s * .12, dist = 170 - s * 22, e = ease(s / 2.2); fxTo(.0, .55, .45, .22, .85); G.shake = Math.max(G.shake, .02 + e * .08);

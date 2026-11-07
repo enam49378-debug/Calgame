@@ -5,7 +5,7 @@
      const E = rbCosmosEspacio(origen);  E.update(s, dt, camPos);  E.dispose();
    Este archivo se carga antes que rbCosmos.js (orden alfabético), así que lo que declara aquí lo ve el otro. */
 const rbCosmosEspacio = function (O) {
-  const R = 45, CAP = .5, g = new THREE.Group();   // CAP = radio angular (en radianes) del trozo que se rompe
+  const Q = rbCalidad(), R = 45, CAP = .5, g = new THREE.Group();   // Q: cuanto detalle usar segun los graficos del jugador   // CAP = radio angular (en radianes) del trozo que se rompe
   g.position.copy(O);
   const mats = [], geos = [], texs = [];
   const track = (m) => { mats.push(m); return m; };
@@ -17,16 +17,16 @@ const rbCosmosEspacio = function (O) {
   // ---- fondo: Vía Láctea muy tenue + estrellas de distintos colores y tamaños
   const mv = document.createElement('canvas'); mv.width = 1024; mv.height = 512; const m2 = mv.getContext('2d');
   m2.fillStyle = '#01020a'; m2.fillRect(0, 0, 1024, 512);
-  for (let i = 0; i < 70; i++) {   // neblina azul-violeta a lo largo de una banda
+  for (let i = 0; i < Q.n(70, 20); i++) {   // neblina azul-violeta a lo largo de una banda
     const x = rand(0, 1024), y = 256 + Math.sin(x / 1024 * TAU) * 95 + rand(-45, 45), r = rand(50, 140), gr = m2.createRadialGradient(x, y, 0, x, y, r);
     const a = rand(.025, .07); gr.addColorStop(0, i % 3 ? 'rgba(90,110,190,' + a + ')' : 'rgba(150,100,170,' + a + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)'); m2.fillStyle = gr; m2.beginPath(); m2.arc(x, y, r, 0, TAU); m2.fill();
   }
-  for (let i = 0; i < 3200; i++) {   // polvo de estrellas concentrado en la banda
+  for (let i = 0; i < Q.n(3200, 700); i++) {   // polvo de estrellas concentrado en la banda
     const x = rand(0, 1024), y = 256 + Math.sin(x / 1024 * TAU) * 95 + (rand(-1, 1) + rand(-1, 1)) * 55;
     m2.fillStyle = 'rgba(255,255,255,' + rand(.08, .55) + ')'; m2.fillRect(x, y, rand(.5, 1.4), rand(.5, 1.4));
   }
   const mwTex = new THREE.CanvasTexture(mv); texs.push(mwTex);
-  const sky = new THREE.Mesh(trackG(new THREE.SphereGeometry(330, 40, 24)), track(new THREE.MeshBasicMaterial({ map: mwTex, side: THREE.BackSide, depthWrite: false, fog: false })));
+  const sky = new THREE.Mesh(trackG(new THREE.SphereGeometry(330, Q.s(40), Q.s(24))), track(new THREE.MeshBasicMaterial({ map: mwTex, side: THREE.BackSide, depthWrite: false, fog: false })));
   sky.rotation.set(.5, 1.1, .3); g.add(sky);
   const N = 1500, sp = new Float32Array(N * 3), sc = new Float32Array(N * 3), tint = [[1, 1, 1], [.75, .85, 1], [1, .88, .72], [.9, .92, 1]];
   for (let i = 0; i < N; i++) {
@@ -57,12 +57,12 @@ const rbCosmosEspacio = function (O) {
   for (const b of blobs) { c.fillStyle = b.col; for (const p of b.parts) { c.beginPath(); c.arc(p[0], p[1], p[2], 0, TAU); c.fill(); } }
   c.shadowBlur = 0;
   for (const b of blobs) { c.fillStyle = b.col; for (const p of b.parts) { c.beginPath(); c.arc(p[0], p[1], p[2], 0, TAU); c.fill(); } }
-  for (let i = 0; i < 70; i++) {   // desiertos y zonas altas
+  for (let i = 0; i < Q.n(70, 20); i++) {   // desiertos y zonas altas
     const b = blobs[Math.floor(rand(0, blobs.length))], p = b.parts[Math.floor(rand(0, b.parts.length))];
     c.fillStyle = i % 3 ? 'rgba(214,190,110,.55)' : 'rgba(40,110,60,.45)'; c.beginPath(); c.arc(p[0] + rand(-14, 14), p[1] + rand(-10, 10), rand(8, 22), 0, TAU); c.fill();
   }
   c.fillStyle = '#f6fbff'; c.shadowColor = '#ffffff'; c.shadowBlur = 14; c.fillRect(0, 0, 1024, 22); c.fillRect(0, 490, 1024, 22); c.shadowBlur = 0;
-  for (let i = 0; i < 5200; i++) {   // relieve: manchas finas de vegetación y tierra
+  for (let i = 0; i < Q.n(5200, 900); i++) {   // relieve: manchas finas de vegetación y tierra
     const b = blobs[Math.floor(rand(0, blobs.length))], p = b.parts[Math.floor(rand(0, b.parts.length))], x = p[0] + rand(-p[2], p[2]), y = p[1] + rand(-p[2], p[2]);
     c.fillStyle = 'rgba(' + (30 + Math.floor(rand(0, 60))) + ',' + (70 + Math.floor(rand(0, 80))) + ',' + (30 + Math.floor(rand(0, 40))) + ',.22)'; c.fillRect(x, y, rand(1, 3), rand(1, 3));
   }
@@ -71,7 +71,7 @@ const rbCosmosEspacio = function (O) {
   for (const b of blobs) for (const p of b.parts) for (let i = 0; i < 16; i++) { cl.fillStyle = 'rgba(255,' + Math.floor(170 + rand(0, 60)) + ',' + Math.floor(90 + rand(0, 50)) + ',' + rand(.5, 1) + ')'; cl.fillRect(p[0] + rand(-p[2], p[2]) * .8, p[1] + rand(-p[2], p[2]) * .6, 1.6, 1.6); }
   const lightsTex = new THREE.CanvasTexture(cvL); texs.push(lightsTex);
   const cv2 = document.createElement('canvas'); cv2.width = 1024; cv2.height = 512; const c2 = cv2.getContext('2d');
-  for (let i = 0; i < 52; i++) {   // nubes esponjosas con sombra azul por debajo
+  for (let i = 0; i < Q.n(52, 18); i++) {   // nubes esponjosas con sombra azul por debajo
     const x = rand(0, 1024), y = rand(40, 470), n = 4 + Math.floor(rand(0, 5)), parts = [];
     for (let j = 0; j < n; j++) parts.push([x + rand(-28, 28), y + rand(-8, 8), rand(7, 18)]);
     c2.fillStyle = 'rgba(150,185,235,.8)'; for (const p of parts) { c2.beginPath(); c2.arc(p[0], p[1] + 5, p[2], 0, TAU); c2.fill(); }
@@ -111,16 +111,16 @@ const rbCosmosEspacio = function (O) {
       }`,
   }));
   const cloudMat2 = track(cloudMat.clone()); cloudMat2.uniforms = { map: { value: cloudTex }, L: { value: sunDir.clone() }, off: { value: .37 }, mul: { value: .5 } };
-  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 72, 48)), earthMat);
-  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, 72, 48)), cloudMat);
+  const earth = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, Q.s(72), Q.s(48))), earthMat);
+  const clouds = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, Q.s(72), Q.s(48))), cloudMat);
   // versiones con el casquete roto (falta un trozo de planeta donde sale el rayo)
-  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, 72, 48, 0, TAU, CAP, Math.PI - CAP)), earthMat);
-  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, 72, 48, 0, TAU, CAP, Math.PI - CAP)), cloudMat);
-  const clouds2 = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, 72, 48)), cloudMat2);
-  const clouds2B = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, 72, 48, 0, TAU, CAP, Math.PI - CAP)), cloudMat2);
+  const earthB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R, Q.s(72), Q.s(48), 0, TAU, CAP, Math.PI - CAP)), earthMat);
+  const cloudsB = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.016, Q.s(72), Q.s(48), 0, TAU, CAP, Math.PI - CAP)), cloudMat);
+  const clouds2 = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, Q.s(72), Q.s(48))), cloudMat2);
+  const clouds2B = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.03, Q.s(72), Q.s(48), 0, TAU, CAP, Math.PI - CAP)), cloudMat2);
   earthB.visible = cloudsB.visible = clouds2B.visible = false;
   // contorno oscuro (estilo anime) y atmósfera brillante en el borde
-  const outline = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.02, 56, 36)), track(new THREE.MeshBasicMaterial({ color: 0x07163a, side: THREE.BackSide, fog: false })));
+  const outline = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.02, Q.s(56), Q.s(36))), track(new THREE.MeshBasicMaterial({ color: 0x07163a, side: THREE.BackSide, fog: false })));
   const atmoMat = track(new THREE.ShaderMaterial({
     uniforms: { L: { value: sunDir.clone() } }, vertexShader: VERT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     fragmentShader: `uniform vec3 L; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
@@ -132,9 +132,9 @@ const rbCosmosEspacio = function (O) {
         gl_FragColor = vec4(col, 1.);
       }`,
   }));
-  const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.12, 56, 36)), atmoMat);
+  const halo = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.12, Q.s(56), Q.s(36))), atmoMat);
   // magma que se ve por el agujero, y borde incandescente
-  const magma = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * .96, 40, 28)), track(new THREE.MeshBasicMaterial({ color: 0xff4a12, fog: false })));
+  const magma = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * .96, Q.s(40), Q.s(28))), track(new THREE.MeshBasicMaterial({ color: 0xff4a12, fog: false })));
   const rimR = R * Math.sin(CAP), rim = new THREE.Mesh(trackG(new THREE.TorusGeometry(rimR, 1.1, 8, 64)), track(new THREE.MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: .95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
   rim.rotation.x = Math.PI / 2; rim.position.y = R * Math.cos(CAP); rim.visible = false;
   pivot.add(earth, clouds, clouds2, earthB, cloudsB, clouds2B, magma, rim); magma.visible = false;
@@ -165,7 +165,7 @@ const rbCosmosEspacio = function (O) {
   const ring = new THREE.Mesh(trackG(new THREE.RingGeometry(.92, 1, 72)), track(new THREE.MeshBasicMaterial({ color: 0xffd0a0, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })));
   ring.position.copy(dir).multiplyScalar(R); g.add(ring);
   const frags = [], fcols = [0x2a62c0, 0x3f8a3a, 0x7a6a3c, 0xeef4ff, 0x264f9c], fgeo = trackG(new THREE.DodecahedronGeometry(1, 0)), fmats = fcols.map(col => track(new THREE.MeshLambertMaterial({ color: col, emissive: 0x3a0800 })));
-  for (let i = 0; i < 140; i++) {
+  for (let i = 0; i < Q.n(140, 40); i++) {
     const th = rand(0, CAP * .95), ph = rand(0, TAU), loc = new V3(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)).applyQuaternion(pivot.quaternion);
     const m = new THREE.Mesh(fgeo, fmats[i % fmats.length]), s = rand(1.8, 6.5);
     m.position.copy(loc).multiplyScalar(R * rand(.8, 1)); m.scale.set(s, s * rand(.5, 1), s * rand(.6, 1)); m.visible = false;
@@ -183,7 +183,7 @@ const rbCosmosEspacio = function (O) {
     sp.userData = { v: dir.clone().multiplyScalar(rand(10, 34)).add(new V3(rand(-1, 1), rand(-1, 1), rand(-1, 1)).multiplyScalar(11)), life: rand(2.2, 4.2), delay: rand(0, .5), s0: rand(6, 14), s1: rand(26, 60), fire };
     puffs.push(sp); g.add(sp);
   }
-  const SN = 650, sPos = new Float32Array(SN * 3), sCol = new Float32Array(SN * 3), sVel = new Float32Array(SN * 3), sLife = new Float32Array(SN), sMax = new Float32Array(SN);
+  const SN = Q.n(650, 160), sPos = new Float32Array(SN * 3), sCol = new Float32Array(SN * 3), sVel = new Float32Array(SN * 3), sLife = new Float32Array(SN), sMax = new Float32Array(SN);
   const bu = new V3(0, 1, 0).cross(dir).normalize(), bw = dir.clone().cross(bu);
   for (let i = 0; i < SN; i++) {
     const ph = rand(0, TAU), rr = Math.pow(rand(0, 1), .6), sp = rand(40, 150), lat = rand(10, 75) * rr;
@@ -197,7 +197,7 @@ const rbCosmosEspacio = function (O) {
   shock.position.copy(craterPos); shock.quaternion.setFromUnitVectors(new V3(0, 0, 1), dir); shock.visible = false; g.add(shock);
   // ---- el vecindario: Luna, Marte, Venus, Júpiter y Saturno (más lejos cuanto más grandes se ven) y satélites en órbita
   const ptex = (draw) => { const c9 = document.createElement('canvas'); c9.width = 512; c9.height = 256; const x = c9.getContext('2d'); draw(x); const t = new THREE.CanvasTexture(c9); texs.push(t); return t; };
-  const planet = (r, pos, tex, tilt) => { const m = new THREE.Mesh(trackG(new THREE.SphereGeometry(r, 44, 30)), track(new THREE.MeshLambertMaterial({ map: tex, emissive: 0x060606 }))); m.position.copy(pos); m.rotation.z = tilt || 0; g.add(m); return m; };
+  const planet = (r, pos, tex, tilt) => { const m = new THREE.Mesh(trackG(new THREE.SphereGeometry(r, Q.s(44), Q.s(30))), track(new THREE.MeshLambertMaterial({ map: tex, emissive: 0x060606 }))); m.position.copy(pos); m.rotation.z = tilt || 0; g.add(m); return m; };
   const moonTex = ptex(x => {
     x.fillStyle = '#9b9ba2'; x.fillRect(0, 0, 512, 256);
     for (let i = 0; i < 120; i++) { const cx = rand(0, 512), cy = rand(10, 246), r = rand(3, 24), gr = x.createRadialGradient(cx, cy, r * .15, cx, cy, r); gr.addColorStop(0, 'rgba(70,70,78,.7)'); gr.addColorStop(.85, 'rgba(110,110,118,.5)'); gr.addColorStop(1, 'rgba(210,210,220,.35)'); x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill(); }
@@ -217,6 +217,7 @@ const rbCosmosEspacio = function (O) {
   const venTex = ptex(x => { x.fillStyle = '#e9d7a2'; x.fillRect(0, 0, 512, 256); for (let i = 0; i < 80; i++) { x.fillStyle = i % 2 ? 'rgba(255,250,225,.25)' : 'rgba(200,170,110,.22)'; x.beginPath(); x.ellipse(rand(0, 512), rand(0, 256), rand(40, 130), rand(3, 12), rand(-.3, .3), 0, TAU); x.fill(); } });
   const satTex = ptex(x => { const cols = ['#dcc48a', '#c9ad70', '#e8d6a6', '#b89a5e']; let y0 = 0; while (y0 < 256) { const h = rand(8, 20); x.fillStyle = cols[Math.floor(rand(0, cols.length))]; x.fillRect(0, y0, 512, h + 1); y0 += h; } });
   const moon = planet(20, new V3(-55, 15, -151), moonTex), mars = planet(9, new V3(-205, 38, -35), marsTex), venus = planet(13, new V3(-130, 75, -340), venTex, .1), jup = planet(75, new V3(-330, -30, -330), jupTex, .05), sat = planet(48, new V3(-470, 90, 20), satTex, .35);
+  if (Q.lite) mars.visible = venus.visible = jup.visible = sat.visible = false;   // graficos minimos: solo la Luna
   const rv = document.createElement('canvas'); rv.width = 512; rv.height = 8; const rx = rv.getContext('2d');
   for (let i = 0; i < 512; i++) { const k = i / 512, a = (k > .08 && k < .93) ? (.35 + .55 * Math.abs(Math.sin(k * 38))) * (k > .45 && k < .52 ? .1 : 1) : 0; rx.fillStyle = 'rgba(225,205,160,' + a + ')'; rx.fillRect(i, 0, 1, 8); }
   const ringTex = new THREE.CanvasTexture(rv); texs.push(ringTex);
@@ -233,9 +234,10 @@ const rbCosmosEspacio = function (O) {
     const light = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: glareTex, color: big ? 0xff4040 : 0x40ff90, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }))); light.scale.setScalar(big ? 7 : 4); light.position.y = .7; sg.add(light);
     sg.scale.setScalar(scale); g.add(sg); sats.push({ sg, rad, incl, yaw0, speed, phase, light });
   };
-  mkSat(2.4, R * 1.3, .5, .3, .35, 0, true); mkSat(1.2, R * 1.22, 1.15, 2.1, -.5, 1.6); mkSat(1.1, R * 1.4, .2, 4, .28, 3.2); mkSat(1, R * 1.18, 1.4, 5.5, .6, 4.5); mkSat(1.1, R * 1.5, .85, 1.2, -.22, 5.4);
+  mkSat(2.4, R * 1.3, .5, .3, .35, 0, true); mkSat(1.2, R * 1.22, 1.15, 2.1, -.5, 1.6);
+  if (Q.level < 2) { mkSat(1.1, R * 1.4, .2, 4, .28, 3.2); mkSat(1, R * 1.18, 1.4, 5.5, .6, 4.5); mkSat(1.1, R * 1.5, .85, 1.2, -.22, 5.4); }   // en graficos bajos, menos satelites
   // polvo cósmico: da profundidad cuando la cámara se mueve
-  const DN = 320, dPos = new Float32Array(DN * 3), dVel = new Float32Array(DN * 3);
+  const DN = Q.n(320, 60), dPos = new Float32Array(DN * 3), dVel = new Float32Array(DN * 3);
   for (let i = 0; i < DN; i++) { dPos[i * 3] = rand(-170, 170); dPos[i * 3 + 1] = rand(-90, 90); dPos[i * 3 + 2] = rand(-170, 170); dVel[i * 3] = rand(-1.2, 1.2); dVel[i * 3 + 1] = rand(-.6, .6); dVel[i * 3 + 2] = rand(-1.2, 1.2); }
   const dG = trackG(new THREE.BufferGeometry()); dG.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
   g.add(new THREE.Points(dG, track(new THREE.PointsMaterial({ color: 0xbcc8e0, size: .9, transparent: true, opacity: .4, depthWrite: false, sizeAttenuation: true, fog: false }))));
@@ -253,7 +255,7 @@ const rbCosmosEspacio = function (O) {
         gl_FragColor = vec4(col * band * cur * night * view * 1.6 * fade, 1.);
       }`,
   }));
-  const aurora = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.04, 64, 40)), auroraMat); pivot.add(aurora);
+  const aurora = new THREE.Mesh(trackG(new THREE.SphereGeometry(R * 1.04, Q.s(64), Q.s(40))), auroraMat); if (Q.level < 3) pivot.add(aurora);
   // destello alargado (anamórfico) del sol y del cráter
   const av = document.createElement('canvas'); av.width = 512; av.height = 64; const ax = av.getContext('2d'), ag = ax.createRadialGradient(256, 32, 0, 256, 32, 256); ag.addColorStop(0, 'rgba(255,255,255,1)'); ag.addColorStop(.12, 'rgba(255,230,190,.7)'); ag.addColorStop(1, 'rgba(255,200,150,0)');
   ax.save(); ax.translate(256, 32); ax.scale(1, .075); ax.translate(-256, -32); ax.fillStyle = ag; ax.fillRect(0, -200, 512, 500); ax.restore();
@@ -263,9 +265,11 @@ const rbCosmosEspacio = function (O) {
   const craterStreak = new THREE.Sprite(streakMat(0xff8a4a, 0)); craterStreak.position.copy(dir).multiplyScalar(R * 1.02); craterStreak.scale.set(R * 7, R * .55, 1); g.add(craterStreak);
   scene.add(g);
 
+  // la Maquina del Tiempo (modelo de Blockbench, referencia a Bobicraft) cruza volando en dos momentos: de lejos al empezar y muy cerca justo antes de lanzarse al planeta
+  const maq = rbMaquinaTiempo(g); let maqA = false, maqB = false, maquinaCue = 0;
   let boomed = false, boomT = 0;
   const api = {
-    group: g, origin: O, dir, radius: R, boomed: () => boomed,
+    group: g, origin: O, dir, radius: R, boomed: () => boomed, maquinaCue: () => maquinaCue,
     // s = segundos desde que empieza la escena del espacio
     update(s, dt, camPos) {
       earth.rotation.y += dt * .05; clouds.rotation.y += dt * .068; earthB.rotation.y = earth.rotation.y; cloudsB.rotation.y = clouds.rotation.y;
@@ -275,6 +279,12 @@ const rbCosmosEspacio = function (O) {
       for (let i = 0; i < DN; i++) { dPos[i * 3] += dVel[i * 3] * dt; dPos[i * 3 + 1] += dVel[i * 3 + 1] * dt; dPos[i * 3 + 2] += dVel[i * 3 + 2] * dt; for (let a = 0; a < 3; a++) { const lim = a === 1 ? 90 : 170; if (dPos[i * 3 + a] > lim) dPos[i * 3 + a] = -lim; else if (dPos[i * 3 + a] < -lim) dPos[i * 3 + a] = lim; } }
       dG.attributes.position.needsUpdate = true;
       sky.rotation.y += dt * .004;
+      maq.update(dt);
+      if (camPos && Q.level < 4) {   // en 'Ultra baja' no aparece
+        const fw = new V3().subVectors(O, camPos).normalize(), rt = new V3().crossVectors(fw, new V3(0, 1, 0)).normalize(), loc = p => p.clone().sub(O);
+        if (!maqA && s >= .3) { maqA = true; maquinaCue++; maq.fly(loc(camPos.clone().addScaledVector(fw, 66).addScaledVector(rt, -50).add(new V3(0, -2, 0))), loc(camPos.clone().addScaledVector(fw, 72).addScaledVector(rt, 50).add(new V3(0, 3, 0))), 3, 2.5); }
+        if (!maqB && s >= 5.3) { maqB = true; maquinaCue++; maq.fly(loc(camPos.clone().addScaledVector(fw, 34).addScaledVector(rt, -22).add(new V3(0, 2, 0))), loc(camPos.clone().addScaledVector(fw, 28).addScaledVector(rt, 22).add(new V3(0, 7, 0))), 1.5, 2.4); }
+      }
       if (!boomed) {
         const k = clamp((s - .35) / 1.7, 0, 1);
         lg.setDrawRange(0, Math.floor(total * k / 2) * 2);
@@ -317,7 +327,7 @@ const rbCosmosEspacio = function (O) {
       shock.scale.setScalar(1 + b * R * .75); shock.material.opacity = Math.max(0, .85 - b * .33);
     },
     dispose() {
-      scene.remove(g);
+      scene.remove(g); maq.dispose();
       mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose()); texs.forEach(t => t.dispose());
     },
   };

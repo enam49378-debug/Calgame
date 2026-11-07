@@ -6,12 +6,13 @@
    Uso desde rbCosmos.js:  const M = rbCosmosMundo();  M.setApoc(1);  M.update(dt, { center, rain, quake });
                            M.water(origen, direccion, largo, ancho, potenciado, dt);  M.hideFoam();  M.dispose(); */
 const rbCosmosMundo = function () {
+  const Q = rbCalidad();
   const g = new THREE.Group(), mats = [], geos = [], rocks = []; scene.add(g);
   const boxG = new THREE.BoxGeometry(1, 1, 1); geos.push(boxG);
   const rockMats = [0x5e5046, 0x7a6a5c, 0x463b34].map(c => { const m = new THREE.MeshLambertMaterial({ color: c }); mats.push(m); return m; });
   const hotMat = new THREE.MeshBasicMaterial({ color: 0xff7a2a, fog: false }); mats.push(hotMat);
   const wet = (x, z) => z > SHORE(x) + .2 && z < 290 && Math.abs(x) < 190;   // ¿es mar?
-  let apoc = 0, apocT = 0, acc = 0, hornT = 0, geyT = 0, sndT = 0, foam = null, MAX = 64;
+  let apoc = 0, apocT = 0, acc = 0, hornT = 0, geyT = 0, sndT = 0, foam = null, MAX = Q.n(64, 12);
 
   // ---- escombros
   const spawn = (c) => {
@@ -40,7 +41,7 @@ const rbCosmosMundo = function () {
     update(dt, o) {
       o = o || {}; apoc += (apocT - apoc) * (1 - Math.exp(-dt * 1.4)); G.apoc = apoc; sndT -= dt;
       if (o.quake) G.shake = Math.max(G.shake, o.quake * (.8 + .2 * Math.sin(performance.now() * .02)));
-      if (o.rain && o.center) { acc += o.rain * dt; while (acc >= 1) { acc -= 1; spawn(o.center); } }
+      if (o.rain && o.center) { acc += o.rain * Q.q * dt; while (acc >= 1) { acc -= 1; spawn(o.center); } }
       for (let i = rocks.length - 1; i >= 0; i--) {
         const r = rocks[i], p = r.m.position; p.addScaledVector(r.v, dt); r.m.rotation.x += r.spin.x * dt; r.m.rotation.y += r.spin.y * dt; r.m.rotation.z += r.spin.z * dt;
         if (r.hot) emit(p.x, p.y, p.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), Math.random() < .5 ? '#ff8a3a' : '#ffd27a', .14, .4, 0, 0);
@@ -58,7 +59,7 @@ const rbCosmosMundo = function () {
       foam.visible = true; foam.position.set(org.x + F2.x * mid, SEA_Y + .07, org.z + F2.z * mid); foam.rotation.set(-Math.PI / 2, Math.atan2(F2.x, F2.z), 0); foam.scale.set(w * 1.7 * pulse, L, 1); foam.material.opacity = .42 + Math.sin(performance.now() * .015) * .1;
       geyT -= dt;
       if (geyT <= 0) {
-        geyT = powered ? .07 : .12;
+        geyT = (powered ? .07 : .12) / Math.max(.35, Q.q);
         for (let k = 0; k < (powered ? 3 : 2); k++) {
           const dd = rand(d0, d1), lat = rand(-w * .7, w * .7), x = org.x + F2.x * dd + F2.z * lat, z = org.z + F2.z * dd - F2.x * lat; if (!wet(x, z)) continue;
           const P = new V3(x, SEA_Y + .08, z);

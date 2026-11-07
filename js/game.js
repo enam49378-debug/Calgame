@@ -5833,7 +5833,7 @@ function camPunch(str, dirSign = 1) { CAMFX.zoom = Math.max(CAMFX.zoom, str); CA
 function updateCamFx(dt) {
   CAMFX.zoom *= Math.exp(-dt * 7); CAMFX.ca *= Math.exp(-dt * 5);
   CAMFX.rollV += (-CAMFX.roll * 260 - CAMFX.rollV * 16) * dt; CAMFX.roll += CAMFX.rollV * dt;
-  if (caPass) { caPass.enabled = CAMFX.ca > .01; caPass.uniforms.amt.value = Math.min(1, CAMFX.ca); }
+  if (caPass) { caPass.enabled = CAMFX.ca > .01 && GFX.level < 3 && GFX.post !== false; caPass.uniforms.amt.value = Math.min(1, CAMFX.ca); }   // en graficos minimos no hay aberracion cromatica
 }
 function choreShots(D) {
   // planos de menos de .4 s no se llegan a leer: se juntan con el anterior
