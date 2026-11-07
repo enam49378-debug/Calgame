@@ -4760,6 +4760,15 @@ function sfx(k, pos, mul = 1, { range = 45, title = false } = {}) {
     case 'drop': nz(t, .35, 300, .7, .6 * v, 'lowpass', 'game', pos); tone(t, .3, 110, 40, 'sine', .7 * v, pos); break;
     case 'ding': tone(t, .8, 1175, 1175, 'sine', .22 * v, pos); tone(t + .28, .9, 880, 880, 'sine', .2 * v, pos); break;
     case 'slide': nz(t, .5, 900, 1.2, .2 * v, 'bandpass', 'game', pos); tone(t, .45, 150, 105, 'sine', .14 * v, pos); break;
+    // sonidos de las escenas de Sekza (cielo, avion, caida)
+    case 'wind': nz(t, 1.3, 700, .8, .32 * v, 'bandpass', 'game', pos); nz(t + .08, 1.1, 1900, 1.5, .13 * v, 'bandpass', 'game', pos); break;
+    case 'screech': tone(t, .35, 2200, 3500, 'sawtooth', .13 * v, pos); tone(t + .05, .3, 1800, 2900, 'square', .06 * v, pos); tone(t + .2, .28, 2700, 1500, 'sawtooth', .1 * v, pos); nz(t, .3, 5200, 2, .1 * v, 'highpass', 'game', pos); break;
+    case 'engine': nz(t, 1.7, 170, .7, .55 * v, 'lowpass', 'game', pos); tone(t, 1.7, 72, 54, 'sawtooth', .2 * v, pos); tone(t, 1.7, 144, 108, 'square', .06 * v, pos); break;
+    case 'clank': tone(t, .25, 1400, 900, 'square', .13 * v, pos); tone(t, .35, 520, 330, 'triangle', .2 * v, pos); nz(t, .08, 5200, 1.2, .3 * v, 'highpass', 'game', pos); break;
+    case 'rush': nz(t, 1.5, 430, .6, .55 * v, 'lowpass', 'game', pos); nz(t, 1.3, 2500, 1.3, .2 * v, 'bandpass', 'game', pos); break;
+    case 'crash': nz(t, 1.2, 380, .5, .95 * v, 'lowpass', 'game', pos); tone(t, .95, 85, 22, 'sine', .95 * v, pos); nz(t + .06, .6, 3500, 1, .3 * v, 'highpass', 'game', pos); nz(t + .25, .7, 900, .8, .3 * v, 'lowpass', 'game', pos); break;
+    case 'whoom': nz(t, .55, 320, .8, .5 * v, 'lowpass', 'game', pos); tone(t, .5, 190, 60, 'sawtooth', .17 * v, pos); break;
+    case 'step': nz(t, .07, 900, 1, .3 * v, 'lowpass', 'game', pos); tone(t, .08, 110, 70, 'sine', .3 * v, pos); break;
   }
 }
 
@@ -5828,15 +5837,36 @@ function choreEvent(st, e) {
   if (e.eyes != null) f.choreEyes = !!e.eyes;
   if (e.freeze && !tg.remote) freeze(tg, e.freeze);
 }
-// pajaron: cuerpo, cabeza con pico y dos alas que aletean; cruza de un lado a otro de la victima en .55 s
+// pajaron: cuerpo con pecho claro, cuello, cabeza con ojo, cresta y pico de dos piezas, cola en abanico y dos alas de tres plumas que aletean (cada tramo con su retraso);
+// cruza de un lado a otro de la victima en .6 s, chilla al llegar, suelta plumas al chocar y deja una estela de viento
 function birdFx(P, ang, sc, col) {
-  const g = new THREE.Group(), mat = new THREE.MeshToonMaterial({ color: col, gradientMap: TOON_GRAD }), dark = new THREE.MeshToonMaterial({ color: 0x3a3f4a, gradientMap: TOON_GRAD }), beak = new THREE.MeshToonMaterial({ color: 0xffb020, gradientMap: TOON_GRAD });
-  const bx = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
-  bx(.7, .6, 1.5, mat, 0, 0, 0); bx(.5, .5, .5, mat, 0, .25, .95); bx(.18, .14, .45, beak, 0, .2, 1.35); bx(.4, .12, .8, dark, 0, .05, -1.05);
-  const wings = [-1, 1].map(sd => { const p = new THREE.Group(); p.position.set(sd * .35, .1, 0); const w = new THREE.Mesh(new THREE.BoxGeometry(2.2, .08, 1.1), mat), t = new THREE.Mesh(new THREE.BoxGeometry(.5, .1, .8), dark); w.position.x = sd * 1.1; t.position.set(sd * 2.1, 0, -.1); p.add(w, t); g.add(p); return [p, sd]; });
-  g.scale.setScalar(sc); const dir = new V3(Math.sin(ang), .12, Math.cos(ang)), A = P.clone().addScaledVector(dir, -sc * 4.2), B = P.clone().addScaledVector(dir, sc * 4.2);
-  g.rotation.y = ang;
-  addFx(g, .6, (m, k) => { m.position.lerpVectors(A, B, k); const fl = Math.sin(k * 40) * .9; for (const [p, sd] of wings) p.rotation.z = sd * fl; }, () => { scene.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); mat.dispose(); dark.dispose(); beak.dispose(); });
+  const g = new THREE.Group(), mat = new THREE.MeshToonMaterial({ color: col, gradientMap: TOON_GRAD }), dark = new THREE.MeshToonMaterial({ color: 0x3a3f4a, gradientMap: TOON_GRAD }), beak = new THREE.MeshToonMaterial({ color: 0xffb020, gradientMap: TOON_GRAD }),
+    belly = new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON_GRAD }), eye = new THREE.MeshBasicMaterial({ color: 0x111418 }), glint = new THREE.MeshBasicMaterial({ color: 0xffffff }), mats = [mat, dark, beak, belly, eye, glint];
+  const bx = (w, h, d, m, x, y, z, par) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); (par || g).add(b); return b; };
+  bx(.7, .6, 1.4, mat, 0, 0, -.1); bx(.55, .34, 1.1, belly, 0, -.22, .05); bx(.45, .42, .6, mat, 0, .18, .75);      // cuerpo, pecho, cuello
+  bx(.56, .5, .56, mat, 0, .42, 1.1);                                                                                // cabeza
+  bx(.34, .08, .34, dark, 0, .74, 1.0); bx(.22, .08, .3, dark, 0, .68, .8);                                           // cresta
+  bx(.2, .12, .3, beak, 0, .38, 1.5); bx(.16, .08, .26, beak, 0, .28, 1.46);                                          // pico de dos piezas
+  for (const sd of [-1, 1]) { bx(.08, .1, .1, eye, sd * .29, .5, 1.22); bx(.04, .04, .04, glint, sd * .3, .54, 1.25); }
+  for (let i = -1; i <= 1; i++) { const f = bx(.22, .08, .9, i ? mat : dark, i * .22, .02, -1.25); f.rotation.y = i * .22; }   // cola en abanico
+  const wings = [-1, 1].map(sd => {
+    const p = new THREE.Group(); p.position.set(sd * .35, .15, 0); g.add(p);
+    const segs = [];
+    let parent = p, x = 0;
+    for (let i = 0; i < 3; i++) { const s = new THREE.Group(); s.position.x = sd * x; parent.add(s); const len = [1.1, .95, .8][i]; bx(len, .08, 1.15 - i * .22, i === 2 ? dark : mat, sd * len / 2, 0, -i * .08, s); parent = s; x = len; segs.push(s); }
+    return [p, sd, segs];
+  });
+  g.scale.setScalar(sc); const dir = new V3(Math.sin(ang), .12, Math.cos(ang)), A = P.clone().addScaledVector(dir, -sc * 4.4), B = P.clone().addScaledVector(dir, sc * 4.4);
+  g.rotation.y = ang; let cried = false, shed = false;
+  // estela de viento: dos lineas largas detras del ave
+  const trailMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55, depthWrite: false }), trails = [-1, 1].map(sd => { const m = new THREE.Mesh(new THREE.BoxGeometry(.05, .05, 3.2), trailMat); m.position.set(sd * 2.3, .1, -3); g.add(m); return m; });
+  addFx(g, .6, (m, k) => {
+    m.position.lerpVectors(A, B, k); const ph = k * 44;
+    for (const [p, sd, segs] of wings) { p.rotation.z = sd * Math.sin(ph) * .85; segs.forEach((s, i) => { s.rotation.z = sd * Math.sin(ph - .55 * (i + 1)) * (.35 + i * .12); }); }
+    trailMat.opacity = .55 * Math.min(1, k * 6) * (1 - k * .6); for (const t of trails) t.scale.z = .6 + k * 1.6;
+    if (!cried && k > .05) { cried = true; sfx('screech', P, .9); }
+    if (!shed && k > .47) { shed = true; burst(P, 26, '#ffffff', 6, .16, 1.3, .9); burst(P, 10, '#ffe9b0', 4, .12, 1.1, .8); sfx('whoom', P, .7); }
+  }, () => { scene.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); mats.forEach(x => x.dispose()); trailMat.dispose(); });
 }
 function choreFx(name, st, P, col, e) {
   const { f, tg } = st, big = !!e.big, G0 = new V3(P.x, groundAt(P.x, P.z), P.z);
@@ -5863,6 +5893,11 @@ function choreFx(name, st, P, col, e) {
     case 'dust': { const n = e.n || 10; burst(new V3(P.x, P.y + .12, P.z), n, '#9c8c6a', e.v || 5, .22, .6, .9, 3); burst(new V3(P.x, P.y + .1, P.z), Math.ceil(n / 2), '#d8ccb0', (e.v || 5) * .6, .3, .7, .4, 2); break; }
     case 'clang': sparkLines(P, '#ffe9a8', e.n || 8, e.len || 1.7); burst(P, 14, '#fff2c0', 8, .1, .3, 0); impactStar(P, '#ffffff', e.sz || 1.1, .1); sfx('block', P); break;
     case 'bird': birdFx(P, (e.a || 0) + st.yaw, e.sc || 4.5, e.col || '#fff6e0'); sfx('whoosh', P, .8); break;
+    // nubes que se abren de golpe / plumas / onda de choque / escombros (escenas de Sekza)
+    case 'puff': burst(P, e.n || 40, '#ffffff', e.v || 7, e.sz || .55, 1.1, -.05); burst(P, Math.round((e.n || 40) / 2), '#dbe9ff', (e.v || 7) * .6, (e.sz || .55) * 1.3, 1.4, -.05); sfx('wind', P, .5); break;
+    case 'feathers': burst(P, e.n || 24, '#ffffff', 6, .16, 1.4, 1.1); burst(P, 10, '#ffe9b0', 4, .12, 1.1, .9); break;
+    case 'shock': { const r = e.r || 3; sphereFlash(P, '#ffffff', r * .8, .28); ringAt(P, col, r * 1.8, .5, 'flat'); ringAt(P, '#ffffff', r, .4, 'face', f.yaw); burst(P, 18, '#ffffff', 11, .14, .5, 0); sfx(e.sfx || 'whoom', P, .8); break; }
+    case 'debris': burst(G0, e.n || 40, '#7a7f87', e.v || 12, .3, 1.4, 1.5); burst(new V3(G0.x, G0.y + .3, G0.z), Math.round((e.n || 40) / 2), '#cfc4a8', (e.v || 12) * .7, .45, 1.1, .8); break;
     case 'flash': screenFlash(e.op || .5); break;
     case 'lines': G.linesI = 1; break;
   }

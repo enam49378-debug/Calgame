@@ -4086,6 +4086,21 @@ CF.coreografia('sekPlane', function () {
     B(W + .25, 1.2, LENG, white, 0, -.9, CZ).material = M(0xdfe5ec, { side: THREE.BackSide });   // la panza (vista desde abajo)
     for (const sx of [-1, 1]) { B(13, .28, 5, white, sx * 8.3, -.8, -1.5).rotation.y = sx * -.25; const en = new THREE.Mesh((() => { const ge = new THREE.CylinderGeometry(.75, .75, 3.2, 14); geos.push(ge); return ge; })(), grey); en.rotation.x = Math.PI / 2; en.position.set(sx * 6, -1.4, -.5); g.add(en); B(5, .2, 2.4, white, sx * 2.6, .2, Z0 - 2.5); }
     B(.25, 4.6, 3, red, 0, 3.2, Z0 - 2.5);
+    // ---- detalles del avion: cristal de cabina, franja roja, motores con helice y fuego, estelas, luces de ala parpadeantes y luces del techo
+    const glowW = new THREE.MeshBasicMaterial({ color: 0xfff6d8 }), glowO = new THREE.MeshBasicMaterial({ color: 0xff9a3c, transparent: true, opacity: .85, depthWrite: false }), trailM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .4, depthWrite: false }), lampR = new THREE.MeshBasicMaterial({ color: 0xff2a2a }), lampG = new THREE.MeshBasicMaterial({ color: 0x2aff6a });
+    mats.push(glowW, glowO, trailM, lampR, lampG);
+    B(2.0, .7, 1.4, dark, 0, .95, Z1 + 1.9); for (const sx of [-1, 1]) B(.1, .26, LENG - 2, red, sx * (W / 2 + .08), -.2, CZ);   // franja roja por fuera
+    const fans = [], blinkers = [];
+    for (const sx of [-1, 1]) {
+      const fan = new THREE.Group(); fan.position.set(sx * 6, -1.4, -.5 + 1.65); g.add(fan);
+      for (let i = 0; i < 4; i++) { const bl = B(1.35, .12, .05, dark, 0, 0, 0, fan); bl.rotation.z = i * Math.PI / 4; }
+      fans.push(fan);
+      const flame = new THREE.Mesh((() => { const ge = new THREE.ConeGeometry(.55, 1.6, 10); geos.push(ge); return ge; })(), glowO); flame.rotation.x = -Math.PI / 2; flame.position.set(sx * 6, -1.4, -.5 - 2.4); g.add(flame);
+      B(.5, .5, 46, trailM, sx * 6, -1.4, -.5 - 25);
+      blinkers.push(B(.35, .35, .35, sx < 0 ? lampR : lampG, sx * 14.2, -1.0, -2.1));
+      B(.2, 1.6, .9, white, sx * 14.4, -.2, -3.3).rotation.z = sx * .25;
+    }
+    B(.45, .05, LENG - 1, glowW, -.9, 1.43, CZ); B(.45, .05, LENG - 1, glowW, .9, 1.43, CZ);
     g.visible = false; scene.add(g);
     const R = rightOf(st.yaw); g.rotation.y = Math.atan2(R.x, R.z);
     // nubes (billboards) alrededor de la zona de la pelea
@@ -4098,6 +4113,8 @@ CF.coreografia('sekPlane', function () {
       group: g,
       tick(t) {
         g.visible = t > 5.6 && t < 11.6; const px = planeX(t); g.position.copy(L2W(st.origin, st.yaw, px, H, PZ));
+        fans.forEach(fn => { fn.rotation.z = t * 70; }); blinkers.forEach((b, i) => { b.visible = ((t * 2.2 + i * .5) % 1) < .5; });
+        const flick = t > 8.6 && t < 9.9 && Math.random() < .2 ? .25 : 1; glowW.color.setRGB(1, .96, .85).multiplyScalar(flick);   // las luces del techo parpadean durante la persecucion
         if (t > T_KICK - .2) { const u = Math.max(0, t - 8.0); g.position.y += Math.sin(u * 3) * .06; g.rotation.z = Math.sin(u * 2.1) * .015; }
       },
       on(name) { if (name === 'hatch') hatch.visible = false; },
@@ -4128,6 +4145,37 @@ CF.coreografia('sekPlane', function () {
     };
   };
 
+  // ---------------- cielo: nubes de cubos (como las de Minecraft) que pasan, rachas de viento mientras vuelan y rachas hacia arriba alrededor de la victima en la caida
+  const skyFx = (st) => {
+    const group = new THREE.Group(), geos = [], mats = [], clouds = [], streaks = [], falls = [], LV = [1, .75, .5, .3, .15][GFX.level | 0];
+    const cm = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaac4e8, emissiveIntensity: .55, transparent: true, opacity: .93 }), sm = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, depthWrite: false }); mats.push(cm, sm);
+    for (let i = 0, n = Math.max(8, Math.round(22 * LV)); i < n; i++) {
+      const c = new THREE.Group(), nb = 4 + Math.floor(Math.random() * 5), deck = Math.random() < .5;
+      for (let k = 0; k < nb; k++) { const ge = new THREE.BoxGeometry(3 + Math.random() * 5, 1.4 + Math.random() * 1.8, 3 + Math.random() * 4); geos.push(ge); const b = new THREE.Mesh(ge, cm); b.position.set((k - nb / 2) * 3.2 + Math.random() * 2, (Math.random() - .5) * 1.6, (Math.random() - .5) * 4); c.add(b); }
+      c.userData = { px: -45 + Math.random() * 100, py: deck ? 27 + Math.random() * 10 : 52 + Math.random() * 10, pz: Math.random() < .5 ? -34 + Math.random() * 22 : 26 + Math.random() * 30, sp: 5 + Math.random() * 5 }; clouds.push(c); group.add(c);
+    }
+    for (let i = 0, n = Math.max(10, Math.round(34 * LV)); i < n; i++) { const ge = new THREE.BoxGeometry(.05, .05, 6 + Math.random() * 10); geos.push(ge); const m = new THREE.Mesh(ge, sm); m.userData = { x: -14 + Math.random() * 30, y: 38 + Math.random() * 14, z0: Math.random() * 120, v: 50 + Math.random() * 30 }; streaks.push(m); group.add(m); }
+    for (let i = 0, n = Math.max(10, Math.round(28 * LV)); i < n; i++) { const ge = new THREE.BoxGeometry(.05, 5 + Math.random() * 7, .05); geos.push(ge); const m = new THREE.Mesh(ge, sm); m.userData = { ox: (Math.random() - .5) * 9, oz: (Math.random() - .5) * 9, ph: Math.random() * 40, v: 60 + Math.random() * 30 }; falls.push(m); group.add(m); }
+    scene.add(group);
+    return {
+      group,
+      tick(t) {
+        const on = t > 3.9 && t < 11.2; group.visible = on; if (!on) return;
+        const W = (x, y, z) => L2W(st.origin, st.yaw, x, y, z), fw = fwd(st.yaw), flying = t < 7.3, falling = t > 9.9 && t < 11.1;
+        for (const c of clouds) { const u = c.userData; c.position.copy(W(((u.px + t * u.sp + 50) % 110) - 55, u.py, u.pz)); }
+        for (const m of streaks) { m.visible = flying; if (!flying) continue; const u = m.userData; m.position.copy(W(u.x, u.y, 60 - ((u.z0 + (t - 4) * u.v) % 120) + 8)); m.rotation.y = Math.atan2(fw.x, fw.z); }
+        for (const m of falls) { m.visible = falling; if (!falling) continue; const u = m.userData, v = st.tg.pos; m.position.set(v.x + u.ox, v.y + ((u.ph + (t - 9.9) * u.v) % 36) - 10, v.z + u.oz); }
+      },
+      dispose() { scene.remove(group); geos.forEach(x => x.dispose()); mats.forEach(m => m.dispose()); },
+    };
+  };
+
+  const BA = [.8, -1.3, 2.2, -.4, 3.0], BS = [3.2, 3.2, 3.6, 3.6, 4], BC = [undefined, '#e8eef8', undefined, '#ffe9b0', undefined], HD = [2.5, 2.5, 3, 3, 3.5];
+  const birdHits = [];
+  hits.forEach(([h], i) => birdHits.push(
+    { t: +(h - .28).toFixed(2), fx: 'bird', a: BA[i], sc: BS[i], col: BC[i] }, { t: +(h - .08).toFixed(2), fx: 'lines' },
+    Object.assign({ t: h, hit: HD[i], fx: 'impact', at: 'vic', big: 1, shake: i > 1 ? .6 : .5 }, i === 0 ? { text: '¡PAJARÓN!', who: 'att' } : {}, i === 2 ? { imp: 1 } : {}, i === 4 ? { imp: 1, slow: .2, text: '¡Y OTRO!', who: 'att' } : {})));
+  const footsteps = []; for (let t = 8.7; t < 9.45; t += .12) footsteps.push({ t: +t.toFixed(2), sfx: 'step' });
   const tidy = arr => { arr.sort((a, b) => a[0] - b[0]); for (let i = 1; i < arr.length; i++) if (arr[i][0] - arr[i - 1][0] < .002) arr[i][0] = arr[i - 1][0] + .002; return arr; };
   [att, vic, apos, vpos].forEach(tidy);
   return {
@@ -4135,7 +4183,7 @@ CF.coreografia('sekPlane', function () {
     trails: [],
     att, vic, apos, vpos,
     attClip: 'agarrar_sekza', attClipEnd: T_FILM, vicClip: 'agarrar_victima', vicClipEnd: T_VFILM, vicR6: true,   // la película de BBS cubre hasta ahi; luego siguen las poses de att / vic
-    props: [planeProp, cloudBank],
+    props: [planeProp, cloudBank, skyFx],
     ev: [
       { t: .1, text: '¡TE TENGO!', who: 'att', fx: 'impact', at: 'att' },
       { t: .35, fx: 'ring', at: 'ground', r: 3.4 }, { t: .4, fx: 'dust', at: 'groundA', n: 14 },
@@ -4143,49 +4191,60 @@ CF.coreografia('sekPlane', function () {
       { t: 2.45, fx: 'charge', at: 'att' },
       { t: 2.95, fx: 'boom', at: 'groundA', r: 3, big: 1, shake: 1, imp: 1, text: '¡A VOLAR!', who: 'att' }, { t: 2.98, fx: 'crack', at: 'groundA', r: 4 }, { t: 3.0, fx: 'dust', at: 'groundA', n: 30 },
       { t: 3.2, fx: 'line', sfx: 'whoosh' }, { t: 3.5, fx: 'line', sfx: 'whoosh' },
+      { t: 3.95, sfx: 'wind' }, { t: 4.0, fx: 'puff', at: 'vic', n: 56, v: 10, sz: .85 }, { t: 4.1, fx: 'puff', at: 'att', n: 40, v: 8, sz: .8 },
       { t: 4.15, text: '¡NO PUEDE VOLAR!', who: 'vic', fx: 'ring', at: 'vic', r: 3, face: 1 },
-      { t: 4.4, text: '¡AAAAH!', who: 'vic' },
-      { t: 5.0, fx: 'bird', a: .8, sc: 3.2 }, { t: 5.1, hit: 2.5, fx: 'impact', at: 'vic', big: 1, shake: .5, text: '¡PAJARÓN!', who: 'att' },
-      { t: 5.4, fx: 'bird', a: -1.3, sc: 3.2, col: '#e8eef8' }, { t: 5.5, hit: 2.5, fx: 'impact', at: 'vic', big: 1, shake: .5 },
-      { t: 5.8, fx: 'bird', a: 2.2, sc: 3.6 }, { t: 5.9, hit: 3, fx: 'impact', at: 'vic', big: 1, shake: .6, imp: 1 },
-      { t: 6.2, fx: 'bird', a: -.4, sc: 3.6, col: '#ffe9b0' }, { t: 6.3, hit: 3, fx: 'impact', at: 'vic', big: 1, shake: .6 },
-      { t: 6.6, fx: 'bird', a: 3.0, sc: 4 }, { t: 6.7, hit: 3.5, fx: 'impact', at: 'vic', big: 1, shake: .8, imp: 1, slow: .2, text: '¡Y OTRO!', who: 'att' },
-      { t: 6.9, text: '¡UN AVIÓN!', who: 'vic' }, { t: 6.95, sfx: 'whoosh' },
-      { t: T_KICK, hit: 3, fx: 'boom', at: 'vic', r: 2.4, big: 1, imp: 1, shake: 1, slow: .2, text: '¡PUERTA!', who: 'att' },
-      { t: 7.9, fx: 'impact', at: 'vic', sfx: 'heavy', shake: .6 },
-      { t: 8.2, fx: 'dust', at: 'ground', n: 4 },
+      { t: 4.35, fx: 'shock', at: 'att', r: 2.6 },
+      { t: 4.4, text: '¡AAAAH!', who: 'vic', sfx: 'screech' },
+      ...birdHits,
+      { t: 6.55, sfx: 'engine' }, { t: 6.9, text: '¡UN AVIÓN!', who: 'vic' }, { t: 6.95, sfx: 'wind' },
+      { t: T_KICK - .15, fx: 'lines' },
+      { t: T_KICK, hit: 3, fx: 'boom', at: 'vic', r: 2.4, big: 1, imp: 1, shake: 1, slow: .2, text: '¡PUERTA!', who: 'att' }, { t: T_KICK, sfx: 'clank' }, { t: T_KICK + .05, fx: 'feathers', at: 'vic', n: 14 },
+      { t: 7.9, fx: 'impact', at: 'vic', sfx: 'heavy', shake: .6 }, { t: 7.92, fx: 'puff', at: 'vic', n: 14, v: 4, sz: .5 }, { t: 8.05, sfx: 'clank' },
       { t: 8.9, text: '¡CORRE!', who: 'vic' },
-      { t: 8.95, fx: 'charge', at: 'att' }, { t: 9.0, fx: 'ghost' }, { t: 9.1, fx: 'ghost' }, { t: 9.2, fx: 'ghost' }, { t: 9.3, fx: 'line', sfx: 'whoosh' },
+      ...footsteps,
+      { t: 8.95, fx: 'charge', at: 'att' }, { t: 9.0, fx: 'ghost' }, { t: 9.1, fx: 'ghost' }, { t: 9.2, fx: 'ghost' }, { t: 9.1, fx: 'lines' }, { t: 9.3, fx: 'line', sfx: 'whoosh' },
       { t: 9.45, hit: 2, fx: 'impact', at: 'vic', big: 1, imp: 1, shake: .6, text: '¡TE ALCANCÉ!', who: 'att' },
-      { t: T_HATCH, hit: 3, fx: 'boom', at: 'vic', r: 2.6, big: 1, imp: 1, shake: 1, prop: 'hatch', slow: .2, text: '¡AL SUELO!', who: 'att' },
-      { t: T_HIT - .02, rel: { dmg: 26, kb: 10, up: 3, rag: 2.2 }, fx: 'boom', at: 'ground', r: 4.8, big: 1, imp: 1, shake: 1.4, slow: .3 }, { t: T_HIT, fx: 'crack', at: 'ground', r: 7 }, { t: T_HIT + .05, fx: 'dust', at: 'ground', n: 40 },
-      { t: LAND_T, fx: 'ring', at: 'groundA', r: 5, shake: .6 }, { t: LAND_T + .02, fx: 'dust', at: 'groundA', n: 34 }, { t: LAND_T + .05, fx: 'crack', at: 'groundA', r: 5 },
+      { t: T_HATCH - .1, sfx: 'rush' },
+      { t: T_HATCH, hit: 3, fx: 'boom', at: 'vic', r: 2.6, big: 1, imp: 1, shake: 1, prop: 'hatch', slow: .2, text: '¡AL SUELO!', who: 'att' }, { t: T_HATCH + .03, fx: 'puff', at: 'vic', n: 30, v: 9, sz: .6 },
+      { t: 10.1, sfx: 'wind' }, { t: 10.25, fx: 'lines' }, { t: 10.5, fx: 'lines' }, { t: 10.55, sfx: 'wind' }, { t: 10.75, fx: 'lines' },
+      { t: T_HIT - .02, rel: { dmg: 26, kb: 10, up: 3, rag: 2.2 }, fx: 'boom', at: 'ground', r: 4.8, big: 1, imp: 1, shake: 1.4, slow: .3 }, { t: T_HIT - .02, sfx: 'crash' }, { t: T_HIT, fx: 'crack', at: 'ground', r: 7 },
+      { t: T_HIT + .03, fx: 'shock', at: 'ground', r: 5 }, { t: T_HIT + .05, fx: 'dust', at: 'ground', n: 40 }, { t: T_HIT + .06, fx: 'debris', at: 'ground', n: 50 },
+      { t: 11.4, sfx: 'whoom' }, { t: 11.55, sfx: 'wind' },
+      { t: LAND_T - .02, sfx: 'crash' }, { t: LAND_T, fx: 'ring', at: 'groundA', r: 5, shake: .6 }, { t: LAND_T + .02, fx: 'dust', at: 'groundA', n: 34 }, { t: LAND_T + .03, fx: 'shock', at: 'groundA', r: 4 }, { t: LAND_T + .05, fx: 'crack', at: 'groundA', r: 5 },
       { t: LAND_T + .3, text: '¡VUELO SIN RETORNO!', who: 'att' },
     ],
     shots: [
       [0, 'bb', { keys: BB_CAM }],   // la cámara de la película: sigue la acción y al final se queda mirando el cielo mientras las nubes los tapan
-      [3.95, 'rig', { at: 'V', a0: 60, a1: 100, r0: 9, r1: 8, h0: .5, fov: 56, roll0: 4 }],
-      [4.5, 'rig', { at: 'mid', a0: 120, a1: 90, r0: 8, h0: .4, fov: 50 }],
-      [5.0, 'rig', { at: 'V', a0: 160, a1: 140, r0: 5, h0: .2, fov: 46, roll0: -4 }],
-      [5.45, 'rig', { at: 'V', a0: 40, a1: 55, r0: 5, h0: .4, fov: 46, roll0: 5 }],
-      [5.8, 'two', { fov: 52 }],
-      [6.2, 'rig', { at: 'V', a0: 175, a1: 185, r0: 4.8, h0: .2, fov: 44, roll0: 3 }],
-      [6.6, 'rig', { at: 'V', a0: 195, a1: 205, r0: 5, h0: .3, fov: 48 }],
-      [6.95, 'rig', { at: 'mid', a0: 100, a1: 100, r0: 28, h0: 1, fov: 52, ease: 'l' }],
-      [7.4, 'rig', { at: 'V', a0: 165, a1: 160, r0: 6.5, h0: .4, fov: 48, roll0: -5 }],
+      // III. entran a las nubes: plano bajo hacia arriba, cara de susto, orbita cuando llega Sekza
+      [3.95, 'rig', { at: 'mid', a0: 200, a1: 215, r0: 16, r1: 12, h0: -7, h1: -3, fov0: 76, fov1: 62, roll0: 10, roll1: 4, ease: 'o' }],
+      [4.35, 'rig', { at: 'headV', a0: 25, a1: 15, r0: 2.8, h0: .15, fov: 36, roll0: -8 }],
+      [4.8, 'rig', { at: 'A', at1: 'V', a0: 60, a1: 150, r0: 7, r1: 5.5, h0: .3, fov: 52, roll0: -6 }],
+      // IV. cada golpe y cada pajaron con su plano: el ave cruza, primer plano del golpe, Sekza desde el otro lado
+      [4.95, 'rig', { at: 'V', a0: 150, a1: 165, r0: 5.2, h0: .2, fov: 50, roll0: -4 }],
+      [5.28, 'rig', { at: 'headV', a0: 25, a1: 15, r0: 2.6, h0: .15, fov: 34, roll0: 6 }],
+      [5.42, 'rig', { at: 'A', a0: 300, a1: 320, r0: 4.2, h0: .4, fov: 58, roll0: -8 }],
+      [5.7, 'rig', { at: 'V', a0: 40, a1: 55, r0: 4.6, h0: .5, fov: 46, roll0: 5 }],
+      [5.95, 'rig', { at: 'mid', a0: 100, a1: 100, r0: 3.4, r1: 2.6, h0: -1.2, fov0: 60, fov1: 48, roll0: -9 }],
+      [6.3, 'rig', { at: 'V', a0: 230, a1: 200, r0: 5.6, h0: 1.6, fov: 50, roll0: 7 }],
+      [6.62, 'two', { fov: 54 }],
+      // V. llega el avion: plano general bajo, luego Sekza lo patea
+      [6.95, 'rig', { at: 'mid', a0: 100, a1: 100, r0: 30, h0: 1, fov: 56, ease: 'l' }],
+      [7.4, 'rig', { at: 'V', a0: 165, a1: 160, r0: 6.5, h0: .4, fov0: 54, fov1: 44, roll0: -5 }],
       [7.75, 'rig', { at: 'V', a0: 270, a1: 270, r0: 4.6, h0: .6, fov: 62, roll0: 6 }],
       [8.2, 'rig', { at: 'V', a0: 270, a1: 270, r0: 4.6, h0: .8, fov: 58 }],
-      [8.65, 'rig', { at: 'V', a0: 80, a1: 90, r0: 3.2, h0: .3, fov: 52 }],
-      [9.0, 'rig', { at: 'A', a0: 270, a1: 270, r0: 3.2, h0: .2, fov: 64, roll0: 4 }],
-      [9.4, 'rig', { at: 'mid', a0: 90, a1: 90, r0: 3.4, r1: 2.8, h0: .5, fov: 50, roll0: -4 }],
+      // VI. pasillo: la victima corre (camara baja y temblorosa), Sekza la persigue (desde atras, gran angular), la alcanza
+      [8.65, 'rig', { at: 'V', a0: 80, a1: 90, r0: 3.2, h0: .3, fov: 52, roll0: -3, roll1: 3 }],
+      [9.0, 'rig', { at: 'A', a0: 0, a1: 10, r0: 3.0, h0: .5, fov0: 84, fov1: 72, roll0: 5, ease: 'l' }],
+      [9.4, 'rig', { at: 'mid', a0: 90, a1: 90, r0: 3.4, r1: 2.6, h0: .5, fov: 50, roll0: -4 }],
       [9.85, 'rig', { at: 'V', a0: 270, a1: 270, r0: 4.8, h0: 1.0, fov: 58, roll0: 8 }],
-      [10.1, 'rig', { at: 'V', a0: 0, a1: 20, r0: 3.5, r1: 5, h0: 3, h1: 4, fov0: 70, fov1: 78, ease: 'l' }],
+      // VII. caida: camara sobre la victima mirando hacia abajo, luego desde Sekza, luego desde el piso
+      [10.1, 'rig', { at: 'V', a0: 0, a1: 20, r0: 3.5, r1: 5, h0: 3, h1: 4, fov0: 74, fov1: 84, ease: 'l' }],
       [10.55, 'rig', { at: 'A', a0: 250, a1: 250, r0: 6, h0: -5, fov: 54, roll0: 3 }],
       [10.85, 'rig', { at: 'V', a0: 60, a1: 70, r0: 8, h0: .2, fov: 48, roll0: -4 }],
       [11.2, 'rig', { at: 'A', a0: 120, a1: 135, r0: 15, h0: 3, fov: 50 }],
       [11.65, 'rig', { at: 'A', a0: 90, a1: 150, r0: 9, r1: 7, h0: .8, h1: 1, fov: 60, ease: 'o' }],
       [12.0, 'rig', { at: 'A', a0: 200, a1: 230, r0: 8, h0: 2.8, ly: .8, fov: 50, roll0: 4 }],
-      [12.75, 'rig', { at: 'A', a0: 160, a1: 200, r0: 7, r1: 6.5, h0: 2.2, ly: 1, fov: 48, roll0: -3 }],
+      [12.75, 'rig', { at: 'mid', a0: 320, a1: 340, r0: 9, r1: 8, h0: 3.4, ly: .6, fov: 52, roll0: -3 }],
     ],
   };
 });
