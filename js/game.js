@@ -5482,6 +5482,8 @@ function choreBegin(f, tg, D) {
   if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.grabbed = true; tg.stun = 9; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; }
   if (f.isPlayer || tg.isPlayer) G.chore = st;
   if (D.trails && f.spear) cineRibbon(st);
+  // D.props = [st => ({ tick(t, dt, st), on(nombre, e, st), dispose() })]: objetos 3D propios de la escena (un avion, nubes...). Se crean aqui y se quitan en choreEnd.
+  st.props = []; for (const mk of D.props || []) { try { const p = mk(st); if (p) st.props.push(p); } catch (e) { console.warn('chore prop', e); } }
   IMPACT.cd = 0; impactFrame(f.ch.color, .07); sfx('grab', f.pos); sfx('counter', f.pos, .5);
   return st;
 }
@@ -5490,6 +5492,7 @@ function choreRelease(st) {
   const tg = st.tg; if (tg.remote) { tg.sceneLock = null; tg.choreTrack = null; } else { tg.cineLock = null; tg.grabbed = false; tg.choreTrack = null; tg.stun = 0; }
 }
 function choreEnd(st) {
+  for (const p of st.props || []) { try { if (p.dispose) p.dispose(); } catch (e) { } } st.props = [];
   choreRelease(st); st.f.choreTrack = null; st.f.choreEyes = false;
   st.f.choreGripQuat = null; st.f.choreStake = false;
   if (st.spearScale != null && st.f.spear) st.f.spear.scale.z = st.spearScale;
@@ -5733,6 +5736,7 @@ function choreTick(st, dt) {
     f.spear.scale.z = D.stake.scale + (st.spearScale - D.stake.scale) * u * u * (3 - 2 * u);
   }
   syncChorePose(f, dt, st);
+  for (const p of st.props || []) { try { if (p.tick) p.tick(t, dt, st); } catch (e) { } }
   if (!st.released && tg.alive) {
     const vp = hermArr(st.vpos, t);
     tg.pos.copy(L2W(st.origin, st.yaw, vp[0], vp[1], vp[2])); tg.yaw = st.yaw + Math.PI + vp[3]; tg.vel.set(0, 0, 0); tg.choreTime = t; tg.stun = Math.max(tg.stun, .5);
@@ -5797,6 +5801,7 @@ function choreEvent(st, e) {
   const { f, tg } = st, col = f.ch.color, at = e.at || 'vic';
   const P = at === 'head' ? headPos(tg) : at === 'att' ? poseChest(f) : at === 'ground' ? new V3(tg.pos.x, groundAt(tg.pos.x, tg.pos.z), tg.pos.z) : at === 'groundA' ? new V3(f.pos.x, groundAt(f.pos.x, f.pos.z), f.pos.z) : at === 'eyes' ? front(f, .35, 1.72) : poseChest(tg);
   if (e.fx) choreFx(e.fx, st, P, col, e);
+  if (e.prop) for (const p of st.props || []) { try { if (p.on) p.on(e.prop, e, st); } catch (er) { } }
   if (e.hit) { applyHit(f, tg, { dmg: e.hit, stun: 9, kb: 0, color: col, guardBreak: true, hitstop: e.hs || (e.hit >= 3 ? .09 : .06), shake: e.shake || .3, noCounter: true }); if (G.chore === st) { camPunch(e.hit >= 3 ? .7 : .45, Math.random() < .5 ? 1 : -1); G.hitstop = Math.max(G.hitstop, e.hs || (e.hit >= 3 ? .09 : .06)); } }
   if (e.rel) {
     choreRelease(st); IMPACT.cd = 0; impactFrame(col, .11);
@@ -5818,6 +5823,16 @@ function choreEvent(st, e) {
   if (e.twirl) startTwirl(f, e.twirl[0], e.twirl[1]);
   if (e.eyes != null) f.choreEyes = !!e.eyes;
   if (e.freeze && !tg.remote) freeze(tg, e.freeze);
+}
+// pajaron: cuerpo, cabeza con pico y dos alas que aletean; cruza de un lado a otro de la victima en .55 s
+function birdFx(P, ang, sc, col) {
+  const g = new THREE.Group(), mat = new THREE.MeshToonMaterial({ color: col, gradientMap: TOON_GRAD }), dark = new THREE.MeshToonMaterial({ color: 0x3a3f4a, gradientMap: TOON_GRAD }), beak = new THREE.MeshToonMaterial({ color: 0xffb020, gradientMap: TOON_GRAD });
+  const bx = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
+  bx(.7, .6, 1.5, mat, 0, 0, 0); bx(.5, .5, .5, mat, 0, .25, .95); bx(.18, .14, .45, beak, 0, .2, 1.35); bx(.4, .12, .8, dark, 0, .05, -1.05);
+  const wings = [-1, 1].map(sd => { const p = new THREE.Group(); p.position.set(sd * .35, .1, 0); const w = new THREE.Mesh(new THREE.BoxGeometry(2.2, .08, 1.1), mat), t = new THREE.Mesh(new THREE.BoxGeometry(.5, .1, .8), dark); w.position.x = sd * 1.1; t.position.set(sd * 2.1, 0, -.1); p.add(w, t); g.add(p); return [p, sd]; });
+  g.scale.setScalar(sc); const dir = new V3(Math.sin(ang), .12, Math.cos(ang)), A = P.clone().addScaledVector(dir, -sc * 4.2), B = P.clone().addScaledVector(dir, sc * 4.2);
+  g.rotation.y = ang;
+  addFx(g, .6, (m, k) => { m.position.lerpVectors(A, B, k); const fl = Math.sin(k * 40) * .9; for (const [p, sd] of wings) p.rotation.z = sd * fl; }, () => { scene.remove(g); g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); mat.dispose(); dark.dispose(); beak.dispose(); });
 }
 function choreFx(name, st, P, col, e) {
   const { f, tg } = st, big = !!e.big, G0 = new V3(P.x, groundAt(P.x, P.z), P.z);
@@ -5843,6 +5858,7 @@ function choreFx(name, st, P, col, e) {
     case 'shatter': burst(P, 50, '#dff6ff', 12, .25, .8, .8); burst(P, 20, col, 9, .2, .6, .6); sparkLines(P, '#ffffff', 10, 2.4); sfx('break', P); break;
     case 'dust': { const n = e.n || 10; burst(new V3(P.x, P.y + .12, P.z), n, '#9c8c6a', e.v || 5, .22, .6, .9, 3); burst(new V3(P.x, P.y + .1, P.z), Math.ceil(n / 2), '#d8ccb0', (e.v || 5) * .6, .3, .7, .4, 2); break; }
     case 'clang': sparkLines(P, '#ffe9a8', e.n || 8, e.len || 1.7); burst(P, 14, '#fff2c0', 8, .1, .3, 0); impactStar(P, '#ffffff', e.sz || 1.1, .1); sfx('block', P); break;
+    case 'bird': birdFx(P, (e.a || 0) + st.yaw, e.sc || 4.5, e.col || '#fff6e0'); sfx('whoosh', P, .8); break;
     case 'flash': screenFlash(e.op || .5); break;
     case 'lines': G.linesI = 1; break;
   }
@@ -10867,6 +10883,7 @@ const CHORE_OWNER = {}, CHORE_NAME = {};
 for (const c in AWK) for (const s of AWK[c]) if (s.k === 'chore') { CHORE_OWNER[s.o.id] = c; CHORE_NAME[s.o.id] = s.n; }
 for (const variant of IMPALE_VARIANTS) { CHORE_OWNER[variant.id] = 'javi'; CHORE_NAME[variant.id] = variant.name; }
 CHORE_OWNER.javiFury = 'javi'; CHORE_NAME.javiFury = 'Furia del Destello';
+CHORE_OWNER.sekPlane = 'sekza'; CHORE_NAME.sekPlane = 'Vuelo Sin Retorno';
 CHORE_OWNER.randiDomain = 'randi'; CHORE_NAME.randiDomain = 'Expansión de dominio';
 for (const [id, nm] of [['sebBrawl', 'Paliza de Verity'], ['sebPinball', 'Pelota de Verity'], ['sebSandwich', 'Sándwich'], ['sebDuo', 'Dúo Dinámico'], ['sebPoint', 'Rayo a Quemarropa'], ['sebMarathon', 'Maratón de Verity']]) { CHORE_OWNER[id] = 'sebolla'; CHORE_NAME[id] = nm; }
 for (const [bk, bset] of [['javi', JAVI_BB_DATA], ['redbird', RED_BB_DATA], ['gato', GATO_BB_DATA], ['sekza', SEK_BB_DATA], ['rocket', RKT_BB_DATA], ['ukyo', UKY_BB_DATA], ['sebolla', SEB_BB_DATA], ['randi', RANDI_BB_DATA]]) for (const name of Object.keys(bset)) { CHORE_OWNER['bb_' + bk + '_' + name] = bk; CHORE_NAME['bb_' + bk + '_' + name] = 'Blockbench · ' + name.replace(/_/g, ' '); }

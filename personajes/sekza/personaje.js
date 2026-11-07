@@ -28,7 +28,7 @@
     awk: [
     { n: 'Lluvia de Plumas', d: 'Se eleva y sacude las alas: una lluvia de plumas cae del cielo sobre toda la zona del rival.', k: 'sekRain', cd: 11, o: { dmg: 3.2 }, r: [3, 20], tags: 'aoe' },
     { n: 'Cacería', d: 'Lo atrapa con las garras, lo lleva hasta las nubes y lo suelta en picada contra el suelo.', k: 'chore', cd: 14, o: { id: 'sekHunt' }, r: [0, 6], tags: 'close gap gb', cine: 1 },
-    { n: 'Vuelo Rasante', d: 'Sale volando como una flecha y atraviesa al rival; los que cruce salen despedidos.', k: 'sekFlight', cd: 8, o: { dmg: 6 }, r: [3, 22], tags: 'gap gb' },
+    { n: 'Vuelo Sin Retorno', d: 'Se lanza en un dash para agarrar a alguien (si no atrapa a nadie, falla). Si lo agarra: lo hace girar, lo lanza al cielo, lo golpea con pajarones, lo patea dentro de un avión, lo persigue por el pasillo y lo estrella contra el suelo.', k: 'sekAbduct', cd: 15, o: { range: 15 }, r: [3, 15], tags: 'close gap gb', cine: 1 },
     { n: 'Mirada Letal', d: 'Fija con la vista a todos los rivales a la vez y los castiga con un rayo de luz cayendo del cielo.', k: 'sekLock', cd: 13, o: { dmg: 9, range: 30 }, r: [3, 30], tags: 'proj gb' },
     ],
     // Consejos de uso que salen en el Libro de habilidades (S1-S4 normales, A1-A4 despierto, F sin lanza, U ulti)
@@ -39,7 +39,7 @@
       'S4': 'Los sube por el aire y quedan indefensos: seguí con la Picada de Halcón o con el combo en el aire.',
       'A1': 'Cubre toda la zona del rival: buena para pegarle a un grupo desde arriba.',
       'A2': 'Cinemática: lo sube hasta las nubes y lo suelta en picada. Usala de cerca.',
-      'A3': 'Te mueve muy rápido: sirve para escapar o cruzar el mapa atravesando rivales.',
+      'A3': 'Dash para agarrar: si no atrapa a nadie falla y se recarga rápido. Si lo atrapa, empieza una cinemática larga que termina con el rival estrellado contra el suelo. Usala con el rival a menos de 15 bloques.',
       'A4': 'Fija a todos los rivales a la vez hasta 30 bloques: la mejor contra grupos dispersos.',
       'U': 'Durante el despertar mantené Espacio al caer para planear. Atacar desde el aire es su punto fuerte.',
     },
