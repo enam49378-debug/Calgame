@@ -7651,7 +7651,7 @@ const BINDS_DEF = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
   jump: 'Space', dash: 'KeyQ', block: 'KeyF',
   skill1: 'Digit1', skill2: 'Digit2', skill3: 'Digit3', skill4: 'Digit4',
-  ult: 'KeyG', shiftLock: 'ShiftLeft', board: 'Tab', guide: 'KeyB', emote: 'KeyT'
+  ult: 'KeyG', shiftLock: 'ShiftLeft', board: 'Tab', guide: 'KeyK', emote: 'KeyB'
 };
 const BINDS_LABELS = [
   ['forward', 'Mover adelante'], ['back', 'Mover atrás'],
@@ -7660,12 +7660,13 @@ const BINDS_LABELS = [
   ['skill1', 'Habilidad 1'], ['skill2', 'Habilidad 2'],
   ['skill3', 'Habilidad 3'], ['skill4', 'Habilidad 4'],
   ['ult', 'Despertar (Ulti)'], ['shiftLock', 'Shift Lock (Fijar cámara)'],
-  ['board', 'Tabla de jugadores (mantener)'], ['guide', 'Guía de combate'], ['emote', 'Rueda de emotes (mantener)']
+  ['board', 'Tabla de jugadores (mantener)'], ['guide', 'Guía de combate'], ['emote', 'Emotes (mantener)']
 ];
 const BINDS = Object.assign({}, BINDS_DEF);
 try {
   const sb = JSON.parse(localStorage.getItem('bsb_binds_v1') || 'null');
   if (sb && typeof sb === 'object') for (const k of Object.keys(BINDS_DEF)) if (typeof sb[k] === 'string' && sb[k]) BINDS[k] = sb[k];
+  if (sb && sb.guide === 'KeyB' && !sb.emote) BINDS.guide = 'KeyK';   // la B ahora abre los emotes: la guia se mueve a K
 } catch (e) {}
 function bindKeyLabel(code) {
   if (!code) return '—';
@@ -9297,8 +9298,9 @@ function animate(f, dt) {
       pose = Object.assign({}, pose, { hy: (pose.hy || 0) * .4 + rel * .75 });
     }
   }
-  const bbSelection=javiBBSelection(f,a,sp);
-  const bbPlayed=bbSelection ? playJaviBB(f,bbSelection,dt) : false;
+  const emoteClip = !!(a && a.emoteClip && window.CF_EMOTES);   // emotes de animacion (js/emotes.js)
+  const bbSelection=emoteClip ? null : javiBBSelection(f,a,sp);
+  const bbPlayed=emoteClip ? CF_EMOTES.playClip(f,a,dt) : bbSelection ? playJaviBB(f,bbSelection,dt) : false;
   if (!bbPlayed && !f.choreTrack) f.anim.bbR6=false;
   if (!bbPlayed && (f.frozen <= 0 || f.choreTrack)) { if (keyed) { if (!f.choreTrack || f.choreFrame !== G.time) f.anim.play(keyed, f.choreTrack ? f.choreTime : a.t, dt, !!f.choreTrack); } else f.anim.update(dt, pose, k, z, spin); }
   if (a && a.spinX && !bbPlayed) { a.spinA = (a.spinA || 0) + a.spinX * dt; f.anim.x.ix = a.spinA; f.anim.apply(); }   // gira como una bola
@@ -13215,14 +13217,33 @@ const ACCT = { cfg: { apiKey: 'AIzaSyBY4zI1ZpEFlNnotZ8_Yxe5hzT9Ks5jhCc', authDom
   user: null, auth: null, loading: null, mode: 'in', busy: false, ownerH: ['9d146dbc10561ea319eaa1854c3852babfd5bb58c4082f7309a6f5b9d9073146'] };
 const ACCT_ERR = {
   'auth/invalid-email': 'Ese correo no es válido.', 'auth/missing-email': 'Escribí tu correo.', 'auth/missing-password': 'Escribí tu contraseña.',
-  'auth/user-not-found': 'No hay ninguna cuenta con ese correo.', 'auth/wrong-password': 'Contraseña incorrecta.', 'auth/invalid-credential': 'Correo o contraseña incorrectos.',
-  'auth/email-already-in-use': 'Ya existe una cuenta con ese correo: probá en “Entrar”.', 'auth/weak-password': 'La contraseña tiene que tener al menos 6 caracteres.',
+  'auth/user-not-found': 'Correo o contraseña incorrectos.', 'auth/wrong-password': 'Correo o contraseña incorrectos.',   // el mismo mensaje en los dos casos: no se puede averiguar si un correo tiene cuenta
+  'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+  'auth/email-already-in-use': 'Ya existe una cuenta con ese correo: probá en “Entrar”.', 'auth/weak-password': 'La contraseña es muy débil: usá al menos 8 caracteres con letras y números.',
   'auth/popup-closed-by-user': 'Cerraste la ventana de Google antes de terminar.', 'auth/cancelled-popup-request': 'Ya hay una ventana de Google abierta.', 'auth/popup-blocked': 'El navegador bloqueó la ventana de Google: permití las ventanas emergentes de esta página.',
   'auth/unauthorized-domain': 'Esta dirección web no está autorizada en Firebase (Authentication → Configuración → Dominios autorizados).', 'auth/network-request-failed': 'No hay conexión con el servidor de cuentas.',
   'auth/too-many-requests': 'Demasiados intentos. Esperá un rato y probá de nuevo.', 'auth/operation-not-allowed': 'Ese método de acceso no está activado en Firebase.', 'auth/user-disabled': 'Esta cuenta está desactivada.'
 };
 const acctMsg = (t, ok) => { const m = $('acct-msg'); if (m) { m.textContent = t || ''; m.classList.toggle('ok', !!ok); } };
-const acctErr = e => ACCT_ERR[e && e.code] || ('No se pudo completar (' + ((e && (e.code || e.message)) || 'error') + ').');
+const acctErr = e => (e && e.code === 'calfight/msg' ? e.message : ACCT_ERR[e && e.code]) || ('No se pudo completar (' + ((e && (e.code || e.message)) || 'error') + ').');
+
+// ---- Protección de la cuenta (además de lo que ya hace Firebase): contraseña fuerte al crear la cuenta y freno a los intentos fallidos de entrar
+const ACCT_COMMON = ['password', '12345678', '123456789', '1234567890', 'qwertyuiop', 'contraseña', 'contrasena', 'calfight', 'calgame', 'minecraft', 'iloveyou', 'abc12345', '11111111', '00000000', 'password1', 'qwerty123', 'admin123', '123123123', 'asdfghjkl', '12341234', 'letmein123', 'welcome123'];
+function acctPwProblem(pw, email) {
+  if (pw.length < 8) return 'La contraseña tiene que tener al menos 8 caracteres.';
+  if (pw.length > 128) return 'La contraseña es demasiado larga (máximo 128).';
+  if (!/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) return 'Usá letras y números en la contraseña.';
+  const low = pw.toLowerCase(), local = (email || '').split('@')[0].toLowerCase();
+  if (/^(.)\1+$/.test(pw) || ACCT_COMMON.includes(low) || /^(01234567|abcdefgh|qwertyui|asdfghjk)/.test(low)) return 'Esa contraseña es muy fácil de adivinar: elegí otra.';
+  if (local.length >= 4 && low.includes(local)) return 'La contraseña no puede contener tu correo.';
+  return '';
+}
+const ACCT_FAIL_KEY = 'bsb_acct_fail';
+function acctFailList() { try { return (JSON.parse(localStorage.getItem(ACCT_FAIL_KEY)) || []).filter(t => Number.isFinite(t) && Date.now() - t < 600000); } catch (e) { return []; } }
+function acctLockLeft() { const a = acctFailList(); if (a.length < 5) return 0; return Math.max(0, Math.ceil((a[a.length - 1] + Math.min(300, 15 * 2 ** (a.length - 5)) * 1000 - Date.now()) / 1000)); }   // 5 fallos en 10 min: espera 15 s, 30 s, 60 s… hasta 5 min
+function acctFailed() { try { const a = acctFailList(); a.push(Date.now()); localStorage.setItem(ACCT_FAIL_KEY, JSON.stringify(a.slice(-12))); } catch (e) { } }
+const acctFailClear = () => { try { localStorage.removeItem(ACCT_FAIL_KEY); } catch (e) { } };
+const acctEx = m => { const e = new Error(m); e.code = 'calfight/msg'; return e; };
 function acctLoad() {
   if (IS_GUIDE) return Promise.reject(new Error('no'));
   if (ACCT.loading) return ACCT.loading;
@@ -13610,20 +13631,21 @@ function acctRender() {
       <div class="badges"><span>${u.emailVerified ? '✓ Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span>Owner</span>' : DEV.on ? '<span>Editor local</span>' : ''}<span>${(u.providerData[0] && u.providerData[0].providerId === 'google.com') ? 'Google' : 'Correo y contraseña'}</span></div>
       <div class="stats"><div><b>${games || '—'}</b><small>Partidas</small></div><div><b>${mins ? (mins / 60).toFixed(1) + ' h' : '—'}</b><small>Jugadas</small></div><div><b>${fav || '—'}</b><small>Favorito</small></div></div>
       <div class="pad"><button type="button" class="profile-customize" id="acct-customize">✦ Personalizar perfil</button><label>Tu nombre en el juego<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
-      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
+      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}${(u.providerData[0] && u.providerData[0].providerId === 'password') ? '<button type="button" class="sec" id="acct-chpw">Cambiar contraseña (te mando un correo)</button>' : ''}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
     b.querySelector('.nm').textContent = u.displayName || 'Jugador'; b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
     decorateProfile(b.querySelector('.cardp'),localPublicProfile());decorateProfile($('acctdlg').querySelector('.box'),localPublicProfile());$('acct-customize').onclick=acctCustomize;
     $('acct-bn').addEventListener('click', acctBannerPick);
     $('acct-savename').addEventListener('click', async () => { const n = $('acct-name').value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); } catch (e) { acctMsg(acctErr(e)); } });
     if ($('acct-verify')) $('acct-verify').addEventListener('click', async () => { try { await u.sendEmailVerification(); acctMsg('Te mandé el correo: abrilo y tocá el enlace.', true); } catch (e) { acctMsg(acctErr(e)); } });
     if ($('acct-verified')) $('acct-verified').addEventListener('click', () => acctRefreshVerified(true));
+    if ($('acct-chpw')) $('acct-chpw').addEventListener('click', async () => { try { await ACCT.auth.sendPasswordResetEmail(u.email); acctMsg('Te mandé un correo a tu dirección para cambiar la contraseña.', true); } catch (e) { acctMsg(acctErr(e)); } });
     $('acct-out').addEventListener('click', async () => { try { await ACCT.auth.signOut(); acctMsg('Sesión cerrada.', true); } catch (e) { acctMsg(acctErr(e)); } });
     return;
   }
   const up = ACCT.mode === 'up';
   b.innerHTML = `<h3>${up ? 'CREAR CUENTA' : 'INICIAR SESIÓN'}</h3><div class="tabs"><button type="button" data-m="in" class="${up ? '' : 'on'}">Entrar</button><button type="button" data-m="up" class="${up ? 'on' : ''}">Crear cuenta</button></div>
     ${up ? '<label>Tu nombre<input id="acct-nm" maxlength="16" autocomplete="nickname"></label>' : ''}
-    <label>Correo<input id="acct-em" type="email" autocomplete="email" inputmode="email"></label><label>Contraseña<input id="acct-pw" type="password" autocomplete="${up ? 'new-password' : 'current-password'}"></label>
+    <label>Correo<input id="acct-em" type="email" autocomplete="email" inputmode="email"></label><label>Contraseña<input id="acct-pw" type="password" maxlength="128" autocomplete="${up ? 'new-password' : 'current-password'}"></label>${up ? '<small style="opacity:.75;display:block;margin:-4px 0 6px">Mínimo 8 caracteres, con letras y números.</small>' : ''}<label style="display:flex;gap:8px;align-items:center;font-size:12px;opacity:.85"><input id="acct-rem" type="checkbox" checked> Recordarme en este equipo <small>(desmarcalo si es una PC compartida)</small></label>
     <button type="button" class="go" id="acct-go">${up ? 'CREAR CUENTA' : 'ENTRAR'}</button>
     <button type="button" class="gg" id="acct-gg"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.2 5.5-4.7 7.2l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.6z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Continuar con Google</button>
     ${up ? '' : '<button type="button" class="lnk" id="acct-reset">Olvidé mi contraseña</button>'}`;
@@ -13632,10 +13654,13 @@ function acctRender() {
   const em = () => ($('acct-em').value || '').trim(), pw = () => $('acct-pw').value;
   $('acct-go').addEventListener('click', () => run(async () => {
     if (!em()) { const e = new Error(); e.code = 'auth/missing-email'; throw e; } if (!pw()) { const e = new Error(); e.code = 'auth/missing-password'; throw e; }
+    try { await ACCT.auth.setPersistence($('acct-rem') && !$('acct-rem').checked ? firebase.auth.Auth.Persistence.SESSION : firebase.auth.Auth.Persistence.LOCAL); } catch (e) { }   // sin "recordarme": la sesión se cierra al cerrar la pestaña
+    if (up) { const prob = acctPwProblem(pw(), em()); if (prob) throw acctEx(prob); }
+    else { const wait = acctLockLeft(); if (wait) throw acctEx('Demasiados intentos fallidos. Esperá ' + wait + ' s para probar de nuevo, o usá «Olvidé mi contraseña».'); }
     if (up) { const c = await ACCT.auth.createUserWithEmailAndPassword(em(), pw()), n = ($('acct-nm').value || '').trim().slice(0, 16); if (n) await c.user.updateProfile({ displayName: n }); try { await c.user.sendEmailVerification(); } catch (e) { } ACCT.user = ACCT.auth.currentUser; acctChanged(); }
-    else await ACCT.auth.signInWithEmailAndPassword(em(), pw());
+    else { try { await ACCT.auth.signInWithEmailAndPassword(em(), pw()); acctFailClear(); } catch (e) { if (['auth/wrong-password', 'auth/user-not-found', 'auth/invalid-credential'].includes(e && e.code)) acctFailed(); throw e; } }
   }));
-  $('acct-gg').addEventListener('click', () => run(() => ACCT.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())));
+  $('acct-gg').addEventListener('click', () => run(async () => { try { await ACCT.auth.setPersistence($('acct-rem') && !$('acct-rem').checked ? firebase.auth.Auth.Persistence.SESSION : firebase.auth.Auth.Persistence.LOCAL); } catch (e) { } await ACCT.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }));
   if ($('acct-reset')) $('acct-reset').addEventListener('click', () => run(async () => { if (!em()) { const e = new Error(); e.code = 'auth/missing-email'; throw e; } await ACCT.auth.sendPasswordResetEmail(em()); acctMsg('Si ese correo tiene cuenta, te mandamos un enlace para cambiar la contraseña.', true); }));
   for (const id of ['acct-nm', 'acct-em', 'acct-pw']) if ($(id)) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $('acct-go').click(); });
   setTimeout(() => ($(up ? 'acct-nm' : 'acct-em')).focus(), 30);
@@ -16916,7 +16941,7 @@ document.querySelectorAll('#book .bk-tabs button').forEach(b => b.addEventListen
 $('book').addEventListener('click', e => { if (e.target === $('book')) bookClose(); });
 addEventListener('keydown', e => {
   if (BIND_WAIT) return;
-  const gKey = BINDS.guide || 'KeyB';
+  const gKey = BINDS.guide || 'KeyK';
   if (CB.open) {
     const sel = d => CB.mode === 'skills' ? skSelect(clamp((SKB.idx || 0) + d, 0, SKB.list.length - 1)) : CB.mode === 'basic' ? cbSelect(CB.idx + d) : null;
     if (e.code === 'Escape') { if (CB.mode === 'skills') { SKB.ch = null; skGrid(); } else bookClose(); }

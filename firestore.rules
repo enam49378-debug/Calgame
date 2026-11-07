@@ -46,7 +46,7 @@ service cloud.firestore {
     }
     match /cf_profiles/{uid} {
       allow get: if true;
-      allow list: if signed() && request.query.limit <= 20;
+      allow list: if verified() && request.query.limit <= 20;   // solo cuentas verificadas pueden buscar perfiles (menos rastreo de usuarios)
       allow create, update: if verified() && request.auth.uid == uid && profile(request.resource.data, uid);
     }
     match /cf_roles/{uid} {
@@ -96,5 +96,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
       allow delete: if verified() && request.auth.uid == uid;
     }
+    // todo lo que no esta escrito arriba queda prohibido
+    match /{document=**} { allow read, write: if false; }
   }
 }

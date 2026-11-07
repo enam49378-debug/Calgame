@@ -82,12 +82,19 @@ La interfaz táctil dispone las habilidades abajo, y agrupa golpe, salto, bloque
 
 ## Emotes
 
-- Mantené **T** (se cambia en Opciones > Controles) para abrir la **rueda de 12 slots**, movés el mouse hacia un emote y soltás. En celular hay un botón 😀.
-- **Menú o Pausa > 😀 EMOTES** abre el editor: elegís un slot y tocás el emote que querés ponerle.
-- Se desbloquean con **kills, como en TSB**: Saludo, Baile y Risa desde el inicio; después Flexión (3), Reverencia (5), Meditar (8), Karate (12), Sentadillas (16), Breakdance (22), Facepalm (28), Victoria (35), Moonwalk (45), Llorar (60), Pose final (80) y Leyenda (120).
+- Mantené **B** (se cambia en Opciones > Controles; la guía pasó a **K**) para abrir la **rueda de 12 slots**: movés el mouse hacia un emote y soltás. También hay un botón 😀 arriba, junto a Panel y Guía, y en celular un botón flotante.
+- Cada slot muestra **tu modelo haciendo el emote** en vivo.
+- **Clic derecho sobre un slot:** se abre la lista de emotes sin cerrar la rueda; tocás uno y se cambia el emote de ese slot.
+- Hay **60 emotes**: 15 de poses (Saludo, Karate, Moonwalk…) y 45 animaciones hechas en Blockbench (Dab, Griddy, Thriller, Rueda, Breakdance, Hyperpop…).
+- Se desbloquean con **kills, como en TSB**: unos pocos al empezar y el resto desde 2 hasta 390 kills.
 - **Solo cuentan las kills en salas públicas contra otros jugadores.** No cuentan las salas privadas, jugar solo, los bots ni los dummies.
-- Los demás jugadores ven tu emote. Cualquier movimiento, ataque o golpe lo cancela. Código: `js/emotes.js`.
+- Los emotes solo existen dentro de la partida. Los demás jugadores ven tu emote. Cualquier movimiento, ataque o golpe lo cancela.
+- Código: `js/emotes.js`; las animaciones se generan con `python tools/bbmodel_a_emotes.py Emotes.bbmodel` (`js/emote_list.js` + `js/emote_clips.js`, este último se baja solo cuando hace falta).
 
 ## Itsukio (ItzUkyo)
 
 Más vida (100 → 112), más velocidad (1.04 → 1.09), más daño (×0.72 → ×0.86), recargas más cortas y números de daño algo más altos en todas sus habilidades. Espada de Fénix dura 12 s.
+
+## Seguridad de las cuentas
+
+Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, cambio de contraseña y reglas de Firestore más estrictas. Ver [SEGURIDAD.md](SEGURIDAD.md) (incluye lo que hay que activar en la consola de Firebase).

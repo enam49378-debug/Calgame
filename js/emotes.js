@@ -1,10 +1,14 @@
 /* ===== SISTEMA DE EMOTES =====
-   - Mantener la tecla de emotes (por defecto T, se cambia en Opciones > Controles) abre la RUEDA de 12 slots; mover el mouse hacia un slot y soltar la tecla lo ejecuta.
-     En celular hay un botón 😀 que abre la rueda para tocar el emote.
-   - Cada slot es editable: Menú o Pausa > "😀 EMOTES" abre el editor (elegís un slot y tocás el emote que quieras ponerle).
+   - Mantener la tecla de emotes (por defecto B, se cambia en Opciones > Controles) abre la RUEDA de 12 slots; mover el mouse hacia un slot y soltar la tecla lo ejecuta.
+     También hay un botón 😀 arriba (junto a Panel y Guía) que abre la rueda para tocar el emote (sirve en celular).
+   - Cada slot muestra EL MODELO DEL JUGADOR haciendo ese emote (vista 3D en vivo).
+   - CLIC DERECHO sobre un slot: se abre la lista de emotes (la rueda NO se cierra); tocar uno de la lista lo pone en ese slot.
    - Los emotes se desbloquean con KILLS como en TSB. Solo cuentan las kills de SALAS PÚBLICAS contra otros jugadores:
      no cuentan las salas privadas, jugar solo, ni los bots / dummies (game.js solo llama a onPublicKill en ese caso).
+   - Los emotes solo existen dentro de la partida (no hay botones en el menú ni en la pausa).
    - Los demás jugadores ven tu emote (se manda como una acción de red {k:'e', i}).
+   - Hay dos tipos: emotes de poses hechas a mano (abajo) y emotes de animación (js/emote_list.js + js/emote_clips.js, generados con
+     tools/bbmodel_a_emotes.py desde Emotes.bbmodel; los clips se cargan solo cuando hacen falta).
    Este archivo se ejecuta dentro de game.js (como habilidades.js), con sus funciones a mano. */
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
@@ -14,26 +18,50 @@
 
     // ---------------------------------------------------------------- catálogo de emotes
     // seq: [[segundo, pose], ...] (poses con los mismos canales que POSE: ix cuerpo, tx torso, hx/hy cabeza, alx/arx brazos, llx/lrx piernas, by altura...)
-    const keys = (dur, step, fn) => { const out = []; for (let t = step, i = 0; t < dur; t += step, i++) out.push([+t.toFixed(3), fn(i)]); return out; };
+    const kf = (dur, step, fn) => { const out = []; for (let t = step, i = 0; t < dur; t += step, i++) out.push([+t.toFixed(3), fn(i)]); return out; };
     const REST = { ix: .04, tx: .08, ty: .3, hy: -.25, alx: -1.05, alz: -.35, aly: .2, arx: -.75, arz: .3, ary: -.2, llx: -.3, llz: .08, lrx: .25, lrz: -.1, by: -.6 };
     const EM = [
-      { id: 0, n: 'Saludo', ico: '👋', k: 0, dur: 2.6, seq: [[.25, { hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: -.5, llx: -.1, lrx: .1, by: -.6 }], ...keys(2.3, .28, i => ({ hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: i % 2 ? -.95 : -.15, llx: -.1, lrx: .1, by: -.6 })), [2.6, REST]] },
-      { id: 1, n: 'Baile', ico: '🕺', k: 0, dur: 3.4, seq: keys(3.4, .4, i => { const s = i % 2 ? 1 : -1; return { ix: .08, tx: .1 * s, ty: .55 * s, hy: -.3 * s, hx: .1, by: i % 2 ? -3 : -1.2, alx: s > 0 ? -2.7 : -.5, alz: .4, arx: s > 0 ? -.5 : -2.7, arz: -.4, llx: s > 0 ? -.5 : .1, lrx: s > 0 ? .1 : -.5, llz: .2 * s, lrz: .2 * s }; }).concat([[3.4, REST]]) },
-      { id: 2, n: 'Risa', ico: '😆', k: 0, dur: 2.4, seq: keys(2.2, .14, i => ({ ix: -.18, tx: -.28, hx: -.55, by: i % 2 ? -2.4 : -1, alx: -1.0, alz: -.5, arx: -1.0, arz: .5, llx: -.15, lrx: .15 })).concat([[2.4, REST]]) },
-      { id: 3, n: 'Flexión de poder', ico: '💪', k: 3, dur: 2.8, seq: [[.35, { by: -2, tx: -.15, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3 }], ...keys(2.5, .3, i => ({ by: i % 2 ? -3 : -2, tx: -.15, ix: .05, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3, hx: .05 })), [2.8, REST]] },
+      { id: 0, n: 'Saludo', ico: '👋', k: 0, dur: 2.6, seq: [[.25, { hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: -.5, llx: -.1, lrx: .1, by: -.6 }], ...kf(2.3, .28, i => ({ hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: i % 2 ? -.95 : -.15, llx: -.1, lrx: .1, by: -.6 })), [2.6, REST]] },
+      { id: 1, n: 'Baile', ico: '🕺', k: 0, dur: 3.4, seq: kf(3.4, .4, i => { const s = i % 2 ? 1 : -1; return { ix: .08, tx: .1 * s, ty: .55 * s, hy: -.3 * s, hx: .1, by: i % 2 ? -3 : -1.2, alx: s > 0 ? -2.7 : -.5, alz: .4, arx: s > 0 ? -.5 : -2.7, arz: -.4, llx: s > 0 ? -.5 : .1, lrx: s > 0 ? .1 : -.5, llz: .2 * s, lrz: .2 * s }; }).concat([[3.4, REST]]) },
+      { id: 2, n: 'Risa', ico: '😆', k: 0, dur: 2.4, seq: kf(2.2, .14, i => ({ ix: -.18, tx: -.28, hx: -.55, by: i % 2 ? -2.4 : -1, alx: -1.0, alz: -.5, arx: -1.0, arz: .5, llx: -.15, lrx: .15 })).concat([[2.4, REST]]) },
+      { id: 3, n: 'Flexión de poder', ico: '💪', k: 3, dur: 2.8, seq: [[.35, { by: -2, tx: -.15, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3 }], ...kf(2.5, .3, i => ({ by: i % 2 ? -3 : -2, tx: -.15, ix: .05, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3, hx: .05 })), [2.8, REST]] },
       { id: 4, n: 'Reverencia', ico: '🙇', k: 5, dur: 2.4, seq: [[.55, { ix: 1.15, tx: .5, hx: .25, by: -3, alx: .3, alz: .2, arx: .3, arz: -.2, llx: -.2, lrx: -.2 }], [1.7, { ix: 1.15, tx: .5, hx: .25, by: -3, alx: .3, alz: .2, arx: .3, arz: -.2, llx: -.2, lrx: -.2 }], [2.4, REST]] },
-      { id: 5, n: 'Meditar', ico: '🧘', k: 8, dur: 3.8, seq: [[.7, { by: -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 }], ...keys(3.4, .8, i => ({ by: i % 2 ? -9.6 : -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 })), [3.8, REST]], fx: 'aura' },
-      { id: 6, n: 'Karate', ico: '🥋', k: 12, dur: 3.2, seq: keys(3.0, .3, i => ({ by: -4, ix: .1, tx: .15, ty: i % 2 ? .5 : -.5, hy: i % 2 ? -.4 : .4, alx: i % 2 ? -1.57 : -.9, alz: .1, arx: i % 2 ? -.9 : -1.57, arz: -.1, llx: -.7, lrx: .5, llz: .35, lrz: -.35 })).concat([[3.2, REST]]) },
-      { id: 7, n: 'Sentadillas', ico: '🏋️', k: 16, dur: 3.2, seq: keys(3.0, .4, i => i % 2 ? { by: -1, llx: -.2, lrx: -.2, alx: -1.5, arx: -1.5, alz: .1, arz: -.1 } : { by: -8, tx: .35, ix: .1, hx: -.3, llx: -1.5, lrx: -1.5, llz: .3, lrz: -.3, alx: -1.55, arx: -1.55, alz: .1, arz: -.1 }).concat([[3.2, REST]]) },
-      { id: 8, n: 'Breakdance', ico: '🌀', k: 22, dur: 3.4, spin: 6, seq: keys(3.2, .3, i => ({ by: -9, ix: .9, tx: .3, hx: -.5, llx: i % 2 ? -1.4 : 1.0, lrx: i % 2 ? 1.0 : -1.4, llz: .8, lrz: -.8, alx: -.4, alz: 1.2, arx: -.4, arz: -1.2 })).concat([[3.4, REST]]) },
-      { id: 9, n: 'Facepalm', ico: '🤦', k: 28, dur: 2.6, seq: [[.35, { ix: .08, tx: .1, hx: .55, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 }], ...keys(2.2, .26, i => ({ ix: .08, tx: .1, hx: .55, hy: i % 2 ? .35 : -.35, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 })), [2.6, REST]] },
-      { id: 10, n: 'Victoria', ico: '✌️', k: 35, dur: 3.0, seq: keys(2.8, .3, i => ({ by: i % 2 ? -.5 : -3, hx: -.2, alx: -2.95, alz: .5, arx: -2.95, arz: -.5, llx: i % 2 ? -.1 : -.5, lrx: i % 2 ? -.1 : -.5 })).concat([[3.0, REST]]), fx: 'confetti' },
-      { id: 11, n: 'Moonwalk', ico: '🎤', k: 45, dur: 3.0, moon: true, seq: keys(2.8, .22, i => ({ ix: -.05, tx: -.1, by: -1, alx: i % 2 ? -.6 : -1.2, arx: i % 2 ? -1.2 : -.6, alz: .3, arz: -.3, llx: i % 2 ? .35 : -.35, lrx: i % 2 ? -.35 : .35 })).concat([[3.0, REST]]) },
-      { id: 12, n: 'Llorar', ico: '😭', k: 60, dur: 3.0, seq: [[.3, { ix: .15, tx: .3, hx: .8, by: -2, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 }], ...keys(2.7, .12, i => ({ ix: .15, tx: i % 2 ? .36 : .26, hx: .8, by: i % 2 ? -2.5 : -1.7, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 })), [3.0, REST]] },
+      { id: 5, n: 'Meditar', ico: '🧘', k: 8, dur: 3.8, seq: [[.7, { by: -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 }], ...kf(3.4, .8, i => ({ by: i % 2 ? -9.6 : -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 })), [3.8, REST]], fx: 'aura' },
+      { id: 6, n: 'Karate', ico: '🥋', k: 12, dur: 3.2, seq: kf(3.0, .3, i => ({ by: -4, ix: .1, tx: .15, ty: i % 2 ? .5 : -.5, hy: i % 2 ? -.4 : .4, alx: i % 2 ? -1.57 : -.9, alz: .1, arx: i % 2 ? -.9 : -1.57, arz: -.1, llx: -.7, lrx: .5, llz: .35, lrz: -.35 })).concat([[3.2, REST]]) },
+      { id: 7, n: 'Sentadillas', ico: '🏋️', k: 16, dur: 3.2, seq: kf(3.0, .4, i => i % 2 ? { by: -1, llx: -.2, lrx: -.2, alx: -1.5, arx: -1.5, alz: .1, arz: -.1 } : { by: -8, tx: .35, ix: .1, hx: -.3, llx: -1.5, lrx: -1.5, llz: .3, lrz: -.3, alx: -1.55, arx: -1.55, alz: .1, arz: -.1 }).concat([[3.2, REST]]) },
+      { id: 8, n: 'Breakdance', ico: '🌀', k: 22, dur: 3.4, spin: 6, seq: kf(3.2, .3, i => ({ by: -9, ix: .9, tx: .3, hx: -.5, llx: i % 2 ? -1.4 : 1.0, lrx: i % 2 ? 1.0 : -1.4, llz: .8, lrz: -.8, alx: -.4, alz: 1.2, arx: -.4, arz: -1.2 })).concat([[3.4, REST]]) },
+      { id: 9, n: 'Facepalm', ico: '🤦', k: 28, dur: 2.6, seq: [[.35, { ix: .08, tx: .1, hx: .55, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 }], ...kf(2.2, .26, i => ({ ix: .08, tx: .1, hx: .55, hy: i % 2 ? .35 : -.35, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 })), [2.6, REST]] },
+      { id: 10, n: 'Victoria', ico: '✌️', k: 35, dur: 3.0, seq: kf(2.8, .3, i => ({ by: i % 2 ? -.5 : -3, hx: -.2, alx: -2.95, alz: .5, arx: -2.95, arz: -.5, llx: i % 2 ? -.1 : -.5, lrx: i % 2 ? -.1 : -.5 })).concat([[3.0, REST]]), fx: 'confetti' },
+      { id: 11, n: 'Moonwalk', ico: '🎤', k: 45, dur: 3.0, moon: true, seq: kf(2.8, .22, i => ({ ix: -.05, tx: -.1, by: -1, alx: i % 2 ? -.6 : -1.2, arx: i % 2 ? -1.2 : -.6, alz: .3, arz: -.3, llx: i % 2 ? .35 : -.35, lrx: i % 2 ? -.35 : .35 })).concat([[3.0, REST]]) },
+      { id: 12, n: 'Llorar', ico: '😭', k: 60, dur: 3.0, seq: [[.3, { ix: .15, tx: .3, hx: .8, by: -2, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 }], ...kf(2.7, .12, i => ({ ix: .15, tx: i % 2 ? .36 : .26, hx: .8, by: i % 2 ? -2.5 : -1.7, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 })), [3.0, REST]] },
       { id: 13, n: 'Pose final', ico: '🔥', k: 80, dur: 3.4, seq: [[.3, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.0, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2.4, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.4, REST]], fx: 'fire' },
       { id: 14, n: 'Leyenda', ico: '👑', k: 120, dur: 3.6, seq: [[.4, { ix: -.05, tx: -.1, hx: -.28, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.2, { ix: -.05, tx: -.1, hx: -.28, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.6, REST]], fx: 'gold' },
     ];
+    // emotes de animación (Blockbench): nombre, icono, kills y duración salen de js/emote_list.js
+    for (const e of (window.CF_EMOTE_LIST || [])) EM.push({ id: e.id, n: e.n, ico: e.ico, k: e.k, clip: e.clip, len: e.len, loop: e.loop, dur: e.loop ? e.len * Math.max(1, Math.ceil(6 / e.len)) : e.len + .25 });
+    delete window.CF_EMOTE_LIST;
     const byId = id => EM.find(e => e.id === id);
+
+    // los clips (1.4 MB) se bajan solo cuando se abre la rueda o se usa un emote de animación
+    let clipsState = 0; const clipsWait = [];
+    function loadClips(cb) {
+      if (window.CF_EMOTE_CLIPS) { cb && cb(); return; }
+      if (cb) clipsWait.push(cb);
+      if (clipsState) return; clipsState = 1;
+      const s = document.createElement('script'); s.src = 'js/emote_clips.js?v=1';
+      s.onload = () => { clipsState = 2; while (clipsWait.length) { try { clipsWait.shift()(); } catch (e) { console.warn(e); } } };
+      s.onerror = () => { clipsState = 0; clipsWait.length = 0; };
+      document.head.appendChild(s);
+    }
+    const tracks = {};
+    function clipTrack(name) {
+      const clip = window.CF_EMOTE_CLIPS && window.CF_EMOTE_CLIPS[name]; if (!clip) return null;
+      if (!tracks[name]) {
+        const t = clip.samples.map(r => ({ t: r[0], p: Object.fromEntries(clip.channels.map((k, i) => [k, r[i + 1]])) }));
+        t.cinematic = true; t.contacts = []; t.loopLen = clip.loop ? clip.length : 0; tracks[name] = t;
+      }
+      return tracks[name];
+    }
 
     // ---------------------------------------------------------------- estado (kills públicas y slots)
     let kills = Math.max(0, rd(KEY_KILLS, 0) | 0), slots = rd(KEY_SLOTS, null);
@@ -42,15 +70,17 @@
     if (!Array.isArray(slots) || slots.length !== NSLOTS) slots = defaultSlots();
     slots = slots.map(v => (typeof v === 'number' && byId(v) ? v : null));
     const saveSlots = () => wr(KEY_SLOTS, slots);
+    const emoteKey = () => (BINDS && BINDS.emote) || 'KeyB';
 
     // ---------------------------------------------------------------- reproducir un emote
     function play(f, id, fromNet) {
       const e = byId(id); if (!e || !f || !f.alive || f.ragdoll > 0) return false;
       if (!fromNet && !unlocked(e)) { popText(chestOf(f), '🔒 ' + e.k + ' kills públicas', '#ff8a80', 18); return false; }
       if (f.action && !f.action.isEmote) return false;            // no corta un ataque
-      const dur = e.dur;
+      if (e.clip && !window.CF_EMOTE_CLIPS) { loadClips(() => play(f, id, fromNet)); return true; }
       startAction(f, {
-        name: 'emote', emote: id, isEmote: true, dur, anim: e.seq, speedMul: 0, spin: e.spin || 0, eyes: false,
+        name: 'emote', emote: id, isEmote: true, dur: e.dur, speedMul: 0, spin: e.spin || 0, eyes: false,
+        anim: e.seq || undefined, emoteClip: e.clip || undefined,
         tick: (a, t, dt) => {
           const busy = f.stun > 0 || f.hurtT > 0 || f.ragdoll > 0 || f.frozen > 0 || f.grabbed || !f.alive;
           let move = false;
@@ -75,6 +105,16 @@
       if (!fromNet && f.isPlayer && G.mp && !G.viewer) netAct({ k: 'e', i: id });
       return true;
     }
+    // lo llama animate() de game.js mientras dura un emote de animación: pone la pose del clip
+    function playClip(f, a, dt) {
+      const clip = window.CF_EMOTE_CLIPS && window.CF_EMOTE_CLIPS[a.emoteClip], tr = clipTrack(a.emoteClip); if (!clip || !tr) return false;
+      if (!a.from) a.from = Object.assign({}, f.anim.x);
+      const time = clip.loop ? a.t % clip.length : Math.min(clip.length, a.t);
+      f.anim.bbR6 = true; f.anim.play(tr, time, dt, true);
+      const u = clamp(a.t / .25, 0, 1), w = u * u * (3 - 2 * u);               // entrada suave desde la pose anterior
+      if (w < 1) for (const j in f.anim.x) if (typeof a.from[j] === 'number') f.anim.x[j] = a.from[j] + (f.anim.x[j] - a.from[j]) * w;
+      f.anim.apply(); return true;
+    }
 
     // ---------------------------------------------------------------- kills públicas
     function onPublicKill(victim) {
@@ -85,7 +125,7 @@
         showBanner('¡EMOTE DESBLOQUEADO!', '#ffd54f', e.ico + ' ' + e.n);
         addFeedText('🎉 Desbloqueaste el emote «' + e.n + '» (' + e.k + ' kills públicas)', '#ffd54f');
       }
-      refreshEditor();
+      paintWheel();
     }
 
     // ---------------------------------------------------------------- interfaz (estilos propios, sin tocar style.css)
@@ -94,64 +134,96 @@
 #emw{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(8,10,20,.15),rgba(8,10,20,.62));font-family:var(--body,system-ui,sans-serif);user-select:none;-webkit-user-select:none}
 #emw.on{display:flex}
 #emw .ring{position:relative;width:440px;height:440px}
-#emw .sl{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:rgba(18,22,40,.82);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:30px;line-height:1;transition:transform .08s,border-color .08s,background .08s;cursor:pointer;padding:0}
-#emw .sl small{font-size:10px;margin-top:3px;max-width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
-#emw .sl.empty{opacity:.4;font-size:22px}
-#emw .sl.hot{transform:scale(1.18);border-color:#ffd54f;background:rgba(60,48,10,.92);box-shadow:0 0 22px rgba(255,213,79,.6)}
-#emw .mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:150px;text-align:center;color:#fff;pointer-events:none}
-#emw .mid b{display:block;font-size:18px;letter-spacing:.04em}
-#emw .mid span{font-size:12px;opacity:.8}
-#emw .hint{position:absolute;bottom:24px;left:0;right:0;text-align:center;color:#fff;opacity:.75;font-size:13px}
-#emw .dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#ffd54f;box-shadow:0 0 10px #ffd54f;pointer-events:none}
+#emw .sl{position:absolute;width:88px;height:88px;margin:-44px 0 0 -44px;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:radial-gradient(circle at 50% 35%,rgba(70,82,130,.9),rgba(14,18,36,.92));color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:30px;line-height:1;transition:transform .08s,border-color .08s,box-shadow .08s;cursor:pointer;padding:0;overflow:visible}
+#emw .sl .lb{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);z-index:3;font-size:10px;font-weight:700;max-width:84px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000,0 0 4px #000;pointer-events:none}
+#emw .sl.empty{opacity:.45;font-size:22px}
+#emw .sl.hot{transform:scale(1.18);border-color:#ffd54f;box-shadow:0 0 22px rgba(255,213,79,.6)}
+#emw .sl.sel{border-color:#4fd0c9;box-shadow:0 0 18px rgba(79,208,201,.7)}
+#emw canvas.pv{position:absolute;left:0;top:0;width:440px;height:440px;z-index:2;pointer-events:none}
+#emw .mid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:150px;text-align:center;color:#fff;pointer-events:none;z-index:4}
+#emw .mid b{display:block;font-size:17px;letter-spacing:.04em;text-shadow:0 1px 4px #000}
+#emw .mid span{font-size:12px;opacity:.85;text-shadow:0 1px 3px #000}
+#emw .hint{position:absolute;bottom:22px;left:0;right:0;text-align:center;color:#fff;opacity:.8;font-size:13px;text-shadow:0 1px 3px #000}
+#emw .dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#ffd54f;box-shadow:0 0 10px #ffd54f;pointer-events:none;z-index:5}
+#emlist{position:absolute;left:calc(50% + 250px);top:50%;transform:translateY(-50%);width:310px;max-height:74vh;overflow:auto;background:#12162a;border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:10px;color:#fff;display:none;z-index:6;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#emlist.on{display:block}
+#emlist h4{margin:0 0 8px;font-size:13px;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;gap:8px}
+#emlist .gr{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+#emlist button{border:1px solid rgba(255,255,255,.16);border-radius:10px;background:#1b2140;color:#fff;padding:7px 6px;text-align:left;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+#emlist button i{font-style:normal;font-size:20px}
+#emlist button small{display:block;opacity:.7;font-size:10px}
+#emlist button.lock{opacity:.45;cursor:not-allowed}
+#emlist button.cur{outline:2px solid #4fd0c9}
+#emlist button.x{background:#3a2030;justify-content:center}
+@media(max-width:900px){#emlist{left:50%;top:auto;bottom:8px;transform:translateX(-50%);width:min(94vw,420px);max-height:44vh}}
 #emtouch{position:fixed;right:14px;bottom:210px;z-index:60;width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:rgba(18,22,40,.7);font-size:26px;display:none;align-items:center;justify-content:center;padding:0;color:#fff}
-body.touchmode #emtouch,#emtouch.show{display:flex}
-#emed{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;background:rgba(6,8,16,.82);font-family:var(--body,system-ui,sans-serif);color:#fff}
-#emed.on{display:flex}
-#emed .box{width:min(940px,96vw);max-height:92vh;overflow:auto;background:#12162a;border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:18px 20px;display:grid;grid-template-columns:330px 1fr;gap:18px}
-@media(max-width:780px){#emed .box{grid-template-columns:1fr}}
-#emed h2{margin:0 0 4px;letter-spacing:.06em;font-size:20px}
-#emed .sub{opacity:.75;font-size:13px;margin-bottom:10px}
-#emed .rg{position:relative;width:300px;height:300px;margin:6px auto}
-#emed .rg .sl{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:#1b2140;color:#fff;font-size:22px;cursor:pointer;padding:0}
-#emed .rg .sl.sel{border-color:#ffd54f;box-shadow:0 0 14px rgba(255,213,79,.7);background:#3a3010}
-#emed .rg .sl.empty{opacity:.45;font-size:16px}
-#emed .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;align-content:start}
-#emed .card{border:1px solid rgba(255,255,255,.18);border-radius:12px;background:#1b2140;padding:10px 8px;text-align:center;cursor:pointer;color:#fff;font-size:13px}
-#emed .card .ic{font-size:28px;display:block}
-#emed .card.lock{opacity:.5;cursor:not-allowed}
-#emed .card.used{outline:2px solid #4fd0c9}
-#emed .card small{display:block;opacity:.8;margin-top:3px;font-size:11px}
-#emed .foot{grid-column:1/-1;display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}
-#emed button.b{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:#2a3158;color:#fff}
-#emed button.b.go{background:#ffd54f;color:#201800}
-#emmenu{margin-left:8px}`;
+#emtouch.show{display:flex}`;
     document.head.appendChild(css);
 
     const W = document.createElement('div'); W.id = 'emw'; W.setAttribute('aria-hidden', 'true');
-    W.innerHTML = '<div class="ring"><div class="mid"><b></b><span></span></div></div><div class="hint"></div>';
+    W.innerHTML = '<div class="ring"><div class="mid"><b></b><span></span></div></div><div class="hint"></div><div id="emlist"></div>';
     document.body.appendChild(W);
-    const ring = W.querySelector('.ring'), midB = W.querySelector('.mid b'), midS = W.querySelector('.mid span'), hint = W.querySelector('.hint');
+    const ring = W.querySelector('.ring'), midB = W.querySelector('.mid b'), midS = W.querySelector('.mid span'), hint = W.querySelector('.hint'), list = W.querySelector('#emlist');
     const dot = document.createElement('div'); dot.className = 'dot'; ring.appendChild(dot);
     const slotBtns = [];
     const place = (i, R) => { const a = -Math.PI / 2 + i / NSLOTS * Math.PI * 2; return [Math.cos(a) * R, Math.sin(a) * R]; };
+    let open = false, hot = -1, px = 0, py = 0, tapMode = false, selSlot = -1;
     for (let i = 0; i < NSLOTS; i++) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'sl'; const [x, y] = place(i, 175);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'sl'; const [x, y] = place(i, 178);
       b.style.left = 220 + x + 'px'; b.style.top = 220 + y + 'px'; b.dataset.i = i;
-      b.addEventListener('click', ev => { ev.stopPropagation(); if (W.classList.contains('tap')) pickSlot(i); });
+      b.addEventListener('click', ev => { ev.stopPropagation(); if (tapMode) pickSlot(i); });
+      b.addEventListener('contextmenu', ev => { ev.preventDefault(); ev.stopPropagation(); openList(i); });
       ring.appendChild(b); slotBtns.push(b);
     }
+    W.addEventListener('contextmenu', ev => ev.preventDefault());
+
+    // ---- vista 3D de cada slot: el modelo del jugador haciendo el emote (un segundo renderer solo para esto)
+    const PV = { ok: null, rr: null, scene: null, cam: null, models: [], anims: [], cur: [], raf: 0, t0: 0, last: 0 };
+    function pvInit() {
+      if (PV.ok != null) return PV.ok;
+      const p = G.player; if (!p || !p.model || !p.model.tex || !p.model.tex.image) return false;
+      try {
+        const rr = new THREE.WebGLRenderer({ alpha: true, antialias: true }); rr.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); rr.setSize(440, 440, false);
+        rr.setScissorTest(true); rr.setClearColor(0x000000, 0); rr.domElement.className = 'pv'; ring.insertBefore(rr.domElement, ring.firstChild.nextSibling || null);
+        const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x556677, 1.15)); const dl = new THREE.DirectionalLight(0xffffff, .85); dl.position.set(2, 3, 4); sc.add(dl);
+        const img = p.model.tex.image, cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; cv.getContext('2d').drawImage(img, 0, 0);
+        for (let i = 0; i < NSLOTS; i++) { const m = buildModel(cv, !!(p.ch && p.ch.slim), sc); m.root.rotation.y = .45; m.root.visible = false; PV.models.push(m); PV.anims.push(new Animator(m)); PV.cur.push(null); }
+        PV.cam = new THREE.PerspectiveCamera(30, 1, .1, 40); PV.cam.position.set(0, 1.0, 5.4); PV.cam.lookAt(0, .92, 0);
+        PV.rr = rr; PV.scene = sc; PV.ok = true;
+      } catch (e) { console.warn('emotes: sin vista 3D', e); PV.ok = false; }
+      return PV.ok;
+    }
+    function pvFrame(now) {
+      PV.raf = 0; if (!open || !PV.ok) return;
+      const dt = Math.min(.05, Math.max(0, (now - (PV.last || now)) / 1000)); PV.last = now; const T = (now - PV.t0) / 1000;
+      const rr = PV.rr; rr.setClearColor(0x000000, 0);
+      for (let i = 0; i < NSLOTS; i++) {
+        const e = byId(slots[i]), m = PV.models[i], an = PV.anims[i]; for (const q of PV.models) q.root.visible = false;
+        const [x, y] = place(i, 178), cx = 220 + x, cy = 220 + y, S = 92;
+        rr.setViewport(cx - S / 2, 440 - (cy + S / 2), S, S); rr.setScissor(cx - S / 2, 440 - (cy + S / 2), S, S); rr.clear();
+        if (!e) continue;
+        const tr = e.clip ? clipTrack(e.clip) : null; if (e.clip && !tr) continue;
+        if (PV.cur[i] !== e.id) { PV.cur[i] = e.id; an.reset(); if (!e.clip) PV.cur['t' + i] = buildTrack(e.seq, Object.assign({}, REST), 0); }
+        const len = e.clip ? e.len : e.dur, tm = (T + i * .13) % (len + .4), t = Math.min(tm, len - 1e-3);
+        if (e.clip) { an.bbR6 = true; an.play(tr, e.loop ? tm % len : t, dt, true); } else { an.bbR6 = false; an.play(PV.cur['t' + i], t, dt, false); }
+        m.root.visible = true; rr.render(PV.scene, PV.cam);
+      }
+      PV.raf = requestAnimationFrame(pvFrame);
+    }
+    function pvStart() { if (PV.ok && !PV.raf) { PV.t0 = performance.now(); PV.last = 0; PV.raf = requestAnimationFrame(pvFrame); } }
+
     function paintWheel() {
       slotBtns.forEach((b, i) => {
         const e = byId(slots[i]);
-        b.className = 'sl' + (e ? '' : ' empty') + (i === hot ? ' hot' : '');
-        b.innerHTML = e ? e.ico + '<small>' + e.n + '</small>' : '＋';
+        b.className = 'sl' + (e ? '' : ' empty') + (i === hot ? ' hot' : '') + (i === selSlot ? ' sel' : '');
+        b.innerHTML = e ? (PV.ok ? '' : e.ico) + '<span class="lb">' + e.n + '</span>' : '＋';
+        b.setAttribute('aria-label', e ? e.n : 'Slot vacío');
       });
       const e = hot >= 0 ? byId(slots[hot]) : null;
       midB.textContent = e ? e.n : '';
-      midS.textContent = e ? '' : (hot >= 0 ? 'Slot vacío (edítalo en EMOTES)' : 'Elegí un emote');
-      dot.style.left = 220 + px + 'px'; dot.style.top = 220 + py + 'px';
+      midS.textContent = e ? 'Clic derecho: cambiar' : (hot >= 0 ? 'Vacío · clic derecho: elegir' : 'Elegí un emote');
+      dot.style.left = 220 + px + 'px'; dot.style.top = 220 + py + 'px'; dot.style.display = tapMode ? 'none' : '';
     }
-    let open = false, hot = -1, px = 0, py = 0, tapMode = false;
     function setHot() {
       const r = Math.hypot(px, py);
       if (r < 46) { hot = -1; return; }
@@ -163,17 +235,50 @@ body.touchmode #emtouch,#emtouch.show{display:flex}
     }
     function openWheel(tap) {
       if (open || !canOpen()) return;
-      open = true; tapMode = !!tap; hot = -1; px = py = 0; window.__emoteWheelOpen = true;
-      W.classList.add('on'); W.classList.toggle('tap', tapMode); W.setAttribute('aria-hidden', 'false');
-      hint.textContent = tapMode ? 'Tocá un emote · tocá afuera para cerrar' : 'Mové el mouse hacia un emote y soltá ' + bindKeyLabel(BINDS.emote || 'KeyT') + ' · Esc cancela';
-      paintWheel(); sfx('select', null, .5);
+      open = true; tapMode = !!tap; hot = -1; selSlot = -1; px = py = 0; window.__emoteWheelOpen = true; closeList();
+      W.classList.add('on'); W.setAttribute('aria-hidden', 'false');
+      loadClips(() => { if (open) { pvInit(); paintWheel(); pvStart(); } });
+      pvInit(); hintText(); paintWheel(); pvStart(); sfx('select', null, .5);
     }
+    const hintText = () => { hint.textContent = tapMode ? 'Tocá un emote · clic derecho para cambiarlo · Esc cierra' : 'Mové el mouse hacia un emote y soltá ' + bindKeyLabel(emoteKey()) + ' · clic derecho: cambiar emote · Esc cancela'; };
     function closeWheel(run) {
-      if (!open) return; open = false; window.__emoteWheelOpen = false; W.classList.remove('on', 'tap'); W.setAttribute('aria-hidden', 'true');
-      if (run && hot >= 0 && slots[hot] != null && G.player) play(G.player, slots[hot]);
+      if (!open) return; open = false; window.__emoteWheelOpen = false; closeList(); W.classList.remove('on'); W.setAttribute('aria-hidden', 'true');
+      const slot = hot; hot = -1; selSlot = -1;
+      if (run && slot >= 0 && slots[slot] != null && G.player) play(G.player, slots[slot]);
     }
     function pickSlot(i) { hot = i; closeWheel(true); }
-    W.addEventListener('click', () => { if (open && tapMode) closeWheel(false); });
+
+    // ---- clic derecho en un slot: lista de emotes; tocar uno lo pone en ese slot (la rueda sigue abierta)
+    function openList(i) {
+      if (!open || i < 0) return;
+      selSlot = i; tapMode = true; hintText();
+      if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { } }   // aparece el cursor para elegir
+      const cur = slots[i], sorted = EM.slice().sort((a, b) => a.k - b.k || a.id - b.id);
+      list.innerHTML = '<h4><span>Slot ' + (i + 1) + ': elegí un emote</span><span style="opacity:.7">' + kills + ' kills</span></h4><div class="gr"></div>';
+      const gr = list.querySelector('.gr');
+      const mk = (e) => {
+        const ok = unlocked(e), b = document.createElement('button'); b.type = 'button'; b.className = (ok ? '' : 'lock ') + (e.id === cur ? 'cur' : '');
+        b.innerHTML = '<i>' + (ok ? e.ico : '🔒') + '</i><span>' + e.n + '<small>' + (ok ? (slots.includes(e.id) ? 'en la rueda' : 'desbloqueado') : e.k + ' kills públicas') + '</small></span>';
+        b.addEventListener('click', ev => {
+          ev.stopPropagation(); if (!ok) return;
+          const old = slots.indexOf(e.id); if (old >= 0 && old !== i) slots[old] = slots[i];     // si ya estaba en otro slot, se intercambian
+          slots[i] = e.id; saveSlots(); PV.cur[i] = null; if (old >= 0) PV.cur[old] = null; closeList(); paintWheel();
+        });
+        return b;
+      };
+      const clr = document.createElement('button'); clr.type = 'button'; clr.className = 'x'; clr.style.gridColumn = '1/-1'; clr.textContent = 'Dejar vacío';
+      clr.addEventListener('click', ev => { ev.stopPropagation(); slots[i] = null; saveSlots(); PV.cur[i] = null; closeList(); paintWheel(); }); gr.appendChild(clr);
+      for (const e of sorted) gr.appendChild(mk(e));
+      list.classList.add('on'); list.scrollTop = 0; paintWheel();
+    }
+    function closeList() { selSlot = -1; list.classList.remove('on'); paintWheel(); }
+    list.addEventListener('click', ev => ev.stopPropagation());
+    W.addEventListener('click', () => { if (!open) return; if (list.classList.contains('on')) closeList(); else if (tapMode) closeWheel(false); });
+
+    addEventListener('mousedown', e => {
+      if (!open || e.button !== 2) return;
+      e.preventDefault(); if (hot >= 0) openList(hot);          // con el mouse bloqueado: clic derecho sobre el slot marcado
+    }, true);
     addEventListener('mousemove', e => {
       if (!open || tapMode) return;
       if (document.pointerLockElement) { px += e.movementX * .9; py += e.movementY * .9; }
@@ -182,72 +287,33 @@ body.touchmode #emtouch,#emtouch.show{display:flex}
       const old = hot; setHot(); paintWheel(); if (old !== hot && hot >= 0) sfx('select', null, .25);
     });
     addEventListener('keydown', e => {
-      if (e.code === (BINDS.emote || 'KeyT') && !e.repeat) {
+      if (e.code === emoteKey() && !e.repeat) {
         const t = e.target && e.target.tagName; if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
-        if (EDIT.on) return; if (canOpen()) { e.preventDefault(); openWheel(false); }
-      } else if (open && e.code === 'Escape') { closeWheel(false); }
-    });
-    addEventListener('keyup', e => { if (open && !tapMode && e.code === (BINDS.emote || 'KeyT')) closeWheel(true); });
+        if (open) { e.preventDefault(); e.stopImmediatePropagation(); closeWheel(false); }
+        else if (canOpen()) { e.preventDefault(); openWheel(false); }
+      } else if (open && e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (list.classList.contains('on')) closeList(); else closeWheel(false); }
+    }, true);
+    addEventListener('keyup', e => { if (open && !tapMode && e.code === emoteKey()) closeWheel(true); });
     addEventListener('blur', () => { if (open && !tapMode) closeWheel(false); });
-    // si se pausa o termina la partida con la rueda abierta, se cierra
-    setInterval(() => { if (open && !canOpen()) closeWheel(false); }, 250);
+    setInterval(() => { if (open && !canOpen()) closeWheel(false); }, 250);       // si se pausa o termina la partida con la rueda abierta, se cierra
 
-    // botón para celular
+    // ---- botón único arriba (junto a Panel y Guía) + botón flotante para celular
+    function injectBtn() {
+      const top = document.getElementById('topl'), book = document.getElementById('bookbtn');
+      if (!top || document.getElementById('emotebtn')) return;
+      const b = document.createElement('button'); b.id = 'emotebtn'; b.type = 'button'; b.className = 'chip'; b.title = 'Emotes'; b.setAttribute('aria-label', 'Emotes');
+      b.style.cssText = 'pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer'; b.innerHTML = '😀 <b id="emotekbd">' + bindKeyLabel(emoteKey()) + '</b>';
+      b.addEventListener('click', ev => { ev.stopPropagation(); if (open) closeWheel(false); else { if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (x) { } } openWheel(true); } });
+      top.insertBefore(b, book ? book.nextSibling : null);
+    }
+    injectBtn(); setTimeout(injectBtn, 800);
+    setInterval(() => { const k = document.getElementById('emotekbd'); if (k) k.textContent = bindKeyLabel(emoteKey()); }, 1500);
     const tb = document.createElement('button'); tb.id = 'emtouch'; tb.type = 'button'; tb.textContent = '😀'; tb.setAttribute('aria-label', 'Emotes');
     tb.addEventListener('click', () => { if (open) closeWheel(false); else openWheel(true); });
     document.body.appendChild(tb);
     setInterval(() => { tb.classList.toggle('show', !!(touchActive && touchActive()) && G.state === 'play' && !G.paused && !G.over); }, 700);
+    setTimeout(() => { if (G.state === 'play') loadClips(); }, 6000);              // ya jugando: se bajan los clips sin molestar
 
-    // ---------------------------------------------------------------- editor de slots
-    const EDIT = { on: false, sel: 0 };
-    const ED = document.createElement('div'); ED.id = 'emed'; ED.setAttribute('role', 'dialog'); ED.setAttribute('aria-modal', 'true');
-    ED.innerHTML = '<div class="box"><div><h2>😀 EMOTES</h2><div class="sub" id="emsub"></div><div class="rg" id="emrg"></div><div class="sub" id="emhelp" style="text-align:center"></div></div><div class="grid" id="emgrid"></div><div class="foot"><span class="sub" id="emprog"></span><span><button class="b" id="emreset" type="button">Restablecer</button> <button class="b go" id="emclose" type="button">Listo</button></span></div></div>';
-    document.body.appendChild(ED);
-    const rg = ED.querySelector('#emrg'), grid = ED.querySelector('#emgrid');
-    function refreshEditor() {
-      if (!EDIT.on) return;
-      ED.querySelector('#emsub').textContent = 'Los emotes se desbloquean con kills en salas públicas contra otros jugadores (no cuentan los bots ni las salas privadas). Mantené ' + bindKeyLabel(BINDS.emote || 'KeyT') + ' en partida para abrir la rueda.';
-      ED.querySelector('#emhelp').textContent = 'Elegí un slot y tocá el emote que quieras ponerle.';
-      rg.innerHTML = '';
-      for (let i = 0; i < NSLOTS; i++) {
-        const b = document.createElement('button'); b.type = 'button'; const e = byId(slots[i]); const [x, y] = place(i, 118);
-        b.className = 'sl' + (i === EDIT.sel ? ' sel' : '') + (e ? '' : ' empty'); b.style.left = 150 + x + 'px'; b.style.top = 150 + y + 'px'; b.textContent = e ? e.ico : '＋'; b.title = e ? e.n : 'Slot vacío';
-        b.addEventListener('click', () => { EDIT.sel = i; refreshEditor(); }); rg.appendChild(b);
-      }
-      const clr = document.createElement('button'); clr.type = 'button'; clr.className = 'b'; clr.textContent = 'Vaciar'; clr.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:6px 10px;font-size:12px';
-      clr.addEventListener('click', () => { slots[EDIT.sel] = null; saveSlots(); refreshEditor(); }); rg.appendChild(clr);
-      grid.innerHTML = '';
-      for (const e of EM) {
-        const c = document.createElement('button'); c.type = 'button'; const ok = unlocked(e);
-        c.className = 'card' + (ok ? '' : ' lock') + (slots.includes(e.id) ? ' used' : '');
-        c.innerHTML = '<span class="ic">' + (ok ? e.ico : '🔒') + '</span><b>' + e.n + '</b><small>' + (ok ? (slots.includes(e.id) ? 'En la rueda' : 'Desbloqueado') : e.k + ' kills públicas') + '</small>';
-        c.addEventListener('click', () => {
-          if (!ok) { ED.querySelector('#emhelp').textContent = '🔒 Te faltan ' + (e.k - kills) + ' kills públicas para «' + e.n + '».'; return; }
-          const old = slots.indexOf(e.id); if (old >= 0) slots[old] = slots[EDIT.sel];   // si ya estaba en otro slot, se intercambian
-          slots[EDIT.sel] = e.id; saveSlots(); refreshEditor();
-        });
-        grid.appendChild(c);
-      }
-      const next = EM.filter(e => e.k > kills).sort((a, b) => a.k - b.k)[0];
-      ED.querySelector('#emprog').textContent = 'Kills públicas: ' + kills + (next ? ' · próximo: «' + next.n + '» a las ' + next.k : ' · ¡tenés todos los emotes!');
-    }
-    function openEditor() { EDIT.on = true; EDIT.sel = Math.max(0, slots.indexOf(null)); ED.classList.add('on'); refreshEditor(); ED.querySelector('#emclose').focus(); }
-    function closeEditor() { EDIT.on = false; ED.classList.remove('on'); }
-    ED.querySelector('#emclose').addEventListener('click', closeEditor);
-    ED.addEventListener('click', e => { if (e.target === ED) closeEditor(); });
-    ED.querySelector('#emreset').addEventListener('click', () => { slots = defaultSlots(); saveSlots(); refreshEditor(); });
-    addEventListener('keydown', e => { if (EDIT.on && e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeEditor(); } }, true);
-
-    // botones en el menú principal y en la pausa
-    function inject() {
-      const mk = cls => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = '😀 EMOTES'; b.addEventListener('click', ev => { ev.stopPropagation(); openEditor(); }); return b; };
-      const set = document.getElementById('setbtn');
-      if (set && !document.getElementById('emmenu')) { const b = mk(set.className || ''); b.id = 'emmenu'; set.parentNode.insertBefore(b, set); }
-      const tm = document.getElementById('tomenu');
-      if (tm && !document.getElementById('empause')) { const b = mk('big alt'); b.id = 'empause'; b.textContent = '😀 Emotes'; tm.parentNode.insertBefore(b, tm); }
-    }
-    inject(); setTimeout(inject, 600);
-
-    window.CF_EMOTES = { play: (f, i, net) => play(f, i, !!net), onPublicKill, open: openEditor, get kills() { return kills; }, list: () => EM.map(e => ({ id: e.id, n: e.n, k: e.k })) };
+    window.CF_EMOTES = { play: (f, i, net) => play(f, i, !!net), playClip, onPublicKill, get kills() { return kills; }, list: () => EM.map(e => ({ id: e.id, n: e.n, k: e.k })) };
   }
 });

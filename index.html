@@ -10,7 +10,7 @@
 <link rel="icon" type="image/png" href="assets/calfight_icon.png">
 <meta name="description" content="CalFight: peleas anime en una ciudad de bloques. Juega gratis en el navegador, solo o con amigos.">
 <meta name="theme-color" content="#10131e">
-<script>if(!/^(localhost|127\.|\[::1\])/.test(location.hostname)||/[?&]csp=1/.test(location.search))document.write("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://lh3.googleusercontent.com; media-src 'self' blob: data:; connect-src 'self' https: wss: ws: blob: data:; frame-src 'self' https://calgame.firebaseapp.com https://accounts.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'\">");</script>
+<script>if(!/^(localhost|127\.|\[::1\])/.test(location.hostname)||/[?&]csp=1/.test(location.search))document.write("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://lh3.googleusercontent.com; media-src 'self' blob: data:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com wss: ws: blob: data:; frame-src 'self' https://calgame.firebaseapp.com https://accounts.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests\">");</script>
 <meta name="referrer" content="no-referrer">
 <meta property="og:type" content="website"><meta property="og:site_name" content="CalFight"><meta property="og:title" content="CalFight">
 <meta property="og:description" content="Peleas anime en una ciudad de bloques. Elige tu peleador, rompe la ciudad y juega con tus amigos. Gratis, en el navegador.">
@@ -22,8 +22,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
 
 <!-- Estilos modulares del juego -->
-<link rel="stylesheet" href="css/style.css?v=6.5">
-<link rel="stylesheet" href="css/mobile.css?v=6.5">
+<link rel="stylesheet" href="css/style.css?v=6.6">
+<link rel="stylesheet" href="css/mobile.css?v=6.6">
 
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -310,7 +310,7 @@
     <div class="chip hidden" id="slchip"><b>SHIFT LOCK</b></div>
     <button class="chip" id="weatherbtn" type="button" aria-label="Abrir clima y hora"><span id="weatherstate">11:00 · Despejado</span></button>
     <button class="chip" id="panelbtn" type="button" style="pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer">Panel <b>H</b></button>
-    <button class="chip" id="bookbtn" type="button" title="Guía de combate (B)" aria-label="Guía de combate"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 4.5C4 3.7 4.7 3 5.5 3H11v16H5.5c-.6 0-1 .2-1.5.5V4.5zM13 3h5.5c.8 0 1.5.7 1.5 1.5v15c-.5-.3-.9-.5-1.5-.5H13V3zM4 21h7v-.2c0-.4-.3-.8-.8-.8H5.5c-.8 0-1.5.4-1.5 1zm9 0h7c0-.6-.7-1-1.5-1h-4.7c-.5 0-.8.4-.8.8v.2z"/></svg><span>Guía</span> <b id="bookkbd">B</b></button>
+    <button class="chip" id="bookbtn" type="button" title="Guía de combate (K)" aria-label="Guía de combate"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 4.5C4 3.7 4.7 3 5.5 3H11v16H5.5c-.6 0-1 .2-1.5.5V4.5zM13 3h5.5c.8 0 1.5.7 1.5 1.5v15c-.5-.3-.9-.5-1.5-.5H13V3zM4 21h7v-.2c0-.4-.3-.8-.8-.8H5.5c-.8 0-1.5.4-1.5 1zm9 0h7c0-.6-.7-1-1.5-1h-4.7c-.5 0-.8.4-.8.8v.2z"/></svg><span>Guía</span> <b id="bookkbd">K</b></button>
   </div>
   <canvas id="minimap" width="432" height="432" aria-label="Minimapa"></canvas>
   <div id="combo"><b id="combon">0</b><small id="combolbl">GOLPES</small><div id="combodmg"><span id="combodmg-total">0 DAÑO</span><em id="combodmg-last">+0</em></div></div>
@@ -733,25 +733,26 @@
 <!-- ==================================================================== -->
 <!-- Librerías de motor 3D y red (Locales para juego 100% offline)        -->
 <!-- ==================================================================== -->
-<script src="lib/three.min.js?v=6.5"></script>
-<script src="lib/CopyShader.js?v=6.5"></script>
-<script src="lib/LuminosityHighPassShader.js?v=6.5"></script>
-<script src="lib/EffectComposer.js?v=6.5"></script>
-<script src="lib/RenderPass.js?v=6.5"></script>
-<script src="lib/ShaderPass.js?v=6.5"></script>
-<script src="lib/UnrealBloomPass.js?v=6.5"></script>
-<script src="lib/mqtt.min.js?v=6.5"></script>
+<script src="lib/three.min.js?v=6.6"></script>
+<script src="lib/CopyShader.js?v=6.6"></script>
+<script src="lib/LuminosityHighPassShader.js?v=6.6"></script>
+<script src="lib/EffectComposer.js?v=6.6"></script>
+<script src="lib/RenderPass.js?v=6.6"></script>
+<script src="lib/ShaderPass.js?v=6.6"></script>
+<script src="lib/UnrealBloomPass.js?v=6.6"></script>
+<script src="lib/mqtt.min.js?v=6.6"></script>
 
 <!-- ==================================================================== -->
 <!-- Scripts modulares del juego                                          -->
 <!-- ==================================================================== -->
-<script src="js/physics.js?v=6.5"></script>
-<script src="js/destruction.js?v=6.5"></script>
-<script src="js/animations.js?v=6.5"></script>
-<script src="js/personajes.js?v=6.5"></script>
-<script src="js/habilidades.js?v=6.5"></script>
-<script src="js/emotes.js?v=1"></script>
-<script src="js/game.js?v=6.5"></script>
+<script src="js/physics.js?v=6.6"></script>
+<script src="js/destruction.js?v=6.6"></script>
+<script src="js/animations.js?v=6.6"></script>
+<script src="js/personajes.js?v=6.6"></script>
+<script src="js/habilidades.js?v=6.6"></script>
+<script src="js/emote_list.js?v=1"></script>
+<script src="js/emotes.js?v=2"></script>
+<script src="js/game.js?v=6.6"></script>
 
 </body>
 </html>
