@@ -77,11 +77,12 @@ CF.habilidad('javiParry', function () {
     llx: -.42, lrx: .36, llz: .12, lrz: -.12
   }, .18);
 
-  return function (f) {
+  return function (f, o) {
+    const WINDOW = (o && o.window) || 1.8;
     prepWeapon(f);
     sfx('draw', f.pos);
+    sfx('block', f.pos);
     startTwirl(f, 1, .10);
-    f.counter = 1.55;
     for (const k in WIND) if (f.anim && f.anim.x && k in f.anim.x) f.anim.x[k] = WIND[k] * .65;
     const sparkTip = () => {
       if (!f.spear || !f.spearOut) return;
@@ -90,7 +91,7 @@ CF.habilidad('javiParry', function () {
       burst(mid, 3, '#ffd54f', 2.0, .07, .22, -.15);
     };
     startAction(f, {
-      name: 'javiParry', dur: 1.8, speedMul: .22, eyes: true,
+      name: 'javiParry', dur: WINDOW, counter: true, aim: true, speedMul: .22, eyes: true,
       grips: [{ arm: 'armL', z: 11, t0: 0 }],
       anim: [
         [0, WIND, 2200],
@@ -109,6 +110,7 @@ CF.habilidad('javiParry', function () {
             ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#4fc3f7', 2.4, .28);
             burst(front(f, 1.0, 1.25), 12, '#ffd54f', 4.5, .11, .32, 0);
             sfx('swing', f.pos, .75);
+            popText(chestOf(f), '¡GUARDIA DRAGÓN!', '#4fc3f7', 20);
           }
         },
         { at: .35, fn: sparkTip },
@@ -116,9 +118,12 @@ CF.habilidad('javiParry', function () {
         { at: 1.02, fn: sparkTip },
         { at: 1.32, fn: sparkTip },
       ],
-      onCounter: (f, att) => {
+      onCounter: (t, att) => {
+        if (!att || !att.alive || att.cineLock || att.grabbed) { counterHit(t, att); return; }
+        f.yaw = yawTo(f, att);
+        f.iframes = Math.max(f.iframes, 2.5);
         const clash = front(f, 1.05, 1.28);
-        impactFrame(.08);
+        impactFrame('#4fc3f7', .08);
         G.shake = Math.max(G.shake, .65);
         sphereFlash(clash, '#ffffff', 1.7, .18);
         impactStar(clash, '#ffd54f', 2.5, .24);
@@ -126,10 +131,10 @@ CF.habilidad('javiParry', function () {
         ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd54f', 3.4, .32);
         burst(clash, 24, '#ffd54f', 9, .15, .38, .1);
         burst(clash, 18, '#4fc3f7', 8, .14, .36, 0);
-        sfx('clang', clash, 1.0);
+        sfx('block', clash, 1.0);
         sfx('counter', f.pos);
         popText(chestOf(f), '¡PARRY DEL DRAGÓN!', '#4fc3f7', 24);
-        startChoreo(f, att, 'javiParry');
+        runChore(f, att, CHORE.javiParry);
       },
     });
   };
