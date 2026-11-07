@@ -124,24 +124,51 @@
     G.paused = false; G.over = false; CFG_CINE.off = !!o.nocine; if (!H.aura) { VW.att.awak = 0; VW.vic.awak = 0; }
     VW.vic.pos.set(0, 0, o.vz || 6); VW.vic.model.root.position.copy(VW.vic.pos);
     for (let i = 0; i < 4; i++) H.frame();
+    if (o.dev) H.dev(true);
     __ev(o.go);
-    let t = 0, next = from, saved = 0;
+    let t = 0, next = from, saved = 0; const pend = [];   // las fotos se guardan al final: esperar (await) en medio dejaría correr el reloj real del juego
     while (t <= to) {
       if (t >= next - 1e-6) {
         next += every; const label = (o.tag || 'act') + String(Math.round(t * 1000)).padStart(5, '0');
         for (const v of views) {
-          if (v === 'dir') { await post(v + '_' + label, { t: r(t), v, d: canvasToJpeg(w) }); saved++; continue; }
+          if (v === 'dir') { pend.push([v + '_' + label, { t: r(t), v, d: canvasToJpeg(w) }]); saved++; continue; }
           const f = VW.att, st = { yaw: f.yaw }, A = poseChest(f), V = poseChest(VW.vic), mid = A.clone(), cfg = VIEWS[v](st, A, V, mid);
           const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), f0 = camera.fov, u0 = camera.up.clone();
           camera.position.copy(cfg.pos); camera.up.copy(cfg.up || mk(0, 1, 0)); camera.lookAt(cfg.look); camera.fov = cfg.fov; camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
-          drawFrameSafely(); await post(v + '_' + label, { t: r(t), v, d: canvasToJpeg(w) }); saved++;
+          drawFrameSafely(); pend.push([v + '_' + label, { t: r(t), v, d: canvasToJpeg(w) }]); saved++;
           camera.position.copy(p0); camera.quaternion.copy(q0); camera.fov = f0; camera.up.copy(u0); camera.updateProjectionMatrix();
         }
       }
       for (const ev of o.events || []) if (!ev.done && t >= ev[0]) { ev.done = true; __ev(ev[1]); }   // o.events: [[segundos, 'código']] (p. ej. el golpe que activa el parry)
       H.frame(); t += 1 / 60;
     }
+    for (const [n, b] of pend) await post(n, b);
     H.uninstall(); return { saved, chore: !!G.chore, act: VW.att.action && VW.att.action.name };
+  };
+  // Mapa de desarrollo: esconde la ciudad (edificios, bancas, árboles…) y deja un piso plano con cuadrícula (1 casilla = 1 m) para revisar animaciones sin que nada estorbe.
+  //   __H.dev(true) antes de H.act/H.run · __H.dev(false) al terminar
+  H.dev = (on) => {
+    if (on && !H._dev) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      g.fillStyle = '#7d8a96'; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#e8eef4'; g.lineWidth = 3; g.strokeRect(0, 0, 128, 128);
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(64, 0); g.lineTo(64, 128); g.moveTo(0, 64); g.lineTo(128, 64); g.stroke();
+      const tx = new THREE.CanvasTexture(c); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(60, 60);
+      const fl = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshBasicMaterial({ map: tx })); fl.rotation.x = -Math.PI / 2; fl.position.set(VW.att.pos.x, 0.0, VW.att.pos.z);
+      fl.userData.devKeep = true; scene.add(fl);
+      H._dev = { floor: fl, bg: scene.background, fog: scene.fog, render: renderer.render };
+      const orig = renderer.render.bind(renderer);
+      renderer.render = function (sc, cam) {
+        if (sc !== scene) return orig(sc, cam);
+        const keep = new Set([VW.att.model.root, VW.vic.model.root]), hid = [];
+        for (const o of scene.children) if (!keep.has(o) && !o.isLight && !o.userData.devKeep && o.visible) { o.visible = false; hid.push(o); }
+        const b0 = scene.background, f0 = scene.fog ? scene.fog.far : 0; scene.background = new THREE.Color(0xb9c6d2); if (scene.fog) scene.fog.far = 1e5;
+        try { orig(sc, cam); } finally { scene.background = b0; if (scene.fog) scene.fog.far = f0; for (const o of hid) o.visible = true; }
+      };
+      renderer.render.__dev = true;
+    } else if (!on && H._dev) {
+      renderer.render = H._dev.render; scene.remove(H._dev.floor); H._dev = null;
+    }
+    return !!H._dev;
   };
   // Atajo: una sola foto de un instante, desde varias vistas
   H.at = (id, t, views, w) => H.run({ id, from: t, to: t + .001, every: 9, views: views || ['dir', 'side', 'top', 'contact'], w: w || 640, tag: 'p' });

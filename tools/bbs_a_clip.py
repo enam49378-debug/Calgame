@@ -186,18 +186,53 @@ def euler_xyz(M):                                         # three.js Euler 'XYZ'
     return np.array([x, y, z])
 
 
-ROT = {'head': ['hx', 'hy', 'hz'], 'low_body': ['ix', 'iy', 'iz'], 'left_arm': ['alx', 'aly', 'alz'], 'right_arm': ['arx', 'ary', 'arz'],
+ROT = {'head': ['hx', 'hy', 'hz'], 'low_body': ['tx', 'ty', 'tz'], 'left_arm': ['alx', 'aly', 'alz'], 'right_arm': ['arx', 'ary', 'arz'],
        'left_leg': ['llx', 'lly', 'llz'], 'right_leg': ['lrx', 'lry', 'lrz']}
-POS = {'head': ['hpx', 'hpy', 'hpz'], 'low_body': ['bx', 'by', 'bz'], 'left_arm': ['alpx', 'alpy', 'alpz'], 'right_arm': ['arpx', 'arpy', 'arpz'],
+POS = {'head': ['hpx', 'hpy', 'hpz'], 'low_body': ['tpx', 'tpy', 'tpz'], 'left_arm': ['alpx', 'alpy', 'alpz'], 'right_arm': ['arpx', 'arpy', 'arpz'],
        'left_leg': ['llpx', 'llpy', 'llpz'], 'right_leg': ['lrpx', 'lrpy', 'lrpz']}
-SCALE = {'head': ('hscx', 'hscy', 'hscz'), 'low_body': ('bsx', 'bsy', 'bsz')}
+SCALE = {'head': ('hscx', 'hscy', 'hscz'), 'low_body': ('tscx', 'tscy', 'tscz')}
 SCALE1 = {'left_arm': 'als', 'right_arm': 'ars', 'left_leg': 'lls', 'right_leg': 'lrs'}   # el juego solo estira el largo de las extremidades
 chan_names = []
 for b in BONES:
     chan_names += ROT[b] + POS[b]
     if b in SCALE: chan_names += list(SCALE[b])
     if b in SCALE1: chan_names.append(SCALE1[b])
-chan_names = sorted(set(chan_names))
+chan_names = sorted(set(chan_names + ['ix', 'iy', 'iz', 'bx', 'by', 'bz']))
+
+# ======================= contacto con el suelo =======================
+def _R(a): return rot_xyz_three(a)
+
+
+def rot_xyz_three(a):                                       # three.js Euler 'XYZ' -> Rx·Ry·Rz
+    cx, sx, cy, sy, cz, sz = math.cos(a[0]), math.sin(a[0]), math.cos(a[1]), math.sin(a[1]), math.cos(a[2]), math.sin(a[2])
+    Rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]]); Ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]]); Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
+    return Rx @ Ry @ Rz
+
+
+def lowest(vals):
+    """altura (px) del punto más bajo del modelo del juego con esos valores de canal (cinemática directa de buildModel/Animator.apply)"""
+    g = lambda k, d=0.0: vals.get(k, d)
+    Ri = rot_xyz_three([g('ix'), g('iy'), g('iz')]); Pi = np.array([g('bx'), 16 + g('by'), g('bz')])
+    Rt = Ri @ rot_xyz_three([g('tx'), g('ty'), g('tz')]); St = np.diag([g('tscx', 1), g('tscy', 1), g('tscz', 1)])
+    Pt = Pi + Ri @ np.array([g('tpx'), -4 + g('tpy'), g('tpz')])
+    parts = [(Pt, Rt @ St, (8, 12, 4), 6)]
+    ph = Pt + Rt @ St @ np.array([g('hpx'), 12 + g('hpy'), g('hpz')])
+    parts.append((ph, Rt @ St @ rot_xyz_three([g('hx'), g('hy'), g('hz')]) @ np.diag([g('hscx', 1), g('hscy', 1), g('hscz', 1)]), (8, 8, 8), 4))
+    for sg, pre, w in ((-1, 'ar', 4), (1, 'al', 4)):
+        pa = Pt + Rt @ St @ np.array([sg * 6 + g(pre + 'px'), 10 + g(pre + 'py'), g(pre + 'pz')])
+        parts.append((pa, Rt @ St @ rot_xyz_three([g(pre + 'x'), g(pre + 'y'), g(pre + 'z', .06 * -sg)]) @ np.diag([1, g(pre[0] + ('r' if sg < 0 else 'l') + 's', 1), 1]), (w, 12, 4), -4))
+    for sg, pre in ((-1, 'lr'), (1, 'll')):
+        pl = Pi + Ri @ np.array([sg * 2 + g(pre + 'px'), -4 + g(pre + 'py'), g(pre + 'pz')])
+        parts.append((pl, Ri @ rot_xyz_three([g(pre + 'x'), g(pre + 'y'), g(pre + 'z')]) @ np.diag([1, g(pre[0] + pre[1] + 's', 1), 1]), (4, 12, 4), -6))
+    lo = 1e9
+    for P, M, (w, h, d), cy in parts:
+        for sx_ in (-.5, .5):
+            for sy_ in (-.5, .5):
+                for sz_ in (-.5, .5):
+                    lo = min(lo, (P + M @ np.array([sx_ * w, cy + sy_ * h, sz_ * d]))[1])
+    return lo
+
+
 
 n_frames = int(round(LEN * 60)) + 1
 times = [min(i / 60.0, LEN) for i in range(n_frames)]
@@ -237,22 +272,43 @@ for tm in times:
         Rg = C @ Rb @ C                                     # rotación del hueso, ya en ejes del juego
         o_bbs = t + p - Rb @ (np.diag(s) @ p)               # donde queda el origen del hueso: t + p - R·S·p
         o_g = C @ o_bbs
-        if b == 'low_body':
-            Rg = R_root @ Rg                                # el cuerpo entero y la cintura se componen como matrices
-            o_g = d_root + R_root @ o_g
+        # (en BBS las piernas NO cuelgan de low_body sino de anchor_low: low_body mueve solo torso, cabeza y brazos = el `torso` del juego,
+        #  cuyo origen está en la cadera a 12 px = pivote de low_body. El cuerpo entero (inner) lleva solo la transformación de la entidad.)
         ang = euler_xyz(Rg)
         for i, nme in enumerate(ROT[b]): vals[nme] = unwrap(nme, float(ang[i]))
         for i, nme in enumerate(POS[b]): vals[nme] = float(o_g[i])
         if b in SCALE:
             for i, nme in enumerate(SCALE[b]): vals[nme] = float(s[i])
+        if b == 'low_body':                                 # el cuerpo entero (inner) solo lleva la transformación de la entidad
+            ang_i = euler_xyz(R_root)
+            for i, nme in enumerate(('ix', 'iy', 'iz')): vals[nme] = unwrap(nme, float(ang_i[i]))
+            for i, nme in enumerate(('bx', 'by', 'bz')): vals[nme] = float(d_root[i])
         if b in SCALE1:
             vals[SCALE1[b]] = float(s[1])
             if abs(s[0] - 1) > 1e-6 or abs(s[2] - 1) > 1e-6: warn.append('escala X/Z de %s ignorada (el juego solo estira el largo)' % b)
     rows.append([round(tm, 6)] + [round(vals.get(c, 0.0), 6) for c in chan_names])
 
+# ---- contacto con el suelo: el juego no tiene colisión por hueso, así que se calcula el punto más bajo del modelo en cada cuadro (cinemática directa)
+#      y se sube/baja el cuerpo (`by`) para que nunca se hunda en el piso y, si está a ras de él, quede apoyado (sin flotar).
+if '--sin-suelo' not in sys.argv:
+    ci_by = chan_names.index('by') + 1
+    lows = [lowest(dict(zip(chan_names, r_[1:]))) for r_ in rows]
+    want = []
+    for lo in lows:
+        snap = max(0.0, min(1.0, 1 - (lo - 1.0) / 5.0))          # a menos de 1 px del piso: apoyado del todo; a más de 6 px: en el aire, no se toca
+        want.append(-lo if lo < 0 else -lo * snap)
+    K = 2
+    sm = [sum(want[max(0, min(len(want) - 1, i + j))] for j in range(-K, K + 1)) / (2 * K + 1) for i in range(len(want))]
+    worst = 0.0
+    for i, r_ in enumerate(rows):
+        d = max(sm[i], -lows[i]) if lows[i] < 0 else sm[i]       # nunca penetrar, aunque se suavice
+        worst = max(worst, abs(d)); r_[ci_by] = round(r_[ci_by] + d, 6)
+    print('suelo: corrección máxima %.2f px · hundimiento máximo antes %.2f px' % (worst, -min(lows)))
+
+
 # ---- una voltereta completa termina en ±2π: visualmente es la pose de reposo, pero el juego la "desenrollaría" al terminar
 for ci, c in enumerate(chan_names):
-    if c not in ('ix', 'iy', 'iz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'lly', 'llz', 'lrx', 'lry', 'lrz'): continue
+    if c not in ('ix', 'iy', 'iz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'lly', 'llz', 'lrx', 'lry', 'lrz'): continue
     fin = rows[-1][ci + 1]; k = round(fin / (2 * math.pi))
     if k == 0 or abs(fin - k * 2 * math.pi) > .25: continue
     i0 = len(rows) - 1
@@ -284,3 +340,6 @@ if root_tracks:
     zs = sorted({round(kf['tick'] / TPS, 3) for n in tr_props for kf in props[n]['keyframes']})
     prof = [[z, round(sum(ch[('t', 2)].sample(z * TPS) for ch in root_tracks), 3)] for z in zs]
     print('RECORRIDO (segundos, metros hacia adelante):', json.dumps(prof))
+if __name__ == '__main__' and '--suelo' in sys.argv:
+    for r_ in rows[::6]:
+        print('t=%.2f  punto más bajo = %.2f px' % (r_[0], lowest(dict(zip(chan_names, r_[1:])))))
