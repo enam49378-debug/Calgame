@@ -715,5 +715,6 @@
   window.bbHole = bbHole;
   window.holesUpdate = holesUpdate;
   window.HOLE_U = HOLE_U;
+  window.NETREP = NETREP;   // game.js (replayAct) lo necesita: sin esto las habilidades de los demás jugadores nunca se reproducían en tu pantalla
 
 })(window);

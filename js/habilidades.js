@@ -2381,25 +2381,28 @@ CF.mover('sebBrawlA', function (f, o) {
       tick: (a, t) => {
         // Only the opening rush and the short approach to a living target move the fighter.
         f.vel.x = f.vel.z = 0;
-        if (t < .32 && !a.stopped && enemiesOf(f).some(g => dist2d(f, g) < 1.7)) a.stopped = true;
-        a.ghost = t < .32 && !a.stopped;
+        // elige a quien ir: el mas cercano (de preferencia al frente) hasta 11 m, y se lanza hacia el aunque este lejos
+        if (!a.tg || !a.tg.alive) { let bs = 1e9; a.tg = null; for (const g of enemiesOf(f)) { const d = dist2d(f, g), F0 = fwd(f.yaw), c = ((g.pos.x - f.pos.x) * F0.x + (g.pos.z - f.pos.z) * F0.z) / (d || 1); const sc = d - (c > .2 ? 3 : 0); if (d < 11 && sc < bs) { bs = sc; a.tg = g; } } }
+        if (t < .5 && !a.stopped && (a.tg ? dist2d(f, a.tg) < 1.5 : enemiesOf(f).some(g => dist2d(f, g) < 1.7))) a.stopped = true;
+        a.ghost = t < .5 && !a.stopped;
         if (a.ghost) {
-          const F = fwd(f.yaw); f.vel.x = F.x * 18; f.vel.z = F.z * 18;
+          if (a.tg) f.yaw = yawTo(f, a.tg);
+          const F = fwd(f.yaw); f.vel.x = F.x * 24; f.vel.z = F.z * 24;
           emit(f.pos.x, f.pos.y + rand(.3, 1.6), f.pos.z, rand(-1, 1), rand(0, 1), rand(-1, 1), '#ffd91a', .2, .3, 0, 3);
-        } else if (t >= .32 && t < 1.3) {
-          let n = null, bd = 3.8;
+        } else if (t >= .5 && t < 1.3) {
+          let n = null, bd = 7;
           for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (d < bd) { bd = d; n = g; } }
           if (n) {
             const dx = n.pos.x - f.pos.x, dz = n.pos.z - f.pos.z; f.yaw = Math.atan2(dx, dz);
-            if (bd > 1.3) { f.vel.x = dx / bd * 9; f.vel.z = dz / bd * 9; }
+            if (bd > 1.3) { f.vel.x = dx / bd * 14; f.vel.z = dz / bd * 14; }
           }
         }
       },
       onEnd: () => { f.vel.x = f.vel.z = 0; if (f.verity) f.verity.ov = null; },
       steps: [
-        ...[.4, .52, .64, .76, .88].map(at => ({ at, fn: () => { hitArea(f, front(f, 1.3, 1.1), 1.5, { dmg: 1.7, stun: .45, kb: .5, color: '#ffd91a', hitstop: .03, shake: .12 }); fistFx(f, '#ffd91a'); sfx('hit', f.pos, .6); } })),
-        { at: 1.0, fn: () => { verityGo(f, () => front(f, 1.7, 1.7), .35, 1.4, 'angry'); const c = front(f, 1.5, 1.1); if (hitArea(f, c, 1.7, { dmg: 3, stun: .5, kb: 1, color: '#ffd91a', hitstop: .06, shake: .25 })) { popText(c, '¡CABEZAZO!', '#ffd91a', 20); impactStar(c, '#ffd91a', 2, .2); } } },
-        { at: 1.2, fn: () => { verityGo(f, null, 0); if (f.verity) f.verity.ov = null; const c = front(f, 1.3, 1.1); if (hitArea(f, c, 1.7, { dmg: 6, kb: 2, up: 14, ragdoll: 1.2, rag: 1.5, color: '#ffd91a', guardBreak: true, hitstop: .1, shake: .45 })) { ringAt(c, '#ffd91a', 2.6, .35); burst(c, 18, '#ffd91a', 9, .2, .5, .3); } sfx('heavy', f.pos); } },
+        ...[.4, .52, .64, .76, .88].map(at => ({ at, fn: () => { hitArea(f, front(f, 1.5, 1.1), 2.2, { dmg: 1.7, stun: .45, kb: .5, color: '#ffd91a', hitstop: .03, shake: .12 }); fistFx(f, '#ffd91a'); sfx('hit', f.pos, .6); } })),
+        { at: 1.0, fn: () => { verityGo(f, () => front(f, 1.7, 1.7), .35, 1.4, 'angry'); const c = front(f, 1.7, 1.1); if (hitArea(f, c, 2.4, { dmg: 3, stun: .5, kb: 1, color: '#ffd91a', hitstop: .06, shake: .25 })) { popText(c, '¡CABEZAZO!', '#ffd91a', 20); impactStar(c, '#ffd91a', 2, .2); } } },
+        { at: 1.2, fn: () => { verityGo(f, null, 0); if (f.verity) f.verity.ov = null; const c = front(f, 1.5, 1.1); if (hitArea(f, c, 2.5, { dmg: 6, kb: 2, up: 14, ragdoll: 1.2, rag: 1.5, color: '#ffd91a', guardBreak: true, hitstop: .1, shake: .45 })) { ringAt(c, '#ffd91a', 2.6, .35); burst(c, 18, '#ffd91a', 9, .2, .5, .3); } sfx('heavy', f.pos); } },
       ],
     });
   });
@@ -2426,8 +2429,15 @@ CF.mover('sebBallA', function (f, o) {
     startAction(f, {
       name: 'sebBallA', dur: 1.6, noControl: true, aim: true, armor: true, speedMul: 0,
       start: () => popText(chestOf(f), '¡Pelota!', '#ffd91a', 22),
+      // antes de patear se lanza hacia el rival mas cercano (hasta 9 m) para llegar a el
+      tick: (a, t) => {
+        if (t < .25) {
+          if (!a.tg || !a.tg.alive) { let bd = 9; a.tg = null; for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (d < bd) { bd = d; a.tg = g; } } }
+          if (a.tg && dist2d(f, a.tg) > 1.5) { f.yaw = yawTo(f, a.tg); const F = fwd(f.yaw); f.vel.x = F.x * 22; f.vel.z = F.z * 22; a.ghost = true; } else a.ghost = false;
+        } else a.ghost = false;
+      },
       steps: [
-        { at: .25, fn: () => { const c = front(f, 1.3, 1.0); tg = enemiesOf(f).filter(g => chestOf(g).distanceTo(c) < 2.4)[0] || null; if (hitArea(f, c, 1.8, { dmg: 4, up: 13, kb: 0, stun: 1.5, color: '#ffd91a', hitstop: .07, shake: .3 })) { impactStar(c, '#ffffff', 2.4, .25); sfx('heavy', c); } } },
+        { at: .25, fn: () => { const c = front(f, 1.5, 1.0); tg = enemiesOf(f).filter(g => chestOf(g).distanceTo(c) < 3.2).sort((p, q) => chestOf(p).distanceTo(c) - chestOf(q).distanceTo(c))[0] || null; if (hitArea(f, c, 2.5, { dmg: 4, up: 13, kb: 0, stun: 1.5, color: '#ffd91a', hitstop: .07, shake: .3 })) { impactStar(c, '#ffffff', 2.4, .25); sfx('heavy', c); } } },
         { at: .95, fn: () => { if (!tg || !tg.alive) return; verityGo(f, () => new V3(tg.pos.x, tg.pos.y + 4.5, tg.pos.z), .5, 1.7, 'angry'); popText(chestOf(f), '¡Remata, Verity!', '#ffd91a', 20); } },
         { at: 1.2, fn: () => {
           if (!tg || !tg.alive) return; verityGo(f, () => new V3(tg.pos.x, tg.pos.y + 1.8, tg.pos.z), .3, 2, 'angry');
@@ -2452,8 +2462,15 @@ CF.mover('sebSandA', function (f, o) {
     startAction(f, {
       name: 'sebSandA', dur: 1.8, noControl: true, aim: true, armor: true, speedMul: 0,
       start: () => popText(chestOf(f), '¡Sándwich!', '#ffd91a', 22),
+      // se acerca al rival (hasta 9 m) mientras Verity se coloca detras de el
+      tick: (a, t) => {
+        if (t < .4) {
+          if (!a.tg || !a.tg.alive) { let bd = 9; a.tg = null; for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (d < bd) { bd = d; a.tg = g; } } }
+          if (a.tg && dist2d(f, a.tg) > 2) { f.yaw = yawTo(f, a.tg); const F = fwd(f.yaw); f.vel.x = F.x * 20; f.vel.z = F.z * 20; a.ghost = true; } else a.ghost = false;
+        } else a.ghost = false;
+      },
       steps: [
-        { at: .1, fn: () => { const c = front(f, 1.6, 1.0); tg = enemiesOf(f).filter(g => chestOf(g).distanceTo(c) < 3)[0] || null; if (tg) { verityGo(f, behind, .9, 1.4, 'happy'); ringAt(new V3(tg.pos.x, tg.pos.y + .1, tg.pos.z), '#ffd91a', 2.5, .4); sfx('tp', tg.pos); } } },
+        { at: .1, fn: () => { const c = front(f, 1.6, 1.0); tg = (f.action && f.action.tg && f.action.tg.alive ? f.action.tg : null) || enemiesOf(f).filter(g => chestOf(g).distanceTo(c) < 9).sort((p, q) => chestOf(p).distanceTo(c) - chestOf(q).distanceTo(c))[0] || null; if (tg) { verityGo(f, behind, .9, 1.4, 'happy'); ringAt(new V3(tg.pos.x, tg.pos.y + .1, tg.pos.z), '#ffd91a', 2.5, .4); sfx('tp', tg.pos); } } },
         ...[.4, 1.15].map(at => ({ at, fn: () => { if (!tg || !tg.alive) return; const d = dirTo(); if (applyHit(f, tg, { dmg: 3, stun: .65, kb: 0, color: '#ffd91a', hitstop: .06, shake: .2 })) { push(d, 1.2); fistFx(f, '#ffd91a'); impactStar(chestOf(tg), '#ffffff', 1.8, .2); } } })),
         ...[.8, 1.45].map(at => ({ at, fn: () => { if (!tg || !tg.alive) return; const d = dirTo(); verityGo(f, front2, .35, 1.5, 'angry'); if (applyHit(f, tg, { dmg: 3, stun: .65, kb: 0, color: '#ffd91a', hitstop: .06, shake: .2 })) { push(d, -1.2); impactStar(chestOf(tg), '#ffd91a', 1.8, .2); } } })),
         { at: 1.65, fn: () => { if (!tg || !tg.alive) return; verityGo(f, () => front(f, 1.2, 1.7), .3, 1.5, 'angry'); const c = chestOf(tg); explode(f, c, 3.2, { dmg: 6, kb: 6, up: 10, ragdoll: .9, color: '#ffd91a', guardBreak: true, hitstop: .09, shake: .45 }); popText(c, '¡CLAP!', '#ffd91a', 24); } },

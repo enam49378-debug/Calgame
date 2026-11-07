@@ -5354,7 +5354,7 @@ function doM1(f, upVariant) {
     name: 'm1', unarmed, bbClip: fin ? (upVariant ? 'combo_4_arriba' : 'combo_4') : 'combo_'+(i+1), dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
     steps: [{
       at: fin ? .09 : .07, fn: () => {
-        const F = fwd(f.yaw); if (f.onGround) { f.vel.x += F.x * 3; f.vel.z += F.z * 3; }
+        const F = fwd(f.yaw), lg = def.lunge || 3; if (f.onGround) { f.vel.x += F.x * lg; f.vel.z += F.z * lg; }
         if (def.stab) stabFx(f, f.ch.color); else if (!def.palm) arcSlash(f, f.ch.color, def.arc);
         if (def.palm) { const p = front(f, 1.3, 1.25); sphereFlash(p, f.ch.color, 1.1, .25); burst(p, 14, f.ch.color, 7, .14, .3, 0); impactStar(p, '#ffd54f', 1.3, .18); }
         if (def.magic) { const p = front(f, 2.0, 1.2); burst(p, 8, f.ch.color, 4, .12, .3, -.2); burst(p, 4, '#ffd54f', 3, .08, .25, -.2); }
@@ -9335,7 +9335,7 @@ async function startMatch() {
   initAudio(); requestLock();
   if (G.mode === 'mp' && !(await joinRoom())) { unlock(); openTab('cfg'); return; }
   G.mp = G.mode === 'mp';
-  NET.ko = null; NET.act = null; NET.hitsOut = [];
+  NET.ko = null; NET.act = null; NET.acts = []; NET.hitsOut = [];
   stageExit(); clearFighters(); destRestore(true); rulesStart(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine');
   G.bots = +$('nbots').value; G.goal = +$('goalsel').value;
   G.baseLvl = +$('lvl').value; G.botLvl = G.baseLvl; G.auto = $('auto').checked; G.balT = 12; G.winPK = 0; G.winPD = 0;
@@ -10953,7 +10953,10 @@ loadFaceLib(); feInit();
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
 const _tp = new V3();
-function netAct(a) { if (G.guide) return; a.s = ++NET.actSeq; NET.act = a; }
+// cada acción (habilidad, golpe básico, ulti...) lleva un número de secuencia y una clave de sesión. Se reenvían las de los últimos 1.6 s en cada paquete:
+// si un paquete se pierde o dos acciones caen en el mismo instante, el otro jugador igual las recibe (antes solo viajaba la última)
+NET.sess = Math.random().toString(36).slice(2, 8); NET.acts = [];
+function netAct(a) { if (G.guide) return; a.s = ++NET.actSeq; a.ss = NET.sess; a.t = Date.now(); NET.act = a; NET.acts.push(a); if (NET.acts.length > 10) NET.acts.shift(); }
 async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
@@ -13172,7 +13175,7 @@ function netSendPlay() {
   if (!NET.named || !G.player) return;
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
-  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
+  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
   if (NET.named.pubAs) for (const d of dummies()) if (d.netId) NET.named.pubAs(d.netId, Object.assign(presenceOf(d, 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: [] }));
 }
 function presenceOf(f, ch) {
@@ -13236,7 +13239,7 @@ function replayAct(px, a) {
       const D = CHORE[a.d], vid = a.v, victim = vid === NET.myPeer ? G.player : NET.proxies.get(vid) || dummies().find(d => d.netId === vid);
       if (D && victim && victim.alive && victim !== px && !victim.cineLock && !px.cineLock && !(G.chore && (G.chore.f === victim || G.chore.tg === victim))) runChore(px, victim, D);
     }
-  } catch (e) { } finally { NETREP.on = false; }
+  } catch (e) { console.warn("replayAct", a && a.k, e); } finally { NETREP.on = false; }
 }
 function removeProxy(peer) {
   const px = NET.proxies.get(peer); if (!px) return;
@@ -13347,6 +13350,7 @@ function netTick(dt) {
       px.pos.set(+pr.x || 0, +pr.y || 0, +pr.z || 0); NET.proxies.set(pe.peer, px); G.fighters.push(px);
       NET.lastHit[pe.peer] = Math.max(0, ...(Array.isArray(pr.hits) ? pr.hits.map(h => +h.s || 0) : [0]));
       NET.lastAct[pe.peer] = pr.act ? pr.act.s : 0;
+      px.actSeen = new Set((Array.isArray(pr.acts) ? pr.acts : []).concat(pr.act ? [pr.act] : []).map(a => (a.ss || '') + ':' + a.s));   // lo que ya venia en curso al entrar no se repite
       NET.lastKo[pe.peer] = pr.ko ? pr.ko.n : 0;
       px.characterVoiceSeen=pr.vc?.k!=="clippy/hola"&&Number.isSafeInteger(pr.vc?.s)?pr.vc.s:0;
       if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); addFeedText(`${px.name} entró a la arena`, px.ch.color); }
@@ -13360,7 +13364,12 @@ function netTick(dt) {
       const mine = pr.hits.filter(h => h && (h.to === NET.myPeer || mineD[h.to]) && +h.s > (NET.lastHit[pe.peer] || 0)).sort((a, b) => a.s - b.s);
       for (const h of mine) { NET.lastHit[pe.peer] = +h.s; applyNetHit(px, h, h.to === NET.myPeer ? G.player : mineD[h.to]); }
     }
-    if (pr.act && pr.act.s !== NET.lastAct[pe.peer]) { NET.lastAct[pe.peer] = pr.act.s; replayAct(px, pr.act); }
+    { const list = Array.isArray(pr.acts) ? pr.acts : (pr.act ? [pr.act] : []), seenA = px.actSeen || (px.actSeen = new Set());
+      for (const a of list.slice().sort((x, y) => (x.s || 0) - (y.s || 0))) {
+        const key = (a.ss || '') + ':' + a.s; if (seenA.has(key)) continue;
+        seenA.add(key); if (seenA.size > 80) seenA.delete(seenA.values().next().value);
+        NET.lastAct[pe.peer] = a.s; replayAct(px, a);
+      } }
     if (pr.ko && pr.ko.n !== NET.lastKo[pe.peer]) {
       NET.lastKo[pe.peer] = pr.ko.n;
       const killer = pr.ko.by && pr.ko.by === NET.myPeer ? G.player : NET.proxies.get(pr.ko.by) || null;

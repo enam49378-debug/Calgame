@@ -14,6 +14,14 @@
     stats: [3, 4, 4, 3, 4],
     skin: { skin: '#a97864', hair: '#664b3d', eye: '#464a99', shirt: '#fa6c00', pants: '#464a99', shoes: '#a0a3ad', sleeve: 12 },
     skinData: 'personajes/sebolla/skin.png',
+    // golpes basicos de Seb0lla: mas alcance y avanzan hacia el rival (antes solo pegaban pegado a el)
+    m1set: [
+      { anim: [[0, 'jabR_w', 800], [.05, 'jabR', 1100]], arc: { tilt: .25, dir: 1 }, reach: 1.9, r: 1.65, lunge: 6.5 },
+      { anim: [[0, 'jabL_w', 800], [.05, 'jabL', 1100]], arc: { tilt: -.25, dir: -1 }, reach: 1.9, r: 1.65, lunge: 6.5 },
+      { anim: [[0, 'hook_w', 800], [.06, 'hook', 1100]], arc: { tilt: .08, dir: 1, len: 2.9, r: 1.75, w: .6 }, reach: 2.1, r: 1.95, lunge: 7 },
+      { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 }, reach: 2.3, r: 2.05, lunge: 7 },
+      { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 }, reach: 2.0, r: 1.85, lunge: 5 },
+    ],
     skills: [
       { n: 'Paliza de Verity', d: 'Se lanza sobre el rival y le da una lluvia de puñetazos; Verity entra con un cabezazo y un gancho final lo manda por los aires.', k: 'sebBrawlA', cd: 9, o: {}, r: [0, 6], tags: 'close gap gb' },
       { n: 'Pelota de Verity', d: 'Patea al rival al cielo y Verity lo remata desde arriba, estampándolo contra el piso con una onda de choque.', k: 'sebBallA', cd: 11, o: {}, r: [0, 4], tags: 'close gb' },
