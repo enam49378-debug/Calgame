@@ -57,7 +57,7 @@ const rbCosmosDescenso = function (P) {
     const wingM = new THREE.MeshBasicMaterial({ color: 0xffb020, side: THREE.DoubleSide }); mats.push(wingM); const wingG2 = new THREE.PlaneGeometry(3.2, 1.2); geos.push(wingG2);
     const wings = [];
     for (const sd of [-1, 1]) { const piv = new THREE.Group(); piv.position.set(sd * .35, .1, -.1); const w = new THREE.Mesh(wingG2, wingM); w.rotation.x = Math.PI / 2; w.position.x = sd * 1.6; piv.add(w); s.add(piv); wings.push([piv, sd]); }
-    s.userData.wings = wings; s.scale.setScalar(2.2); return s;
+    s.userData.wings = wings; s.scale.setScalar(4.6); return s;
   };
   const makeUfo = () => {
     const u = new THREE.Group(), met = M({ color: 0x9aa4b2 }), dome = M({ color: 0x8fe8ff, emissive: 0x1a6070 });
@@ -83,11 +83,11 @@ const rbCosmosDescenso = function (P) {
     // tipo: 'jet' | 'sekza' | 'ufo'; cam = posición de la cámara, mirar = hacia dónde mira, lado = +1/-1 (de dónde entra)
     spawn(kind, cam, mirar, lado) {
       const o = kind === 'jet' ? makeJet() : kind === 'sekza' ? makeSekza() : makeUfo(), fw = mirar.clone().sub(cam).normalize(), rt = new V3().crossVectors(fw, new V3(0, 1, 0)).normalize();
-      const speed = kind === 'jet' ? 150 : kind === 'sekza' ? 100 : 70, dist = kind === 'jet' ? 52 : kind === 'sekza' ? 34 : 46;
-      o.position.copy(cam).addScaledVector(fw, dist).addScaledVector(rt, -lado * 62).add(new V3(0, rand(-4, 9), 0));
+      const speed = kind === 'jet' ? 150 : kind === 'sekza' ? 52 : 70, dist = kind === 'jet' ? 52 : kind === 'sekza' ? 27 : 46;
+      o.position.copy(cam).addScaledVector(fw, dist).addScaledVector(rt, -lado * (kind === 'sekza' ? 52 : 62)).add(new V3(0, rand(-4, 9), 0));
       const vel = rt.clone().multiplyScalar(lado * speed); if (kind !== 'ufo') o.quaternion.setFromUnitVectors(new V3(0, 0, 1), vel.clone().normalize());
       if (kind === 'sekza') o.rotation.x += 0;
-      g.add(o); guests.push({ obj: o, kind, vel, life: 62 * 2 / speed + .4 });
+      g.add(o); guests.push({ obj: o, kind, vel, life: (kind === 'sekza' ? 52 : 62) * 2 / speed + .4 });
     },
     dispose() { scene.remove(g); mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose()); texs.forEach(t => t.dispose()); },
   };

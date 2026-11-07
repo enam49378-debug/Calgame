@@ -5,7 +5,7 @@
    de la Tierra por donde sale el rayo -> la cámara se lanza al planeta, atraviesa nubes y pájaros y baja sola hasta Redbird.
    Los números (daño, rivales necesarios) están en personaje.js. El espacio está en espacio-cosmos.js y el descenso en descenso-cosmos.js. */
 CF.mover('rbCosmos', function (f, o) {
-  const NEED_BASE = o.need || 2, me = !!f.isPlayer && !f.remote, isP = me && !CFG_CINE.off, BEAM_DMG = o.dmg || 8.5, LEN = 95;
+  const NEED_BASE = o.need || 2, me = !!f.isPlayer && !f.remote, isP = me && !CFG_CINE.off, BEAM_DMG = o.dmg || 8.5, LEN = 160;
   const foes = enemiesOf(f).filter(g => g.alive);
   if (!foes.length) return false;
   const NEED = Math.min(NEED_BASE, foes.length);
@@ -17,7 +17,7 @@ CF.mover('rbCosmos', function (f, o) {
     for (const h of foes) { const c = chestOf(h), dx = c.x - f.pos.x, dz = c.z - f.pos.z; if (dx * F0.x + dz * F0.z > 0 && Math.abs(dx * F0.z - dz * F0.x) < 5) n++; }
     const sc = n * 100 - dist2d(f, g); if (sc > bs) { bs = sc; best = g; }
   }
-  const Y = yawTo(f, best), F = fwd(Y), Rr = rightOf(Y);
+  const Y = me ? cam.yaw : f.remote ? f.yaw : yawTo(f, best), F = fwd(Y), Rr = rightOf(Y);   // el jugador dispara hacia donde apunta; los bots, hacia donde hay más rivales
   // posición donde se queda Redbird (E), cámara baja delante de él (C0) y punto por donde entra caminando (S0, a la izquierda de la cámara)
   const R0 = f.pos.clone();
   for (let i = 0; i < 12 && Math.hypot(R0.x + F.x * 2, R0.z + F.z * 2) > ARENA - 2; i++) R0.addScaledVector(F, -.5);
@@ -206,13 +206,12 @@ CF.mover('rbCosmos', function (f, o) {
       }
     } else if (desc) {   // descenso: nubes y pájaros pasando a toda velocidad hasta quedar en la cámara normal
       const u = clamp((t - descT0) / DESC_DUR, 0, 1), P = f.pos, np = normalPose();
-      desc.update(dt); G.linesI = 1; fxTo((1 - u) * 1.4, .4 * (1 - u) + .15, .3, 0, .35); G.shake = Math.max(G.shake, .35 * (1 - u));
+      desc.update(dt); G.linesI = 1; fxTo((1 - u) * .8, .3 * (1 - u) + .12, .3, 0, .35); G.shake = Math.max(G.shake, .35 * (1 - u));
       const start = new V3(P.x + 22, P.y + 235, P.z - 28), e = ease2(u) * .35 + u * u * .65;
       const pos = lerpV(start, np.pos, e), tn = performance.now() / 1000, hand = (1 - u) * 1.6;
-      if (!cameos) {   // al azar: dos visitantes distintos en momentos distintos
-        const pool = Math.random() < .12 ? ['ufo', 'jet', 'sekza'] : ['jet', 'sekza', 'jet', 'sekza'], k1 = pool[Math.floor(Math.random() * pool.length)];
-        let k2 = pool[Math.floor(Math.random() * pool.length)]; if (k2 === k1) k2 = k1 === 'jet' ? 'sekza' : 'jet';
-        cameos = [{ u: .18 + Math.random() * .12, kind: k1, side: Math.random() < .5 ? 1 : -1, done: false }, { u: .5 + Math.random() * .15, kind: k2, side: Math.random() < .5 ? 1 : -1, done: false }];
+      if (!cameos) {   // dos visitantes: Sekza siempre (se ve bien) y un avión (o, muy rara vez, un platillo)
+        const other = Math.random() < .12 ? 'ufo' : 'jet', sekFirst = Math.random() < .5;
+        cameos = [{ u: .14 + Math.random() * .08, kind: sekFirst ? 'sekza' : other, side: Math.random() < .5 ? 1 : -1, done: false }, { u: .34 + Math.random() * .1, kind: sekFirst ? other : 'sekza', side: Math.random() < .5 ? 1 : -1, done: false }];
       }
       for (const c9 of cameos) if (!c9.done && u >= c9.u) {
         c9.done = true; desc.spawn(c9.kind, pos, new V3(P.x, P.y + 1.3, P.z), c9.side);
@@ -295,9 +294,9 @@ CF.mover('rbCosmos', function (f, o) {
         tremble(a, t, powered ? POW_A : FIRE_A, powered ? POW_B : FIRE_B, powered ? .045 : .05);
         // el rayo barre un poco a los lados: pega a casi todos, no a todos
         const off = powered ? 0 : Math.sin(s * 1.6) * .3; f.yaw = Y + off;
-        const F2 = fwd(f.yaw), org = eyes(), w = (powered ? 3.8 + Math.min(1, (t - fireT - BEAM_EVAL) * .4) : 4.2) * grow, pul = 1 + Math.sin(t * 50) * .08;
+        const F2 = fwd(f.yaw), org = eyes(), w = (powered ? 5.2 + Math.min(1.2, (t - fireT - BEAM_EVAL) * .4) : 6.2) * grow, pul = 1 + Math.sin(t * 50) * .08;
         beamG.position.copy(org); beamG.rotation.y = f.yaw;
-        const ow = (powered ? w * .85 : w * 1.15) * pul; beamG.children[0].scale.set(ow, ow, 1); beamG.children[1].scale.set(w * .38, w * .38, 1);
+        const ow = (powered ? w * .72 : w * 1.05) * pul; beamG.children[0].scale.set(ow, ow, 1); beamG.children[1].scale.set(w * .38, w * .38, 1);
         if (powered) beamG.children[0].material.color.set('#ff3a2a');
         if (me) { if (beamHum) beamHum.set(did.space ? 0 : powered ? 1.5 : 1, powered ? 130 : 92, .3); if (beamHum2) beamHum2.set(did.space ? 0 : powered ? 1.6 : 1, powered ? 260 : 184, .3); }
         const end = org.clone().addScaledVector(F2, LEN);

@@ -5066,7 +5066,7 @@ function applyHit(att, t, o) {
   // durante un agarre con cinematica solo le pega el que lo agarro
   if (t.cineLock && t.cineLock !== att) return false;
   if (t.action && t.action.sebParry && !o.noCounter && att.alive) { sebCounter(t, att); return 'countered'; }
-  if (t.action && t.action.counter && !o.noCounter && att.alive) { counterHit(t, att); return 'countered'; }
+  if (t.action && t.action.counter && !o.noCounter && att.alive) { if (t.action.onCounter) t.action.onCounter(t, att); else counterHit(t, att); return 'countered'; }   // onCounter: la habilidad decide qué pasa al recibir el golpe (p. ej. el parry de Javi)
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
   // Sistema de Choque de Ataques (Attack Clash) estilo anime
