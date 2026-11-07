@@ -1375,6 +1375,8 @@ function syncWeatherControls(){
   $('wx-weather').value=WX.mode;$('wx-cycle').checked=WX.cycle;$('wx-quality').value=WX.quality;$('wx-sound').checked=WX.sound;
   $('wx-hour').value=WX.hour;
 }
+// las cúpulas del cielo siguen a la cámara: si no, al alejarse del centro (orilla, mar) se veía la cúpula por fuera como una esfera gigante
+function skyFollow(){const x=camera.position.x,z=camera.position.z,ap=G.apoc||0;skyDome.position.set(x,0,z);skyMat.color.setRGB(1+ap*.9,1-ap*.72,1-ap*.82);if(typeof WX!=='undefined'&&WX.sky){WX.sky.position.set(x,0,z);if(WX.stars)WX.stars.position.set(x,0,z);}}
 function updateCityWeather(dt,instant=false){
   dt=Number.isFinite(dt)?Math.max(0,dt):0;
   advanceAtmosphere(dt,instant);
@@ -1386,6 +1388,7 @@ function updateCityWeather(dt,instant=false){
   WX.skyTop.lerp(_c.set(night>.5?0x152137:0x526a80),WX.cloud*.83);
   WX.skyHorizon.lerp(_c.set(night>.5?0x2b3c50:0x8e9da7),WX.cloud*.8);
   WX.skyHorizon.lerp(_c.set(night>.5?0x65718b:0xc3d6db),WX.fogAmount*.28);
+  { const ap = G.apoc || 0; if (ap > .003) { WX.skyTop.lerp(_c.set(0x4a0606), ap * .88); WX.skyHorizon.lerp(_c.set(0xff4a1c), ap * .9); } }   // G.apoc: el cielo se vuelve rojo (Ojo del Cosmos de Redbird)
   const blocked=!!G.grade||STAGE.on,visible=G.state==='play'&&!blocked;
   WX.sky.material.uniforms.uTop.value.copy(WX.skyTop);WX.sky.material.uniforms.uHorizon.value.copy(WX.skyHorizon);
   WX.sky.material.uniforms.uLow.value.copy(WX.skyHorizon).multiplyScalar(.8);
@@ -1429,8 +1432,8 @@ function updateCityWeather(dt,instant=false){
     CITY.sunDisc.position.copy(sun.position).normalize().multiplyScalar(245);CITY.sunDisc.lookAt(0,0,0);
     CITY.sunDisc.material.color.set(0xfff4c4).lerp(_c.set(0xffa26f),sunset);CITY.sunDisc.visible=false;   // el sol se dibuja redondo en el cielo
     sun.position.x+=Math.round(focus.x/2)*2;sun.position.z+=Math.round(focus.z/2)*2;sun.target.position.set(Math.round(focus.x/2)*2,0,Math.round(focus.z/2)*2);sun.target.updateMatrixWorld();
-    WX.sunGlow.position.copy(CITY.sunDisc.position);WX.sunGlow.material.opacity=day*(1-WX.cloud)*.6;
-    WX.moon.position.copy(WX.moonLight.position).normalize().multiplyScalar(240);WX.moon.material.opacity=night*(1-WX.cloud*.8);
+    WX.sunGlow.position.copy(CITY.sunDisc.position).add(new V3(camera.position.x,0,camera.position.z));WX.sunGlow.material.opacity=day*(1-WX.cloud)*.6;
+    WX.moon.position.copy(WX.moonLight.position).normalize().multiplyScalar(240).add(new V3(camera.position.x,0,camera.position.z));WX.moon.material.opacity=night*(1-WX.cloud*.8);
     for(const cloud of CLOUDS){cloud.material.color.set(0x3f526c).lerp(_c.set(0xf4f4ed),day);cloud.material.opacity=.75-WX.cloud*.22;}
   }else {WX.moonLight.intensity=0;WX.fillLight.intensity=0;}
   cityWeatherAudio(dt,visible&&!G.paused);
@@ -15683,7 +15686,7 @@ function loop(now){
   }
   if(G.mp)frameTask('red',()=>guideNet(rdt));
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
-  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});frameTask('rayos_sol',()=>updateGodRays());
+  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});frameTask('cielo',skyFollow);frameTask('rayos_sol',()=>updateGodRays());
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
   frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('culling',()=>cityCull());frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}

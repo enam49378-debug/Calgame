@@ -104,45 +104,142 @@ CF.mover('spearThrow', function (f, o) {
   });
 
 /* ===== personajes/javi/Skills/Code/Parry del Dragón/javiParry.js ===== */
-/* Habilidad: Parry del Dragón  ·  personaje: javi  ·  movimiento: javiParry   (habilidad 1 del despertar)
-   Javi hace girar la lanza con un destello y la cruza delante del cuerpo en guardia diagonal baja, con los ojos encendidos.
-   Si alguien lo golpea durante la ventana, desvía el ataque con un tajo explosivo y desata el contraataque anime
-   (coreografía javiParry): ráfaga relámpago de estocadas, paso fantasma a la espalda, ascenso del dragón y picado celestial.
-   Los números (ventana, daño, recarga) están en personaje.js; la escena está en Skills/Animation/Parry del Dragón. */
-CF.mover('javiParry', function (f, o) {
-  const WINDOW = o.window || 1.6;
-  // U(pose, up): ángulo real de la lanza (rad, + = punta arriba) compensando la inclinación del cuerpo y del brazo
-  const U = (p, up) => Object.assign({}, p, { sx: -up - ((p.ix || 0) + (p.tx || 0) + (p.arx || 0)) });
-  const base = { ix: .16, by: -3.4, tx: .12, ty: .48, hy: -.42, hx: -.08, alx: -1.35, alz: -.45, aly: .3, llx: -.68, lrx: .56, llz: .18, lrz: -.18 };
-  const GUARD = U(Object.assign({}, base, { arx: -1.58, arz: -.28, sy: .78, sz: .26 }), .85);
-  const SINK = U(Object.assign({}, base, { by: -4.3, ix: .22, ty: .65, tx: .18, arx: -1.62, arz: -.32, sy: .82, sz: .28, llx: -.82, lrx: .68, llz: .24, lrz: -.24 }), .92);
-  if (f.spear && !f.spearOut) setSpear(f, true);
-  startTwirl(f, 2, .34);
-  startAction(f, {
-    name: 'javiParry', dur: WINDOW, counter: true, aim: true, eyes: true, speedMul: 0, noControl: true,
-    anim: [[0, 'twirlPose', 350], [.28, GUARD, 1200], [.52, SINK, 550], [.92, GUARD, 450], [1.25, SINK, 500]],
-    grips: [{ arm: 'armL', z: 7, t0: .24 }],
-    start: () => {
-      ringAt(chestOf(f), o.color, 2.5, .42, 'face', f.yaw);
-      arcSlash(f, o.color, { tilt: -.75, r: 1.7, len: 2.5, w: .45, dur: .2 });
-      sfx('draw', f.pos); sfx('block', f.pos);
-      popText(chestOf(f), '¡GUARDIA DRAGÓN!', o.color, 20);
-    },
-    tick: (a, t) => {
-      if (Math.floor(t * 10) !== Math.floor((t - .016) * 10)) {
-        const ang = rand(0, Math.PI * 2), r = rand(.35, .95);
-        emit(f.pos.x + Math.cos(ang) * r, f.pos.y + rand(.4, 1.6), f.pos.z + Math.sin(ang) * r, -Math.cos(ang) * 1.5, rand(1.2, 3.2), -Math.sin(ang) * 1.5, Math.random() < .35 ? '#ffffff' : o.color, .11, .32, -.08, 1);
-      }
-      if (t > .28 && Math.floor(t * 4) !== Math.floor((t - .016) * 4)) {
-        ringAt(new V3(f.pos.x, f.pos.y + .08, f.pos.z), o.color, 1.55, .45, 'flat', f.yaw);
-      }
-    },
-    onCounter: (t, att) => {
-      if (!att.alive || att.cineLock || att.grabbed) { counterHit(t, att); return; }
-      f.yaw = yawTo(f, att); f.iframes = Math.max(f.iframes, 2.5);
-      runChore(f, att, CHORE.javiParry);
-    },
-  });
+/* Habilidad: Parry del Dragón · personaje: javi · ranura: awk 1 · id: javiParry
+   Pose de guardia diagonal a dos manos inspirada en el modelo de Blockbench, con movimiento vivo,
+   respiración marcial, giro de entrada y destellos de energía mientras espera el golpe. */
+CF.habilidad('javiParry', function () {
+  // arx + sx = 0 apunta la lanza recto al frente (+Z); up > 0 la inclina hacia arriba (+Y)
+  const U = (o, up = 0) => (o.sx = -(o.arx || 0) - up, o);
+
+  // 1) Anticipación: recoge la lanza al costado derecho flexionando rodillas
+  const WIND = U({
+    ix: -.10, tx: -.08, ty: -.58, tz: -.06, hx: .06, hy: .52, by: -2.4, bz: -1.1,
+    arx: -.42, arz: .48, ary: .22, sy: -.45, sz: -.20,
+    alx: -.88, alz: .36, aly: -.18,
+    llx: -.42, lrx: .46, llz: .14, lrz: -.14,
+    tpx: -.6, tpz: -.8, arpx: -1.4, arpy: .4, arpz: -1.2, alpx: 1.1, alpz: .6,
+    llpz: .8, lrpz: -.8, tscx: 1.04, tscy: .96
+  }, .18);
+
+  // 2) Latigazo diagonal: cruza la lanza frente al pecho con smear de velocidad
+  const SNAP = U({
+    ix: .18, tx: .16, ty: .36, tz: .05, hx: -.10, hy: -.32, by: -4.2, bz: .9,
+    arx: -.96, arz: .12, ary: -.26, sy: 1.12, sz: .34, spx: 1.2, spy: .6, spz: 1.8,
+    alx: -1.36, alz: -.48, aly: .38,
+    llx: -.78, lrx: .66, llz: .18, lrz: -.18,
+    tpx: .5, tpz: .9, arpx: -.9, arpy: -.5, arpz: 1.8, ars: 1.14,
+    alpx: 1.2, alpy: -.2, alpz: 2.0, als: 1.08,
+    llpx: .6, llpz: 1.8, lrpx: -.6, lrpz: -1.8, tscx: 1.08, tscy: .92
+  }, .52);
+
+  // 3) Pose principal de Parry (Blockbench mejorada): lanza cruzada en diagonal de abajo-derecha
+  //    a arriba-izquierda (~24° arriba), mano derecha abajo, mano izquierda sujetando cerca del collar dorado,
+  //    pierna izquierda adelantada y rodillas flexionadas con peso atlético.
+  const GUARD = U({
+    ix: .13, tx: .11, ty: .26, tz: .04, hx: -.08, hy: -.24, by: -3.3, bz: .5,
+    arx: -.84, arz: .16, ary: -.20, sy: 1.04, sz: .28, spx: 1.0, spy: .5, spz: 1.5,
+    alx: -1.28, alz: -.42, aly: .34,
+    llx: -.66, lrx: .56, llz: .15, lrz: -.15,
+    tpx: .3, tpz: .5, arpx: -.7, arpy: -.4, arpz: 1.4,
+    alpx: .9, alpy: -.1, alpz: 1.7,
+    llpx: .5, llpz: 1.5, lrpx: -.5, lrpz: -1.5, tscx: 1.03, tscy: .97
+  }, .46);
+
+  // 4) Oscilaciones vivas durante la ventana de parry (evita quedarse congelado)
+  const COIL = U({
+    ix: .16, tx: .14, ty: .32, tz: .06, hx: -.11, hy: -.30, by: -3.9, bz: .8,
+    arx: -.90, arz: .14, ary: -.24, sy: 1.08, sz: .32, spx: 1.1, spy: .6, spz: 1.7,
+    alx: -1.34, alz: -.45, aly: .36,
+    llx: -.74, lrx: .62, llz: .17, lrz: -.17,
+    tpx: .4, tpz: .7, arpx: -.8, arpy: -.5, arpz: 1.6,
+    alpx: 1.0, alpy: -.2, alpz: 1.9,
+    llpx: .6, llpz: 1.7, lrpx: -.6, lrpz: -1.7, tscx: 1.05, tscy: .95
+  }, .52);
+
+  const SWAY = U({
+    ix: .10, tx: .08, ty: .18, tz: .02, hx: -.05, hy: -.16, by: -2.8, bz: .2,
+    arx: -.78, arz: .18, ary: -.16, sy: .98, sz: .24, spx: .9, spy: .4, spz: 1.3,
+    alx: -1.22, alz: -.38, aly: .30,
+    llx: -.58, lrx: .50, llz: .14, lrz: -.14,
+    tpx: .1, tpz: .3, arpx: -.6, arpy: -.3, arpz: 1.2,
+    alpx: .8, alpy: 0, alpz: 1.5,
+    llpx: .4, llpz: 1.3, lrpx: -.4, lrpz: -1.3, tscx: .99, tscy: 1.02
+  }, .40);
+
+  const SINK = U({
+    ix: .17, tx: .15, ty: .30, tz: .05, hx: -.10, hy: -.28, by: -4.1, bz: .7,
+    arx: -.88, arz: .15, ary: -.22, sy: 1.06, sz: .30, spx: 1.1, spy: .5, spz: 1.6,
+    alx: -1.32, alz: -.44, aly: .35,
+    llx: -.72, lrx: .60, llz: .16, lrz: -.16,
+    tpx: .4, tpz: .6, arpx: -.8, arpy: -.4, arpz: 1.5,
+    alpx: 1.0, alpy: -.1, alpz: 1.8,
+    llpx: .5, llpz: 1.6, lrpx: -.5, lrpz: -1.6, tscx: 1.06, tscy: .94
+  }, .50);
+
+  // 5) Salida suave si nadie golpea
+  const OPEN = U({
+    ix: .05, tx: .06, ty: -.18, hx: -.02, hy: .16, by: -1.6, bz: 0,
+    arx: -.62, arz: .28, ary: -.10, sy: .25, sz: 0,
+    alx: -.75, alz: .22, aly: .12,
+    llx: -.36, lrx: .32, llz: .10, lrz: -.10
+  }, .22);
+
+  return function (f) {
+    prepWeapon(f);
+    sfx('draw', f.pos);
+    startTwirl(f, 2, .22);
+    f.counter = 1.55;
+    const sparkTip = () => {
+      if (!f.spear || !f.spearOut) return;
+      const tip = anchorPoint(f, 'tip'), mid = f.spear.localToWorld(new V3(0, 0, 12 * PX));
+      burst(tip, 5, '#4fc3f7', 2.8, .09, .26, -.2);
+      burst(mid, 3, '#ffd54f', 2.0, .07, .22, -.15);
+    };
+    startAction(f, {
+      name: 'javiParry', dur: 1.8, speedMul: .22, eyes: true,
+      // La mano izquierda agarra el asta justo detrás del collar dorado (z=11) como en Blockbench
+      grips: [{ arm: 'armL', z: 11, t0: .16 }],
+      anim: [
+        [0, WIND, 1100],
+        [.13, SNAP, 1400],
+        [.24, GUARD, 950],
+        [.52, COIL, 520],
+        [.82, SWAY, 520],
+        [1.12, SINK, 520],
+        [1.40, GUARD, 560],
+        [1.58, OPEN, 650],
+      ],
+      steps: [
+        {
+          at: .13, fn: () => {
+            arcSlash(f, '#4fc3f7', { tilt: .42, r: 1.85, len: 2.7, dir: 1, w: .62, dur: .22 });
+            ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#4fc3f7', 2.4, .28);
+            burst(front(f, 1.0, 1.25), 12, '#ffd54f', 4.5, .11, .32, 0);
+            sfx('swing', f.pos, .75);
+          }
+        },
+        { at: .35, fn: sparkTip },
+        { at: .68, fn: sparkTip },
+        { at: 1.02, fn: sparkTip },
+        { at: 1.32, fn: sparkTip },
+      ],
+      onCounter: (f, att) => {
+        const clash = front(f, 1.05, 1.28);
+        impactFrame(.08);
+        G.shake = Math.max(G.shake, .65);
+        sphereFlash(clash, '#ffffff', 1.7, .18);
+        impactStar(clash, '#ffd54f', 2.5, .24);
+        ringAt(clash, '#4fc3f7', 3.2, .28, 'face', f.yaw);
+        ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd54f', 3.4, .32);
+        burst(clash, 24, '#ffd54f', 9, .15, .38, .1);
+        burst(clash, 18, '#4fc3f7', 8, .14, .36, 0);
+        sfx('clang', clash, 1.0);
+        sfx('counter', f.pos);
+        popText(chestOf(f), '¡PARRY DEL DRAGÓN!', '#4fc3f7', 24);
+        startChoreo(f, att, 'javiParry');
+      },
+    });
+  };
 });
 
 /* ===== personajes/javi/Skills/Code/Patada Giratoria/manjiKick.js ===== */
@@ -916,6 +1013,90 @@ const rbCosmosEspacio = function (O) {
   return api;
 };
 
+/* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/mundo-cosmos.js ===== */
+/* "Ojo del Cosmos" · lo que le pasa al MUNDO (lo ven todos los jugadores, no solo Redbird):
+     - el cielo se vuelve rojo (G.apoc, lo lee el clima en game.js) y vuelve poco a poco a la normalidad;
+     - toda la partida tiembla mientras el cosmos responde;
+     - caen escombros y meteoritos ardiendo alrededor de la cámara (polvo, brasas, grietas y ondas al chocar);
+     - el rayo reacciona al agua: sobre el mar levanta una franja de espuma, géiseres, vapor y ondas.
+   Uso desde rbCosmos.js:  const M = rbCosmosMundo();  M.setApoc(1);  M.update(dt, { center, rain, quake });
+                           M.water(origen, direccion, largo, ancho, potenciado, dt);  M.hideFoam();  M.dispose(); */
+const rbCosmosMundo = function () {
+  const g = new THREE.Group(), mats = [], geos = [], rocks = []; scene.add(g);
+  const boxG = new THREE.BoxGeometry(1, 1, 1); geos.push(boxG);
+  const rockMats = [0x5e5046, 0x7a6a5c, 0x463b34].map(c => { const m = new THREE.MeshLambertMaterial({ color: c }); mats.push(m); return m; });
+  const hotMat = new THREE.MeshBasicMaterial({ color: 0xff7a2a, fog: false }); mats.push(hotMat);
+  const wet = (x, z) => z > SHORE(x) + .2 && z < 290 && Math.abs(x) < 190;   // ¿es mar?
+  let apoc = 0, apocT = 0, acc = 0, hornT = 0, geyT = 0, sndT = 0, foam = null, MAX = 64;
+
+  // ---- escombros
+  const spawn = (c) => {
+    if (rocks.length >= MAX) return;
+    const a = rand(0, TAU), r = rand(4, 38), hot = Math.random() < .45, sc = rand(.5, 1.7);
+    const m = new THREE.Mesh(boxG, hot ? hotMat : rockMats[Math.floor(Math.random() * 3)]);
+    m.position.set(c.x + Math.cos(a) * r, c.y + rand(38, 64), c.z + Math.sin(a) * r); m.scale.set(sc, sc * rand(.6, 1.2), sc * rand(.7, 1.1));
+    m.rotation.set(rand(0, TAU), rand(0, TAU), rand(0, TAU)); g.add(m);
+    rocks.push({ m, v: new V3(rand(-6, 6), -rand(26, 44), rand(-6, 6)), spin: new V3(rand(-4, 4), rand(-4, 4), rand(-4, 4)), hot, sc, big: sc > .95 });
+  };
+  const impact = (r) => {
+    const p = r.m.position, w = wet(p.x, p.z), y = w ? SEA_Y + .05 : groundAt(p.x, p.z, p.y), P = new V3(p.x, y, p.z), d = camera.position.distanceTo(P), near = clamp(1 - d / 34, 0, 1);
+    if (w) { burst(P, 16, '#dff4ff', 9, .26, .8, 1.3, 7); ringAt(P, '#ffffff', 2.6 + r.sc * 2, .55); }
+    else {
+      burst(new V3(P.x, P.y + .2, P.z), r.big ? 22 : 12, '#7a6a52', 8, .24, .7, 1.1, 5);
+      if (r.hot) { burst(P, 14, '#ff9a3a', 9, .14, .5, .8, 4); ringAt(P, '#ff7a1a', 2 + r.sc * 2, .45); }
+      if (r.big && Math.random() < .5) crackDecal(P, rand(1.2, 2.4));
+    }
+    if (near > 0) { G.shake = Math.max(G.shake, (r.big ? .3 : .12) * near); if (sndT <= 0 && Math.random() < .6) { sfx(r.big ? 'heavy' : 'hit', P, .4); sndT = .12; } }
+    g.remove(r.m);
+  };
+
+  return {
+    setApoc(v) { apocT = v; },
+    // o = { center: V3 (alrededor de qué caen), rain: escombros por segundo, quake: temblor general (0..1) }
+    update(dt, o) {
+      o = o || {}; apoc += (apocT - apoc) * (1 - Math.exp(-dt * 1.4)); G.apoc = apoc; sndT -= dt;
+      if (o.quake) G.shake = Math.max(G.shake, o.quake * (.8 + .2 * Math.sin(performance.now() * .02)));
+      if (o.rain && o.center) { acc += o.rain * dt; while (acc >= 1) { acc -= 1; spawn(o.center); } }
+      for (let i = rocks.length - 1; i >= 0; i--) {
+        const r = rocks[i], p = r.m.position; p.addScaledVector(r.v, dt); r.m.rotation.x += r.spin.x * dt; r.m.rotation.y += r.spin.y * dt; r.m.rotation.z += r.spin.z * dt;
+        if (r.hot) emit(p.x, p.y, p.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), Math.random() < .5 ? '#ff8a3a' : '#ffd27a', .14, .4, 0, 0);
+        const gy = wet(p.x, p.z) ? SEA_Y : groundAt(p.x, p.z, p.y);
+        if (p.y <= gy + r.sc * .5) { impact(r); rocks.splice(i, 1); }
+      }
+    },
+    // el rayo sobre el agua: franja de espuma que cubre el tramo del rayo que pasa por el mar, géiseres, vapor y ondas
+    water(org, F2, len, w, powered, dt) {
+      let d0 = -1, d1 = -1;
+      for (let d = 0; d <= len; d += 2) { const x = org.x + F2.x * d, z = org.z + F2.z * d; if (wet(x, z)) { if (d0 < 0) d0 = d; d1 = d; } }
+      if (d0 < 0) { if (foam) foam.visible = false; return; }
+      if (!foam) { const m = glowMat('#cfeeff', .5); mats.push(m); m.side = THREE.DoubleSide; const pg = new THREE.PlaneGeometry(1, 1); geos.push(pg); foam = new THREE.Mesh(pg, m); foam.rotation.order = 'YXZ'; g.add(foam); }
+      const L = d1 - d0 + 2, mid = d0 + L / 2, pulse = 1 + Math.sin(performance.now() * .02) * .1;
+      foam.visible = true; foam.position.set(org.x + F2.x * mid, SEA_Y + .07, org.z + F2.z * mid); foam.rotation.set(-Math.PI / 2, Math.atan2(F2.x, F2.z), 0); foam.scale.set(w * 1.7 * pulse, L, 1); foam.material.opacity = .42 + Math.sin(performance.now() * .015) * .1;
+      geyT -= dt;
+      if (geyT <= 0) {
+        geyT = powered ? .07 : .12;
+        for (let k = 0; k < (powered ? 3 : 2); k++) {
+          const dd = rand(d0, d1), lat = rand(-w * .7, w * .7), x = org.x + F2.x * dd + F2.z * lat, z = org.z + F2.z * dd - F2.x * lat; if (!wet(x, z)) continue;
+          const P = new V3(x, SEA_Y + .08, z);
+          burst(P, powered ? 18 : 10, '#dff4ff', powered ? 11 : 8, .26, .9, 1.4, 8);
+          for (let i = 0; i < 3; i++) emit(x + rand(-.5, .5), SEA_Y + .2, z + rand(-.5, .5), rand(-1, 1), rand(5, 12), rand(-1, 1), '#ffffff', .42, 1.1, -.4, 0);   // vapor
+          if (Math.random() < (powered ? .5 : .32)) {   // columna de agua que sube y cae
+            const h = rand(7, powered ? 18 : 12), rr = rand(.7, 1.5), cm = new THREE.Mesh(new THREE.CylinderGeometry(rr * .7, rr, 1, 12, 1, true), glowMat('#e8f8ff', .55)); cm.position.set(x, SEA_Y, z);
+            addFx(cm, .7, (m, kk) => { const up = Math.sin(Math.min(1, kk * 1.25) * Math.PI * .5); m.scale.set(1 + kk * .8, h * up, 1 + kk * .8); m.position.y = SEA_Y + h * up / 2; m.material.opacity = (1 - kk) * .6; });
+            ringAt(P, '#ffffff', 4 + Math.random() * 3, .6);
+          }
+        }
+        if (sndT <= 0 && Math.random() < .5) { sfx('whoosh', new V3(org.x + F2.x * mid, SEA_Y, org.z + F2.z * mid), .5); sndT = .35; }
+      }
+    },
+    hideFoam() { if (foam) foam.visible = false; },
+    dispose() {
+      scene.remove(g); mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose());
+      const back = () => { G.apoc = (G.apoc || 0) * .965; if (G.apoc > .01) requestAnimationFrame(back); else G.apoc = 0; }; back();   // el cielo rojo se apaga poco a poco
+    },
+  };
+};
+
 /* ===== personajes/redbird/Skills/Code/Ojo del Cosmos/rbCosmos.js ===== */
 /* Habilidad: Ojo del Cosmos  ·  personaje: redbird  ·  movimiento: rbCosmos   (habilidad 4 del despertar)
    Escena 1: cámara fija a ras del suelo, no se ve nada. Escena 2: la MISMA cámara; entran los pies de Redbird caminando de lado.
@@ -960,7 +1141,7 @@ CF.mover('rbCosmos', function (f, o) {
 
   // ---- estado
   const did = {}; let fireT = 0, k0 = 0, success = false, beamG = null, space = null, spaceT0 = 0, desc = null, descT0 = 0, graded = false, acc = 0, powered = false, finished = false;
-  let camFar0 = null, bloomKick = 0, cameos = null, alive0 = [], skyBeam = null, A = null, mine = null, tension = null, rumble = null, beamHum = null, beamHum2 = null, ambience = null; const nextAt = {};
+  let mundo = null, camFar0 = null, bloomKick = 0, cameos = null, alive0 = [], skyBeam = null, A = null, mine = null, tension = null, rumble = null, beamHum = null, beamHum2 = null, ambience = null; const nextAt = {};
   const tremble = (a, t, A1, A2, per) => { const ph = Math.floor(t / per) % 2; if (a._ph !== ph) { a._ph = ph; a.anim = [[t + .04, ph ? A1 : A2, 700]]; } };
   const ease = k => 1 - Math.pow(1 - clamp(k, 0, 1), 3), ease2 = k => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); }, lerpV = (a, b, k) => a.clone().lerp(b, clamp(k, 0, 1));
 
@@ -991,7 +1172,7 @@ CF.mover('rbCosmos', function (f, o) {
     outer.position.z = core.position.z = LEN / 2; beamG.add(outer, core); scene.add(beamG);
   };
   const killSky = () => { if (skyBeam) { scene.remove(skyBeam); skyBeam.children.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); skyBeam = null; } };
-  const killBeam = () => { if (beamG) { scene.remove(beamG); beamG.children.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); beamG = null; } };
+  const killBeam = () => { if (mundo) mundo.hideFoam(); if (beamG) { scene.remove(beamG); beamG.children.forEach(m => { m.geometry.dispose(); m.material.dispose(); }); beamG = null; } };
 
   // ---- efecto de cine: desenfoque (de zoom y de bordes), viñeta, grano y menos color; solo mientras dura la escena
   let cos = null, bloom0 = null, fxPulse = 0;
@@ -1059,7 +1240,7 @@ CF.mover('rbCosmos', function (f, o) {
 
   const cleanup = () => {
     if (finished) return; finished = true;
-    killBeam(); if (space) { try { space.dispose(); } catch (e) { } space = null; } if (desc) { try { desc.dispose(); } catch (e) { } desc = null; }
+    killBeam(); if (mundo) { try { mundo.dispose(); } catch (e) { } mundo = null; } if (space) { try { space.dispose(); } catch (e) { } space = null; } if (desc) { try { desc.dispose(); } catch (e) { } desc = null; }
     if (graded) { cineGrade(false); graded = false; }
     rbCosmosSnd.stopAll(); setFx(0, 0, 1); glow.style.opacity = 0; if (isP) barsOut(); document.body.classList.remove('cine'); killSky();
     if (cos && composer) { const i = composer.passes.indexOf(cos); if (i >= 0) composer.passes.splice(i, 1); cos = null; }
@@ -1200,7 +1381,7 @@ CF.mover('rbCosmos', function (f, o) {
       }
       // ---- disparo
       if (!did.fire && t >= T_FIRE) {
-        did.fire = true; fireT = t; k0 = f.kills; alive0 = enemiesOf(f).filter(g => g.alive); a.anim = [[t + .1, FIRE_A, 700]]; makeBeam();
+        did.fire = true; fireT = t; k0 = f.kills; alive0 = enemiesOf(f).filter(g => g.alive); a.anim = [[t + .1, FIRE_A, 700]]; makeBeam(); mundo = rbCosmosMundo();
         sfx('beam', f.pos); sfx('boom', f.pos); screenFlash(me ? .7 : .3); G.shake = Math.max(G.shake, me ? 1 : .4 * clamp(1 - camera.position.distanceTo(f.pos) / 40, 0, 1)); G.fovKick = Math.max(G.fovKick, isP ? 8 : 3);
         ringAt(eyes(), '#ffffff', 5, .45, 'face', f.yaw);
         if (me) { rbCosmosSnd.boom(1); rbCosmosSnd.sting(.7); } if (isP) { impactFrame('#ff2d55', .08); CAMFX.ca = 1; }
@@ -1219,6 +1400,7 @@ CF.mover('rbCosmos', function (f, o) {
         if (powered) beamG.children[0].material.color.set('#ff3a2a');
         if (me) { if (beamHum) beamHum.set(did.space ? 0 : powered ? 1.5 : 1, powered ? 130 : 92, .3); if (beamHum2) beamHum2.set(did.space ? 0 : powered ? 1.6 : 1, powered ? 260 : 184, .3); }
         const end = org.clone().addScaledVector(F2, LEN);
+        if (mundo) mundo.water(org, F2, LEN, w, powered, dt);   // reacción del rayo al mar
         for (let i = 0; i < 4; i++) { const q = org.clone().addScaledVector(F2, rand(2, LEN * .5)); emit(q.x + rand(-w, w) * .6, q.y + rand(-1, 1), q.z, rand(-5, 5), rand(0, 5), rand(-5, 5), powered ? '#ffffff' : '#ff2d55', .24, .35, .3); }
         emit(end.x, end.y, end.z, rand(-8, 8), rand(0, 8), rand(-8, 8), '#ff7a1a', .3, .4, .5);
         if (involvesPlayerNear(f) && !isP) G.shake = Math.max(G.shake, powered ? .3 : .18);
@@ -1244,7 +1426,7 @@ CF.mover('rbCosmos', function (f, o) {
       if (did.eval && !success && t >= fireT + BEAM_EVAL + 1) { killBeam(); rbCosmosSnd.stopAll(); endAction(f); return; }
       // ---- espacio (el jugador lo ve; los demás ven una columna de energía al cielo, rayos y ondas de choque)
       if (success && !did.space && t >= fireT + BEAM_EVAL + POWER_DUR) {
-        did.space = true; if (rumble) rumble.set(0, 60, .1);
+        did.space = true; if (rumble) rumble.set(0, 60, .1); if (mundo) mundo.setApoc(1);   // el cielo se pone rojo para todos
         if (isP) {
           spaceT0 = t; cineGrade(true, f); graded = true; scene.fog = null; scene.background = new THREE.Color(0x01020a); if (bloomPass) { if (bloom0 == null) bloom0 = bloomPass.strength; bloomPass.strength = bloom0 * 2.4; }
           camFar0 = camera.far; camera.far = 1600; camera.updateProjectionMatrix(); space = rbCosmosEspacio(new V3(f.pos.x, 2600, f.pos.z)); screenFlash(1); sfx('whoosh'); rbCosmosSnd.whoosh(.8, 4000, 300, .6);
@@ -1271,9 +1453,11 @@ CF.mover('rbCosmos', function (f, o) {
         if (s < 2.2 && t >= (nextAt.crack || 0)) { rbCosmosSnd.crackle(); nextAt.crack = t + .12 + Math.random() * .2; }
         if (s >= 5.2) { const k = clamp((s - 5.2) / (SPACE_DUR - 5.2), 0, 1); if (!did.dive) { did.dive = true; rbCosmosSnd.whoosh(1.3, 300, 3200, .8); rbCosmosSnd.reentry(1.2); CAMFX.ca = 1; } if (ambience) ambience.set(1 + k * 2.2, 140 + k * 1800, .15); }
       }
+      // ---- el mundo reacciona (todos lo ven): temblor general, cielo rojo y lluvia de escombros mientras el cosmos responde
+      if (mundo) { const live = did.space && !did.end; mundo.update(dt, { center: isP ? f.pos : camera.position, rain: live ? (did.desc ? 16 : 11) : 0, quake: live ? (did.desc ? .22 : (t - spaceT0 < 2.4 ? .5 : .32)) : 0 }); }
       // ---- descenso entre nubes y pájaros hasta Redbird (los demás lo ven levantarse y la columna desaparecer)
       if (success && did.space && !did.desc && t >= spaceT0 + SPACE_DUR) {
-        did.desc = true; killBeam(); killSky();
+        did.desc = true; killBeam(); killSky(); if (mundo) mundo.setApoc(.55);
         if (space) { space.dispose(); space = null; }
         if (graded) { cineGrade(false); graded = false; }
         if (bloom0 != null && bloomPass) bloomPass.strength = bloom0;
@@ -1290,7 +1474,7 @@ CF.mover('rbCosmos', function (f, o) {
         if (t >= (nextAt.bird || 0)) { rbCosmosSnd.chirp(); nextAt.bird = t + .18 + Math.random() * .35; }
       }
       if (success && did.desc && !did.end && t >= descT0 + DESC_DUR) {
-        did.end = true;
+        did.end = true; if (mundo) mundo.setApoc(0);
         screenFlash(me ? .8 : .3); G.shake = Math.max(G.shake, me ? 1 : .5 * clamp(1 - camera.position.distanceTo(f.pos) / 40, 0, 1)); sfx('boom', f.pos);
         if (me) { rbCosmosSnd.boom(.9); rbCosmosSnd.choir([130.8, 196, 261.6, 392], 3.6, .5); }
         rbCosmosSnd.stopAll();
