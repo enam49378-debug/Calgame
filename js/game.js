@@ -5477,9 +5477,11 @@ function choreBegin(f, tg, D) {
   if (D.stake && f.spear) { st.spearScale = f.spear.scale.z; f.choreStake = true; f.spear.scale.z = D.stake.scale; }
   f.choreTrack = D.bbPreview ? javiBBTrack(D.bbPreview, D.bbKey || 'javi') : D.attClip ? javiBBTrack(D.attClip, f.ch.id) : buildCineTrack(D.att, Object.assign({}, f.anim.x), D.ev); f.choreTime = 0; f.choreEyes = false;
   f.choreFrom = D.attClip ? Object.assign({}, f.anim.x) : null;
+  // D.attClipEnd / D.vicClipEnd: el clip de BBS solo cubre el principio de la escena; desde ese segundo siguen las poses de D.att / D.vic
+  f.choreTrack2 = D.attClip && D.attClipEnd ? buildCineTrack(D.att, Object.assign({}, f.anim.x), D.ev) : null; f.choreSwapT = f.choreTrack2 ? D.attClipEnd : null;
   f.iframes = Math.max(f.iframes, D.dur + .3);
-  if (tg.remote) { if (tg.action) endAction(tg); tg.sceneLock = st; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; }
-  if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.grabbed = true; tg.stun = 9; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; }
+  if (tg.remote) { if (tg.action) endAction(tg); tg.sceneLock = st; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; tg.choreTrack2 = D.vicClip && D.vicClipEnd ? buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev) : null; tg.choreSwapT = tg.choreTrack2 ? D.vicClipEnd : null; }
+  if (!tg.remote) { endAction(tg); tg.blocking = false; tg.cineLock = f; tg.grabbed = true; tg.stun = 9; tg.choreTrack = D.vicClip ? javiBBTrack(D.vicClip, f.ch.id) : buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev); tg.choreTime = 0; tg.choreFrom = D.vicClip ? Object.assign({}, tg.anim.x) : null; tg.choreTrack2 = D.vicClip && D.vicClipEnd ? buildCineTrack(D.vic, Object.assign({}, tg.anim.x), D.ev) : null; tg.choreSwapT = tg.choreTrack2 ? D.vicClipEnd : null; }
   if (f.isPlayer || tg.isPlayer) G.chore = st;
   if (D.trails && f.spear) cineRibbon(st);
   // D.props = [st => ({ tick(t, dt, st), on(nombre, e, st), dispose() })]: objetos 3D propios de la escena (un avion, nubes...). Se crean aqui y se quitan en choreEnd.
@@ -5489,11 +5491,12 @@ function choreBegin(f, tg, D) {
 }
 function choreRelease(st) {
   if (st.released) return; st.released = true;
-  const tg = st.tg; if (tg.remote) { tg.sceneLock = null; tg.choreTrack = null; } else { tg.cineLock = null; tg.grabbed = false; tg.choreTrack = null; tg.stun = 0; }
+  const tg = st.tg; tg.choreTrack2 = null; tg.choreSwapT = null;
+  if (tg.remote) { tg.sceneLock = null; tg.choreTrack = null; } else { tg.cineLock = null; tg.grabbed = false; tg.choreTrack = null; tg.stun = 0; }
 }
 function choreEnd(st) {
   for (const p of st.props || []) { try { if (p.dispose) p.dispose(); } catch (e) { } } st.props = [];
-  choreRelease(st); st.f.choreTrack = null; st.f.choreEyes = false;
+  choreRelease(st); st.f.choreTrack = null; st.f.choreTrack2 = null; st.f.choreSwapT = null; st.f.choreEyes = false;
   st.f.choreGripQuat = null; st.f.choreStake = false;
   if (st.spearScale != null && st.f.spear) st.f.spear.scale.z = st.spearScale;
   if (st.f.model.gripRot) st.f.model.gripRot.rotation.set(st.f.anim.x.sx, st.f.anim.x.sy || 0, st.f.anim.x.sz || 0);
@@ -5503,9 +5506,10 @@ function choreEnd(st) {
 function syncChorePose(f, dt, st, victim = false) {
   if (!f.choreTrack) return;
   f.choreGripQuat = null;
-  f.anim.bbR6=!!(st && (st.D.bbPreview || (st.D.attClip && !victim)));
+  const clipOn = f.choreSwapT == null || f.choreTime < f.choreSwapT;   // mientras dura el clip de BBS (despues, poses)
+  f.anim.bbR6=!!(st && (st.D.bbPreview || (clipOn && (victim ? st.D.vicClip && st.D.vicR6 : st.D.attClip))));
   const previous = st && st.D.r6 ? Object.assign({},f.anim.x) : null;
-  f.anim.play(f.choreTrack, f.choreTime, dt, true); f.choreFrame = G.time;
+  f.anim.play(clipOn ? f.choreTrack : f.choreTrack2, f.choreTime, dt, true); f.choreFrame = G.time;
   if (previous) {
     r6Acting(f, st, victim);
     for(const joint of JOINTS) f.anim.v[joint]=dt>0 ? (f.anim.x[joint]-previous[joint])/dt*.5 : 0;
@@ -5957,6 +5961,20 @@ function choreCam(st, dt) {
       const ang = mix(op.a0, op.a1, 90) * Math.PI / 180 * s, r = mix(op.r0, op.r1, 4), hh = mix(op.h0, op.h1, .3);
       pos = look.clone().addScaledVector(dir, -Math.cos(ang) * r).addScaledVector(perp, Math.sin(ang) * r); pos.y = look.y + hh;
       fov = mix(op.fov0, op.fov1, op.fov || 44); roll = mix(op.roll0, op.roll1, 0) * Math.PI / 180 * s; fit = false; break;
+    }
+    // 'bb': cámara de una película de BBS ya convertida (tools/bbs_escena.py). op.keys = [[t, x derecha, y arriba, z adelante (del origen de la escena), giro (grados, + = a la derecha),
+    //   inclinación (grados, + = mira hacia abajo), roll, fov], ...]: se interpola entre cuadros y no se suaviza ni se corre por obstáculos (es la cámara que dibujó el animador)
+    case 'bb': {
+      const K = op.keys; let i = 0; while (i < K.length - 2 && t >= K[i + 1][0]) i++;
+      const a = K[i], b = K[Math.min(i + 1, K.length - 1)], u = b[0] > a[0] ? clamp((t - a[0]) / (b[0] - a[0]), 0, 1) : 0, L = j => a[j] + (b[j] - a[j]) * u;
+      const yw = L(4) * Math.PI / 180, pt = L(5) * Math.PI / 180, cp = Math.cos(pt);
+      pos = st.origin.clone().addScaledVector(perp, L(1)).addScaledVector(dir, L(3)); pos.y += L(2);
+      look = pos.clone().addScaledVector(dir, Math.cos(yw) * cp).addScaledVector(perp, Math.sin(yw) * cp); look.y -= Math.sin(pt);
+      camera.position.copy(pos); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ((op.rs || 1) * L(6) * Math.PI / 180 + CAMFX.roll);
+      st.cp = pos.clone(); st.cl = look.clone(); st.roll = 0;
+      if (G.shake > 0) { const q = G.shake * .22; camera.position.x += rand(-q, q); camera.position.y += rand(-q, q); G.shake = Math.max(0, G.shake - dt * 2.4); }
+      cam.fov = L(7); camera.fov = cam.fov * (1 - CAMFX.zoom * .16); camera.updateProjectionMatrix();
+      return;
     }
     case 'wide': pos = mid.clone().addScaledVector(perp, 9 * s).add(new V3(0, 3.2, 0)); look = mid; fov = fov || 48; break;
     case 'up': pos = V.clone().addScaledVector(perp, (op.d || 3.4) * s).addScaledVector(dir, 1.6); pos.y = gy + .2; look = mid.clone().lerp(V, .45).add(new V3(0, .5, 0)); fov = fov || 64; break;

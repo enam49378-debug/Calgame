@@ -89,8 +89,9 @@
     H.install();
     const dur = H.setup(o.id);
     for (let i = 0; i < 4; i++) H.frame();   // arranque (el visor tarda un par de cuadros)
+    if (o.dev) H.dev(true);
     // el chore ya está corriendo; si no, no hay nada que ver
-    const metrics = []; let next = from, guard = 0, saved = 0; H.shots = [];
+    const metrics = [], pend = []; let next = from, guard = 0, saved = 0; H.shots = [];
     while (G.chore && G.chore.t < dur + .2 && G.chore.t <= to && guard++ < 6000) {
       const st = G.chore;
       const m = H.measure(); if (m && (!metrics.length || metrics[metrics.length - 1].t !== m.t)) metrics.push(m);
@@ -107,11 +108,12 @@
             drawFrameSafely(); b64 = canvasToJpeg(w);
             camera.position.copy(p0); camera.quaternion.copy(q0); camera.fov = f0; camera.up.copy(u0); camera.updateProjectionMatrix();
           }
-          await post(v + '_' + label, { t: r(st.t), v, d: b64 }); saved++;
+          pend.push([v + '_' + label, { t: r(st.t), v, d: b64 }]); saved++;   // se guardan al final (esperar en medio deja correr el reloj real)
         }
       }
       H.frame();
     }
+    for (const [n, b] of pend) await post(n, b);
     await post('metrics', { id: o.id, dur, rows: metrics });
     H.uninstall();
     return { saved, rows: metrics.length, dur };

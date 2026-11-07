@@ -2,7 +2,10 @@
 leyendo la película con las MISMAS reglas que usa BBS al reproducirla (sacadas del propio mod: bbs-cml-3.0-beta-5, clases Interpolations,
 SplineMath, KeyframeChannel/KeyframeSegment, ModelFormRenderer.applyPose, FormRenderer.createTransform y Transform.setupMatrix).
 
-Uso:  python tools/bbs_a_clip.py <pelicula.dat> <salida.json> [loop|once] [replay=0]
+Uso:  python tools/bbs_a_clip.py <pelicula.dat> <salida.json> [loop|once] [replay=0] [desde=<tick>] [ruta=<archivo.json>] [--sin-suelo]
+  desde=N  el clip empieza en el tick N de la película (t=0 del clip = tick N): sirve para escenas que arrancan a mitad de la animación.
+  ruta=F   el desplazamiento del cuerpo entero (transform) NO se mete en el clip: se guarda en F como [[t, derecha, altura, adelante], ...] para la
+           coreografía (apos/vpos), que es quien mueve de verdad al luchador. El giro del cuerpo entero sí queda en el clip.
 
 Qué se respeta (hasta el último detalle):
   - Los 20 ticks por segundo y el tick fraccionario: se muestrea a 60 cuadros por segundo reales.
@@ -29,6 +32,8 @@ src, out = sys.argv[1], sys.argv[2]
 extra = sys.argv[3:]
 mode = next((a for a in extra if a in ('loop', 'once')), 'once')
 ridx = next((int(a.split('=')[1]) for a in extra if a.startswith('replay=')), 0)
+DESDE = next((float(a.split('=')[1]) for a in extra if a.startswith('desde=')), 0.0)       # tick desde el que empieza el clip (el resto de la película no se usa)
+RUTA = next((a.split('=', 1)[1] for a in extra if a.startswith('ruta=')), None)           # archivo donde se guarda el recorrido del cuerpo entero (x derecha, y altura, z adelante)
 film = load(src)[0]
 rp = film['replays'][ridx]
 props = rp['properties']
@@ -75,6 +80,9 @@ def interp(kind, a0, a, b, b0, x):
     if kind in ('constant', 'const', 'step'): return a
     if kind == 'smoothstep': return a + (b - a) * (x * x * (3 - 2 * x))
     if kind == 'smootherstep': return a + (b - a) * (x * x * x * (x * (6 * x - 15) + 10))
+    if kind in ('back_in', 'back_out'):                      # Easings.BACK = (s+1)x³ - s x² con s = 1.70158; out(e)(x) = 1 - e(1-x); luego lerp(a, b, e(x))
+        bk = lambda u: (1.70158 + 1) * u * u * u - 1.70158 * u * u
+        return a + (b - a) * (bk(x) if kind == 'back_in' else 1 - bk(1 - x))
     if kind == 'cubic': return cubic(a0, a, b, b0, x)
     if kind in ('hermite', 'monotone'): return cubic_hermite(a0, a, b, b0, x)
     if kind == 'akima': return akima(a0, a, b, b0, x, False)
@@ -133,6 +141,7 @@ def comp_chans(prop, bone=None):
 
 
 def order_key(name):
+    name = name.split('.bones.')[0]                                  # 'pose_overlay0.bones.anchor' -> capa 'pose_overlay0'
     if '_overlay' not in name: return -1
     suf = name.split('_overlay')[1]
     return 0 if suf == '' else int(suf) + 1
@@ -142,7 +151,12 @@ pose_props = sorted([n for n, p in props.items() if n.startswith('pose') and not
 tr_props = sorted([n for n, p in props.items() if n.startswith('transform') and not n.split('/')[0].isdigit() and p['keyframes']], key=order_key)
 BONES = ['head', 'low_body', 'left_arm', 'right_arm', 'left_leg', 'right_leg']
 bone_tracks = {b: [] for b in BONES}      # en orden: base y luego overlays
+anchor_tracks = []                        # hueso `anchor` (raíz de todo el modelo): pistas sueltas "pose.bones.anchor", "pose_overlay0.bones.anchor"…
 for n in pose_props:
+    if '.bones.' in n:
+        if n.split('.bones.')[1] == 'anchor': anchor_tracks.append(comp_chans(props[n]))
+        else: warn.append('pista %s no soportada' % n)
+        continue
     used = {bo for kf in props[n]['keyframes'] for bo in ((kf.get('value') or {}).get('pose') or {})}
     for bo in used:
         if bo not in bone_tracks:
@@ -150,7 +164,7 @@ for n in pose_props:
         bone_tracks[bo].append(comp_chans(props[n], bo))
 root_tracks = [comp_chans(props[n]) for n in tr_props]
 last_tick = max([kf['tick'] for n in pose_props + tr_props for kf in props[n]['keyframes']] + [0])
-LEN = last_tick / TPS
+LEN = last_tick / TPS - DESDE / TPS
 
 
 def combine(chs, tick):
@@ -235,7 +249,7 @@ def lowest(vals):
 
 
 n_frames = int(round(LEN * 60)) + 1
-times = [min(i / 60.0, LEN) for i in range(n_frames)]
+times = [min(i / 60.0, LEN) for i in range(n_frames)]   # tiempos del clip (0 = tick DESDE)
 if times[-1] < LEN - 1e-9: times.append(LEN)
 rows = []
 unw = {}                                                    # continuidad de los ángulos (sin saltos de 2π)
@@ -250,20 +264,31 @@ def unwrap(key, v):
     return v
 
 
+ruta_rows = []
 for tm in times:
-    tick = tm * TPS
+    tick = tm * TPS + DESDE
     vals = {}
     # ---- cuerpo entero (espacio de la entidad: frente +Z, sin conjugar). M = T(t)·T(p)·R·S·T(-p), en píxeles (1 bloque = 16)
+    M_root = np.eye(4)
     if root_tracks:
         rt, rs, rr, rpv = combine(root_tracks, tick)
-        R_root = rot_zyx(rr)
         if np.any(np.abs(rs - 1) > 1e-6): warn.append('escala del cuerpo entero ignorada')
-        hip0 = np.array([0.0, HIP, 0.0]); t_px = rt * 16.0; p_px = rpv * 16.0
-        hip_new = t_px + p_px + R_root @ np.diag(rs) @ (hip0 - p_px)
-        d_root = hip_new - hip0                             # cuánto se mueve la cintura (x lateral, y altura, z adelante)
-        d_root[2] -= t_px[2]                                # el avance lo hace el luchador de verdad (ver RECORRIDO): queda solo el adelanto de la cintura por inclinarse
-    else:
-        R_root = np.eye(3); d_root = np.zeros(3)
+        t_px = rt * 16.0 * (0.0 if RUTA else 1.0); p_px = rpv * 16.0
+        if RUTA: ruta_rows.append([round(tm, 4), round(float(-rt[0]), 4), round(float(rt[1]), 4), round(float(rt[2]), 4)])
+        M_root[:3, :3] = rot_zyx(rr) @ np.diag(rs); M_root[:3, 3] = t_px + p_px - M_root[:3, :3] @ p_px
+    M_anc = np.eye(4)
+    if anchor_tracks:                                      # hueso anchor: gira/mueve TODO el modelo alrededor de su origen (0, 16, 0) en el espacio del modelo (frente -Z)
+        ta, sa, ra, pa = combine(anchor_tracks, tick)
+        if np.any(np.abs(sa - 1) > 1e-6): warn.append('escala del hueso anchor ignorada')
+        La = rot_zyx(ra) @ np.diag(sa); a0 = np.array([0.0, 16.0, 0.0])
+        Mb = np.eye(4); Mb[:3, :3] = La; Mb[:3, 3] = a0 + ta + pa - La @ (a0 + pa)
+        Cc = np.eye(4); Cc[:3, :3] = C                       # al espacio del juego (frente +Z)
+        M_anc = Cc @ Mb @ Cc
+    M_tot = M_root @ M_anc
+    R_root = M_tot[:3, :3]
+    hip0 = np.array([0.0, HIP, 0.0])
+    d_root = M_tot[:3, :3] @ hip0 + M_tot[:3, 3] - hip0     # cuánto se mueve la cintura (x lateral, y altura, z adelante)
+    d_root[2] -= (rt[2] * 16.0) if (root_tracks and not RUTA) else 0.0          # el avance lo hace el luchador de verdad (ver RECORRIDO): queda solo el adelanto de la cintura por inclinarse
     for b in BONES:
         chs = bone_tracks[b]
         if chs: t, s, r, p = combine(chs, tick)
@@ -290,7 +315,7 @@ for tm in times:
 
 # ---- contacto con el suelo: el juego no tiene colisión por hueso, así que se calcula el punto más bajo del modelo en cada cuadro (cinemática directa)
 #      y se sube/baja el cuerpo (`by`) para que nunca se hunda en el piso y, si está a ras de él, quede apoyado (sin flotar).
-if '--sin-suelo' not in sys.argv:
+if '--sin-suelo' not in sys.argv and not RUTA:
     ci_by = chan_names.index('by') + 1
     lows = [lowest(dict(zip(chan_names, r_[1:]))) for r_ in rows]
     want = []
@@ -323,20 +348,23 @@ for b in sorted({b for kf in ek for b in ((kf.get('value') or {}).get('pose') or
     rows_e = []
     for kf in ek:
         v = ((kf.get('value') or {}).get('pose') or {}).get(b, {}); t = v.get('t', [0, 0, 0]); sc = v.get('s', [1, 1, 1])
-        rows_e.append([round(kf['tick'] / TPS, 4), round(-t[0], 4), round(t[1], 4), round(sc[1], 4)])
+        rows_e.append([round(kf['tick'] / TPS - DESDE / TPS, 4), round(-t[0], 4), round(t[1], 4), round(sc[1], 4)])
+    if DESDE:                                                   # lo que pasó antes del tick DESDE: solo queda el último valor, puesto en t=0
+        pre = [r_ for r_ in rows_e if r_[0] <= 0]; rows_e = ([[0.0] + pre[-1][1:]] if pre else []) + [r_ for r_ in rows_e if r_[0] > 0]
     if any(abs(r_[1]) + abs(r_[2]) + abs(r_[3] - 1) > 1e-6 for r_ in rows_e): eyes[b] = rows_e
 
 clip = {'length': round(LEN, 4), 'loop': mode == 'loop', 'contacts': [], 'channels': chan_names, 'samples': rows}
 if eyes: clip['eyes'] = eyes
 os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 json.dump(clip, open(out, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+if RUTA: json.dump(ruta_rows, open(RUTA, 'w'), separators=(',', ':')); print('ruta guardada:', RUTA, len(ruta_rows), 'puntos')
 print('ok', os.path.basename(out), mode, round(LEN, 3), 's', len(rows), 'cuadros', len(chan_names), 'canales')
 print('pistas de pose:', pose_props, '· pistas de transform:', tr_props)
 extra_info = []
 if film.get('camera'): extra_info.append('hay cámara de película (no se importa)')
 if rp.get('actions') not in (None, '[]', []): extra_info.append('hay acciones/sonidos en el replay (no se importan)')
 for m in sorted(set(warn)) + extra_info: print('AVISO:', m)
-if root_tracks:
+if root_tracks and not RUTA:
     zs = sorted({round(kf['tick'] / TPS, 3) for n in tr_props for kf in props[n]['keyframes']})
     prof = [[z, round(sum(ch[('t', 2)].sample(z * TPS) for ch in root_tracks), 3)] for z in zs]
     print('RECORRIDO (segundos, metros hacia adelante):', json.dumps(prof))

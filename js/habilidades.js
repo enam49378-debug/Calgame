@@ -1916,38 +1916,48 @@ CF.mover('sekFlight', function (f, o) {
 
 /* ===== personajes/sekza/Skills/Code/Vuelo Sin Retorno/sekAbduct.js ===== */
 /* Habilidad: Vuelo Sin Retorno  ·  personaje: sekza  ·  movimiento: sekAbduct   (habilidad 3 del despertar)
-   Sekza da un dash intentando agarrar a alguien. Si no atrapa a nadie, solo falla: se ve la animación "sin agarrar" (hecha en BBS:
-   Skills/Animation/Vuelo Sin Retorno/sin_agarrar.json) con su voltereta y su aterrizaje agachado, y la habilidad se recarga rápido.
-   Si agarra a alguien arranca la cinemática sekPlane (Skills/Animation/Vuelo Sin Retorno): lo gira, lo lanza al cielo, lo golpea con pajarones,
-   lo mete a un avión, lo persigue por el pasillo y lo estrella contra el suelo.
-   El recorrido del dash sale de la animación (tools/bbs_a_clip.py imprime "RECORRIDO"): se agacha 0.6 s, avanza ~7.2 m en 0.8 s y cae agachado.
-   Los números (alcance, recarga) están en personaje.js. */
+   Sekza se agacha y da un dash intentando agarrar a alguien. Las dos animaciones (hechas en BBS) son IGUALES hasta el tick 19 (0.95 s):
+   en ese tick se decide: si la víctima está al alcance se agarra y arranca la cinemática sekPlane (Skills/Animation/Vuelo Sin Retorno: agarrar_sekza /
+   agarrar_victima, que continúan desde el tick 19-20); si no, sigue la animación de fallo "sin_agarrar" (voltereta y aterrizaje agachado)
+   y la habilidad se recarga rápido.
+   Para llegar a ese punto con cualquier distancia, la parte del dash antes del tick 19 se estira/acorta: Sekza queda a ~1.8 m de la víctima (como en la película).
+   El recorrido sale de la animación (tools/bbs_a_clip.py imprime "RECORRIDO"). Los números (alcance, recarga) están en personaje.js. */
 CF.mover('sekAbduct', function (f, o) {
   javiSpeak(f, 'fly');
-  const RANGE = o.range || 9, CLIP = 1.75;
+  const RANGE = o.range || 9, CLIP = 1.75, T_DECIDE = .95, GAP = 1.78;   // T_DECIDE = tick 19; GAP = a qué distancia de la víctima queda Sekza en ese tick (película)
   // metros hacia adelante según la animación de BBS: [segundos, distancia acumulada]
   const PATH = [[0, 0], [.6, 0], [.793, 1.084], [.843, 1.312], [.9, 1.599], [.95, 1.847], [1.05, 2.944], [1.1, 3.64], [1.15, 4.532], [1.25, 6.094], [1.4, 7.163], [CLIP, 7.163]];
   const speedAt = t => { for (let i = 0; i < PATH.length - 1; i++) if (t >= PATH[i][0] && t < PATH[i + 1][0]) return (PATH[i + 1][1] - PATH[i][1]) / (PATH[i + 1][0] - PATH[i][0]); return 0; };
-  let grabbed = false;
+  let grabbed = false, decided = false, scaled = false, scale = 1;
   const tg0 = findTarget(f, RANGE);
   startAction(f, {
     name: 'sekAbduct', bbClip: 'sin_agarrar', dur: CLIP, noControl: true, armor: true, aim: true, speedMul: 0, eyes: true,
     start: () => { sfx('whoosh', f.pos, .6); popText(chestOf(f), '¡VEN AQUÍ!', o.color, 22); },
     tick: (a, t, dt) => {
       if (grabbed) return;
-      const v = speedAt(t);
-      if (v <= 0) { f.vel.x = f.vel.z = 0; if (t < .6 && tg0 && tg0.alive) f.yaw = yawTo(f, tg0); return; }   // agachado, apuntando al rival
-      // sigue al más cercano mientras avanza (gira un poco durante el dash)
-      let tg = tg0 && tg0.alive && !tg0.cineLock ? tg0 : null, bd = 1e9;
-      if (!tg) for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (g.alive && !g.cineLock && d < bd && d < RANGE + 4) { bd = d; tg = g; } }
-      if (tg && t < 1.1) f.yaw = Math.atan2(tg.pos.x - f.pos.x, tg.pos.z - f.pos.z);
+      const pick = () => {   // el rival vivo más cercano (el que se apuntó al empezar, si sigue ahí)
+        let tg = tg0 && tg0.alive && !tg0.cineLock ? tg0 : null, bd = 1e9;
+        if (!tg) for (const g of enemiesOf(f)) { const d = dist2d(f, g); if (g.alive && !g.cineLock && !g.grabbed && d < bd && d < RANGE + 4) { bd = d; tg = g; } }
+        return tg;
+      };
+      // el dash arranca en t = .6: de ahí al tick 19 se ajusta su largo para quedar a ~1.8 m del rival, sea cual sea la distancia
+      if (t < .6) { f.vel.x = f.vel.z = 0; const tg = pick(); if (tg) f.yaw = yawTo(f, tg); return; }   // agachado, apuntando al rival
+      if (!scaled) { scaled = true; const tg = pick(); scale = tg ? clamp((dist2d(f, tg) - GAP - .29) / PATH[5][1], .4, 4.6) : 1; }
+      const v = speedAt(t) * (t < T_DECIDE ? scale : 1);
+      if (v <= 0) { f.vel.x = f.vel.z = 0; return; }
+      const tg = t < T_DECIDE ? pick() : null;
+      if (tg) f.yaw = Math.atan2(tg.pos.x - f.pos.x, tg.pos.z - f.pos.z);   // gira hacia el rival mientras avanza; después del tick 19 sigue recto
       const dir = fwd(f.yaw);
       f.vel.x = dir.x * v; f.vel.z = dir.z * v; f.vel.y = Math.max(f.vel.y, 0);
       if (t >= .79 && t < 1.4) {
         emit(f.pos.x, f.pos.y + rand(.3, 1.6), f.pos.z, rand(-1, 1), rand(0, 1), rand(-1, 1), o.color, .2, .3, 0, 3);
         if (Math.floor(t * 30) !== Math.floor((t - dt) * 30)) ghost(f, o.color, .3, .2);
+      }
+      // TICK 19: aquí se decide. Si hay alguien al alcance, se agarra y la película sigue desde el tick 20; si no, sigue la animación de fallo.
+      if (!decided && t >= T_DECIDE) {
+        decided = true;
         for (const g of enemiesOf(f)) {
-          if (!g.alive || g.cineLock || g.grabbed || g.ragdoll > 0 || dist2d(f, g) > 2.2 || Math.abs(g.pos.y - f.pos.y) > 2.2) continue;
+          if (!g.alive || g.cineLock || g.grabbed || g.ragdoll > 0 || dist2d(f, g) > GAP + 1.0 || Math.abs(g.pos.y - f.pos.y) > 2.2) continue;
           grabbed = true; f.vel.x = f.vel.z = 0;
           if (!f.remote) later(.01, () => { if (f.alive && g.alive) runChore(f, g, CHORE.sekPlane); });   // en los demás clientes la escena llega por su propio aviso
           break;
@@ -3982,24 +3992,24 @@ CF.coreografia('sekPlane', function () {
   // ---------------- recorridos
   const att = [], vic = [], apos = [], vpos = [];
   const R = 1.5;
-  // I. giro (0 - 1.9): cada vez mas rapido, la victima gira en un circulo y sube
-  const PHI = t => 18.85 * Math.pow(Math.min(t, 1.9) / 1.9, 2) * S;
-  for (let t = 0; t <= 1.91; t += .1) {
-    const ph = PHI(t), y = .5 + 1.5 * Math.pow(t / 1.9, 1.4);
-    apos.push([+t.toFixed(2), 0, 0, 0, ph]);
-    vpos.push([+t.toFixed(2), R * Math.sin(ph), y, R * Math.cos(ph), ph + Math.PI]);
-  }
-  att.push([0, A_GRAB], [.5, A_SPIN], [1.5, A_SPIN], [1.9, A_SPIN]);
-  vic.push([0, V_HELD], [.6, V_DANGLE], [1.2, P('vDangle', { ix: 1.1 })], [1.9, P('vDangle', { ix: 1.4 })]);
-  // II. lanzamiento y despegue
-  const Y1 = PHI(1.9), YW = Y1 + 1.57, V0 = Y1 + 31.4159;   // YW: Sekza mirando a la nariz del avion; V0: giro acumulado de la victima (multiplo de 2π)
-  vpos.push([2.0, .2, 3.2, 2.6, Y1], [2.4, 1.2, 14, 5, Y1 + 2], [2.9, 2.4, 30, 8, Y1 + 5], [3.3, 3, 41, 9.2, Y1 + 8], [3.6, 3.4, 44, 9.6, Y1 + 10]);
-  apos.push([2.0, 0, 0, 0, Y1], [2.5, 0, 0, 0, Y1], [2.7, 0, 3, .9, Y1], [3.0, .8, 16, 3.5, Y1], [3.4, 1.6, 36, 6, Y1], [3.8, 2.2, 43, 7, Y1], [4.3, 2.6, 44.3, 7.4, Y1]);
-  att.push([2.0, A_CROUCH], [2.45, A_CROUCH], [2.6, A_LAUNCH], [2.9, A_FLY], [3.8, A_FLY], [4.3, A_HOVER]);
-  vic.push([2.0, P('vFlip')], [2.5, FLAIL(0)], [2.9, FLAIL(1)], [3.3, FLAIL(2)]);
-  // III. la victima en las nubes (3.6 - 5.0): intenta volar, se asusta, da vueltas
-  for (let k = 0, t = 3.5; t < 5.0; t += .18, k++) vic.push([+t.toFixed(2), FLAIL(k + 3)]);
-  vpos.push([4.2, 1.4, 44.6, 9.6, Y1 + 13]);
+  // I-II. AGARRE, GIRO Y LANZAMIENTO: es la película de BBS (Agarrarecena1), que empieza en el tick 19 del dash (ver sekAbduct.js).
+  //   Sekza usa el clip agarrar_sekza y la víctima agarrar_victima; sus recorridos y la cámara salen de la película (tools/bbs_escena.py).
+  //   La película termina con los dos subiendo al cielo: unas nubes los tapan (cloudBank) y ahí se pasa, sin que se note, a la escena de las nubes.
+  // <<BBS-ESCENA1  (generado por tools/bbs_escena.py a partir de Agarrarecena1.dat: no editar a mano)
+  const BB_APOS = [[0.0,-0.0,0.472,0.0,0],[0.05,-0.0,0.508,0.928,0],[0.1,-0.0,0.347,1.529,0],[0.15,-0.0,0.168,2.109,0],[0.2,-0.0,0.089,2.28,0],[0.25,-0.0,0.03,2.351,0],[0.3,-0.0,-0.006,2.391,0],[0.35,-0.0,-0.01,2.396,0],[0.4,-0.0,-0.012,2.4,0],[0.45,-0.0,-0.015,2.402,0],[0.5,-0.0,-0.016,2.403,0],[0.55,-0.0,-0.018,2.402,0],[0.6,-0.0,-0.018,2.401,0],[0.65,-0.0,-0.019,2.399,0],[0.7,-0.0,-0.019,2.397,0],[0.75,-0.0,-0.018,2.394,0],[0.8,-0.0,-0.018,2.39,0],[0.85,-0.0,-0.017,2.387,0],[0.9,-0.0,-0.016,2.383,0],[0.95,-0.0,-0.015,2.38,0],[1.0,-0.0,-0.014,2.377,0],[1.05,-0.0,-0.013,2.374,0],[1.1,-0.0,-0.012,2.373,0],[1.15,-0.0,-0.011,2.371,0],[1.2,-0.0,-0.009,2.371,0],[1.25,-0.0,-0.008,2.372,0],[1.3,-0.0,-0.007,2.375,0],[1.35,-0.0,-0.007,2.378,0],[1.4,-0.0,-0.006,2.384,0],[1.45,-0.0,-0.006,2.391,0],[1.5,-0.0,-0.006,2.444,0],[1.55,-0.0,-0.006,2.52,0],[1.6,-0.0,-0.006,2.61,0],[1.65,-0.0,-0.006,2.705,0],[1.7,-0.0,-0.006,2.796,0],[1.75,-0.0,-0.006,2.872,0],[1.8,-0.0,-0.006,2.925,0],[1.85,-0.0,-0.006,2.925,0],[1.9,-0.0,-0.006,2.925,0],[1.95,-0.0,-0.006,2.925,0],[2.0,-0.0,-0.006,2.925,0],[2.05,-0.0,-0.006,2.925,0],[2.1,-0.0,-0.006,2.925,0],[2.15,-0.0,-0.006,2.925,0],[2.2,-0.0,-0.006,2.925,0],[2.25,-0.0,-0.006,2.925,0],[2.3,-0.0,-0.006,2.925,0],[2.35,-0.0,-0.006,2.925,0],[2.4,-0.0,-0.006,2.925,0],[2.45,-0.0,-0.006,2.925,0],[2.5,-0.0,-0.045,2.925,0],[2.55,-0.0,-0.1,2.925,0],[2.6,-0.0,-0.165,2.925,0],[2.65,-0.0,-0.231,2.925,0],[2.7,-0.0,-0.293,2.925,0],[2.75,-0.0,-0.344,2.925,0],[2.8,-0.0,-0.408,2.925,0],[2.85,-0.0,-0.468,2.925,0],[2.9,-0.0,-0.519,2.925,0],[2.95,-0.0,-0.559,2.925,0],[3.0,-0.019,0.088,2.437,0],[3.05,-0.057,1.392,1.471,0],[3.1,-0.103,2.997,0.285,0],[3.15,-0.156,4.844,-1.079,0],[3.2,-0.214,6.877,-2.579,0],[3.25,-0.276,9.037,-4.171,0],[3.3,-0.34,11.265,-5.813,0],[3.35,-0.405,13.503,-7.462,0],[3.4,-0.467,15.694,-9.077,0],[3.45,-0.527,17.779,-10.614,0],[3.5,-0.582,19.701,-12.03,0],[3.55,-0.631,21.4,-13.284,0],[3.6,-0.672,22.819,-14.332,0],[3.65,-0.703,23.9,-15.131,0]];
+  const BB_VPOS = [[0.0,-0.0,0.0,1.778,0],[0.05,-0.0,0.066,1.41,0],[0.1,-0.0,0.084,1.692,0],[0.15,-0.0,-0.183,2.129,0],[0.2,-0.0,-0.45,2.566,0],[0.25,-0.0,-0.45,2.566,0],[0.3,-0.0,-0.45,2.566,0],[0.35,-0.0,-0.45,2.566,0],[0.4,-0.0,-0.45,2.566,0],[0.45,-0.0,-0.45,2.566,0],[0.5,-0.0,-0.45,2.566,0],[0.55,-0.0,-0.45,2.566,0],[0.6,-0.0,-0.45,2.566,0],[0.65,-0.0,-0.45,2.566,0],[0.7,-0.0,-0.45,2.566,0],[0.75,-0.0,-0.45,2.566,0],[0.8,-0.0,-0.45,2.566,0],[0.85,-0.0,-0.45,2.566,0],[0.9,-0.0,-0.45,2.566,0],[0.95,-0.0,-0.45,2.566,0],[1.0,-0.0,-0.45,2.566,0],[1.05,-0.0,-0.45,2.566,0],[1.1,-0.0,-0.45,2.566,0],[1.15,-0.0,-0.45,2.566,0],[1.2,-0.0,-0.45,2.566,0],[1.25,-0.0,-0.45,2.566,0],[1.3,-0.0,-0.45,2.566,0],[1.35,-0.0,-0.45,2.566,0],[1.4,-0.003,-0.45,2.564,0],[1.45,-0.011,-0.449,2.559,0],[1.5,-0.021,-0.448,2.554,0],[1.55,-0.033,-0.446,2.548,0],[1.6,-0.045,-0.445,2.541,0],[1.65,-0.057,0.529,1.913,0],[1.7,-0.07,1.762,1.119,0],[1.75,-0.082,3.219,0.182,0],[1.8,-0.095,4.866,-0.876,0],[1.85,-0.107,6.669,-2.034,0],[1.9,-0.12,8.592,-3.268,0],[1.95,-0.132,10.602,-4.558,0],[2.0,-0.144,12.663,-5.88,0],[2.05,-0.155,14.742,-7.214,0],[2.1,-0.165,16.803,-8.535,0],[2.15,-0.175,18.812,-9.824,0],[2.2,-0.183,20.735,-11.056,0],[2.25,-0.191,22.537,-12.211,0],[2.3,-0.197,24.184,-13.265,0],[2.35,-0.201,25.64,-14.198,0],[2.4,-0.199,26.872,-14.983,0],[2.45,-0.197,27.844,-15.603,0],[2.5,-0.197,27.844,-15.603,0],[2.55,-0.197,27.844,-15.603,0],[2.6,-0.197,27.844,-15.603,0],[2.65,-0.197,27.844,-15.603,0],[2.7,-0.197,27.844,-15.603,0],[2.75,-0.197,27.844,-15.603,0],[2.8,-0.197,27.844,-15.603,0],[2.85,-0.197,27.844,-15.603,0],[2.9,-0.197,27.844,-15.603,0],[2.95,-0.197,27.844,-15.603,0],[3.0,-0.197,27.844,-15.603,0],[3.05,-0.197,27.844,-15.603,0],[3.1,-0.197,27.844,-15.603,0],[3.15,-0.197,27.844,-15.603,0]];
+  const BB_CAM = [[0.0,1.819,1.148,2.021,-89.722,1.206,13.429,70.0],[0.05,1.819,1.148,2.021,-89.722,1.206,13.429,70.0],[0.075,1.844,1.121,2.14,-88.03,1.688,14.846,70.0],[0.1,1.889,1.084,2.305,-84.975,2.511,17.344,70.0],[0.125,1.937,1.039,2.5,-81.712,3.408,20.036,70.0],[0.15,1.969,0.992,2.71,-79.393,4.115,22.035,70.0],[0.175,1.967,0.946,2.92,-79.172,4.364,22.456,70.0],[0.2,1.913,0.906,3.113,-82.202,3.892,20.412,70.0],[0.225,1.827,0.879,3.252,-87.381,2.87,16.224,70.0],[0.25,1.706,0.853,3.394,-94.895,1.304,9.626,70.0],[0.275,1.56,0.827,3.539,-104.051,-0.634,1.533,70.0],[0.3,1.397,0.802,3.682,-114.157,-2.771,-7.144,70.0],[0.325,1.229,0.778,3.821,-124.517,-4.936,-15.493,70.0],[0.35,1.064,0.756,3.953,-134.441,-6.954,-22.601,70.0],[0.375,0.913,0.735,4.075,-143.233,-8.654,-27.554,70.0],[0.4,0.784,0.716,4.184,-150.201,-9.864,-29.442,70.0],[0.425,0.695,0.703,4.263,-154.573,-10.451,-28.343,70.0],[0.45,0.609,0.69,4.338,-158.404,-10.793,-25.251,70.0],[0.475,0.527,0.679,4.407,-161.741,-10.941,-20.596,70.0],[0.5,0.449,0.669,4.472,-164.635,-10.942,-14.809,70.0],[0.525,0.376,0.659,4.531,-167.133,-10.845,-8.319,70.0],[0.55,0.308,0.65,4.585,-169.284,-10.7,-1.558,70.0],[0.575,0.246,0.642,4.633,-171.137,-10.556,5.046,70.0],[0.6,0.189,0.635,4.676,-172.741,-10.46,11.061,70.0],[0.625,0.14,0.628,4.714,-174.145,-10.462,16.058,70.0],[0.65,0.097,0.621,4.745,-175.397,-10.611,19.606,70.0],[0.675,0.072,0.616,4.763,-176.108,-10.845,21.343,70.036],[0.7,0.051,0.612,4.776,-176.558,-11.189,22.745,70.134],[0.725,0.034,0.609,4.784,-176.782,-11.616,23.841,70.276],[0.75,0.021,0.605,4.789,-176.815,-12.103,24.662,70.446],[0.775,0.011,0.602,4.791,-176.689,-12.623,25.235,70.628],[0.8,0.004,0.599,4.79,-176.439,-13.151,25.591,70.803],[0.825,0.0,0.597,4.786,-176.099,-13.663,25.76,70.957],[0.85,-0.002,0.595,4.782,-175.703,-14.132,25.771,71.071],[0.875,-0.003,0.593,4.777,-175.285,-14.533,25.653,71.13],[0.9,-0.003,0.591,4.771,-174.879,-14.842,25.436,71.116],[0.925,-0.001,0.589,4.765,-174.519,-15.032,25.15,71.013],[0.95,0.0,0.588,4.761,-174.239,-15.079,24.825,70.803],[0.975,0.002,0.586,4.758,-174.072,-14.957,24.488,70.471],[1.0,0.002,0.585,4.757,-174.054,-14.64,24.172,70.0],[1.025,0.003,0.584,4.757,-174.113,-14.11,23.878,69.418],[1.05,0.003,0.583,4.757,-174.176,-13.291,23.519,68.65],[1.075,0.003,0.582,4.756,-174.245,-12.232,23.092,67.724],[1.1,0.003,0.581,4.755,-174.325,-10.981,22.598,66.67],[1.125,0.004,0.581,4.754,-174.418,-9.587,22.036,65.517],[1.15,0.005,0.58,4.753,-174.527,-8.1,21.407,64.295],[1.175,0.007,0.58,4.752,-174.657,-6.567,20.709,63.032],[1.2,0.011,0.58,4.751,-174.81,-5.039,19.942,61.758],[1.225,0.016,0.58,4.75,-174.989,-3.562,19.105,60.503],[1.25,0.022,0.58,4.749,-175.199,-2.187,18.2,59.295],[1.275,0.031,0.58,4.748,-175.442,-0.962,17.224,58.164],[1.3,0.041,0.581,4.748,-175.722,0.064,16.177,57.14],[1.325,0.054,0.582,4.748,-176.042,0.843,15.06,56.251],[1.35,0.069,0.583,4.749,-176.406,1.325,13.872,55.527],[1.375,0.087,0.584,4.75,-176.816,1.463,12.612,54.997],[1.4,0.108,0.585,4.752,-177.277,1.206,11.28,54.691],[1.425,0.153,0.589,4.756,-178.227,-0.125,8.587,54.662],[1.45,0.21,0.597,4.76,-179.464,-2.462,5.069,55.102],[1.475,0.277,0.607,4.766,-180.904,-5.573,1.002,55.915],[1.5,0.351,0.618,4.772,-182.464,-9.228,-3.337,57.007],[1.525,0.427,0.628,4.779,-184.058,-13.196,-7.671,58.283],[1.55,0.503,0.637,4.787,-185.605,-17.248,-11.725,59.648],[1.575,0.574,0.642,4.795,-187.019,-21.153,-15.222,61.006],[1.6,0.637,0.644,4.803,-188.217,-24.68,-17.885,62.263],[1.625,0.689,0.64,4.812,-189.116,-27.6,-19.438,63.323],[1.65,0.726,0.629,4.821,-189.631,-29.68,-19.606,64.091],[1.675,0.737,0.621,4.826,-189.721,-30.335,-19.133,64.348],[1.7,0.746,0.611,4.831,-189.725,-30.864,-18.297,64.582],[1.725,0.752,0.599,4.836,-189.652,-31.279,-17.132,64.795],[1.75,0.756,0.586,4.841,-189.509,-31.588,-15.67,64.988],[1.775,0.757,0.571,4.847,-189.303,-31.802,-13.945,65.163],[1.8,0.757,0.554,4.853,-189.04,-31.931,-11.99,65.32],[1.825,0.756,0.537,4.859,-188.73,-31.985,-9.837,65.46],[1.85,0.752,0.519,4.865,-188.378,-31.973,-7.521,65.586],[1.875,0.748,0.5,4.871,-187.992,-31.906,-5.073,65.698],[1.9,0.742,0.48,4.877,-187.579,-31.793,-2.527,65.798],[1.925,0.736,0.461,4.884,-187.147,-31.644,0.084,65.887],[1.95,0.729,0.441,4.89,-186.703,-31.47,2.727,65.967],[1.975,0.722,0.422,4.896,-186.253,-31.279,5.368,66.038],[2.0,0.714,0.403,4.902,-185.806,-31.083,7.976,66.101],[2.025,0.706,0.384,4.907,-185.369,-30.89,10.516,66.159],[2.05,0.699,0.366,4.913,-184.948,-30.712,12.956,66.213],[2.075,0.692,0.35,4.918,-184.552,-30.557,15.262,66.263],[2.1,0.685,0.334,4.922,-184.187,-30.436,17.402,66.311],[2.125,0.68,0.32,4.927,-183.86,-30.358,19.342,66.358],[2.15,0.675,0.307,4.931,-183.58,-30.334,21.049,66.406],[2.175,0.671,0.296,4.934,-183.352,-30.373,22.491,66.456],[2.2,0.669,0.288,4.937,-183.186,-30.486,23.635,66.509],[2.225,0.667,0.274,4.942,-182.954,-30.973,25.351,66.586],[2.25,0.666,0.266,4.944,-182.837,-31.706,26.277,66.59],[2.275,0.665,0.263,4.946,-182.817,-32.602,26.567,66.542],[2.3,0.665,0.263,4.945,-182.872,-33.578,26.374,66.463],[2.325,0.666,0.266,4.944,-182.984,-34.548,25.85,66.374],[2.35,0.667,0.271,4.943,-183.134,-35.43,25.149,66.296],[2.375,0.668,0.277,4.941,-183.302,-36.139,24.424,66.249],[2.4,0.668,0.282,4.939,-183.469,-36.592,23.828,66.255],[2.425,0.669,0.286,4.938,-183.616,-36.705,23.514,66.334],[2.45,0.669,0.288,4.937,-183.723,-36.394,23.635,66.509],[2.475,0.669,0.288,4.937,-183.797,-35.73,24.036,66.715],[2.5,0.669,0.288,4.937,-183.883,-34.7,24.572,66.956],[2.525,0.669,0.288,4.937,-183.979,-33.373,25.217,67.228],[2.55,0.669,0.288,4.937,-184.081,-31.819,25.942,67.533],[2.575,0.669,0.288,4.937,-184.187,-30.106,26.722,67.87],[2.6,0.669,0.288,4.937,-184.293,-28.304,27.529,68.237],[2.625,0.669,0.288,4.937,-184.398,-26.481,28.336,68.636],[2.65,0.669,0.288,4.937,-184.499,-24.707,29.115,69.065],[2.675,0.669,0.288,4.937,-184.591,-23.05,29.841,69.524],[2.7,0.669,0.288,4.937,-184.674,-21.579,30.486,70.012],[2.725,0.669,0.288,4.937,-184.743,-20.365,31.022,70.529],[2.75,0.669,0.288,4.937,-184.797,-19.474,31.423,71.074],[2.775,0.669,0.288,4.937,-184.874,-18.507,31.796,72.169],[2.8,0.669,0.288,4.937,-184.961,-17.743,31.971,73.649],[2.825,0.669,0.288,4.937,-185.041,-17.22,31.994,75.322],[2.85,0.669,0.288,4.937,-185.099,-16.973,31.91,77.0],[2.875,0.669,0.288,4.937,-185.12,-17.039,31.765,78.49],[2.9,0.669,0.288,4.937,-185.086,-17.454,31.606,79.604],[2.925,0.669,0.288,4.937,-184.984,-18.253,31.476,80.15],[2.95,0.669,0.288,4.937,-184.797,-19.474,31.423,79.937],[2.975,0.669,0.288,4.937,-184.344,-22.255,31.423,78.123],[3.0,0.669,0.288,4.937,-183.683,-26.318,31.423,74.864],[3.025,0.669,0.288,4.937,-182.917,-31.023,31.423,70.823],[3.05,0.669,0.288,4.937,-182.151,-35.728,31.423,66.658],[3.075,0.669,0.288,4.937,-181.49,-39.791,31.423,63.03],[3.1,0.669,0.288,4.937,-181.037,-42.572,31.423,60.6]];
+  // BBS-ESCENA1>>
+  const Y1 = 0, YW = Y1 + 1.57, V0 = Y1 + 31.4159;   // YW: Sekza mirando a la nariz del avion; V0: giro acumulado de la victima (multiplo de 2π)
+  const T_FILM = 3.65, T_VFILM = 3.15, T_CLOUD = 4.0;   // duración del clip de Sekza / de la víctima, y cuándo ya están dentro de las nubes
+  BB_APOS.forEach(k => apos.push(k)); BB_VPOS.forEach(k => vpos.push(k));
+  // al terminar la película se quedan en lo alto; dentro de las nubes (tapados) pasan a donde empieza la escena de las nubes
+  vpos.push([T_CLOUD, 1.4, 44.6, 9.6, Y1 + 13]);
+  apos.push([4.3, 2.6, 44.3, 7.4, Y1]);
+  att.push([T_FILM, A_FLY], [4.3, A_HOVER]);
+  vic.push([T_VFILM, FLAIL(0)], [3.6, FLAIL(1)]);
+  // III. la victima en las nubes (4.0 - 5.0): intenta volar, se asusta, da vueltas
+  for (let k = 0, t = T_CLOUD; t < 5.0; t += .18, k++) vic.push([+t.toFixed(2), FLAIL(k + 3)]);
   // IV. golpes y pajarones (5.0 - 7.2)
   const base = [1.2, 44.5, 9.6], hits = [[5.1, [.9, .5, .8], 'jabR'], [5.5, [-.9, -.3, .6], 'jabL'], [5.9, [.3, .9, -.9], 'hook'], [6.3, [-.8, .2, -.7], 'kick'], [6.7, [.6, -.6, .9], 'jabR']];
   vpos.push([4.8, base[0], base[1], base[2], Y1 + 15]);
@@ -4095,22 +4105,45 @@ CF.coreografia('sekPlane', function () {
     };
   };
 
+  // ---------------- nubes que tapan el final de la película (los dos suben al cielo y la animación se queda quieta: entran en las nubes)
+  const cloudBank = (st) => {
+    const group = new THREE.Group(), mats = [], items = [];
+    const cvs = document.createElement('canvas'); cvs.width = cvs.height = 128; const c = cvs.getContext('2d');
+    for (let i = 0; i < 7; i++) { const x = 34 + Math.random() * 60, y = 40 + Math.random() * 50, r = 24 + Math.random() * 26, gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,.97)'); gr.addColorStop(.6, 'rgba(247,251,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
+    const tex = new THREE.CanvasTexture(cvs), last = a => a[a.length - 1];
+    const cam = BB_CAM[BB_CAM.length - 1], pv = last(BB_VPOS), pa = last(BB_APOS);
+    const camW = L2W(st.origin, st.yaw, cam[1], cam[2], cam[3]), tgtW = L2W(st.origin, st.yaw, (pv[1] + pa[1]) / 2, (pv[2] + pa[2]) / 2 + 2, (pv[3] + pa[3]) / 2);
+    const N = Math.max(14, Math.round(30 * [1, .75, .5, .3, .15][GFX.level | 0]));
+    for (let i = 0; i < N; i++) {
+      const big = i < 9, u = big ? 1 : .35 + Math.random() * .6, j = big ? 5 : 14, p = camW.clone().lerp(tgtW, u); p.x += (Math.random() - .5) * j; p.y += (Math.random() - .5) * j * .8; p.z += (Math.random() - .5) * j;
+      const m = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, fog: false }); mats.push(m);
+      const sp = new THREE.Sprite(m), sz = (big ? 48 : 22) + Math.random() * 26; sp.scale.set(sz, sz * .75, 1); sp.position.copy(p); group.add(sp);
+      items.push({ m, t0: 2.85 + Math.random() * .5, max: .75 + Math.random() * .25 });
+    }
+    scene.add(group);
+    return {
+      group,
+      tick(t) { const out = 1 - clamp((t - 4.25) / .7, 0, 1); group.visible = t > 2.2 && out > 0; for (const it of items) it.m.opacity = it.max * clamp((t - it.t0) / .55, 0, 1) * out; },
+      dispose() { scene.remove(group); mats.forEach(m => m.dispose()); tex.dispose(); },
+    };
+  };
+
   const tidy = arr => { arr.sort((a, b) => a[0] - b[0]); for (let i = 1; i < arr.length; i++) if (arr[i][0] - arr[i - 1][0] < .002) arr[i][0] = arr[i - 1][0] + .002; return arr; };
   [att, vic, apos, vpos].forEach(tidy);
   return {
     dur: 13.6, pull: true, catch: 3, reach: 'grab',
     trails: [],
     att, vic, apos, vpos,
-    props: [planeProp],
+    attClip: 'agarrar_sekza', attClipEnd: T_FILM, vicClip: 'agarrar_victima', vicClipEnd: T_VFILM, vicR6: true,   // la película de BBS cubre hasta ahi; luego siguen las poses de att / vic
+    props: [planeProp, cloudBank],
     ev: [
       { t: .1, text: '¡TE TENGO!', who: 'att', fx: 'impact', at: 'att' },
-      { t: .5, fx: 'ring', at: 'ground', r: 3.4 }, { t: 1.0, fx: 'ring', at: 'ground', r: 4.4 }, { t: 1.5, fx: 'ring', at: 'ground', r: 5.2 },
-      { t: .6, fx: 'dust', at: 'groundA', n: 14 }, { t: 1.2, fx: 'dust', at: 'groundA', n: 18 }, { t: 1.7, fx: 'dust', at: 'groundA', n: 22 },
-      { t: 1.9, text: '¡AL CIELO!', who: 'att', fx: 'boom', at: 'att', r: 2.2, imp: 1, shake: .7, slow: .15 },
+      { t: .35, fx: 'ring', at: 'ground', r: 3.4 }, { t: .4, fx: 'dust', at: 'groundA', n: 14 },
+      { t: 1.55, text: '¡AL CIELO!', who: 'att', fx: 'boom', at: 'vic', r: 2.2, imp: 1, shake: .7, slow: .15 }, { t: 1.6, fx: 'line', sfx: 'whoosh' }, { t: 1.95, fx: 'line', sfx: 'whoosh' },
       { t: 2.45, fx: 'charge', at: 'att' },
-      { t: 2.62, fx: 'boom', at: 'groundA', r: 3, big: 1, shake: 1, imp: 1, text: '¡A VOLAR!', who: 'att' }, { t: 2.65, fx: 'crack', at: 'groundA', r: 4 }, { t: 2.7, fx: 'dust', at: 'groundA', n: 30 },
-      { t: 3.0, fx: 'line', sfx: 'whoosh' }, { t: 3.4, fx: 'line', sfx: 'whoosh' },
-      { t: 3.8, text: '¡NO PUEDE VOLAR!', who: 'vic', fx: 'ring', at: 'vic', r: 3, face: 1 },
+      { t: 2.95, fx: 'boom', at: 'groundA', r: 3, big: 1, shake: 1, imp: 1, text: '¡A VOLAR!', who: 'att' }, { t: 2.98, fx: 'crack', at: 'groundA', r: 4 }, { t: 3.0, fx: 'dust', at: 'groundA', n: 30 },
+      { t: 3.2, fx: 'line', sfx: 'whoosh' }, { t: 3.5, fx: 'line', sfx: 'whoosh' },
+      { t: 4.15, text: '¡NO PUEDE VOLAR!', who: 'vic', fx: 'ring', at: 'vic', r: 3, face: 1 },
       { t: 4.4, text: '¡AAAAH!', who: 'vic' },
       { t: 5.0, fx: 'bird', a: .8, sc: 3.2 }, { t: 5.1, hit: 2.5, fx: 'impact', at: 'vic', big: 1, shake: .5, text: '¡PAJARÓN!', who: 'att' },
       { t: 5.4, fx: 'bird', a: -1.3, sc: 3.2, col: '#e8eef8' }, { t: 5.5, hit: 2.5, fx: 'impact', at: 'vic', big: 1, shake: .5 },
@@ -4130,13 +4163,8 @@ CF.coreografia('sekPlane', function () {
       { t: LAND_T + .3, text: '¡VUELO SIN RETORNO!', who: 'att' },
     ],
     shots: [
-      [0, 'rig', { at: 'A', a0: 20, a1: 220, r0: 4.6, r1: 4.6, h0: .1, ly: .9, fov: 52, roll0: 5, ease: 'l' }],
-      [1.3, 'rig', { at: 'V', a0: 90, a1: 300, r0: 6, r1: 5, h0: .4, fov: 58, ease: 'l' }],
-      [1.9, 'rig', { at: 'V', a0: 80, a1: 100, r0: 8, r1: 10, h0: -.5, h1: 2, fov0: 62, fov1: 70 }],
-      [2.35, 'rig', { at: 'A', a0: 150, a1: 190, r0: 5.5, r1: 7, h0: -.4, ly: .5, fov: 56, roll0: -6 }],
-      [2.9, 'rig', { at: 'A', at1: 'V', a0: 110, a1: 80, r0: 12, r1: 14, h0: -3, h1: 1, fov: 64, ease: 'o' }],
-      [3.4, 'faceV', { s: 1, fov: 42 }],
-      [4.0, 'rig', { at: 'V', a0: 60, a1: 100, r0: 9, r1: 8, h0: .5, fov: 56, roll0: 4 }],
+      [0, 'bb', { keys: BB_CAM }],   // la cámara de la película: sigue la acción y al final se queda mirando el cielo mientras las nubes los tapan
+      [3.95, 'rig', { at: 'V', a0: 60, a1: 100, r0: 9, r1: 8, h0: .5, fov: 56, roll0: 4 }],
       [4.5, 'rig', { at: 'mid', a0: 120, a1: 90, r0: 8, h0: .4, fov: 50 }],
       [5.0, 'rig', { at: 'V', a0: 160, a1: 140, r0: 5, h0: .2, fov: 46, roll0: -4 }],
       [5.45, 'rig', { at: 'V', a0: 40, a1: 55, r0: 5, h0: .4, fov: 46, roll0: 5 }],
