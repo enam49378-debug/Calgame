@@ -140,7 +140,7 @@ def generar_habilidades():
               '// game.js ejecuta esta función con todo lo suyo a mano (sin dejarlo accesible desde la consola).\n'
               '(window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {\n'
               '  with (A) {\n'
-              '    const CF = { mover: function (nombre, fn) { MOVES[nombre] = fn; } };\n']
+              '    const CF = { mover: function (nombre, fn) { MOVES[nombre] = fn; }, habilidad: function (nombre, fab) { MOVES[nombre] = fab(); } };\n']
     for cid, path in archivos:
         rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
         partes.append('\n/* ===== %s ===== */\n' % rel + _leer(path))

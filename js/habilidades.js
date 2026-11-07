@@ -3,7 +3,7 @@
 // game.js ejecuta esta función con todo lo suyo a mano (sin dejarlo accesible desde la consola).
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
-    const CF = { mover: function (nombre, fn) { MOVES[nombre] = fn; } };
+    const CF = { mover: function (nombre, fn) { MOVES[nombre] = fn; }, habilidad: function (nombre, fab) { MOVES[nombre] = fab(); } };
 
 /* ===== personajes/javi/Skills/Code/Destello Negro/blackFlash.js ===== */
 /* Habilidad: Destello Negro  ·  personaje: javi  ·  movimiento: blackFlash
@@ -196,7 +196,7 @@ CF.habilidad('javiParry', function () {
       burst(mid, 3, '#ffd54f', 2.0, .07, .22, -.15);
     };
     startAction(f, {
-      name: 'javiParry', dur: 1.8, speedMul: .22, eyes: true,
+      name: 'javiParry', dur: 1.8, speedMul: .22, eyes: true, counter: true, noControl: true,
       // La mano izquierda agarra el asta justo detrás del collar dorado (z=11) como en Blockbench
       grips: [{ arm: 'armL', z: 11, t0: .16 }],
       anim: [
@@ -233,10 +233,12 @@ CF.habilidad('javiParry', function () {
         ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd54f', 3.4, .32);
         burst(clash, 24, '#ffd54f', 9, .15, .38, .1);
         burst(clash, 18, '#4fc3f7', 8, .14, .36, 0);
-        sfx('clang', clash, 1.0);
+        sfx('block', clash, 1.0);
         sfx('counter', f.pos);
         popText(chestOf(f), '¡PARRY DEL DRAGÓN!', '#4fc3f7', 24);
-        startChoreo(f, att, 'javiParry');
+        if (!att.alive || att.cineLock || att.grabbed) return counterHit(f, att);
+        f.yaw = yawTo(f, att); f.iframes = Math.max(f.iframes, 2.5);
+        runChore(f, att, CHORE.javiParry);   // arranca el duelo (coreografía javiParry)
       },
     });
   };
