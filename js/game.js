@@ -711,17 +711,21 @@ function cityGrassAt(x,z) {
     const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
     const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];if(d.textures[0]&&(!d.textures[0].source||d.textures[0].source===''))d.textures[0].source=window.BB_ATLAS;return d;});
     // Una sola textura y un solo material para todos los modelos (comparten el atlas): arranca más rápido y usa menos memoria.
-    const mat=src=>{
-      const key=src.length+':'+src.slice(-48);
+    const mat=(src,emSrc)=>{
+      const key=src.length+':'+src.slice(-48)+(emSrc?'+'+emSrc.slice(-24):'');
       if(!bbMats.has(key))bbMats.set(key,new Promise((ok,fail)=>{
         const img=new Image();
         img.onload=()=>{
           const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;
-          // Los tiles del atlas desde la fila 20 (índice 160) son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
-          const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
-          const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);
-          const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
-          ok(cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:0xffffff,emissiveMap:em}),{cut:true}));
+          const finish=emImg=>{
+            // Los tiles del atlas desde la fila 20 (índice 160) o la segunda textura PBR son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
+            const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
+            if(emImg)cx.drawImage(emImg,0,0,cv.width,cv.height);
+            else{const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);}
+            const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
+            ok(cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:0xffffff,emissiveMap:em}),{cut:true}));
+          };
+          if(emSrc){const ei=new Image();ei.onload=()=>finish(ei);ei.onerror=()=>finish(null);ei.src=emSrc;}else finish(null);
         };
         img.onerror=fail;img.src=src;
       }));
@@ -730,7 +734,7 @@ function cityGrassAt(x,z) {
     // En tu equipo (servidor local) se lee el .bbmodel directo para ver al recargar lo que cambies en Blockbench; en internet se usan las copias .js (mucho más ligeras)
     const dev=/^(localhost|127\.|192\.168\.|10\.|\[::1\])/.test(location.hostname);
     if(!bbCache.has(name))bbCache.set(name,(dev?fetch('ciudad/'+name+'.bbmodel').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}):Promise.reject()).catch(viaScript)
-      .then(data=>mat(data.textures[0].source).then(m=>({geo:bbGeometry(data),mat:m}))));
+      .then(data=>mat(data.textures[0].source,data.textures[1]&&data.textures[1].source).then(m=>({geo:bbGeometry(data),mat:m}))));
     return bbCache.get(name);
   }
   // Los modelos entran al cargarse; si faltan (por ejemplo al abrir el archivo sin servidor) queda una caja de color.
