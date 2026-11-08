@@ -167,6 +167,15 @@
     const cs = () => Math.cos(M.yaw), sn = () => Math.sin(M.yaw);
     const toLocal = (px, pz, o) => { const dx = px - o.x, dz = pz - o.z, c = Math.cos(o.yaw), s = Math.sin(o.yaw); return { lx: dx * c - dz * s, lz: dx * s + dz * c }; };
     const toWorld = (lx, lz) => { const c = cs(), s = sn(); return { x: M.pos.x + lx * c + lz * s, z: M.pos.z - lx * s + lz * c }; };
+    // el casco es sólido: desde fuera solo se sube por la pasarela (hueco de la borda del lado del muelle); a bordo las bordas contienen
+    function hullBlock(f) {
+      const { lx, lz } = toLocal(f.pos.x, f.pos.z, { x: M.pos.x, z: M.pos.z, yaw: M.yaw }), inRect = Math.abs(lx) < HX + .55 && Math.abs(lz) < HZ + .55;
+      if (!inRect || M.aboard.has(f) || f.pos.y > M.pos.y + 1.7) return;
+      if (Math.abs(lx) < 1.9 && lz < 0) return;   // la pasarela
+      const dl = lx + HX + .55, dr = HX + .55 - lx, dzn = lz + HZ + .55, dzp = HZ + .55 - lz, mn = Math.min(dl, dr, dzn, dzp); let nx = lx, nz = lz;
+      if (mn === dl) nx = -HX - .56; else if (mn === dr) nx = HX + .56; else if (mn === dzn) nz = -HZ - .56; else nz = HZ + .56;
+      const w = toWorld(nx, nz); f.pos.x = w.x; f.pos.z = w.z; if (f.vel) { f.vel.x *= .3; f.vel.z *= .3; }
+    }
     const humans = () => G.fighters.filter(f => f.isPlayer && !f.remote && f.alive && !f.abyss);
 
     function arrive() {
@@ -242,7 +251,8 @@
         if (o) {   // ya está a bordo: lo llevamos con el barco
           let { lx, lz } = st === 'sink' ? { lx: o.lx0, lz: o.lz0 } : toLocal(f.pos.x, f.pos.z, prev);
           if (st !== 'dock') { lx = clamp(lx, -HX + .6, HX - .6); lz = clamp(lz, -HZ + .5, HZ - .5); }
-          else if (Math.abs(lx) > HX + .6 || Math.abs(lz) > HZ + .6) { M.aboard.delete(f); continue; }
+          else { lx = clamp(lx, -HX + .5, HX - .5); const gap = Math.abs(lx) < 1.7; lz = clamp(lz, gap ? -HZ - 1.4 : -2.2, 2.2); }
+          if (st === 'dock' && lz < -HZ - .2) { M.aboard.delete(f); continue; }
           { if (lx > -6.9 && lx < -2.4 && Math.abs(lz) < 2.0) { const dl = lx + 6.9, dr = -2.4 - lx, dz = 2.0 - Math.abs(lz), mn = Math.min(dl, dr, dz); if (mn === dr) lx = -2.4; else if (mn === dl) lx = -6.9; else lz = (lz < 0 ? -1 : 1) * 2.0; }
             const mdx = lx - 1.4, md = Math.hypot(mdx, lz); if (md < .6) { const k = .6 / (md || 1); lx = 1.4 + (md ? mdx * k : .6); lz = md ? lz * k : 0; }
             for (const [cx, cz, r] of [[-1.7, -1.5, .6], [-1.2, 1.0, .6], [.4, -1.8, .6], [-1.2, 1.5, .7], [-.1, 1.9, .7], [-2.4, -1.9, .75]]) { const dx = lx - cx, dz2 = lz - cz, d = Math.hypot(dx, dz2); if (d < r && d > .001) { lx = cx + dx / d * r; lz = cz + dz2 / d * r; } } }
@@ -254,6 +264,7 @@
           if (Math.abs(lx) < HX && Math.abs(lz) < HZ && f.pos.y < M.pos.y + 1.6 && f.pos.y > -2.2) { M.aboard.set(f, { lx, lz }); if (f.isPlayer) { popText(chestOf(f), '⛵ A bordo', '#ffd54f', 16); sfx('whoosh', f.pos, .4); } }
         }
       }
+      if (M.boat.visible) for (const f of G.fighters) if (!f.remote && f.alive && !f.abyss) hullBlock(f);
       place();
       if (M.sprite) { const nA = M.aboard.size; const txt = st === 'dock' ? 'ZARPA EN ' + fmt(M.wait) + ' · A BORDO: ' + nA : st === 'sail' ? 'RUMBO AL MAR PROFUNDO' : st === 'sink' ? '¡LA CORRIENTE!' : st === 'arrive' ? 'LLEGANDO…' : 'SE VA…'; paintBoatLabel(txt, st === 'sink' ? '#ff8fb0' : '#ffd54f'); M.sprite.visible = st !== 'sink' || M.sinkT < 5; }
       if (M.sailBase && M.sail.visible !== false) { const pos = M.sail.geometry.attributes.position, ar = pos.array; for (let i = 0; i < pos.count; i++) { const x = M.sailBase[i * 3], y = M.sailBase[i * 3 + 1]; ar[i * 3 + 2] = Math.sin(t * 1.7 + x * 1.2 + y * .8) * .22 * (.6 + (y + 2.8) / 5.6 * .8); } pos.needsUpdate = true; }

@@ -146,3 +146,7 @@ En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** 
 - **Suelo de la sala del Kraken** arreglado (sin la plataforma elevada que hundía a los jugadores ni parpadeos entre capas).
 - **Barco** rehecho como un navío fantasma: madera podrida con algas, vela hecha jirones, óxido, cadenas, calavera de proa, esqueleto al timón, faroles verdes y niebla.
 - **Cinemáticas:** muerte del Kraken (cámara orbitando y fuegos) y regreso: un géiser te lanza por el torbellino y apareces en el muelle con fuegos artificiales.
+
+### Kraken v7 (privado)
+- **Enemigos rehechos y de miedo:** piel con textura, articulaciones y animaciones propias: cangrejo acorazado con pinzas dentadas y 8 patas articuladas, medusa translúcida con 12 tentáculos y rayos eléctricos, rape abisal con boca de agujas y señuelo, marinero ahogado (calavera, costillas, harapos, algas) y el Capitán Ahogado (sombrero, capa, sable, linterna, llave), calamarín de 8 tentáculos.
+- **Barco:** el casco es sólido. Desde el muelle solo se sube por la pasarela; a bordo las bordas te contienen y la cabina, el mástil y los barriles tienen colisión.

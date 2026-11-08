@@ -630,7 +630,7 @@
       f.isBoss = true; f.mob = kind; f.abyss = true; f.maxHp = f.hp = T0.hp; f.hitR = T0.r; f.hitH = T0.h; f.ai = null; f.alive = true; f.iframes = 0; f.cineHide = true;
       f.pos.set(x, ABY.y + (T0.fly || 0), z); f.home = f.pos.clone(); f.model.root.visible = false; G.fighters.push(f);
       const g = MOB_BUILD[kind](); detailMob(kind, g); g.position.copy(f.pos); scene.add(g);
-      const m = { f, g, k: kind, spawnT: 0, kx: 0, kz: 0, dot: null, slow: 0, slowK: 1, stun: 0, conf: 0, marks: 0, fxT: 0, squash: 0, T: T0, cd: rand(.6, 1.6), wind: 0, lastHp: T0.hp, flash: 0, dead: 0, ph: rand(0, 6), hx: x, hz: z, yaw: rand(0, 6), aggro: false, mats: [], lunge: 0, hitDone: false, step: 0 };
+      const m = { f, g, k: kind, bs: g.scale.x * (kind === 'captain' ? 1 : 1), spawnT: 0, kx: 0, kz: 0, dot: null, slow: 0, slowK: 1, stun: 0, conf: 0, marks: 0, fxT: 0, squash: 0, T: T0, cd: rand(.6, 1.6), wind: 0, lastHp: T0.hp, flash: 0, dead: 0, ph: rand(0, 6), hx: x, hz: z, yaw: rand(0, 6), aggro: false, mats: [], lunge: 0, hitDone: false, step: 0 };
       g.traverse(o => { if (o.material && o.material.emissive && o.material.color) m.mats.push(o.material); }); AB.mobs.push(m); return m;
     }
     // ---------------------------------------------------------------- v2 de los enemigos: más detalle, aparición, reacciones al golpe, muertes propias, interacciones por personaje y cinemáticas
@@ -756,18 +756,18 @@
         const m = AB.mobs[i], f = m.f, T0 = m.T, g = m.g;
         f.vel.set(0, 0, 0); f.stun = 0; f.ragdoll = 0; f.hurtT = 0; f.grabbed = false; f.cineLock = null; f.frozen = 0; f.blocking = false; f.iframes = 0; f.model.root.visible = false;
         if (!f.alive && !m.dead) { m.dead = .001; if (m.cap) dropKey(f.pos.x, f.pos.z); mobDeath(m); }
-        if (m.dead) { m.dead += dt; const d = m.dead, sc = m.cap ? 1.7 : 1;
+        if (m.dead) { m.dead += dt; const d = m.dead, sc = m.bs;
           if (m.k === 'jelly' || m.k === 'squidling') { g.scale.setScalar(Math.max(.01, sc * (1 - d * 2.4))); g.position.y += dt * 2; }
           else if (m.k === 'crab') { g.rotation.z = Math.min(Math.PI, d * 9); g.position.y = f.pos.y + Math.sin(Math.min(1, d * 3) * Math.PI) * 1.2; g.scale.setScalar(Math.max(.01, sc * (1 - Math.max(0, d - .35) * 2.6))); }
           else if (m.k === 'angler') { g.rotation.z = d * 1.6; g.position.y -= dt * 1.6; g.scale.setScalar(Math.max(.01, sc * (1 - Math.max(0, d - .3) * 2.2))); }
           else { g.scale.y = Math.max(.05, sc * (1 - d * 1.2)); g.scale.x = g.scale.z = sc * (1 + d * .25); g.rotation.x = Math.min(.7, d * 1.4) * (m.k === 'captain' ? 1 : .8); if (m.k === 'captain' && Math.random() < dt * 30) emit(g.position.x + rand(-1.5, 1.5), g.position.y + rand(1, 5), g.position.z + rand(-1.5, 1.5), 0, rand(2, 5), 0, '#ffd54f', .18, .9, -.2, 1); }
           if (d > (m.cap ? 1.4 : .75)) { scene.remove(g); const j = G.fighters.indexOf(f); if (j >= 0) G.fighters.splice(j, 1); try { f.dispose(); } catch (e) { } AB.mobs.splice(i, 1); } continue; }
-        if (m.spawnT < 1) { m.spawnT += dt / (m.cap ? 1.6 : .9); const e = 1 - Math.pow(1 - Math.min(1, m.spawnT), 3), bs = m.cap ? 1.7 : 1; g.scale.setScalar(Math.max(.05, bs * (.2 + .8 * e))); g.position.set(f.pos.x, f.pos.y - (1 - e) * 4.5, f.pos.z); if (Math.random() < dt * 45) emit(f.pos.x + rand(-1.4, 1.4), ABY.y + .3, f.pos.z + rand(-1.4, 1.4), rand(-2, 2), rand(1.5, 4), rand(-2, 2), '#8aa4b8', .3, .8, 1, 2); if (m.spawnT >= 1) { g.scale.setScalar(bs); ringAt(new V3(f.pos.x, ABY.y + .2, f.pos.z), '#9ef2ff', 5, .5); } mobDetailAnim(m, t); continue; }
+        if (m.spawnT < 1) { m.spawnT += dt / (m.cap ? 1.6 : .9); const e = 1 - Math.pow(1 - Math.min(1, m.spawnT), 3), bs = m.bs; g.scale.setScalar(Math.max(.05, bs * (.2 + .8 * e))); g.position.set(f.pos.x, f.pos.y - (1 - e) * 4.5, f.pos.z); if (Math.random() < dt * 45) emit(f.pos.x + rand(-1.4, 1.4), ABY.y + .3, f.pos.z + rand(-1.4, 1.4), rand(-2, 2), rand(1.5, 4), rand(-2, 2), '#8aa4b8', .3, .8, 1, 2); if (m.spawnT >= 1) { g.scale.setScalar(bs); ringAt(new V3(f.pos.x, ABY.y + .2, f.pos.z), '#9ef2ff', 5, .5); } mobDetailAnim(m, t); continue; }
         m.fxT = Math.max(0, m.fxT - dt); const hit0 = f.hp < m.lastHp - .01;
         if (hit0) { m.flash = .16; m.aggro = true; m.squash = .22; const pn = ps.length ? ps.reduce((a2, b2) => dist2d(a2, f) < dist2d(b2, f) ? a2 : b2) : null; if (pn && !m.kx && !m.kz && !m.cap) { const kx = f.pos.x - pn.pos.x, kz = f.pos.z - pn.pos.z, kd = Math.hypot(kx, kz) || 1; m.kx = kx / kd * 4; m.kz = kz / kd * 4; } burst(chestOf(f), 5, '#e8f8ff', 6, .15, .35, .2); } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt); m.squash = Math.max(0, m.squash - dt);
         if (m.dot) { m.dot.t -= dt; f.hp -= m.dot.dps * dt; m.lastHp = f.hp; if (Math.random() < dt * 14) emit(f.pos.x + rand(-.8, .8), f.pos.y + rand(.5, (f.hitH || 2)), f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, m.dot.col, .16, .6, -.3, 1); if (f.hp <= 0 && f.alive) kill(f, m.dot.by || null); if (m.dot && m.dot.t <= 0) m.dot = null; }
         if (m.slow > 0) m.slow -= dt; if (m.conf > 0) m.conf -= dt; if (AB.cineT > 0) m.aggro = false;
-        for (const mt of m.mats) { if (m.flash > 0) mt.emissive.setRGB(.7, .7, .7); else mt.emissive.copy(mt.color).multiplyScalar(.4); }
+        for (const mt of m.mats) { if (m.flash > 0) mt.emissive.setRGB(.7, .7, .7); else if (mt.userData && mt.userData.em) mt.emissive.copy(mt.userData.em); else mt.emissive.copy(mt.color).multiplyScalar(.4); }
         let tgt = null, bd = 1e9; for (const p of ps) { const d = dist2d(p, f); if (d < bd) { bd = d; tgt = p; } }
         let mx = 0, mz = 0, moving = false, sp = T0.spd * (m.slow > 0 ? m.slowK : 1) * (m.dot && m.k === 'crab' ? 1.5 : 1);
         if (tgt && bd < T0.aggro) m.aggro = true; else if (!tgt || bd > T0.aggro * 2.2) m.aggro = false;
@@ -782,9 +782,9 @@
           m.cd -= dt; if (m.cd <= 0 && dd < (T0.ranged ? T0.rng : T0.rng + .6)) { m.wind = T0.wind; m.cd = T0.cd * rand(.85, 1.25); if (m.k === 'jelly') ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff8fe8', T0.rng, T0.wind); if (m.k === 'captain' && m.alt) ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff9a4a', 6.2, T0.wind); }
         } else { const a = t * .4 + m.ph; mx = (m.hx + Math.cos(a) * 3 - f.pos.x) * .5; mz = (m.hz + Math.sin(a * 1.3) * 3 - f.pos.z) * .5; moving = Math.hypot(mx, mz) > .6; m.yaw = Math.atan2(mx, mz) || m.yaw; }
         f.pos.x += (mx + m.kx) * dt; f.pos.z += (mz + m.kz) * dt; m.kx *= Math.exp(-6 * dt); m.kz *= Math.exp(-6 * dt); abyssClamp(f.pos); f.pos.y = ABY.y + (T0.fly ? T0.fly + Math.sin(t * 2 + m.ph) * .35 : 0);
-        g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' ? Math.PI / 2 : 0) + (m.k === 'drowned' || m.k === 'captain' ? 0 : 0), 0); g.scale.setScalar(m.k === 'captain' ? 1 : 1);
+        g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' ? Math.PI / 2 : 0) + (m.k === 'drowned' || m.k === 'captain' ? 0 : 0), 0);
         if (m.k === 'angler') g.rotation.y = m.yaw - Math.PI / 2;
-        { const sq = m.squash > 0 ? 1 + Math.sin(m.squash / .22 * Math.PI) * .18 : 1, bs = m.cap ? 1.7 : 1; g.scale.set(bs / sq, bs * sq, bs / sq); if (m.stun > 0) g.rotation.z = Math.sin(t * 40) * .06; }
+        { const sq = m.squash > 0 ? 1 + Math.sin(m.squash / .22 * Math.PI) * .18 : 1, bs = m.bs; g.scale.set(bs / sq, bs * sq, bs / sq); if (m.stun > 0) g.rotation.z = Math.sin(t * 40) * .06; }
         mobAnimate(m, dt, t, moving); mobDetailAnim(m, t);
         if (m.dot) for (const mt of m.mats) mt.emissive.setRGB(.5, .2, .02);
         if (m.cap && KEY.st !== 'ground' && KEY.st !== 'held' && KEY.st !== 'used') { /* el capitán lleva la llave encima */ }
@@ -966,6 +966,141 @@
       for (const m of B.mats) m.emissive.setRGB(.05, .02, .04);
     }
 
+    // ---------------------------------------------------------------- v3: enemigos realistas y de miedo (piel con textura, articulaciones, dientes, ojos brillantes, animaciones propias)
+    const tex2 = (w, h, fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t; };
+    function organic(base, darks, lights, spot, scales) {
+      return tex2(256, 256, (g, w, h) => {
+        g.fillStyle = base; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 520; i++) { const lg = rnd() < .45; g.fillStyle = (lg ? lights : darks)[(rnd() * (lg ? lights : darks).length) | 0]; g.globalAlpha = .06 + rnd() * .22; g.beginPath(); g.arc(rnd() * w, rnd() * h, 2 + rnd() * 16, 0, 7); g.fill(); }
+        g.globalAlpha = 1;
+        if (scales) { g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1.4; for (let y = 0; y < h; y += 14) for (let x = (y / 14 % 2) * 7; x < w; x += 14) { g.beginPath(); g.arc(x, y, 7, 0, Math.PI); g.stroke(); } }
+        if (spot) for (let i = 0; i < 46; i++) { g.fillStyle = spot; g.globalAlpha = .55 + rnd() * .4; g.beginPath(); g.arc(rnd() * w, rnd() * h, 1.5 + rnd() * 4.5, 0, 7); g.fill(); } g.globalAlpha = 1;
+      });
+    }
+    const sm = (map, rough, metal, emi, col, extra) => { const m = new T.MeshStandardMaterial(Object.assign({ map: map || null, color: col == null ? 0xffffff : col, roughness: rough == null ? .7 : rough, metalness: metal || 0 }, extra || {})); m.emissive = new T.Color(emi == null ? 0x000000 : emi); m.userData.em = m.emissive.clone(); return m; };
+    const glowM = c => new T.MeshBasicMaterial({ color: c, transparent: true, opacity: .95, blending: T.AdditiveBlending, depthWrite: false });
+    const tube = (par, r0, r1, len, mat, seg) => { const m = new T.Mesh(new T.CylinderGeometry(r1, r0, len, seg || 8), mat); m.position.y = len / 2; par.add(m); return m; };   // base en y=0, punta en y=len
+    function chain(par, n, len, r0, r1, mat, bend) {   // cadena articulada que cuelga/crece hacia +y local
+      const js = []; let p = par; for (let i = 0; i < n; i++) { const j = new T.Group(); j.position.y = i ? len : 0; p.add(j); tube(j, r0 + (r1 - r0) * i / n, r0 + (r1 - r0) * (i + 1) / n, len, mat, 7); j.rotation.z = bend ? bend * (i ? 1 : 0) : 0; js.push(j); p = j; } return js;
+    }
+    const ball = (par, r, mat, x, y, z, sx, sy, sz) => { const m = new T.Mesh(new T.SphereGeometry(r, 14, 10), mat); m.position.set(x, y, z); if (sx) m.scale.set(sx, sy, sz); par.add(m); return m; };
+    const eyeM = (col) => new T.MeshBasicMaterial({ color: col });
+    Object.assign(MOB_BUILD, {
+      crab() {
+        const g = new T.Group(), shell = sm(organic('#8a2418', ['#3a0c08', '#5a1810'], ['#c8502c', '#e08a4a'], '#ffc05a', true), .55, .1), chit = sm(organic('#5a1a12', ['#220806'], ['#a03a22'], null, true), .5, .15), dark = sm(null, .9, 0, 0, 0x1a0e0a), bone = sm(null, .6, 0, 0, 0xe8dcc0);
+        const body = new T.Group(); body.position.y = 1.15; g.add(body); const car = ball(body, 1.6, shell, 0, .1, 0, 1.3, .52, 1.05);
+        for (let i = 0; i < 7; i++) { const sp = new T.Mesh(new T.ConeGeometry(.17, .7 + (i % 2) * .3, 6), chit); sp.position.set(-1.2 + i * .4, .62, -.25 + (i % 3) * .22); sp.rotation.z = (i - 3) * -.08; body.add(sp); }
+        for (const sg of [-1, 1]) { const sp = new T.Mesh(new T.ConeGeometry(.22, 1.1, 6), chit); sp.position.set(sg * 1.9, .25, .25); sp.rotation.z = -sg * 1.2; body.add(sp); }
+        for (let i = 0; i < 12; i++) { const b = new T.Mesh(new T.ConeGeometry(.08 + rnd() * .08, .16, 5), sm(null, .9, 0, 0, 0x9aa6a0)); b.position.set(rnd() * 2.4 - 1.2, .45 + rnd() * .15, rnd() * 1.4 - .7); body.add(b); }
+        const cracks = []; for (let i = 0; i < 6; i++) { const c = new T.Mesh(new T.BoxGeometry(.7, .03, .05), glowM(0xff7a2a)); c.position.set(-.8 + i * .32, .56 + Math.sin(i) * .03, -.5 + (i % 3) * .5); c.rotation.y = rnd() * 3; body.add(c); cracks.push(c); }
+        const jaw = new T.Mesh(new T.BoxGeometry(1.1, .3, .5), dark); jaw.position.set(0, -.15, 1.35); body.add(jaw); for (let i = 0; i < 6; i++) { const t = new T.Mesh(new T.ConeGeometry(.05, .25, 5), bone); t.position.set(-.45 + i * .18, -.02, 1.55); t.rotation.x = Math.PI; body.add(t); }
+        const eyes = []; for (const sg of [-1, 1]) { const st = new T.Group(); st.position.set(sg * .55, .5, 1.1); body.add(st); tube(st, .07, .05, .7, chit, 6); const e = ball(st, .2, eyeM(0xffe14a), 0, .8, 0); e.scale.set(1, 1.1, 1); ball(st, .09, eyeM(0x000000), 0, .83, .15); eyes.push(st); }
+        const claws = []; for (const sg of [-1, 1]) { const sh = new T.Group(); sh.position.set(sg * 1.5, .1, .8); body.add(sh); sh.rotation.y = sg * -.5; const j = chain(sh, 2, .95, .26, .18, chit); const hand = new T.Group(); hand.position.y = .95; j[1].add(hand);
+          const palm = ball(hand, .42, shell, 0, .25, 0, 1, 1.2, .8); const fixed = new T.Mesh(new T.CylinderGeometry(.04, .24, 1.2, 6), shell); fixed.position.set(-.18, .95, 0); fixed.rotation.z = .12; hand.add(fixed); const mov = new T.Group(); mov.position.set(.15, .55, 0); hand.add(mov); const mf = new T.Mesh(new T.CylinderGeometry(.04, .22, 1.2, 6), shell); mf.position.set(0, .45, 0); mov.add(mf);
+          for (let i = 0; i < 4; i++) { const t = new T.Mesh(new T.ConeGeometry(.045, .18, 5), bone); t.position.set(-.06, .35 + i * .22, 0); t.rotation.z = Math.PI / 2; hand.add(t); } claws.push({ j, mov, sg, hand }); }
+        const legs = []; for (let s = 0; s < 8; s++) { const sg = s < 4 ? -1 : 1, i = s % 4, hip = new T.Group(); hip.position.set(sg * 1.2, -.05, -.7 + i * .5); body.add(hip); hip.rotation.y = sg * (.3 - i * .15); const up = new T.Group(); hip.add(up); tube(up, .12, .09, .95, chit, 6); up.rotation.z = -sg * 1.0; const lo = new T.Group(); lo.position.y = .95; up.add(lo); tube(lo, .09, .03, 1.2, chit, 6); lo.rotation.z = sg * 1.9; legs.push({ hip, up, lo, sg, i }); }
+        g.scale.setScalar(1.25); g.userData = { body, legs, claws, eyes, cracks, jaw }; g.userData.aura = glowSprite(0xff7a4a, 5, .4); g.add(g.userData.aura); return g;
+      },
+      jelly() {
+        const g = new T.Group(), bellM = sm(null, .15, 0, 0xff3aa8, 0xff9ee8, { transparent: true, opacity: .52, side: T.DoubleSide, depthWrite: false }), inM = sm(null, .2, 0, 0x2288ff, 0x9ff4ff, { transparent: true, opacity: .4, side: T.DoubleSide, depthWrite: false });
+        const bellG = new T.Group(); bellG.position.y = 3.1; g.add(bellG); const bell = new T.Mesh(new T.SphereGeometry(1.7, 24, 14, 0, Math.PI * 2, 0, Math.PI * .62), bellM); bellG.add(bell); const inner = new T.Mesh(new T.SphereGeometry(1.25, 18, 10, 0, Math.PI * 2, 0, Math.PI * .6), inM); inner.position.y = -.05; bellG.add(inner);
+        const rim = new T.Mesh(new T.TorusGeometry(1.5, .1, 8, 28), sm(null, .3, 0, 0xff5ac8, 0xffc0f0)); rim.rotation.x = Math.PI / 2; rim.position.y = -.6; bellG.add(rim);
+        const nodes = []; for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283, m = new T.Mesh(new T.BoxGeometry(.03, 1.4, .03), glowM(0x9ff4ff)); m.position.set(Math.cos(a) * .9, .35, Math.sin(a) * .9); m.rotation.set(Math.sin(a) * .55, 0, -Math.cos(a) * .55); bellG.add(m); nodes.push(m); }
+        const core = ball(bellG, .5, glowM(0xffffff), 0, .1, 0); const organs = []; for (let i = 0; i < 4; i++) { const o = ball(bellG, .22, glowM(i % 2 ? 0xff7ad8 : 0x7df9ff), Math.cos(i * 1.6) * .6, .25 + (i % 2) * .3, Math.sin(i * 1.6) * .6); organs.push(o); }
+        const tents = []; for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283, p = new T.Group(); p.position.set(Math.cos(a) * 1.35, 2.5, Math.sin(a) * 1.35); p.rotation.x = Math.PI; g.add(p); const j = chain(p, 7, .45, .06, .015, sm(null, .3, 0, 0xff4ab0, 0xffa0e0, { transparent: true, opacity: .75 }), 0); tents.push(j); }
+        const arms = []; for (let i = 0; i < 4; i++) { const a = i / 4 * 6.283 + .4, p = new T.Group(); p.position.set(Math.cos(a) * .4, 2.6, Math.sin(a) * .4); p.rotation.x = Math.PI; g.add(p); const j = []; let pp = p; for (let k = 0; k < 5; k++) { const jj = new T.Group(); jj.position.y = k ? .5 : 0; pp.add(jj); const fr = new T.Mesh(new T.BoxGeometry(.34 - k * .04, .5, .05), glowM(0xffc2f4)); fr.material.opacity = .5; fr.position.y = .25; jj.add(fr); j.push(jj); pp = jj; } arms.push(j); }
+        const arcs = []; for (let i = 0; i < 4; i++) { const a = new T.Mesh(new T.BoxGeometry(.06, 1, .06), glowM(0xbff8ff)); a.visible = false; g.add(a); arcs.push(a); }
+        g.userData = { bellG, bell, inner, rim, nodes, core, organs, tents, arms, arcs }; g.userData.aura = glowSprite(0xff6fd8, 6, 3.2); g.add(g.userData.aura); g.scale.setScalar(1.3); return g;
+      },
+      angler() {
+        const g = new T.Group(), skin = sm(organic('#14203a', ['#04070f', '#0a1228'], ['#2a4a7a', '#385a8a'], '#7dffb0', false), .35, .1), belly = sm(organic('#6a7a98', ['#2a3550'], ['#b8c4dc'], null, false), .5), mouthM = sm(null, .8, 0, 0x300808, 0x4a0a0e), tooth = sm(null, .4, 0, 0x101010, 0xf2f0e0);
+        const root = new T.Group(); root.position.y = 1.5; g.add(root); const body = ball(root, 1.35, skin, 0, 0, 0, 1.55, 1.08, 1.12); const bel = ball(root, 1.05, belly, .1, -.45, 0, 1.5, .6, 1);
+        const upper = new T.Mesh(new T.BoxGeometry(1.7, .5, 1.8), skin); upper.position.set(1.7, .05, 0); upper.rotation.z = .12; root.add(upper);
+        const jaw = new T.Group(); jaw.position.set(.9, -.45, 0); root.add(jaw); const lower = new T.Mesh(new T.BoxGeometry(2.0, .4, 1.7), skin); lower.position.set(1.0, 0, 0); jaw.add(lower); const inside = new T.Mesh(new T.BoxGeometry(1.8, .12, 1.4), mouthM); inside.position.set(1.0, .25, 0); jaw.add(inside);
+        for (let i = 0; i < 16; i++) { const L = .3 + rnd() * .35, t = new T.Mesh(new T.ConeGeometry(.055, L, 5), tooth), s = i % 2 ? .75 : -.75; t.position.set(.2 + (i >> 1) * .22, .38 + L / 2 - .05, s * (.7 + (i % 3) * .06)); jaw.add(t); } for (let i = 0; i < 14; i++) { const L = .25 + rnd() * .35, t = new T.Mesh(new T.ConeGeometry(.05, L, 5), tooth), s = i % 2 ? .78 : -.78; t.position.set(1.0 + (i >> 1) * .24, -.02 - L / 2, s * (.6 + (i % 3) * .06)); t.rotation.x = Math.PI; root.add(t); t.position.y += -.3; }
+        const eyes = []; for (const sg of [-1, 1]) { const e = ball(root, .36, eyeM(0xffd24a), 1.45, .62, sg * .82); ball(root, .09, eyeM(0x000000), 1.78, .62, sg * .9, .6, 2.2, .6); eyes.push(e); }
+        const lure = chain(root, 4, .7, .06, .035, skin, -.5); lure[0].position.set(1.1, .9, 0); lure[0].rotation.z = -.2; const orb = ball(lure[3], .34, glowM(0x7dffb0), 0, .72, 0); const lsp = glowSprite(0x7dffb0, 3.4, .72); lure[3].add(lsp);
+        const fins = []; for (const sg of [-1, 1]) { const f = new T.Group(); f.position.set(.2, -.35, sg * 1.2); root.add(f); for (let i = 0; i < 6; i++) { const r = new T.Mesh(new T.BoxGeometry(.9, .03, .08), sm(null, .6, 0, 0, 0x2a4066)); r.position.set(-.3 - i * .07, 0, sg * (.15 + i * .18)); r.rotation.y = sg * (.1 + i * .08); f.add(r); } fins.push(f); }
+        const tail = new T.Group(); tail.position.set(-2.0, 0, 0); root.add(tail); const stalk = new T.Mesh(new T.CylinderGeometry(.18, .55, 1.4, 8), skin); stalk.rotation.z = Math.PI / 2; stalk.position.x = -.5; tail.add(stalk); for (let i = 0; i < 7; i++) { const r = new T.Mesh(new T.BoxGeometry(1.1, .03, .07), sm(null, .6, 0, 0, 0x2a4066)); r.position.set(-1.2, (i - 3) * .17, 0); r.rotation.z = (i - 3) * .17; tail.add(r); }
+        for (let i = 0; i < 8; i++) { const sp = new T.Mesh(new T.ConeGeometry(.1, .6 + (i % 3) * .2, 5), skin); sp.position.set(-1.0 + i * .33, 1.35 - Math.abs(i - 3.5) * .09, 0); root.add(sp); }
+        for (const sg of [-1, 1]) for (let i = 0; i < 3; i++) { const gl = new T.Mesh(new T.BoxGeometry(.05, .5, .04), sm(null, .9, 0, 0, 0x050a14)); gl.position.set(.5 - i * .18, .1, sg * 1.45); root.add(gl); }
+        for (let i = 0; i < 12; i++) { const d = ball(root, .06, glowM(0x7dffb0), -1 + i * .28, -.1 + Math.sin(i) * .3, (i % 2 ? 1 : -1) * 1.2); }
+        g.userData = { root, jaw, lure, orb, tail, fins, eyes }; g.userData.aura = glowSprite(0x7dffb0, 6, 1.4); g.add(g.userData.aura); g.scale.setScalar(1.15); return g;
+      },
+      drowned(big) {
+        const g = new T.Group(), flesh = sm(organic('#6f8a78', ['#2a3a30', '#3a4a40'], ['#a8c0b0', '#c4d4c8'], null, false), .85), bone = sm(organic('#d8d2bc', ['#8a8470'], ['#f2eedc'], null, false), .7), cloth = sm(organic('#2a3d4c', ['#10181e'], ['#4a6070'], null, false), 1, 0, 0, 0xffffff, { side: T.DoubleSide }), weed = sm(null, 1, 0, 0, 0x1d5a3c), rustM = sm(null, .8, .5, 0, 0x6a4a34), glow = glowM(0x7dffb0);
+        const root = new T.Group(); g.add(root); const hips = new T.Group(); hips.position.y = 1.15; root.add(hips); const legs = [];
+        for (const sg of [-1, 1]) { const th = new T.Group(); th.position.set(sg * .3, 0, 0); hips.add(th); th.rotation.x = 0; const t = tube(th, .2, .14, .62, flesh, 7); t.rotation.x = Math.PI; t.position.y = -.31; const sh = new T.Group(); sh.position.y = -.62; th.add(sh); const s2 = tube(sh, .14, .08, .62, flesh, 7); s2.rotation.x = Math.PI; s2.position.y = -.31; const rag = new T.Mesh(new T.BoxGeometry(.4, .55, .36), cloth); rag.position.y = -.25; th.add(rag); const ft = new T.Mesh(new T.BoxGeometry(.2, .1, .42), bone); ft.position.set(0, -.65, .1); sh.add(ft); legs.push({ th, sh, sg }); }
+        const torso = new T.Group(); torso.position.y = .1; hips.add(torso); torso.rotation.x = .28; const spine = tube(torso, .1, .08, 1.15, bone, 6); for (let i = 0; i < 6; i++) { for (const sg of [-1, 1]) { const rb = new T.Mesh(new T.TorusGeometry(.3 - i * .02, .028, 5, 10, Math.PI * .85), bone); rb.position.set(0, .35 + i * .13, .02); rb.rotation.set(0, sg > 0 ? -Math.PI / 2 + .1 : Math.PI / 2 + .1, 0); rb.rotation.z = Math.PI * .5 * (sg > 0 ? 0 : 0); torso.add(rb); rb.rotation.y = sg * 1.57; rb.rotation.x = 1.57; rb.scale.set(1, 1, 1); } }
+        ball(torso, .38, flesh, 0, .75, .05, 1, 1.15, .65); const cloths = []; for (let i = 0; i < 4; i++) { const p = new T.Mesh(new T.PlaneGeometry(.32, .75), cloth); p.position.set(-.45 + i * .3, .5, .32); p.geometry.translate(0, -.37, 0); p.position.y = .95; torso.add(p); cloths.push(p); }
+        for (let i = 0; i < 5; i++) { const lk = new T.Mesh(new T.TorusGeometry(.1, .03, 5, 8), rustM); lk.position.set(-.3 + i * .15, .6 + i * .1, .38); lk.rotation.y = i % 2 ? 1.57 : 0; torso.add(lk); }
+        const neck = new T.Group(); neck.position.y = 1.1; torso.add(neck); neck.rotation.x = -.3; const head = new T.Group(); head.position.y = .15; neck.add(head); const skull = ball(head, .36, flesh, 0, .22, 0, 1, 1.12, 1.05);
+        for (const sg of [-1, 1]) { ball(head, .11, sm(null, 1, 0, 0, 0x050806), sg * .15, .26, .3); ball(head, .075, glow, sg * .15, .26, .31); const br = new T.Mesh(new T.BoxGeometry(.14, .03, .05), bone); br.position.set(sg * .16, .38, .33); br.rotation.z = sg * -.3; head.add(br); }
+        const jaw = new T.Group(); jaw.position.set(0, .08, .1); head.add(jaw); const jw = new T.Mesh(new T.BoxGeometry(.3, .09, .3), bone); jw.position.set(0, -.06, .1); jaw.add(jw); for (let i = 0; i < 6; i++) { const t = new T.Mesh(new T.ConeGeometry(.02, .09, 4), bone); t.position.set(-.1 + i * .04, .0, .22); jaw.add(t); }
+        const strands = []; for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283; const p = new T.Group(); p.position.set(Math.cos(a) * .22, .48, Math.sin(a) * .22 - .05); head.add(p); p.rotation.x = Math.PI; strands.push(chain(p, 4, .22, .035, .012, weed, 0)); }
+        const arms = []; for (const sg of [-1, 1]) { const sh = new T.Group(); sh.position.set(sg * .5, 1.05, 0); torso.add(sh); sh.rotation.x = -.9; const up = tube(sh, .11, .09, .72, flesh, 6); up.rotation.x = Math.PI; up.position.y = -.36; const el = new T.Group(); el.position.y = -.72; sh.add(el); const lo = tube(el, .09, .06, .7, flesh, 6); lo.rotation.x = Math.PI; lo.position.y = -.35; el.rotation.x = -.5; const hand = new T.Group(); hand.position.y = -.7; el.add(hand); for (let f = 0; f < 3; f++) { const fg = new T.Mesh(new T.ConeGeometry(.025, .26, 4), bone); fg.position.set((f - 1) * .06, -.13, 0); fg.rotation.x = Math.PI; hand.add(fg); } arms.push({ sh, el, hand, sg }); for (let b = 0; b < 3; b++) { const bc = new T.Mesh(new T.ConeGeometry(.06, .12, 5), sm(null, .9, 0, 0, 0x9aa6a0)); bc.position.set(sg * .2, .0 + b * .1, rnd() * .2 - .1); if (!b) sh.add(bc); } }
+        const hook = new T.Group(); hook.position.set(0, -.12, .02); arms[1].hand.add(hook); const hk = new T.Mesh(new T.TorusGeometry(.17, .03, 5, 10, Math.PI * 1.3), rustM); hk.rotation.set(0, 0, 2.2); hk.position.y = -.2; hook.add(hk); const hs = new T.Mesh(new T.CylinderGeometry(.03, .03, .35, 5), rustM); hs.position.y = -.05; hook.add(hs);
+        g.userData = { root, hips, legs, torso, neck, head, jaw, arms, strands, cloths, hook }; g.userData.aura = glowSprite(0x7dffb0, 4.5, 1.2); g.add(g.userData.aura); g.scale.setScalar(1.05); return g;
+      },
+      squidling() {
+        const g = new T.Group(), skin = sm(organic('#b84a68', ['#4a1020', '#701c34'], ['#f08aa8', '#ffb4c8'], '#7df9ff', false), .45), fin = sm(null, .5, 0, 0x300a14, 0xc85a78, { side: T.DoubleSide });
+        const root = new T.Group(); root.position.y = 1.5; g.add(root); const prof = []; for (let i = 0; i <= 12; i++) { const u = i / 12; prof.push(new T.Vector2(.12 + Math.sin(Math.pow(u, .6) * Math.PI) * .95 * (1 - u * .35), u * 2.8)); }
+        const mantle = new T.Mesh(new T.LatheGeometry(prof, 14), skin); mantle.position.y = .6; root.add(mantle); const head = ball(root, .8, skin, 0, .35, 0, 1, .9, 1);
+        const eyes = []; for (const sg of [-1, 1]) { const e = ball(root, .3, eyeM(0xffe14a), sg * .65, .5, .45); ball(root, .06, eyeM(0x000000), sg * .72, .5, .72, .6, 2.4, .6); eyes.push(e); }
+        for (const sg of [-1, 1]) { const f = new T.Mesh(new T.SphereGeometry(1, 10, 6), fin); f.scale.set(.9, .06, .75); f.position.set(sg * .8, 2.9, 0); f.rotation.z = sg * .5; root.add(f); eyes.push(f); }
+        const tents = []; for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283, p = new T.Group(); p.position.set(Math.cos(a) * .5, .1, Math.sin(a) * .5); p.rotation.x = Math.PI; p.rotation.z = Math.cos(a) * .3; root.add(p); tents.push(chain(p, 5, .38, .12, .03, skin, 0)); }
+        for (let i = 0; i < 10; i++) { const d = ball(root, .05, glowM(0x7df9ff), (rnd() - .5) * 1.2, 1 + rnd() * 2, (rnd() - .5) * 1.2); }
+        g.userData = { root, mantle, tents, eyes }; g.userData.aura = glowSprite(0xff8fb0, 4.5, 1.4); g.add(g.userData.aura); return g;
+      },
+      captain() {
+        const g = MOB_BUILD.drowned(true), u = g.userData, gold = sm(null, .3, .8, 0x3a2a05, 0xd4a017), cloth = sm(organic('#1c2230', ['#080a10'], ['#3a4660'], null, false), 1, 0, 0, 0xffffff, { side: T.DoubleSide }), red = sm(organic('#6a1a22', ['#2a0a0e'], ['#a03a46'], null, false), 1, 0, 0, 0xffffff, { side: T.DoubleSide });
+        const hat = new T.Group(); hat.position.y = .52; u.head.add(hat); const brim = new T.Mesh(new T.CylinderGeometry(.5, .5, .05, 3), cloth); brim.rotation.y = .5; hat.add(brim); const crown = new T.Mesh(new T.CylinderGeometry(.26, .32, .28, 10), cloth); crown.position.y = .16; hat.add(crown); const band = new T.Mesh(new T.CylinderGeometry(.33, .33, .06, 10), gold); band.position.y = .06; hat.add(band); const skl = ball(hat, .06, sm(null, .6, 0, 0, 0xeeeeee), 0, .2, .3);
+        for (const sg of [-1, 1]) { const ep = new T.Mesh(new T.BoxGeometry(.4, .08, .3), gold); ep.position.set(sg * .55, 1.12, 0); u.torso.add(ep); for (let k = 0; k < 4; k++) { const f = new T.Mesh(new T.CylinderGeometry(.015, .015, .25, 4), gold); f.position.set(sg * (.4 + k * .06), 1.0, 0); u.torso.add(f); } }
+        for (let i = 0; i < 5; i++) { const m = new T.Mesh(new T.CircleGeometry(.05, 8), glowM(0xffd54f)); m.position.set(-.18 + (i % 2) * .3, .95 - (i >> 1) * .22, .4); u.torso.add(m); }
+        const cape = []; for (let i = 0; i < 5; i++) { const p = new T.Mesh(new T.PlaneGeometry(.3, 1.6), red); p.geometry.translate(0, -.8, 0); p.position.set(-.6 + i * .3, 1.05, -.38); u.torso.add(p); cape.push(p); } u.cape = cape;
+        const sw = new T.Group(); sw.position.set(0, -.15, 0); u.arms[1].hand.add(sw); const bl = new T.Mesh(new T.BoxGeometry(.06, 1.5, .02), sm(null, .25, .9, 0, 0xc8d4e0)); bl.position.y = -.85; sw.add(bl); const gd = new T.Mesh(new T.BoxGeometry(.38, .05, .08), gold); gd.position.y = -.12; sw.add(gd); u.sword = sw; if (u.hook) u.hook.visible = false;
+        const lan = new T.Group(); lan.position.set(0, -.15, 0); u.arms[0].hand.add(lan); const lb = new T.Mesh(new T.BoxGeometry(.22, .3, .22), sm(null, .5, .4, 0, 0x3a3a3a)); lb.position.y = -.3; lan.add(lb); const lf = ball(lan, .13, glowM(0xffb347), 0, -.3, 0); const ls = glowSprite(0xffb347, 2.4, -.3); lan.add(ls); u.lantern = ls;
+        const key = new T.Group(); key.position.set(.35, .45, .4); u.torso.add(key); const kr = new T.Mesh(new T.TorusGeometry(.09, .025, 6, 12), glowM(0xffd54f)); key.add(kr); const ks = new T.Mesh(new T.BoxGeometry(.03, .26, .03), glowM(0xffd54f)); ks.position.y = -.2; key.add(ks);
+        u.flames = []; for (const sg of [-1, 1]) for (let i = 0; i < 3; i++) { const f = glowSprite(0x7dffb0, 1.6, 1.8); f.position.x = sg * .55; u.torso.add(f); u.flames.push(f); }
+        g.scale.setScalar(1.8); u.aura.scale.set(9, 9, 1); return g;
+      },
+    });
+    function detailMob() { }   // los detalles ahora vienen en cada modelo
+    function mobDetailAnim(m, t) {
+      const u = m.g.userData; if (u.aura) u.aura.material.opacity = .4 + Math.sin(t * 2 + m.ph) * .14 + (m.wind > 0 ? .3 : 0);
+      if (u.flames) u.flames.forEach((f, i) => { f.position.y = 1.7 + Math.sin(t * 3 + i) * .18 + (i % 3) * .25; f.material.opacity = .5 + Math.sin(t * 7 + i * 2) * .25; f.scale.setScalar(1.1 + Math.sin(t * 5 + i) * .35); });
+      if (u.lantern) u.lantern.material.opacity = .65 + Math.sin(t * 9) * .2;
+    }
+    function mobAnimate(m, dt, t, moving) {
+      const g = m.g, u = g.userData, k = m.k, ph = m.ph, w = m.wind > 0, sp = moving ? 1 : .25;
+      if (k === 'crab') {
+        u.body.position.y = 1.15 + Math.abs(Math.sin(t * 12 + ph)) * (moving ? .09 : 0) + Math.sin(t * 2 + ph) * .02; u.body.rotation.z = Math.sin(t * 12) * (moving ? .05 : 0);
+        u.legs.forEach(L => { const a = t * 13 + L.i * 1.6 + (L.sg > 0 ? Math.PI : 0); L.up.rotation.z = -L.sg * (1.0 + Math.sin(a) * .35 * sp); L.lo.rotation.z = L.sg * (1.9 + Math.cos(a) * .4 * sp); L.hip.rotation.y = L.sg * (.3 - L.i * .15) + Math.sin(a) * .22 * sp; });
+        u.claws.forEach(c => { c.j[0].rotation.x = w ? -1.0 : -.15 + Math.sin(t * 1.8 + c.sg) * .12; c.j[1].rotation.x = w ? -.7 : -.35; c.mov.rotation.z = c.sg * (w ? .7 - Math.abs(Math.sin(t * 24)) * .75 : .35 + Math.abs(Math.sin(t * 2.2 + c.sg * 2)) * .3); });
+        u.eyes.forEach((e, i) => { e.rotation.z = Math.sin(t * 3 + i * 2) * .15; e.rotation.x = Math.cos(t * 2.4 + i) * .1; }); u.jaw.position.y = -.15 - (w ? .12 : Math.abs(Math.sin(t * 6)) * .03); u.cracks.forEach((c, i) => { c.material.opacity = .4 + Math.abs(Math.sin(t * 3 + i)) * .6; });
+      } else if (k === 'jelly') {
+        const pul = Math.sin(t * (moving ? 5 : 2.6) + ph); u.bellG.scale.set(1 + pul * .09 + (w ? .2 : 0), 1 - pul * .12 - (w ? .1 : 0), 1 + pul * .09 + (w ? .2 : 0)); u.core.scale.setScalar(.9 + Math.sin(t * 6 + ph) * .3 + (w ? .9 : 0)); u.organs.forEach((o, i) => { o.position.y = .25 + (i % 2) * .3 + Math.sin(t * 2 + i) * .08; });
+        u.tents.forEach((j, ti) => j.forEach((jj, i) => { jj.rotation.z = Math.sin(t * 2.4 - i * .55 + ti) * (.12 + i * .03); jj.rotation.x = Math.cos(t * 2.0 - i * .5 + ti * 1.7) * (.12 + i * .03); }));
+        u.arms.forEach((j, ai) => j.forEach((jj, i) => { jj.rotation.z = Math.sin(t * 2 - i * .7 + ai) * .25; jj.rotation.x = Math.cos(t * 1.7 - i * .6 + ai * 2) * .22; }));
+        u.nodes.forEach((n, i) => { n.material.opacity = .4 + Math.abs(Math.sin(t * 4 + i)) * .6; });
+        u.arcs.forEach((a, i) => { a.visible = w && Math.random() < .8; if (a.visible) { const ang = rnd() * 6.283, d = .5 + rnd() * 2.8, hh = 1 + rnd() * 3.4; a.position.set(Math.cos(ang) * d * .5, hh, Math.sin(ang) * d * .5); a.scale.y = .5 + rnd() * 2.4; a.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); } });
+      } else if (k === 'angler') {
+        u.jaw.rotation.z = -(w ? .95 : .14 + Math.abs(Math.sin(t * 2.2 + ph)) * .12); u.tail.rotation.y = Math.sin(t * (moving ? 9 : 3) + ph) * (moving ? .5 : .2); u.fins.forEach((f, i) => { f.rotation.x = (i ? 1 : -1) * (.3 + Math.sin(t * 5 + i) * .35); });
+        u.lure.forEach((j, i) => { j.rotation.z = (i ? -.5 : -.2) + Math.sin(t * 2.6 - i * .6 + ph) * .18; }); u.orb.scale.setScalar(1 + Math.sin(t * 6) * .25 + (w ? .5 : 0)); u.root.rotation.z = Math.sin(t * 1.6 + ph) * .04; u.root.rotation.y = Math.sin(t * (moving ? 6 : 2)) * (moving ? .09 : .03);
+      } else if (k === 'drowned' || k === 'captain') {
+        const sh = moving ? 1 : .15, ca = k === 'captain';
+        u.legs.forEach((L, i) => { const a = t * (ca ? 4.2 : 5.4) + (i ? Math.PI : 0); L.th.rotation.x = Math.sin(a) * .7 * sh; L.sh.rotation.x = Math.max(0, -Math.cos(a)) * .9 * sh + .08; });
+        u.hips.position.y = 1.15 + Math.abs(Math.sin(t * (ca ? 4.2 : 5.4))) * .06 * sh; u.hips.rotation.z = Math.sin(t * (ca ? 4.2 : 5.4)) * .07 * sh; u.torso.rotation.x = .28 + Math.sin(t * 1.3 + ph) * .05 + (w ? -.4 : 0); u.torso.rotation.y = Math.sin(t * 1.1 + ph) * .15;
+        u.neck.rotation.z = Math.sin(t * 1.5 + ph) * .18; u.head.rotation.x = Math.sin(t * 2.2 + ph) * .1; u.jaw.rotation.x = .12 + Math.abs(Math.sin(t * (w ? 14 : 3.2) + ph)) * (w ? .5 : .22);
+        u.arms.forEach((A, i) => { const sw = Math.sin(t * (ca ? 4.2 : 5.4) + (i ? 0 : Math.PI)) * .35 * sh; A.sh.rotation.x = (w && A.sg > 0 ? -2.7 : -.9) + (w && A.sg > 0 ? 0 : sw); A.el.rotation.x = w && A.sg > 0 ? -.2 : -.5 + Math.sin(t * 2 + i) * .12; A.sh.rotation.z = A.sg * (.12 + Math.sin(t * 1.4 + i) * .05); });
+        u.strands.forEach((s, si) => s.forEach((j, i) => { j.rotation.z = Math.sin(t * 2.4 - i * .6 + si) * .35; j.rotation.x = Math.cos(t * 2 - i * .5 + si * 1.3) * .3; })); u.cloths.forEach((c, i) => { c.rotation.x = Math.sin(t * 3 + i) * .15 + sh * .08; });
+        if (u.cape) u.cape.forEach((p, i) => { p.rotation.x = .12 + Math.sin(t * 2.6 + i * .7) * .18 + sh * .2; });
+        if (u.sword) u.sword.rotation.x = w ? 0 : .4 + Math.sin(t * 2) * .05;
+      } else if (k === 'squidling') {
+        u.root.position.y = 1.5 + Math.sin(t * 2 + ph) * .12; u.root.rotation.z = Math.sin(t * 1.4 + ph) * .06; const pul = Math.sin(t * (moving ? 6 : 2.4) + ph); u.mantle.scale.set(1 + pul * .05, 1 + pul * .09 + (w ? .2 : 0), 1 + pul * .05);
+        u.tents.forEach((j, ti) => j.forEach((jj, i) => { jj.rotation.z = Math.sin(t * 3.4 - i * .7 + ti) * .35; jj.rotation.x = Math.cos(t * 3 - i * .6 + ti * 1.4) * .35 + (w ? -.5 : 0); }));
+      }
+    }
     const MUSF = { src: { pasillo: 'musica/abismo_pasillo.mp3', kraken: 'musica/abismo_kraken.mp3', calma: 'musica/abismo_calma.mp3' }, failed: new Set() };
     window.CF_MUS_SCENE = () => { const p = G.player; if (!p || !p.abyss) return null; let id = (!eventOn() || AB.cleared) ? 'calma' : (B.state === 'fight' || B.state === 'intro') ? 'kraken' : 'pasillo'; if (id === 'kraken' && MUSF.failed.has('kraken')) id = 'pasillo'; if (MUSF.failed.has(id)) return null; return { id, src: MUSF.src[id] }; };
     window.CF_MUS_FAIL = id => MUSF.failed.add(id);
