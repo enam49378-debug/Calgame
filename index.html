@@ -37,13 +37,13 @@
 #ld-sky{position:absolute;inset:0;width:100%;height:100%}
 .ld-sun{position:absolute;left:50%;bottom:24%;width:min(46vw,380px);aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:linear-gradient(180deg,#fff2b8,#ffb05a 55%,#ff5f7a);box-shadow:0 0 90px 30px rgba(255,150,90,.45);opacity:.95;animation:ldSun 6s ease-in-out infinite alternate}
 .ld-sun::after{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(180deg,transparent 0 9px,rgba(196,69,122,.9) 9px 13px);-webkit-mask:linear-gradient(180deg,transparent 40%,#000 100%);mask:linear-gradient(180deg,transparent 40%,#000 100%)}
-.ld-cubes i{position:absolute;display:block;width:var(--s);height:var(--s);left:var(--x);top:110%;background:var(--c);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.3);animation:ldRise var(--d) linear infinite;animation-delay:var(--l);opacity:.85}
+.ld-cubes i{position:absolute;display:block;width:var(--s);height:var(--s);left:var(--x);top:var(--y);background:var(--c);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.3);animation:ldBob var(--d) ease-in-out infinite alternate;animation-delay:var(--l);opacity:.8}
 .ld-shell{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;text-align:center;width:min(520px,90vw);gap:18px}
 .ld-logo{position:relative;display:flex;align-items:center;justify-content:center;padding:6px 0}
-.ld-logo img{width:min(300px,72vw);filter:drop-shadow(0 8px 0 rgba(20,8,40,.55)) drop-shadow(0 0 28px rgba(255,190,120,.6));animation:ldFloat 3.4s ease-in-out infinite}
+.ld-logo img{width:min(300px,72vw);filter:drop-shadow(0 8px 0 rgba(20,8,40,.55)) drop-shadow(0 0 28px rgba(255,190,120,.6));animation:ldFloat 5s ease-in-out infinite}
 .ld-tag{letter-spacing:.42em;font-size:11px;color:#ffe3c4;opacity:.9;text-shadow:0 2px 0 rgba(40,10,50,.7)}
 .ld-title{margin:0;font-size:22px;letter-spacing:.5em;font-weight:700;text-shadow:0 3px 0 rgba(40,10,50,.75)}
-.ld-title span i{font-style:normal;animation:ldDot 1.4s infinite}.ld-title span i:nth-child(2){animation-delay:.2s}.ld-title span i:nth-child(3){animation-delay:.4s}
+.ld-title span i{font-style:normal;animation:ldDot 2.4s infinite}.ld-title span i:nth-child(2){animation-delay:.2s}.ld-title span i:nth-child(3){animation-delay:.4s}
 .ld-bar{width:100%;height:26px;padding:4px;box-sizing:border-box;background:rgba(18,8,40,.78);border:3px solid #ffe3c4;box-shadow:0 5px 0 rgba(40,10,50,.7),0 0 24px rgba(255,170,110,.4);position:relative;overflow:hidden}
 .ld-bar #loading-bar-fill{height:100%;background:repeating-linear-gradient(90deg,#ffd166 0 14px,#ff7a59 14px 28px);box-shadow:0 0 14px #ffb066;transition:width .25s ease;position:relative}
 .ld-bar #loading-bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.45),transparent 55%)}
@@ -55,7 +55,7 @@
 .ld-tip small{display:block;font-size:10px;letter-spacing:.32em;color:#ffd166;margin-bottom:4px}
 .ld-tip p{margin:0;font-size:13px;line-height:1.5;color:#fff6ea}.ld-tip b{color:#ffd166}
 @keyframes ldSun{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(-10px)}}
-@keyframes ldRise{from{transform:translateY(0) rotate(0)}to{transform:translateY(-130vh) rotate(180deg)}}
+@keyframes ldBob{from{transform:translateY(0) rotate(0)}to{transform:translateY(-16px) rotate(35deg)}}
 @keyframes ldFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 @keyframes ldShine{0%,55%{left:-80px}100%{left:110%}}
 @keyframes ldCreep{from{transform:scaleX(.15)}to{transform:scaleX(.9)}}
@@ -69,7 +69,7 @@
 <div id="loading-screen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="15" aria-label="Cargando CalFight">
   <canvas id="ld-sky"></canvas>
   <div class="ld-sun"></div>
-  <div class="ld-cubes"><i style="--s:10px;--x:0%;--c:#ffd166;--d:9s;--l:-0.5s"></i><i style="--s:13px;--x:37%;--c:#ff7a59;--d:10s;--l:-1.2s"></i><i style="--s:16px;--x:74%;--c:#8ecae6;--d:11s;--l:-1.9s"></i><i style="--s:19px;--x:15%;--c:#cdb4ff;--d:12s;--l:-2.8s"></i><i style="--s:22px;--x:52%;--c:#ff9ec4;--d:13s;--l:-3.8s"></i><i style="--s:25px;--x:89%;--c:#ffd166;--d:14s;--l:-4.9s"></i><i style="--s:12px;--x:30%;--c:#ff7a59;--d:15s;--l:-6.2s"></i><i style="--s:15px;--x:67%;--c:#8ecae6;--d:9s;--l:-4.2s"></i><i style="--s:18px;--x:8%;--c:#cdb4ff;--d:10s;--l:-5.3s"></i><i style="--s:21px;--x:45%;--c:#ff9ec4;--d:11s;--l:-6.5s"></i><i style="--s:24px;--x:82%;--c:#ffd166;--d:12s;--l:-7.8s"></i><i style="--s:11px;--x:23%;--c:#ff7a59;--d:13s;--l:-9.2s"></i><i style="--s:14px;--x:60%;--c:#8ecae6;--d:14s;--l:-10.7s"></i><i style="--s:17px;--x:1%;--c:#cdb4ff;--d:15s;--l:-12.4s"></i><i style="--s:20px;--x:38%;--c:#ff9ec4;--d:9s;--l:-7.9s"></i><i style="--s:23px;--x:75%;--c:#ffd166;--d:10s;--l:-9.4s"></i></div>
+  <div class="ld-cubes"><i style="--s:10px;--x:0%;--y:35%;--c:#ffd166;--d:9s;--l:-0.5s"></i><i style="--s:13px;--x:37%;--y:14%;--c:#ff7a59;--d:10s;--l:-1.2s"></i><i style="--s:16px;--x:74%;--y:43%;--c:#8ecae6;--d:10s;--l:-1.9s"></i><i style="--s:19px;--x:15%;--y:22%;--c:#cdb4ff;--d:11s;--l:-2.8s"></i><i style="--s:22px;--x:52%;--y:51%;--c:#ff9ec4;--d:11s;--l:-3.8s"></i><i style="--s:25px;--x:89%;--y:30%;--c:#ffd166;--d:12s;--l:-4.9s"></i><i style="--s:12px;--x:30%;--y:9%;--c:#ff7a59;--d:12s;--l:-6.2s"></i><i style="--s:15px;--x:67%;--y:38%;--c:#8ecae6;--d:9s;--l:-4.2s"></i><i style="--s:18px;--x:8%;--y:17%;--c:#cdb4ff;--d:10s;--l:-5.3s"></i><i style="--s:21px;--x:45%;--y:46%;--c:#ff9ec4;--d:10s;--l:-6.5s"></i><i style="--s:24px;--x:82%;--y:25%;--c:#ffd166;--d:11s;--l:-7.8s"></i><i style="--s:11px;--x:23%;--y:54%;--c:#ff7a59;--d:11s;--l:-9.2s"></i><i style="--s:14px;--x:60%;--y:33%;--c:#8ecae6;--d:12s;--l:-10.7s"></i><i style="--s:17px;--x:1%;--y:12%;--c:#cdb4ff;--d:12s;--l:-12.4s"></i><i style="--s:20px;--x:38%;--y:41%;--c:#ff9ec4;--d:9s;--l:-7.9s"></i><i style="--s:23px;--x:75%;--y:20%;--c:#ffd166;--d:10s;--l:-9.4s"></i></div>
   <div class="ld-shell">
     <div class="ld-logo"><img src="assets/calfight_logo.png" alt="CalFight"></div>
     <div class="ld-tag">PELEAS ANIME · CIUDAD DE BLOQUES</div>
