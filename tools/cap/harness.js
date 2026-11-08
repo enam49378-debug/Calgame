@@ -172,8 +172,6 @@
     }
     return !!H._dev;
   };
-  // Foto de lo que ve la camara ahora mismo (en el juego normal, sin escena): await __H.shot('nombre', 640) -> config/_frames/dir_nombre.json
-  H.shot = async (tag, w) => { drawFrameSafely(); await post('dir_' + tag, { t: r(G.time), v: 'dir', d: canvasToJpeg(w || 640) }); return tag; };
   // Atajo: una sola foto de un instante, desde varias vistas
   H.at = (id, t, views, w) => H.run({ id, from: t, to: t + .001, every: 9, views: views || ['dir', 'side', 'top', 'contact'], w: w || 640, tag: 'p' });
   return 'harness listo';
