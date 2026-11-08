@@ -13523,14 +13523,14 @@ function acctCustomize(){
   const profile = localPublicProfile();
   const fields = ['status', 'pronouns', 'bio', 'accent'];
   body.innerHTML = `<div class="profile-editor" data-pane="controls">
-    <div class="pe-top"><div><small>CUENTA / APARIENCIA</small><h3>Tu perfil</h3></div><button type="button" id="pe-back">← Mi cuenta</button></div>
+    <div class="pe-top"><div><small>VESTIDOR</small><h3>Arma tu ficha</h3></div><button type="button" id="pe-back">Volver a mi ficha</button></div>
     <div class="pe-switch" role="group" aria-label="Vista del editor">
       <button type="button" data-pe-pane="controls" aria-pressed="true">Personalizar</button>
       <button type="button" data-pe-pane="preview" aria-pressed="false">Vista previa</button>
     </div>
     <div class="pe-workspace">
       <div class="pe-controls" aria-label="Personalizar perfil">
-        <fieldset><legend>Avatar y decoración</legend>
+        <fieldset data-tab="Cara"><legend>Foto, banner y aura</legend>
           <div class="pe-media pe-tiles">
             <button type="button" id="pe-photo"><img alt=""><span>Cambiar foto</span></button>
             <button type="button" id="pe-banner"><span class="pe-banner-thumb" aria-hidden="true"></span><span>Elegir banner</span></button>
@@ -13538,22 +13538,22 @@ function acctCustomize(){
           <button type="button" id="pe-photo-reset" class="pe-subtle">Usar foto de la cuenta</button>
           <p class="pe-caption">Aura del avatar</p><div class="pe-auras"></div>
         </fieldset>
-        <fieldset><legend>Tema y color</legend>
+        <fieldset data-tab="Colores"><legend>Tema y color</legend>
           <div class="pe-themes"></div><label>Color de acento<input id="pe-accent" type="color"></label>
         </fieldset>
-        <fieldset><legend>Identidad</legend>
+        <fieldset data-tab="Datos"><legend>Lo que dice tu ficha</legend>
           <label>Estado<input id="pe-status" maxlength="80" placeholder="Hoy toca pelear"></label>
           <label>Pronombres<input id="pe-pronouns" maxlength="32" placeholder="Opcional"></label>
-          <label>Biografía<textarea id="pe-bio" maxlength="240" rows="3" placeholder="Contá algo sobre vos…"></textarea><small id="pe-count"></small></label>
+          <label>Biografía<textarea id="pe-bio" maxlength="240" rows="3" placeholder="Cuenta algo de ti: tu main, tu combo favorito, de dónde juegas..."></textarea><small id="pe-count"></small></label>
         </fieldset>
-        <fieldset><legend>Marco de perfil</legend><div class="pe-options pe-frames"></div></fieldset>
-        <fieldset><legend>Efecto animado</legend><div class="pe-options pe-effects"></div></fieldset>
-        <fieldset><legend>Pegatinas <small id="pe-sticker-count"></small></legend>
+        <fieldset data-tab="Marco"><legend>Marco de la ficha</legend><div class="pe-options pe-frames"></div></fieldset>
+        <fieldset data-tab="Efecto"><legend>Efecto del banner</legend><div class="pe-options pe-effects"></div></fieldset>
+        <fieldset data-tab="Pegatinas"><legend>Pegatinas <small id="pe-sticker-count"></small></legend>
           <div class="pe-stickers"></div><button type="button" id="pe-place">Ubicar en el banner ↗</button>
         </fieldset>
       </div>
-      <div class="pe-stage"><p class="pe-stage-label">VISTA PREVIA · PERFIL PÚBLICO</p>
-        <p id="pe-decal-help">Elegí pegatinas y arrastralas por el banner. También podés moverlas con las flechas.</p>
+      <div class="pe-stage"><p class="pe-stage-label">ASÍ TE VEN LOS DEMÁS</p>
+        <p id="pe-decal-help">Arrastra tus pegatinas por el banner (o muévelas con las flechas).</p>
         <article class="pe-preview profile-showcase" aria-label="Vista previa de tu perfil">${profileCardContent()}</article>
       </div>
     </div>
@@ -13566,7 +13566,7 @@ function acctCustomize(){
   card.querySelector('.public-banner').style.backgroundImage = banner;
   card.querySelector('.public-head img').src = avatar;
   card.querySelector('h2').textContent = profile.n;
-  card.querySelector('.public-identity p').textContent = 'Perfil de jugador';
+  card.querySelector('.public-identity p').textContent = '';
   const role = SOC.owner ? 'owner' : SOC.roles.get(ACCT.user?.uid);
   if (role) card.querySelector('.public-role').appendChild(roleBadge(role));
   profileCardStats(card, profileCareerStats(profile));
@@ -13615,6 +13615,14 @@ function acctCustomize(){
       }
     }
     showSelection();
+  }
+  // pestañas del vestidor: se ve una seccion a la vez (antes era una lista larga de cajas iguales)
+  {
+    const ctr = editor.querySelector('.pe-controls'), sets = [...ctr.querySelectorAll('fieldset[data-tab]')];
+    const bar = document.createElement('div'); bar.className = 'pe-tabs'; bar.setAttribute('role', 'tablist');
+    const pick = i => { sets.forEach((f, j) => f.hidden = j !== i); [...bar.children].forEach((t, j) => { t.setAttribute('aria-selected', j === i); t.classList.toggle('on', j === i); }); ACCT.peTab = i; ctr.scrollTop = 0; };
+    sets.forEach((f, i) => { const t = document.createElement('button'); t.type = 'button'; t.setAttribute('role', 'tab'); t.textContent = f.dataset.tab; t.onclick = () => pick(i); bar.appendChild(t); });
+    ctr.prepend(bar); pick(Math.min(ACCT.peTab || 0, sets.length - 1));
   }
   choices(PROFILE_THEMES, '.pe-themes', 'theme');
   choices(PROFILE_AURAS, '.pe-auras', 'aura');
@@ -13718,12 +13726,13 @@ function acctRender() {
   const b = $('acct-body'), u = ACCT.user;
   if (u) {
     const av = avatarGet() || (u.photoURL && /^https:\/\/lh3\.googleusercontent\.com\//.test(u.photoURL) ? u.photoURL : 'assets/calfight_icon.png');
-    let games = 0, mins = 0, fav = '', fv = 0; try { for (const id in ST.d.c) { const c = ST.d.c[id]; games += c[0] || 0; if (CHARS[id] && c[0] > fv) { fv = c[0]; fav = CHARS[id].name; } } for (const k in ST.d.dy) mins += (ST.d.dy[k][2] || 0); } catch (e) { }
-    b.innerHTML = `<div class="cardp"><div class="bn" style="background-image:url('${bannerURL(bannerGet())}')"><button type="button" class="edit" id="acct-bn">✎ Cambiar banner</button></div>
+    let games = 0, mins = 0, fav = '', favCol = '', fv = 0; try { for (const id in ST.d.c) { const c = ST.d.c[id]; games += c[0] || 0; if (CHARS[id] && c[0] > fv) { fv = c[0]; fav = CHARS[id].name; favCol = CHARS[id].color || ''; } } for (const k in ST.d.dy) mins += (ST.d.dy[k][2] || 0); } catch (e) { }
+    let ficha = 0; for (const ch of (u.uid || 'x')) ficha = (ficha * 31 + ch.charCodeAt(0)) % 9973;
+    b.innerHTML = `<div class="cardp"><div class="bn" data-ficha="FICHA DE PELEADOR · Nº ${String(ficha).padStart(4, '0')}" style="background-image:url('${bannerURL(bannerGet())}')"><button type="button" class="edit" id="acct-bn">Cambiar banner</button></div>
       <div class="head"><img alt="" src="${av}"><div><div class="nm"></div><small class="em"></small></div></div>
-      <div class="badges"><span>${u.emailVerified ? '✓ Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span>Owner</span>' : DEV.on ? '<span>Editor local</span>' : ''}<span>${(u.providerData[0] && u.providerData[0].providerId === 'google.com') ? 'Google' : 'Correo y contraseña'}</span></div>
-      <div class="stats"><div><b>${games || '—'}</b><small>Partidas</small></div><div><b>${mins ? (mins / 60).toFixed(1) + ' h' : '—'}</b><small>Jugadas</small></div><div><b>${fav || '—'}</b><small>Favorito</small></div></div>
-      <div class="pad"><button type="button" class="profile-customize" id="acct-customize">✦ Personalizar perfil</button><label>Tu nombre en el juego<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
+      <div class="badges"><span class="${u.emailVerified ? 'b-ok' : 'b-warn'}">${u.emailVerified ? 'Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span class="b-owner">Owner</span>' : DEV.on ? '<span class="b-owner">Editor local</span>' : ''}<span class="b-acc">${(u.providerData[0] && u.providerData[0].providerId === 'google.com') ? 'Cuenta Google' : 'Correo y contraseña'}</span></div>
+      <div class="stats"><div><small>Peleas</small><b>${games || 0}</b></div><div><small>Horas en la ciudad</small><b>${mins ? (mins / 60).toFixed(1) : '0'}</b></div><div class="fav"${favCol ? ` style="--fav:${favCol}"` : ''}><small>Su main</small><b>${fav || 'Sin elegir'}</b></div></div>
+      <div class="pad"><button type="button" class="profile-customize" id="acct-customize"><b>Arreglar mi ficha</b><small>Foto, banner, colores, marco y pegatinas</small></button><label>Nombre de peleador<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
       ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}${(u.providerData[0] && u.providerData[0].providerId === 'password') ? '<button type="button" class="sec" id="acct-chpw">Cambiar contraseña (te mando un correo)</button>' : ''}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
     b.querySelector('.nm').textContent = u.displayName || 'Jugador'; b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
     decorateProfile(b.querySelector('.cardp'),localPublicProfile());decorateProfile($('acctdlg').querySelector('.box'),localPublicProfile());$('acct-customize').onclick=acctCustomize;

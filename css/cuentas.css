@@ -1,0 +1,84 @@
+/* ===== CUENTAS: FICHA DE PELEADOR Y VESTIDOR =====
+   Piel propia de las cuentas: la ficha parece una carta de peleador (cinta con numero de ficha, etiquetas pegadas con cinta,
+   marcador de arcade) y el editor es un "vestidor" con pestañas. Va despues de style.css y solo pisa lo visual. */
+
+/* ---------- caja de la ficha ---------- */
+#acctdlg .box:has(.cardp){
+  border:3px solid #050608;border-top:0;border-radius:0;
+  background:
+    radial-gradient(circle at 1px 1px,#ffffff0d 1px,transparent 1.6px) 0 0/9px 9px,
+    linear-gradient(170deg,#1a1d2b 0%,#12141d 55%,#0d0e15 100%);
+  box-shadow:10px 10px 0 #000,0 0 0 1px #ffffff12 inset,0 30px 80px #000c;
+  animation:fichaIn .5s cubic-bezier(.2,1.2,.4,1) backwards}
+@keyframes fichaIn{from{opacity:0;transform:rotate(-4deg) translate3d(0,30px,0) scale(.94)}}
+
+/* banner con corte en diagonal y cinta con el numero de ficha */
+#acctdlg .cardp .bn{height:clamp(96px,20vh,140px);border-radius:0;border-bottom:0;clip-path:polygon(0 0,100% 0,100% 82%,0 100%)}
+#acctdlg .cardp .bn:after{content:attr(data-ficha);right:auto;left:-6px;top:12px;bottom:auto;transform:rotate(-2deg);
+  background:#d7ff2f;color:#0c0d0a;font:italic 700 11px var(--display);letter-spacing:.14em;padding:5px 14px 5px 18px;box-shadow:3px 3px 0 #000}
+#acctdlg .cardp .bn .edit{right:56px;top:10px;border-radius:0;background:#0b0c12d9;border:2px solid #000;box-shadow:2px 2px 0 #d7ff2f;font:700 12px var(--body,system-ui);transition:transform .15s,box-shadow .15s}
+#acctdlg .cardp .bn .edit:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #d7ff2f}
+
+/* cara y nombre */
+#acctdlg .cardp .head{margin-top:-46px;gap:16px;padding:0 22px}
+#acctdlg .cardp .head img{width:96px!important;height:96px!important;border-radius:0!important;border:4px solid #050608!important;
+  box-shadow:6px 6px 0 var(--profile-accent,#d7ff2f)!important;transform:rotate(-3deg);background:#1b1d2a}
+#acctdlg .cardp .head .nm{font:italic 900 clamp(28px,5.2vw,40px)/.95 var(--display);text-transform:uppercase;color:#fff;
+  -webkit-text-stroke:1px #000;text-shadow:3px 3px 0 #000,5px 5px 0 var(--profile-accent,#d7ff2f)}
+#acctdlg .cardp .head small{color:#8f96ad;font-size:12px;margin-top:6px}
+
+/* etiquetas pegadas con cinta */
+#acctdlg .badges{gap:10px;padding:14px 22px 0}
+#acctdlg .badges span{position:relative;border:0;border-radius:0;transform:rotate(-1.5deg);padding:5px 11px;font:800 11px var(--body,system-ui);letter-spacing:.04em;box-shadow:2px 2px 0 #000}
+#acctdlg .badges span:nth-child(2){transform:rotate(1.2deg)}#acctdlg .badges span:nth-child(3){transform:rotate(-.6deg)}
+#acctdlg .badges span::before{content:"";position:absolute;left:50%;top:-6px;width:26px;height:10px;margin-left:-13px;background:#ffffff55;transform:rotate(-4deg)}
+#acctdlg .badges .b-ok{background:#7ee08a;color:#0b2410}#acctdlg .badges .b-warn{background:#ffb44f;color:#2b1700}
+#acctdlg .badges .b-owner{background:#ffd400;color:#000}#acctdlg .badges .b-acc{background:#e9e6dc;color:#1c1c22}
+
+/* marcador de arcade */
+#acctdlg .cardp .stats{gap:0;margin:16px 22px 0;padding:0;background:#07080c;border:2px solid #000;box-shadow:4px 4px 0 #000}
+#acctdlg .cardp .stats div{background:none!important;border:0!important;box-shadow:none!important;padding:10px 12px 9px;display:flex;flex-direction:column-reverse;gap:3px;border-right:1px dashed #ffffff26!important}
+#acctdlg .cardp .stats div:last-child{border-right:0!important}
+#acctdlg .cardp .stats small{font:700 10px var(--body,system-ui);letter-spacing:.12em;text-transform:uppercase;color:#7e8599}
+#acctdlg .cardp .stats b{font:italic 900 26px/1 var(--display);color:#ffd400;text-shadow:0 0 12px #ffd40055;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#acctdlg .cardp .stats .fav b{color:#fff;font-size:20px;line-height:1.3;text-shadow:none;border-bottom:3px solid var(--fav,#d7ff2f);align-self:flex-start;max-width:100%}
+
+/* botones */
+#acctdlg .cardp .pad{padding:18px 22px 22px}
+#acctdlg .cardp .profile-customize{display:grid;gap:2px;text-align:left;padding:12px 16px;background:linear-gradient(100deg,#2a2f3e,#1d2130);border:2px solid #000;border-left:6px solid var(--profile-accent,#d7ff2f);
+  box-shadow:4px 4px 0 #000;clip-path:none;transition:transform .18s,box-shadow .18s}
+#acctdlg .cardp .profile-customize b{font:italic 900 18px var(--display);letter-spacing:.04em;text-transform:uppercase;color:#fff}
+#acctdlg .cardp .profile-customize small{font:600 12px var(--body,system-ui);color:#9aa2b8;letter-spacing:0;text-transform:none}
+#acctdlg .cardp .profile-customize:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #000}
+#acctdlg .cardp label{color:#9aa2b8}
+#acctdlg .cardp .go{transform:skewX(-8deg);box-shadow:4px 4px 0 #000;transition:transform .15s,box-shadow .15s}
+#acctdlg .cardp .go:hover{transform:skewX(-8deg) translate(-2px,-2px);box-shadow:6px 6px 0 #000}
+#acctdlg .cardp .pad #acct-out{background:none;border:2px dashed #ff8a8a55!important;color:#ff9a9a}
+#acctdlg .cardp .pad #acct-out:hover{background:#ff8a8a18}
+
+/* ---------- vestidor (editor) ---------- */
+#acctdlg .box:has(.profile-editor){border-top:0;border:3px solid #050608;box-shadow:10px 10px 0 #000,0 30px 80px #000c;animation:fichaIn .45s cubic-bezier(.2,1.1,.4,1) backwards}
+#acctdlg .profile-editor .pe-top{background:linear-gradient(100deg,#d7ff2f 0 6px,#20242f 6px,#151820);padding:12px 58px 12px 20px}
+#acctdlg .profile-editor .pe-top small{color:#d7ff2f;letter-spacing:.3em}
+#acctdlg .profile-editor .pe-top h3{color:#fff!important;text-shadow:3px 3px 0 #000}
+#acctdlg #pe-back{border-radius:0;background:#0d0f16;border:2px solid #000;box-shadow:2px 2px 0 #d7ff2f;color:#fff;font:700 12px var(--body,system-ui);padding:8px 12px}
+
+.pe-tabs{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:4px;margin:0 -16px;padding:12px 16px 10px;background:#181c26;border-bottom:2px solid #000}
+.pe-tabs button{flex:1 1 auto;min-height:34px;padding:6px 10px;border:2px solid #000;background:#232838;color:#c6cbe0;font:italic 800 13px var(--display);letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transform:skewX(-8deg);transition:background .15s,color .15s,transform .15s}
+.pe-tabs button:hover{background:#2f3548;color:#fff}
+.pe-tabs button.on{background:#d7ff2f;color:#0c0d0a;transform:skewX(-8deg) translateY(-2px);box-shadow:0 3px 0 #000}
+#acctdlg .pe-controls fieldset{border:0!important;background:none!important;padding:14px 2px 4px;animation:peIn .3s ease backwards}
+#acctdlg .pe-controls fieldset[hidden]{display:none}
+@keyframes peIn{from{opacity:0;transform:translate3d(0,8px,0)}}
+#acctdlg .profile-editor legend{font:italic 900 17px var(--display)!important;color:#fff!important;padding:0!important;margin-bottom:10px}
+.pe-stage{background:radial-gradient(circle at 1px 1px,#ffffff0b 1px,transparent 1.6px) 0 0/10px 10px,radial-gradient(ellipse at 55% 15%,#272e3b,#0b0d13 76%)!important}
+.pe-stage-label{color:#d7ff2f!important;letter-spacing:.24em!important}
+#acctdlg .profile-editor .pe-preview{border:3px solid #050608!important;box-shadow:8px 8px 0 #000!important}
+#acctdlg .pe-footer #pe-save{transform:skewX(-6deg);box-shadow:4px 4px 0 #000}
+
+@media (prefers-reduced-motion:reduce){#acctdlg .box:has(.cardp),#acctdlg .box:has(.profile-editor),#acctdlg .pe-controls fieldset{animation:none}}
+@media (max-width:650px){#acctdlg .cardp .stats b{font-size:20px}.pe-tabs{margin:0 -10px;padding-inline:10px}}
+
+/* login: la casilla "Recordarme" ya no se estira a todo el ancho */
+#acctdlg input[type=checkbox]{display:inline-block;width:18px!important;height:18px!important;min-height:0!important;flex:none;margin:0;accent-color:#d7ff2f}
+#acctdlg label:has(#acct-rem){display:flex!important;flex-wrap:wrap;gap:4px 8px;text-transform:none;letter-spacing:0}
