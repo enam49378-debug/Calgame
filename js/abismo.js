@@ -629,7 +629,9 @@
       const f = new Fighter({ name: T0.n.toUpperCase(), ch, lvlVar: 0 });
       f.isBoss = true; f.mob = kind; f.abyss = true; f.maxHp = f.hp = T0.hp; f.hitR = T0.r; f.hitH = T0.h; f.ai = null; f.alive = true; f.iframes = 0; f.cineHide = true;
       f.pos.set(x, ABY.y + (T0.fly || 0), z); f.home = f.pos.clone(); f.model.root.visible = false; G.fighters.push(f);
-      const g = MOB_BUILD[kind](); detailMob(kind, g); g.position.copy(f.pos); scene.add(g);
+      let g; const bbi = window.CF_BBM && CF_BBM.make(BB_MOB[kind][0], BB_MOB[kind][1]);   // modelo de Blockbench (si no cargó, el de respaldo hecho por código)
+      if (bbi) { g = new T.Group(); g.add(bbi.root); g.userData = { bb: bbi }; const au = glowSprite(BB_MOB[kind][2], BB_MOB[kind][3], BB_MOB[kind][4]); g.add(au); g.userData.aura = au; } else { g = MOB_BUILD[kind](); detailMob(kind, g); }
+      g.position.copy(f.pos); scene.add(g);
       const m = { f, g, k: kind, bs: g.scale.x * (kind === 'captain' ? 1 : 1), spawnT: 0, kx: 0, kz: 0, dot: null, slow: 0, slowK: 1, stun: 0, conf: 0, marks: 0, fxT: 0, squash: 0, T: T0, cd: rand(.6, 1.6), wind: 0, lastHp: T0.hp, flash: 0, dead: 0, ph: rand(0, 6), hx: x, hz: z, yaw: rand(0, 6), aggro: false, mats: [], lunge: 0, hitDone: false, step: 0 };
       g.traverse(o => { if (o.material && o.material.emissive && o.material.color) m.mats.push(o.material); }); AB.mobs.push(m); return m;
     }
@@ -782,8 +784,8 @@
           m.cd -= dt; if (m.cd <= 0 && dd < (T0.ranged ? T0.rng : T0.rng + .6)) { m.wind = T0.wind; m.cd = T0.cd * rand(.85, 1.25); if (m.k === 'jelly') ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff8fe8', T0.rng, T0.wind); if (m.k === 'captain' && m.alt) ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff9a4a', 6.2, T0.wind); }
         } else { const a = t * .4 + m.ph; mx = (m.hx + Math.cos(a) * 3 - f.pos.x) * .5; mz = (m.hz + Math.sin(a * 1.3) * 3 - f.pos.z) * .5; moving = Math.hypot(mx, mz) > .6; m.yaw = Math.atan2(mx, mz) || m.yaw; }
         f.pos.x += (mx + m.kx) * dt; f.pos.z += (mz + m.kz) * dt; m.kx *= Math.exp(-6 * dt); m.kz *= Math.exp(-6 * dt); abyssClamp(f.pos); f.pos.y = ABY.y + (T0.fly ? T0.fly + Math.sin(t * 2 + m.ph) * .35 : 0);
-        g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' ? Math.PI / 2 : 0) + (m.k === 'drowned' || m.k === 'captain' ? 0 : 0), 0);
-        if (m.k === 'angler') g.rotation.y = m.yaw - Math.PI / 2;
+        g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' && !g.userData.bb ? Math.PI / 2 : 0), 0);
+        if (m.k === 'angler' && !g.userData.bb) g.rotation.y = m.yaw - Math.PI / 2;
         { const sq = m.squash > 0 ? 1 + Math.sin(m.squash / .22 * Math.PI) * .18 : 1, bs = m.bs; g.scale.set(bs / sq, bs * sq, bs / sq); if (m.stun > 0) g.rotation.z = Math.sin(t * 40) * .06; }
         mobAnimate(m, dt, t, moving); mobDetailAnim(m, t);
         if (m.dot) for (const mt of m.mats) mt.emissive.setRGB(.5, .2, .02);
@@ -1071,7 +1073,13 @@
       if (u.flames) u.flames.forEach((f, i) => { f.position.y = 1.7 + Math.sin(t * 3 + i) * .18 + (i % 3) * .25; f.material.opacity = .5 + Math.sin(t * 7 + i * 2) * .25; f.scale.setScalar(1.1 + Math.sin(t * 5 + i) * .35); });
       if (u.lantern) u.lantern.material.opacity = .65 + Math.sin(t * 9) * .2;
     }
+    const BB_MOB = { crab: ['cangrejo', .05, 0xff7a4a, 5, .4], jelly: ['medusa', .06, 0xff6fd8, 6, 3.2], angler: ['rape', .06, 0x7dffb0, 6, 1.4], drowned: ['marinero', .055, 0x7dffb0, 4.5, 1.2], squidling: ['calamarin', .055, 0xff8fb0, 4.5, 1.4], captain: ['capitan', .1, 0xffb347, 9, 1.6] };
     function mobAnimate(m, dt, t, moving) {
+      const bb = m.g.userData.bb; if (!bb) return mobAnimateProc(m, dt, t, moving);
+      const w = m.wind > 0; if (w) m.atkT = (m.atkT || 0) + dt; else m.atkT = 0;
+      if (w && bb.anims.attack) bb.update('attack', Math.min(m.atkT * bb.anims.attack.length / (m.T.wind + .3), bb.anims.attack.length - .02), dt); else bb.update(moving ? 'walk' : 'idle', t + m.ph, dt);
+    }
+    function mobAnimateProc(m, dt, t, moving) {
       const g = m.g, u = g.userData, k = m.k, ph = m.ph, w = m.wind > 0, sp = moving ? 1 : .25;
       if (k === 'crab') {
         u.body.position.y = 1.15 + Math.abs(Math.sin(t * 12 + ph)) * (moving ? .09 : 0) + Math.sin(t * 2 + ph) * .02; u.body.rotation.z = Math.sin(t * 12) * (moving ? .05 : 0);

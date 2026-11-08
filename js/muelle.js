@@ -109,8 +109,17 @@
       const geo = new T.ExtrudeGeometry(hullShape(len, wid, bow), { depth: h, bevelEnabled: !!bevel, bevelThickness: .12, bevelSize: .12, bevelSegments: 2, curveSegments: 14 }); geo.rotateX(-Math.PI / 2);
       const m = new T.Mesh(geo, mat); m.position.y = y0; g.add(m); return m;
     }
-    function buildBoat() {
-      const g = new T.Group(); g.visible = false; scene.add(g); M.boat = g;
+    function buildBoat() {   // el barco es un modelo de Blockbench (modelos/abismo/barco.bbmodel); si no carga se usa la versión hecha por código
+      const inst = window.CF_BBM && CF_BBM.make('barco', .1); if (!inst) return buildBoatProc();
+      const g = new T.Group(); g.visible = false; scene.add(g); M.boat = g; M.bb = inst; inst.root.position.set(-.9, DECK - .64, 0); g.add(inst.root);
+      M.light = new T.PointLight(0x66ffb0, 1.0, 26, 1.6); M.light.position.set(0, 3.5, 0); g.add(M.light);
+      M.mist = []; for (let i = 0; i < 9; i++) { const q = glowSprite(0x8fb0a8, 8 + rnd() * 6, .6); q.material.opacity = .16; q.position.set((rnd() - .5) * 15, .6 + rnd() * 1.5, (rnd() - .5) * 6); g.add(q); M.mist.push(q); q.userData.ph = rnd() * 6; }
+      const wake = new T.Mesh(new T.RingGeometry(2.6, 6.6, 28), bm(0xcfe8e4, .3, true)); wake.rotation.x = -Math.PI / 2; wake.scale.set(2.1, 1, .8); wake.position.set(0, -.18, 0); g.add(wake); M.wake = wake;
+      const lc = document.createElement('canvas'); lc.width = 640; lc.height = 110; M.lc = lc; M.lg = lc.getContext('2d'); M.lt = new T.CanvasTexture(lc);
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: M.lt, transparent: true, depthWrite: false, fog: false })); sp.scale.set(12.5, 2.15, 1); sp.position.set(0, 13.4, 0); g.add(sp); M.sprite = sp; M.flag = null; M.sail = null; M.sailBase = null; M.lamps = null; M.fig = null;
+    }
+    function buildBoatProc() {
+      const g = new T.Group(); g.visible = false; scene.add(g); M.boat = g; M.bb = null;
       const wd = woodTexture('#4a3626', true, 9), wd2 = woodTexture('#5a4430', false, 7), deckT = woodTexture('#6a5238', false, 11); wd.repeat.set(.18, 1); wd2.repeat.set(1, 1); deckT.repeat.set(.12, .12);
       const hullM = std(wd, .96), deckM = std(deckT, .97), wood = std(wd2, .95), rust = std(rustTexture(), .78, .5), paint = std(paintTexture(), .9), dark = std(null, .9, .2, 0x1a1c20), rope = std(null, 1, 0, 0x8a7a52);
       const sailM = new T.MeshStandardMaterial({ map: sailTexture(), transparent: true, alphaTest: .5, side: T.DoubleSide, roughness: 1 });
@@ -253,9 +262,10 @@
           if (st !== 'dock') { lx = clamp(lx, -HX + .6, HX - .6); lz = clamp(lz, -HZ + .5, HZ - .5); }
           else { lx = clamp(lx, -HX + .5, HX - .5); const gap = Math.abs(lx) < 1.7; lz = clamp(lz, gap ? -HZ - 1.4 : -2.2, 2.2); }
           if (st === 'dock' && lz < -HZ - .2) { M.aboard.delete(f); continue; }
-          { if (lx > -6.9 && lx < -2.4 && Math.abs(lz) < 2.0) { const dl = lx + 6.9, dr = -2.4 - lx, dz = 2.0 - Math.abs(lz), mn = Math.min(dl, dr, dz); if (mn === dr) lx = -2.4; else if (mn === dl) lx = -6.9; else lz = (lz < 0 ? -1 : 1) * 2.0; }
-            const mdx = lx - 1.4, md = Math.hypot(mdx, lz); if (md < .6) { const k = .6 / (md || 1); lx = 1.4 + (md ? mdx * k : .6); lz = md ? lz * k : 0; }
-            for (const [cx, cz, r] of [[-1.7, -1.5, .6], [-1.2, 1.0, .6], [.4, -1.8, .6], [-1.2, 1.5, .7], [-.1, 1.9, .7], [-2.4, -1.9, .75]]) { const dx = lx - cx, dz2 = lz - cz, d = Math.hypot(dx, dz2); if (d < r && d > .001) { lx = cx + dx / d * r; lz = cz + dz2 / d * r; } } }
+          { const CB = M.bb ? [-7.3, -3.3, 1.95, .5, [[-2.3, 1.4, .6], [-1.3, -1.6, .6], [-.3, 1.4, .6], [-4.3, -1.8, .6], [2.1, 1.6, .6], [-1.1, 1.0, .5], [-2.3, -.8, .5]]] : [-6.9, -2.4, 2.0, 1.4, [[-1.7, -1.5, .6], [-1.2, 1.0, .6], [.4, -1.8, .6], [-1.2, 1.5, .7], [-.1, 1.9, .7], [-2.4, -1.9, .75]]];
+            if (lx > CB[0] && lx < CB[1] && Math.abs(lz) < CB[2]) { const dl = lx - CB[0], dr = CB[1] - lx, dz = CB[2] - Math.abs(lz), mn = Math.min(dl, dr, dz); if (mn === dr) lx = CB[1]; else if (mn === dl) lx = CB[0]; else lz = (lz < 0 ? -1 : 1) * CB[2]; }
+            const mdx = lx - CB[3], md = Math.hypot(mdx, lz); if (md < .6) { const k = .6 / (md || 1); lx = CB[3] + (md ? mdx * k : .6); lz = md ? lz * k : 0; }
+            for (const [cx, cz, r] of CB[4]) { const dx = lx - cx, dz2 = lz - cz, d = Math.hypot(dx, dz2); if (d < r && d > .001) { lx = cx + dx / d * r; lz = cz + dz2 / d * r; } } }
           o.lx = lx; o.lz = lz; const w = toWorld(lx, lz); f.pos.x = w.x; f.pos.z = w.z;
           if (st === 'sink') { const c = M.boat; const p = c.localToWorld(new V3(lx, DECK, lz)); f.pos.set(p.x, p.y, p.z); f.vel.set(0, 0, 0); f.onGround = true; }
           else { const dy = M.pos.y + DECK; if (f.vel.y <= .2 && f.pos.y <= dy + .12) { f.pos.y = dy; f.vel.y = Math.min(0, f.vel.y); f.onGround = true; } }
@@ -264,6 +274,7 @@
           if (Math.abs(lx) < HX && Math.abs(lz) < HZ && f.pos.y < M.pos.y + 1.6 && f.pos.y > -2.2) { M.aboard.set(f, { lx, lz }); if (f.isPlayer) { popText(chestOf(f), '⛵ A bordo', '#ffd54f', 16); sfx('whoosh', f.pos, .4); } }
         }
       }
+      if (M.bb && M.boat.visible) M.bb.update('idle', t, dt);
       if (M.boat.visible) for (const f of G.fighters) if (!f.remote && f.alive && !f.abyss) hullBlock(f);
       place();
       if (M.sprite) { const nA = M.aboard.size; const txt = st === 'dock' ? 'ZARPA EN ' + fmt(M.wait) + ' · A BORDO: ' + nA : st === 'sail' ? 'RUMBO AL MAR PROFUNDO' : st === 'sink' ? '¡LA CORRIENTE!' : st === 'arrive' ? 'LLEGANDO…' : 'SE VA…'; paintBoatLabel(txt, st === 'sink' ? '#ff8fb0' : '#ffd54f'); M.sprite.visible = st !== 'sink' || M.sinkT < 5; }

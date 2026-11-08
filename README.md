@@ -150,3 +150,6 @@ En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** 
 ### Kraken v7 (privado)
 - **Enemigos rehechos y de miedo:** piel con textura, articulaciones y animaciones propias: cangrejo acorazado con pinzas dentadas y 8 patas articuladas, medusa translúcida con 12 tentáculos y rayos eléctricos, rape abisal con boca de agujas y señuelo, marinero ahogado (calavera, costillas, harapos, algas) y el Capitán Ahogado (sombrero, capa, sable, linterna, llave), calamarín de 8 tentáculos.
 - **Barco:** el casco es sólido. Desde el muelle solo se sube por la pasarela; a bordo las bordas te contienen y la cabina, el mástil y los barriles tienen colisión.
+
+### Modelos de Blockbench del abismo
+Los enemigos (cangrejo, medusa, rape, marinero, capitán, calamarín) y el barco fantasma son modelos de Blockbench: `modelos/abismo/*.bbmodel`, con huesos y animaciones (idle, walk, attack). Se abren y editan en Blockbench; el juego los carga al iniciar. Los cubos cuyo nombre empieza por `glow_` brillan. `tools/gen_modelos_abismo.py` los regenera. Si un modelo no carga, el juego usa una versión de respaldo hecha por código.
