@@ -4880,14 +4880,15 @@ function updateMusic(dt){
   if(ultimate){
     if(!HTML_AUDIO_LEVELS.has(ultimate))ULT_MUS.track=null;
     else {
-      if(G.state!=='play'||G.over||!MUS.on)ULT_MUS.fade=true;
-      fadeAudioTrack(ultimate,ULT_MUS.fade?0:MUS.vol*ultimate.trim*1.10*pause*MUS.duck,dt,.11,.18);
+      if(G.state!=='play'||G.over||!MUS.on||ultimate.el.ended)ULT_MUS.fade=true;
+      // la musica de la ulti manda: suena un poco mas fuerte que la de pelea y solo baja un poco con las voces
+      fadeAudioTrack(ultimate,ULT_MUS.fade?0:MUS.vol*ultimate.trim*1.25*pause*(.4+.6*MUS.duck),dt,.08,.35);
       if(ULT_MUS.fade&&ultimate.base<.003){releaseHtmlAudio(ultimate);ULT_MUS.track=null;}
     }
   }
   const scoring=ULT_MUS.track&&!ULT_MUS.fade&&!ULT_MUS.track.el.paused;
-  const sceneGain=scoring?.16:(G.cine||STAGE.on)?.47:1;
-  if(MUS.track)fadeAudioTrack(MUS.track,MUS.vol*MUS.track.trim*pause*sceneGain*MUS.duck,dt);
+  const sceneGain=scoring?0:(G.cine||STAGE.on)?.47:1;   // durante la ulti la cancion de la pelea se calla del todo
+  if(MUS.track)fadeAudioTrack(MUS.track,MUS.vol*MUS.track.trim*pause*sceneGain*MUS.duck,dt,scoring?.25:.6,scoring?.12:.17);
   if(MUS.old){fadeAudioTrack(MUS.old,0,dt,.25,.20);if(MUS.old.base<.003){releaseHtmlAudio(MUS.old);MUS.old=null;}}
   // red de seguridad: nunca debe sonar más de una música a la vez (se apaga cualquier pista suelta que no sea la actual, la anterior en fundido, la de ulti o la del título)
   if((MUS.sweepT=(MUS.sweepT||0)-dt)<=0){MUS.sweepT=.5;const keep=new Set([MUS.track,MUS.old,ULT_MUS.track,TITLE.mus]);for(const r of [...HTML_AUDIO_LEVELS])if(r.category==='music'&&!keep.has(r))releaseHtmlAudio(r);
@@ -15712,10 +15713,15 @@ function titleFinish() {
   if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0; titleSekzaEnd(); cameoEnd();
   finishTitleRepair();
   titleAudio(false);
-  $('title').classList.add('hidden'); $('menu').classList.remove('hidden'); G.state = 'menu'; initAudio(); showSelect(G.charId);
+  $('title').classList.add('hidden'); G.state = 'menu'; initAudio();
   camera.fov = 70; camera.up.set(0, 1, 0); camera.rotation.z = 0; camera.updateProjectionMatrix(); gfxSet(GFX.level, GFX.auto, false);
-  const mn = $('menu'); mn.classList.add('menufall'); const fl = $('tfall'); fl.className = 'black'; void fl.offsetWidth; fl.className = 'fade'; setTimeout(() => { fl.className = ''; }, 3200);
-  setTimeout(() => menuVoice(G.charId), 1500); setTimeout(() => mn.classList.remove('menufall'), 3800);
+  // entre el inicio y el selector hay una pantalla de carga (js/carga_partida.js) que libera lo del inicio y precarga el selector
+  const enter = () => {
+    $('menu').classList.remove('hidden'); showSelect(G.charId);
+    const mn = $('menu'); mn.classList.add('menufall'); const fl = $('tfall'); fl.className = 'black'; void fl.offsetWidth; fl.className = 'fade'; setTimeout(() => { fl.className = ''; }, 3200);
+    setTimeout(() => { if (G.state === 'menu') menuVoice(G.charId); }, 1500); setTimeout(() => mn.classList.remove('menufall'), 3800);
+  };
+  if (window.CF_CARGA) CF_CARGA.run(enter); else enter();
 }
 function titleLeave() {
   if (!TITLE.on || TITLE.lt != null) return; TITLE.lt = 0; $('title').classList.add('leaving'); initAudio();
@@ -17101,11 +17107,15 @@ function updateGodRays() {
 function loop(now){
   requestAnimationFrame(loop);
   if(IS_GUIDE&&GUIDE_OFF){last=Number.isFinite(now)?now:performance.now();return;}
-  if (typeof GFX_LIMIT !== 'undefined' && GFX_LIMIT.minDt > 0) {
-    const tNow = performance.now();
-    const elapsed = tNow - GFX_LIMIT.lastFrame;
-    if (elapsed < GFX_LIMIT.minDt * 0.88) return;
-    GFX_LIMIT.lastFrame = tNow - (elapsed % GFX_LIMIT.minDt);
+  if (typeof GFX_LIMIT !== 'undefined') {
+    /* Limitador parejo: mide cada cuanto refresca el monitor (60, 144, 200 Hz...) y dibuja siempre cada N refrescos.
+       Antes saltaba 3,3,4,3,3,4 refrescos (cuadros desiguales = "saltitos") cuando el limite no dividia justo la frecuencia. */
+    const tNow = Number.isFinite(now) ? now : performance.now(), gap = tNow - (GFX_LIMIT.rafLast || tNow); GFX_LIMIT.rafLast = tNow;
+    if (gap > 2 && gap < 50) GFX_LIMIT.hz = GFX_LIMIT.hz ? GFX_LIMIT.hz + (gap - GFX_LIMIT.hz) * .05 : gap;
+    if (GFX_LIMIT.minDt > 0 && GFX_LIMIT.hz) {
+      const every = Math.max(1, Math.round(GFX_LIMIT.minDt / GFX_LIMIT.hz));
+      GFX_LIMIT.skip = (GFX_LIMIT.skip || 0) + 1; if (GFX_LIMIT.skip < every) return; GFX_LIMIT.skip = 0;
+    }
   }
   try{
   const rawDt=Number.isFinite(now)&&Number.isFinite(last)?Math.max(0,(now-last)/1000):0,rdt=Math.min(.05,rawDt);last=Number.isFinite(now)?now:performance.now();

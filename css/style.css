@@ -852,3 +852,6 @@ body.hide-hud-nums #nums{display:none!important}
 body.hide-hud-feed #feed{display:none!important}
 body.hide-hud-topl #topl{display:none!important}
 body.hide-hud-plates #plates{display:none!important}
+
+/* En el selector de personajes no hace falta el boton de Amigos: tapaba la grilla */
+body:has(#menu:not(.hidden)) #friendsbtn{display:none}

@@ -35,7 +35,7 @@
       if (nv !== vel) { vel = nv; anim.updatePlaybackRate ? anim.updatePlaybackRate(vel) : (anim.playbackRate = vel); }
     }, 100);
     setInterval(() => {
-      const show = G.state === 'title' || G.state === 'menu'; D.classList.toggle('on', show && !!cur); L.classList.toggle('on', show);
+      const show = G.state === 'title' && !document.getElementById('title').classList.contains('leaving'); D.classList.toggle('on', show && !!cur); L.classList.toggle('on', show);
       const tr = (G.state === 'title' && TITLE.mus) || (MUS && MUS.track), src = tr && tr.el ? decodeURIComponent((tr.el.src || '').split('/').pop()) : '', meta = TRACKS[src];
       if (!show) { D.classList.remove('open'); return; }
       if (meta && src !== cur) { cur = src; const dk = D.querySelector('.dk'); dk.style.backgroundImage = 'url("' + meta.cover + '")'; dk.style.backgroundSize = meta.fit || 'cover'; dk.style.backgroundColor = meta.fit ? '#1a1530' : '#111'; D.querySelector('b').textContent = meta.t; D.querySelector('small').textContent = meta.a; D.classList.add('on'); D.classList.remove('open'); void D.offsetWidth; setTimeout(() => D.classList.add('open'), 250); clearTimeout(hide); hide = setTimeout(() => D.classList.remove('open'), 10000); }

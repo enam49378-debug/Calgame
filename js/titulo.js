@@ -17,8 +17,8 @@
       // logo con flotado suave
       + 'body.tl #title .tlogo{left:2.4vw;top:calc(5vh + 118px);bottom:auto;animation:tlLogo 1.1s .5s ' + B + ' backwards}'
       + '@keyframes tlLogo{from{opacity:0;transform:translateX(-50px) scale(.8) rotate(-5deg)}}'
-      + 'body.tl #title .tlogo img{height:min(18vh,170px);animation:tlFloat 3.2s 1.6s steps(7,jump-none) infinite alternate;backface-visibility:hidden}'
-      + '@keyframes tlFloat{from{transform:translateY(0)}to{transform:translateY(-6px)}}'
+      + 'body.tl #title .tlogo img{height:min(18vh,170px);animation:tlFloat 3.6s 1.6s ease-in-out infinite alternate;will-change:transform;backface-visibility:hidden}'
+      + '@keyframes tlFloat{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-7px,0)}}'
       + 'body.tl #title .tlogo p{animation:tlFade .8s .9s ease backwards}@keyframes tlFade{from{opacity:0;letter-spacing:.4em}}'
       // JUGAR: entrada con rebote, brillo que cruza y halo suave
       + 'body.tl #tplay{left:2.4vw;right:auto;top:' + TOP + ' + 64px);bottom:auto;width:' + W + ';text-align:center;overflow:hidden;'
@@ -36,6 +36,9 @@
       + '@keyframes tlBtn{from{opacity:0;transform:translateY(16px)}}'
       + 'body.tl #tset:hover,body.tl #tscene:hover{background:#ffd400;color:#000;border-color:#000;transform:translateY(-3px);box-shadow:0 5px 0 #000}'
       + 'body.tl #tset:active,body.tl #tscene:active{transform:translateY(0);box-shadow:0 1px 0 #000}'
+      // Amigos dentro del panel (antes quedaba encima del disco)
+      + 'body.tl:has(#title:not(.hidden)) #friendsbtn{position:fixed;left:2.4vw;right:auto;top:' + TOP + ' + 200px);bottom:auto;width:' + W + ';animation:tlBtn .8s 1.2s ' + E + ' backwards}'
+      + 'body.tl:has(#title.leaving) #friendsbtn{opacity:0;transition:opacity .3s}'
       // Discord y disco
       + 'body.tl #dclink{left:2.4vw;top:auto;bottom:5vh;transform:none;animation:tlBtn .8s 1.25s ' + E + ' backwards;transition:background .2s,transform .25s ' + B + '}body.tl #dclink:hover{transform:scale(1.08)}'
       + 'body.tl #disco{left:auto;right:3vw;top:auto;bottom:6vh;flex-direction:row-reverse}body.tl #disco .pp{margin-left:0;margin-right:-14px;border-radius:6px 0 0 6px}body.tl #disco .pp div{padding:0 28px 0 16px;transform:translateX(12px)}body.tl #disco.open .pp div{transform:none}'

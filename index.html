@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
 
 <!-- Estilos modulares del juego -->
-<link rel="stylesheet" href="css/style.css?v=7.0">
+<link rel="stylesheet" href="css/style.css?v=7.1">
 <link rel="stylesheet" href="css/mobile.css?v=6.8">
 
 <meta name="mobile-web-app-capable" content="yes">
@@ -35,13 +35,13 @@
 #loading-screen.loader-done{opacity:0;transform:scale(1.12);filter:blur(8px);pointer-events:none}
 #loading-flash{position:fixed;inset:0;z-index:100000;background:#fffdfa;opacity:0;pointer-events:none;transition:opacity .5s ease}
 #ld-sky{position:absolute;inset:0;width:100%;height:100%}
-.ld-sun{position:absolute;left:50%;bottom:24%;width:min(46vw,380px);aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:linear-gradient(180deg,#fff2b8,#ffb05a 55%,#ff5f7a);box-shadow:0 0 90px 30px rgba(255,150,90,.45);opacity:.95;animation:ldSun 6s steps(11,jump-none) infinite alternate}
+.ld-sun{position:absolute;left:50%;bottom:24%;width:min(46vw,380px);aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:linear-gradient(180deg,#fff2b8,#ffb05a 55%,#ff5f7a);box-shadow:0 0 90px 30px rgba(255,150,90,.45);opacity:.95;animation:ldSun 7s ease-in-out infinite alternate}
 .ld-sun::after{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(180deg,transparent 0 9px,rgba(196,69,122,.9) 9px 13px);-webkit-mask:linear-gradient(180deg,transparent 40%,#000 100%);mask:linear-gradient(180deg,transparent 40%,#000 100%)}
-.ld-cubes i{position:absolute;display:block;width:var(--s);height:var(--s);left:var(--x);top:var(--y);background:var(--c);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.3);animation:ldBob var(--d) steps(9,jump-none) infinite alternate;animation-delay:var(--l);opacity:.8}
+.ld-cubes i{position:absolute;display:block;width:var(--s);height:var(--s);left:var(--x);top:var(--y);background:var(--c);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.3);animation:ldBob var(--d) ease-in-out infinite alternate;animation-delay:var(--l);opacity:.8}
 .ld-shell{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;text-align:center;width:min(520px,90vw);gap:18px}
 .ld-logo{position:relative;display:flex;align-items:center;justify-content:center;padding:6px 0}
 .ld-logo img,.ld-cubes i,.ld-sun,.ld-bar::before,.ld-title span i{will-change:transform,opacity}
-.ld-logo img{width:min(300px,72vw);backface-visibility:hidden;filter:drop-shadow(0 8px 0 rgba(20,8,40,.55)) drop-shadow(0 0 28px rgba(255,190,120,.6));animation:ldFloat 4s steps(7,jump-none) infinite alternate}
+.ld-logo img{width:min(300px,72vw);backface-visibility:hidden;filter:drop-shadow(0 8px 0 rgba(20,8,40,.55)) drop-shadow(0 0 28px rgba(255,190,120,.6));animation:ldFloat 4.5s ease-in-out infinite alternate}
 .ld-tag{letter-spacing:.42em;font-size:11px;color:#ffe3c4;opacity:.9;text-shadow:0 2px 0 rgba(40,10,50,.7)}
 .ld-title{margin:0;font-size:22px;letter-spacing:.5em;font-weight:700;text-shadow:0 3px 0 rgba(40,10,50,.75)}
 .ld-title span i{font-style:normal;animation:ldDot 2.4s infinite}.ld-title span i:nth-child(2){animation-delay:.2s}.ld-title span i:nth-child(3){animation-delay:.4s}
@@ -55,9 +55,9 @@
 .ld-tip{width:100%;box-sizing:border-box;padding:12px 16px;background:rgba(18,8,40,.62);border-left:5px solid #ffd166;text-align:left;backdrop-filter:blur(3px)}
 .ld-tip small{display:block;font-size:10px;letter-spacing:.32em;color:#ffd166;margin-bottom:4px}
 .ld-tip p{margin:0;font-size:13px;line-height:1.5;color:#fff6ea}.ld-tip b{color:#ffd166}
-@keyframes ldSun{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(-10px)}}
-@keyframes ldBob{from{transform:translateY(0)}to{transform:translateY(-16px)}}
-@keyframes ldFloat{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+@keyframes ldSun{from{transform:translate3d(-50%,0,0)}to{transform:translate3d(-50%,-10px,0)}}
+@keyframes ldBob{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-16px,0)}}
+@keyframes ldFloat{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-7px,0)}}
 @keyframes ldShine{0%,55%{left:-80px}100%{left:110%}}
 @keyframes ldCreep{from{transform:scaleX(.15)}to{transform:scaleX(.9)}}
 @keyframes ldDot{0%,20%{opacity:0}50%{opacity:1}100%{opacity:0}}
@@ -596,9 +596,10 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="js/abismo.js?v=10"></script>
 <script defer src="js/ranking.js?v=1"></script>
 <script defer src="js/owner.js?v=1"></script>
-<script defer src="js/disco.js?v=5"></script>
-<script defer src="js/titulo.js?v=4"></script>
-<script defer src="js/game.js?v=7.7"></script>
+<script defer src="js/disco.js?v=6"></script>
+<script defer src="js/titulo.js?v=5"></script>
+<script defer src="js/carga_partida.js?v=1"></script>
+<script defer src="js/game.js?v=7.8"></script>
 
 </body>
 </html>
