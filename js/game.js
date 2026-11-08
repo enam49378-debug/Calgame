@@ -4815,12 +4815,12 @@ function sfx(k, pos, mul = 1, { range = 45, title = false } = {}) {
 
 // ================= Música: menú y peleas (archivos en musica/) =================
 const MUS = {
-  tracks: {menu:musFile('menu','musica/menu.mp3'),fight:[musFile('fight1','musica/pelea1.mp3'),musFile('fight2','musica/pelea2.mp3'),musFile('fight3','musica/pelea3.mp3')]},
+  tracks: {menu:musFile('menu','musica/green_room.mp3'),fight:[musFile('fight1','musica/pelea1.mp3'),musFile('fight2','musica/pelea2.mp3'),musFile('fight3','musica/pelea3.mp3')]},
   track:null,old:null,want:'',idx:-1,vol:.32,on:true,duck:1,failed:new Set()
 };
 try { MUS.on = localStorage.getItem('bsb_music') !== '0'; const v = parseFloat(localStorage.getItem('bsb_music_vol')); if (v >= 0 && v <= 1) MUS.vol = v; } catch (e) { }
 // Ganancias de las pistas incluidas, medidas con FFmpeg y referidas a -16 LUFS.
-const MUSIC_TRIM = {"personajes/sunn/Skills/Ulti/Sound/ulti.mp3":0.841,"personajes/capitan/Skills/Ulti/Sound/ulti.mp3":0.813,"musica/calfight_intro.mp3":1.123,"musica/hypnotic_choques_arcade.mp3":1.0,"musica/hypnotic_choques_identico.mp3":1.0,"musica/hypnotic_choques_intermedio.mp3":1.0,"musica/hypnotic_data_arcade.mp3":1.0,"musica/hypnotic_data_intermedio.mp3":1.0,"musica/hypnotic_data_original.mp3":1.0,"musica/menu.mp3":0.989,"musica/pelea1.mp3":0.989,"musica/pelea2.mp3":1.002,"musica/pelea3.mp3":1.038,"musica/she_bugging_game.mp3":1.0,"musica/she_bugging_loop.mp3":1.0,"personajes/gato/Skills/Ulti/Sound/ulti.mp3":0.998,"personajes/javi/Skills/Ulti/Sound/ulti.mp3":0.845,"personajes/jesuluto/Skills/Ulti/Sound/ulti.mp3":0.844,"personajes/mattux/Skills/Ulti/Sound/ulti.mp3":0.846,"personajes/randi/Skills/Ulti/Sound/ulti.mp3":0.845,"personajes/redbird/Skills/Ulti/Sound/ulti.mp3":0.846,"personajes/rocket/Skills/Ulti/Sound/ulti.mp3":0.847,"personajes/sebolla/Skills/Ulti/Sound/ulti.mp3":0.536,"personajes/sekza/Skills/Ulti/Sound/ulti.mp3":0.844,"personajes/ukyo/Skills/Ulti/Sound/ulti.mp3":0.845};
+const MUSIC_TRIM = {"musica/green_room.mp3":0.87,"personajes/sunn/Skills/Ulti/Sound/ulti.mp3":0.841,"personajes/capitan/Skills/Ulti/Sound/ulti.mp3":0.813,"musica/calfight_intro.mp3":1.123,"musica/hypnotic_choques_arcade.mp3":1.0,"musica/hypnotic_choques_identico.mp3":1.0,"musica/hypnotic_choques_intermedio.mp3":1.0,"musica/hypnotic_data_arcade.mp3":1.0,"musica/hypnotic_data_intermedio.mp3":1.0,"musica/hypnotic_data_original.mp3":1.0,"musica/menu.mp3":0.989,"musica/pelea1.mp3":0.989,"musica/pelea2.mp3":1.002,"musica/pelea3.mp3":1.038,"musica/she_bugging_game.mp3":1.0,"musica/she_bugging_loop.mp3":1.0,"personajes/gato/Skills/Ulti/Sound/ulti.mp3":0.998,"personajes/javi/Skills/Ulti/Sound/ulti.mp3":0.845,"personajes/jesuluto/Skills/Ulti/Sound/ulti.mp3":0.844,"personajes/mattux/Skills/Ulti/Sound/ulti.mp3":0.846,"personajes/randi/Skills/Ulti/Sound/ulti.mp3":0.845,"personajes/redbird/Skills/Ulti/Sound/ulti.mp3":0.846,"personajes/rocket/Skills/Ulti/Sound/ulti.mp3":0.847,"personajes/sebolla/Skills/Ulti/Sound/ulti.mp3":0.536,"personajes/sekza/Skills/Ulti/Sound/ulti.mp3":0.844,"personajes/ukyo/Skills/Ulti/Sound/ulti.mp3":0.845};
 function musicTrim(src,id){return (MUSIC_TRIM[src]??1)*(AUDIO_CFG.music[id]?.vol??1);}
 function makeMusicTrack(src,id,loop,preloaded){
   const el=preloaded||new Audio(src);
@@ -4864,7 +4864,7 @@ function dialogueAudible(){
 }
 function updateMusic(dt){
   const xs=G.state==='play'&&window.CF_MUS_SCENE?CF_MUS_SCENE():null;   // {id, src}: pista propia de una zona (el abismo)
-  const want=xs?'x:'+xs.id:G.state==='menu'?'menu':G.state==='play'?'fight':'';
+  const want=xs?'x:'+xs.id:(G.state==='menu'||G.state==='title')?'menu':G.state==='play'?'fight':'';
   if(want!==MUS.want){
     if(MUS.want==='menu')stopMenuVoice();
     MUS.want=want;
