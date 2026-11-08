@@ -124,19 +124,100 @@
 /* neon */
 .pf-deco[data-deco=neon]::before{display:block;inset:8px;border-radius:50%;border:3px solid var(--profile-accent);box-shadow:0 0 10px var(--profile-accent),inset 0 0 10px var(--profile-accent);animation:pfNeonRing 2.2s ease-in-out infinite}
 @keyframes pfNeonRing{50%{box-shadow:0 0 22px var(--profile-accent),inset 0 0 16px var(--profile-accent);opacity:.75}}
-/* corona */
-.pf-deco[data-deco=corona]::before{display:block;left:2px;top:-6px;width:46px;height:32px;transform:rotate(-24deg);background:linear-gradient(#ffe680,#f2b301);clip-path:polygon(0 100%,0 25%,22% 55%,50% 0,78% 55%,100% 25%,100% 100%);filter:drop-shadow(2px 2px 0 #6a4500);animation:pfBob 2.4s ease-in-out infinite}
-.pf-deco[data-deco=corona] i:first-child{display:block;left:22px;top:6px;width:7px;height:7px;border-radius:50%;background:#ff3d6e;transform:rotate(-24deg);animation:pfBob 2.4s ease-in-out infinite}
-@keyframes pfBob{50%{translate:0 -4px}}
-/* orejas de gato */
-.pf-deco[data-deco=orejas]::before,.pf-deco[data-deco=orejas]::after{display:block;top:2px;width:34px;height:36px;background:color-mix(in srgb,var(--profile-accent) 70%,#fff);clip-path:polygon(50% 0,100% 100%,0 100%);filter:drop-shadow(0 0 0 #000);animation:pfEar 3s ease-in-out infinite}
-.pf-deco[data-deco=orejas]::before{left:14px;transform:rotate(-22deg)}
-.pf-deco[data-deco=orejas]::after{right:14px;transform:rotate(22deg);animation-delay:.15s}
-.pf-deco[data-deco=orejas] i:nth-child(-n+2){display:block;top:14px;width:16px;height:18px;background:#ffb3c7;clip-path:polygon(50% 0,100% 100%,0 100%);z-index:1}
-.pf-deco[data-deco=orejas] i:nth-child(1){left:23px;transform:rotate(-22deg)}.pf-deco[data-deco=orejas] i:nth-child(2){right:23px;transform:rotate(22deg)}
-@keyframes pfEar{0%,80%,100%{translate:0 0}85%{translate:0 -3px}90%{translate:0 0}}
-/* halo */
-.pf-deco[data-deco=halo]::before{display:block;left:22px;right:22px;top:-4px;height:16px;border-radius:50%;border:4px solid #ffe680;box-shadow:0 0 12px #ffd54f,inset 0 0 6px #ffd54f;animation:pfBob 3s ease-in-out infinite}
+/* corona que flota activamente con brillo vivo */
+.pf-deco[data-deco=corona]::before{
+  display:block;left:2px;top:-8px;width:48px;height:34px;
+  background:linear-gradient(135deg,#fff2a8 0%,#ffe680 40%,#f2b301 100%);
+  clip-path:polygon(0 100%,0 25%,22% 55%,50% 0,78% 55%,100% 25%,100% 100%);
+  animation:pfCrownFloat 2.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+.pf-deco[data-deco=corona] i:first-child{
+  display:block;left:22px;top:4px;width:8px;height:8px;border-radius:50%;background:#ff2d55;
+  box-shadow:0 0 8px #ff2d55;
+  animation:pfCrownGem1 2.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+.pf-deco[data-deco=corona] i:nth-child(2){
+  display:block;left:34px;top:8px;width:7px;height:7px;border-radius:50%;background:#00f5d4;
+  box-shadow:0 0 8px #00f5d4;
+  animation:pfCrownGem2 2.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+}
+.pf-deco[data-deco=corona] i:nth-child(3){
+  display:block;left:4px;top:-6px;width:11px;height:11px;background:#fff;
+  clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);
+  animation:pfSparkleTwinkle 1.8s ease-in-out infinite alternate;
+}
+.pf-deco[data-deco=corona] i:nth-child(4){
+  display:block;left:42px;top:-4px;width:10px;height:10px;background:#ffd700;
+  clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);
+  animation:pfSparkleTwinkle 1.8s ease-in-out infinite alternate 0.5s;
+}
+@keyframes pfCrownFloat{
+  0%{transform:rotate(-24deg) translate3d(0,0,0) scale(1);filter:drop-shadow(2px 2px 0 #6a4500) drop-shadow(0 0 6px #ffd70066)}
+  100%{transform:rotate(-16deg) translate3d(4px,-14px,0) scale(1.12);filter:drop-shadow(3px 5px 0 #6a4500) drop-shadow(0 0 20px #ffd700)}
+}
+@keyframes pfCrownGem1{
+  0%{transform:translate3d(0,0,0) scale(1);filter:brightness(1)}
+  100%{transform:translate3d(4px,-14px,0) scale(1.4);filter:brightness(1.8) drop-shadow(0 0 8px #ff2d55)}
+}
+@keyframes pfCrownGem2{
+  0%{transform:translate3d(0,0,0) scale(1);filter:brightness(1)}
+  100%{transform:translate3d(4px,-14px,0) scale(1.4);filter:brightness(1.8) drop-shadow(0 0 8px #00f5d4)}
+}
+@keyframes pfSparkleTwinkle{
+  0%{transform:scale(0.3) rotate(0deg);opacity:0.2}
+  50%{transform:scale(1.35) rotate(90deg);opacity:1;filter:drop-shadow(0 0 8px #fff)}
+  100%{transform:scale(0.4) rotate(180deg);opacity:0.3}
+}
+
+/* orejas de gato con movimiento tierno y balanceo */
+.pf-deco[data-deco=orejas]::before,.pf-deco[data-deco=orejas]::after{
+  display:block;top:0;width:34px;height:38px;
+  background:color-mix(in srgb,var(--profile-accent) 70%,#fff);
+  clip-path:polygon(50% 0,100% 100%,0 100%);
+  filter:drop-shadow(2px 2px 0 #000);
+}
+.pf-deco[data-deco=orejas]::before{
+  left:14px;transform-origin:bottom left;
+  animation:pfCatEarL 2s ease-in-out infinite;
+}
+.pf-deco[data-deco=orejas]::after{
+  right:14px;transform-origin:bottom right;
+  animation:pfCatEarR 2s ease-in-out infinite 0.1s;
+}
+.pf-deco[data-deco=orejas] i:nth-child(1){
+  display:block;left:23px;top:12px;width:16px;height:20px;background:#ffb3c7;
+  clip-path:polygon(50% 0,100% 100%,0 100%);z-index:1;transform-origin:bottom left;
+  animation:pfCatEarL 2s ease-in-out infinite;
+}
+.pf-deco[data-deco=orejas] i:nth-child(2){
+  display:block;right:23px;top:12px;width:16px;height:20px;background:#ffb3c7;
+  clip-path:polygon(50% 0,100% 100%,0 100%);z-index:1;transform-origin:bottom right;
+  animation:pfCatEarR 2s ease-in-out infinite 0.1s;
+}
+@keyframes pfCatEarL{
+  0%,65%,100%{transform:rotate(-22deg) scale(1)}
+  72%{transform:rotate(-34deg) scaleY(0.85)}
+  80%{transform:rotate(-14deg) scaleY(1.1)}
+  88%{transform:rotate(-25deg) scale(1.02)}
+}
+@keyframes pfCatEarR{
+  0%,65%,100%{transform:rotate(22deg) scale(1)}
+  72%{transform:rotate(34deg) scaleY(0.85)}
+  80%{transform:rotate(14deg) scaleY(1.1)}
+  88%{transform:rotate(25deg) scale(1.02)}
+}
+
+/* halo angelical flotando suavemente arriba de la cabeza */
+.pf-deco[data-deco=halo]::before{
+  display:block;left:20px;right:20px;top:-10px;height:18px;border-radius:50%;
+  border:4px solid #ffe680;
+  box-shadow:0 0 16px #ffd54f,inset 0 0 10px #ffd54f;
+  animation:pfHaloFloat 2.4s ease-in-out infinite alternate;
+}
+@keyframes pfHaloFloat{
+  0%{transform:translate3d(0,0,0) rotate(-4deg);box-shadow:0 0 10px #ffe680}
+  100%{transform:translate3d(0,-12px,0) rotate(4deg);box-shadow:0 0 24px #ffd700,inset 0 0 14px #ffd700}
+}
 /* petalos que giran alrededor */
 .pf-deco[data-deco=petalos]{animation:pfSpin 18s linear infinite}
 .pf-deco[data-deco=petalos] i{display:block;left:50%;top:50%;width:14px;height:10px;margin:-5px -7px;border-radius:0 100% 0 100%;background:linear-gradient(135deg,#ffd1e0,#ff7aa8);filter:drop-shadow(0 1px 1px #0005)}
@@ -151,38 +232,124 @@
 
 /* ---------- efectos sobre toda la ficha ---------- */
 .pf-fx{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
-.pf-fx i{position:absolute;left:var(--x);top:var(--y);width:10px;height:10px;scale:var(--s);will-change:transform,opacity}
+.pf-fx i{position:absolute;left:var(--x);top:var(--y);width:12px;height:12px;scale:var(--s);will-change:transform,opacity}
 
-/* comic fx: estrellas de choque y semitonos pop */
-.pf-fx[data-fx=comic] i{width:16px;height:16px;background:var(--c);clip-path:polygon(50% 0%,65% 25%,100% 40%,75% 65%,85% 100%,50% 80%,15% 100%,25% 65%,0% 40%,35% 25%);filter:drop-shadow(1px 1px 0 #000);animation:pfTwinkle var(--d) ease-in-out var(--l) infinite}
-/* garabatos fx: garabatos tiernos y destellos flotando */
-.pf-fx[data-fx=garabatos] i{width:14px;height:14px;background:var(--c);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:pfPetal var(--d) linear var(--l) infinite}
-/* graffiti fx: salpicaduras y gotas de spray */
-.pf-fx[data-fx=graffiti] i{width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);animation:pfConf var(--d) linear var(--l) infinite}
+/* 1. ESTRELLAS: campo estelar en vuelo cósmico continuo y rotación brillante */
+.pf-fx[data-fx=estrellas] i{
+  width:14px;height:14px;background:var(--c);
+  clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);
+  filter:drop-shadow(0 0 6px var(--c)) drop-shadow(0 0 12px var(--c));
+  animation:pfStarDrift var(--d) ease-in-out var(--l) infinite;
+}
+@keyframes pfStarDrift{
+  0%{transform:translate3d(0,0,0) scale(0.3) rotate(0deg);opacity:0}
+  20%{opacity:1;transform:translate3d(calc(var(--w) * 0.25),-35px,0) scale(1.1) rotate(70deg)}
+  50%{opacity:0.95;transform:translate3d(calc(var(--w) * -0.2),-95px,0) scale(0.95) rotate(160deg)}
+  80%{opacity:0.85;transform:translate3d(calc(var(--w) * 0.6),-160px,0) scale(1.05) rotate(260deg)}
+  100%{transform:translate3d(var(--w),-220px,0) scale(0.2) rotate(360deg);opacity:0}
+}
+.pf-fx[data-fx=estrellas]::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 30%,rgba(140,80,255,0.12) 0%,transparent 65%);
+  animation:pfAuraPulse 3.5s ease-in-out infinite alternate;pointer-events:none;
+}
+@keyframes pfAuraPulse{0%{opacity:.4}100%{opacity:1}}
 
-/* estrellas que titilan */
-.pf-fx[data-fx=estrellas] i{width:14px;height:14px;background:var(--c);clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 4px var(--c));animation:pfTwinkle var(--d) ease-in-out var(--l) infinite}
-@keyframes pfTwinkle{0%,100%{opacity:0;transform:scale(.3) rotate(0)}50%{opacity:1;transform:scale(1) rotate(90deg)}}
-/* nieve */
-.pf-fx[data-fx=nieve] i{top:-12px;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 4px #fff;animation:pfFall var(--d) linear var(--l) infinite}
-@keyframes pfFall{from{transform:translate3d(0,-10px,0)}to{transform:translate3d(var(--w),900px,0)}}
-/* petalos */
-.pf-fx[data-fx=petalos] i{top:-14px;width:13px;height:9px;border-radius:0 100% 0 100%;background:linear-gradient(135deg,#ffe0ea,#ff7aa8);animation:pfPetal var(--d) linear var(--l) infinite}
-@keyframes pfPetal{from{transform:translate3d(0,-10px,0) rotate(var(--r))}to{transform:translate3d(calc(var(--w) * 2),900px,0) rotate(calc(var(--r) + 540deg))}}
-/* burbujas que suben */
-.pf-fx[data-fx=burbujas] i{top:auto;bottom:-20px;width:14px;height:14px;border-radius:50%;border:1.5px solid #ffffffaa;background:radial-gradient(circle at 30% 30%,#ffffff88 0 2px,transparent 4px),#7ee0ff1a;animation:pfRise var(--d) ease-in var(--l) infinite}
-@keyframes pfRise{from{transform:translate3d(0,0,0);opacity:0}10%{opacity:1}to{transform:translate3d(var(--w),-900px,0);opacity:.2}}
-/* confeti */
-.pf-fx[data-fx=confeti] i{top:-12px;width:6px;height:11px;background:var(--c);animation:pfConf var(--d) linear var(--l) infinite}
-@keyframes pfConf{from{transform:translate3d(0,-10px,0) rotate(0) rotateY(0)}to{transform:translate3d(var(--w),900px,0) rotate(720deg) rotateY(720deg)}}
-/* pixeles que suben y se apagan */
-.pf-fx[data-fx=pixeles] i{top:auto;bottom:-10px;width:7px;height:7px;background:color-mix(in srgb,var(--profile-accent) 70%,var(--c));box-shadow:0 0 6px var(--profile-accent);animation:pfRise var(--d) steps(24) var(--l) infinite}
-/* luciernagas */
-.pf-fx[data-fx=luciernagas] i{width:6px;height:6px;border-radius:50%;background:#fff6a0;box-shadow:0 0 8px 3px #ffe75866;animation:pfFly var(--d) ease-in-out var(--l) infinite alternate}
-@keyframes pfFly{0%{transform:translate3d(0,0,0);opacity:.2}50%{opacity:1}100%{transform:translate3d(var(--w),-40px,0);opacity:.3}}
-/* corazones */
-.pf-fx[data-fx=corazones] i{top:auto;bottom:-16px;width:14px;height:14px;background:transparent;animation:pfRise var(--d) ease-out var(--l) infinite}
-.pf-fx[data-fx=corazones] i::before{content:"";position:absolute;inset:0;background:#ff5c93;clip-path:path('M7 13 L1.2 7.2 A3.4 3.4 0 0 1 7 2.6 A3.4 3.4 0 0 1 12.8 7.2 Z');filter:drop-shadow(0 0 4px #ff5c93)}
+/* 2. CÓMIC ACTION: Chispas y estrellas de acción que vuelan en diagonal con estallidos pop */
+.pf-fx[data-fx=comic] i{
+  width:18px;height:18px;background:var(--c);
+  clip-path:polygon(50% 0%,65% 25%,100% 40%,75% 65%,85% 100%,50% 80%,15% 100%,25% 65%,0% 40%,35% 25%);
+  filter:drop-shadow(2px 2px 0 #000);
+  animation:pfComicDash var(--d) cubic-bezier(0.25,1,0.5,1) var(--l) infinite;
+}
+@keyframes pfComicDash{
+  0%{transform:translate3d(0,0,0) scale(0.2) rotate(0deg);opacity:0}
+  15%{opacity:1;transform:translate3d(calc(var(--w) * 0.25),calc(var(--w) * -0.25),0) scale(1.3) rotate(45deg)}
+  50%{opacity:1;transform:translate3d(calc(var(--w) * 0.7),calc(var(--w) * -0.7),0) scale(1.05) rotate(135deg)}
+  85%{opacity:0.85;transform:translate3d(calc(var(--w) * 1.15),calc(var(--w) * -1.1),0) scale(0.8) rotate(240deg)}
+  100%{transform:translate3d(calc(var(--w) * 1.4),calc(var(--w) * -1.35),0) scale(0.1) rotate(360deg);opacity:0}
+}
+.pf-fx[data-fx=comic]::before{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(255,215,0,0.04) 20px,rgba(255,215,0,0.04) 40px);
+  animation:pfSpeedlines 2s linear infinite;pointer-events:none;
+}
+@keyframes pfSpeedlines{from{background-position:0 0}to{background-position:56px 56px}}
+
+/* 3. GARABATOS: Doodles dibujados a mano (estrellas, corazones, espirales) flotando con bamboleo tierno */
+.pf-fx[data-fx=garabatos] i{
+  width:16px;height:16px;background:var(--c);
+  clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+  filter:drop-shadow(1px 2px 0 rgba(0,0,0,0.6));
+  animation:pfDoodleDrift var(--d) ease-in-out var(--l) infinite;
+}
+.pf-fx[data-fx=garabatos] i:nth-child(3n){
+  border-radius:50%;
+  clip-path:polygon(50% 0%,80% 10%,100% 35%,100% 70%,80% 90%,50% 100%,20% 90%,0% 70%,0% 35%,20% 10%);
+}
+.pf-fx[data-fx=garabatos] i:nth-child(3n+1){
+  border-radius:0;
+  clip-path:polygon(50% 88%,15% 55%,0% 28%,15% 5%,38% 5%,50% 25%,62% 5%,85% 5%,100% 28%,85% 55%);
+}
+@keyframes pfDoodleDrift{
+  0%{transform:translate3d(0,0,0) rotate(0deg) scale(0.3);opacity:0}
+  15%{opacity:1;transform:translate3d(calc(var(--w) * 0.3),-35px,0) rotate(15deg) scale(1.15)}
+  50%{transform:translate3d(calc(var(--w) * -0.2),-100px,0) rotate(-14deg) scale(0.95);opacity:0.95}
+  85%{transform:translate3d(calc(var(--w) * 0.7),-170px,0) rotate(18deg) scale(1.05);opacity:0.85}
+  100%{transform:translate3d(var(--w),-230px,0) rotate(-20deg) scale(0.2);opacity:0}
+}
+
+/* 4. GRAFFITI: Gotas de pintura neón que caen y salpicaduras de spray que estallan */
+.pf-fx[data-fx=graffiti] i{
+  width:12px;height:12px;border-radius:50%;background:var(--c);
+  box-shadow:0 0 10px var(--c),0 0 18px var(--c);
+  animation:pfGraffitiDripFall var(--d) cubic-bezier(0.4,0,0.2,1) var(--l) infinite;
+}
+.pf-fx[data-fx=graffiti] i:nth-child(2n){
+  border-radius:40% 60% 70% 30% / 40% 50% 60% 50%;
+  animation:pfGraffitiSplatterBurst var(--d) ease-out var(--l) infinite;
+}
+@keyframes pfGraffitiDripFall{
+  0%{transform:translate3d(0,0,0) scaleY(0.7) scaleX(1);opacity:0}
+  15%{opacity:1;transform:translate3d(0,25px,0) scaleY(1.6) scaleX(0.8)}
+  50%{opacity:0.95;transform:translate3d(calc(var(--w) * 0.25),100px,0) scaleY(1.3) scaleX(0.9)}
+  85%{opacity:0.8;transform:translate3d(calc(var(--w) * 0.4),190px,0) scaleY(1.0) scaleX(1)}
+  100%{transform:translate3d(calc(var(--w) * 0.5),250px,0) scale(0.3);opacity:0}
+}
+@keyframes pfGraffitiSplatterBurst{
+  0%{transform:translate3d(0,0,0) scale(0.2) rotate(0deg);opacity:0}
+  20%{transform:translate3d(calc(var(--w) * 0.2),calc(var(--w) * 0.1),0) scale(1.35) rotate(35deg);opacity:1}
+  60%{transform:translate3d(calc(var(--w) * 0.5),calc(var(--w) * 0.3),0) scale(1.1) rotate(70deg);opacity:0.85}
+  100%{transform:translate3d(calc(var(--w) * 0.7),calc(var(--w) * 0.5),0) scale(0.3) rotate(120deg);opacity:0}
+}
+
+/* 5. NIEVE */
+.pf-fx[data-fx=nieve] i{top:-12px;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation:pfFall var(--d) linear var(--l) infinite}
+@keyframes pfFall{from{transform:translate3d(0,-10px,0);opacity:0}15%{opacity:1}85%{opacity:0.9}to{transform:translate3d(var(--w),600px,0);opacity:0}}
+
+/* 6. PETALOS */
+.pf-fx[data-fx=petalos] i{top:-14px;width:14px;height:10px;border-radius:0 100% 0 100%;background:linear-gradient(135deg,#ffe0ea,#ff7aa8);animation:pfPetal var(--d) linear var(--l) infinite}
+@keyframes pfPetal{from{transform:translate3d(0,-10px,0) rotate(var(--r));opacity:0}15%{opacity:1}to{transform:translate3d(calc(var(--w) * 1.5),600px,0) rotate(calc(var(--r) + 540deg));opacity:0}}
+
+/* 7. BURBUJAS */
+.pf-fx[data-fx=burbujas] i{top:auto;bottom:-20px;width:15px;height:15px;border-radius:50%;border:1.5px solid #ffffffaa;background:radial-gradient(circle at 30% 30%,#ffffff88 0 2px,transparent 4px),#7ee0ff22;animation:pfRise var(--d) ease-in var(--l) infinite}
+@keyframes pfRise{from{transform:translate3d(0,0,0) scale(0.4);opacity:0}15%{opacity:0.95;transform:translate3d(calc(var(--w) * 0.3),-45px,0) scale(1)}50%{transform:translate3d(calc(var(--w) * -0.4),-150px,0) scale(1.05)}85%{transform:translate3d(calc(var(--w) * 0.4),-250px,0) scale(0.95);opacity:0.85}to{transform:translate3d(var(--w),-350px,0) scale(1.2);opacity:0}}
+
+/* 8. CONFETI */
+.pf-fx[data-fx=confeti] i{top:-12px;width:7px;height:12px;background:var(--c);animation:pfConf var(--d) linear var(--l) infinite}
+@keyframes pfConf{from{transform:translate3d(0,-10px,0) rotate(0) rotateY(0);opacity:0}10%{opacity:1}to{transform:translate3d(var(--w),600px,0) rotate(720deg) rotateY(720deg);opacity:0}}
+
+/* 9. PIXELES */
+.pf-fx[data-fx=pixeles] i{top:auto;bottom:-10px;width:8px;height:8px;background:color-mix(in srgb,var(--profile-accent) 70%,var(--c));box-shadow:0 0 6px var(--profile-accent);animation:pfRise var(--d) steps(24) var(--l) infinite}
+
+/* 10. LUCIÉRNAGAS */
+.pf-fx[data-fx=luciernagas] i{width:7px;height:7px;border-radius:50%;background:#fff6a0;box-shadow:0 0 10px 4px #ffe75888;animation:pfFly var(--d) ease-in-out var(--l) infinite alternate}
+@keyframes pfFly{0%{transform:translate3d(0,0,0);opacity:0.2}25%{transform:translate3d(calc(var(--w) * 0.7),-40px,0);opacity:1}50%{transform:translate3d(calc(var(--w) * -0.5),-85px,0);opacity:0.6}75%{transform:translate3d(calc(var(--w) * 0.6),-135px,0);opacity:1}100%{transform:translate3d(var(--w),-185px,0);opacity:0}}
+
+/* 11. CORAZONES */
+.pf-fx[data-fx=corazones] i{top:auto;bottom:-16px;width:15px;height:15px;background:transparent;animation:pfHeartFloat var(--d) ease-out var(--l) infinite}
+.pf-fx[data-fx=corazones] i::before{content:"";position:absolute;inset:0;background:#ff5c93;clip-path:polygon(50% 88%,15% 55%,0% 28%,15% 5%,38% 5%,50% 25%,62% 5%,85% 5%,100% 28%,85% 55%);filter:drop-shadow(0 0 6px #ff5c93)}
+@keyframes pfHeartFloat{0%{transform:translate3d(0,0,0) scale(0.3) rotate(-10deg);opacity:0}20%{opacity:1;transform:translate3d(calc(var(--w) * 0.3),-40px,0) scale(1.1) rotate(12deg)}50%{transform:translate3d(calc(var(--w) * -0.3),-100px,0) scale(0.95) rotate(-12deg);opacity:0.9}80%{transform:translate3d(calc(var(--w) * 0.5),-170px,0) scale(1.05) rotate(10deg);opacity:0.8}100%{transform:translate3d(var(--w),-240px,0) scale(0.3) rotate(0deg);opacity:0}}
 
 /* ---------- vestidor: opciones con muestra ---------- */
 .pe-colors{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
@@ -224,6 +391,7 @@
 
 @media (prefers-reduced-motion:reduce){.pf-fx i,.pf-deco,.pf-deco::before,.pf-deco::after,.pf-deco i,.profile-showcase .public-head h2{animation:none!important}}
 body.lite-profiles .pf-fx{display:none}
+#acctdlg .pf-fx,#playerdlg .pf-fx,.profile-editor .pf-fx{display:block!important}
 
 /* ===== VENTANA DE CUENTA: PERFIL UNIFICADO ESTILO DISCORD ===== */
 #acctdlg .box:has(.acct-discord-wrap),

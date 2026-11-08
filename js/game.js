@@ -13527,7 +13527,7 @@ function profileShowcase(card, c, raw) {
     const cols = ['#ff6b9d', '#ffd166', '#7ee0ff', '#b39dff', '#8ef08a', '#ffffff'];
     for (let i = 0; i < (PF_FX_COUNT[fx.fx] || 0); i++) {
       const s = document.createElement('i');
-      s.style.cssText = `--x:${(rn() * 100).toFixed(1)}%;--y:${(rn() * 100).toFixed(1)}%;--s:${(.6 + rn() * .9).toFixed(2)};--d:${(5 + rn() * 7).toFixed(1)}s;--l:${(-rn() * 12).toFixed(1)}s;--r:${(rn() * 360) | 0}deg;--w:${((rn() - .5) * 60) | 0}px;--c:${cols[i % cols.length]}`;
+      s.style.cssText = `--x:${(rn() * 100).toFixed(1)}%;--y:${(rn() * 100).toFixed(1)}%;--s:${(.7 + rn() * .8).toFixed(2)};--d:${(2.0 + rn() * 2.2).toFixed(1)}s;--l:${(-rn() * 5).toFixed(1)}s;--r:${(rn() * 360) | 0}deg;--w:${((rn() - .5) * 160) | 0}px;--h:${(-160 - rn() * 180) | 0}px;--c:${cols[i % cols.length]}`;
       layer.appendChild(s);
     }
   }
