@@ -1,6 +1,6 @@
 /* ===== SISTEMA DE EMOTES =====
    - Mantener la tecla de emotes (por defecto B, se cambia en Opciones > Controles) abre la RUEDA de 12 slots; mover el mouse hacia un slot y soltar la tecla lo ejecuta.
-     También hay un botón 😀 arriba (junto a Panel y Guía) que abre la rueda para tocar el emote (sirve en celular).
+     También hay un botón arriba (junto a Panel y Guía) que abre la rueda para tocar el emote (sirve en celular).
    - Cada slot muestra EL MODELO DEL JUGADOR haciendo ese emote (vista 3D en vivo).
    - CLIC DERECHO sobre un slot: se abre la lista de emotes (la rueda NO se cierra); tocar uno de la lista lo pone en ese slot.
    - Los emotes se desbloquean con KILLS como en TSB. Solo cuentan las kills de SALAS PÚBLICAS contra otros jugadores:
@@ -21,27 +21,27 @@
     const kf = (dur, step, fn) => { const out = []; for (let t = step, i = 0; t < dur; t += step, i++) out.push([+t.toFixed(3), fn(i)]); return out; };
     const REST = { ix: .04, tx: .08, ty: .3, hy: -.25, alx: -1.05, alz: -.35, aly: .2, arx: -.75, arz: .3, ary: -.2, llx: -.3, llz: .08, lrx: .25, lrz: -.1, by: -.6 };
     const EM = [
-      { id: 0, n: 'Saludo', ico: '👋', k: 0, dur: 2.6, seq: [[.25, { hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: -.5, llx: -.1, lrx: .1, by: -.6 }], ...kf(2.3, .28, i => ({ hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: i % 2 ? -.95 : -.15, llx: -.1, lrx: .1, by: -.6 })), [2.6, REST]] },
-      { id: 1, n: 'Baile', ico: '🕺', k: 0, dur: 3.4, seq: kf(3.4, .4, i => { const s = i % 2 ? 1 : -1; return { ix: .08, tx: .1 * s, ty: .55 * s, hy: -.3 * s, hx: .1, by: i % 2 ? -3 : -1.2, alx: s > 0 ? -2.7 : -.5, alz: .4, arx: s > 0 ? -.5 : -2.7, arz: -.4, llx: s > 0 ? -.5 : .1, lrx: s > 0 ? .1 : -.5, llz: .2 * s, lrz: .2 * s }; }).concat([[3.4, REST]]) },
-      { id: 2, n: 'Risa', ico: '😆', k: 0, dur: 2.4, seq: kf(2.2, .14, i => ({ ix: -.18, tx: -.28, hx: -.55, by: i % 2 ? -2.4 : -1, alx: -1.0, alz: -.5, arx: -1.0, arz: .5, llx: -.15, lrx: .15 })).concat([[2.4, REST]]) },
-      { id: 3, n: 'Flexión de poder', ico: '💪', k: 3, dur: 2.8, seq: [[.35, { by: -2, tx: -.15, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3 }], ...kf(2.5, .3, i => ({ by: i % 2 ? -3 : -2, tx: -.15, ix: .05, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3, hx: .05 })), [2.8, REST]] },
-      { id: 4, n: 'Reverencia', ico: '🙇', k: 5, dur: 2.4, seq: [[.55, { ix: 1.15, tx: .5, hx: .25, by: -3, alx: .3, alz: .2, arx: .3, arz: -.2, llx: -.2, lrx: -.2 }], [1.7, { ix: 1.15, tx: .5, hx: .25, by: -3, alx: .3, alz: .2, arx: .3, arz: -.2, llx: -.2, lrx: -.2 }], [2.4, REST]] },
-      { id: 5, n: 'Meditar', ico: '🧘', k: 8, dur: 3.8, seq: [[.7, { by: -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 }], ...kf(3.4, .8, i => ({ by: i % 2 ? -9.6 : -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 })), [3.8, REST]], fx: 'aura' },
-      { id: 6, n: 'Karate', ico: '🥋', k: 12, dur: 3.2, seq: kf(3.0, .3, i => ({ by: -4, ix: .1, tx: .15, ty: i % 2 ? .5 : -.5, hy: i % 2 ? -.4 : .4, alx: i % 2 ? -1.57 : -.9, alz: .1, arx: i % 2 ? -.9 : -1.57, arz: -.1, llx: -.7, lrx: .5, llz: .35, lrz: -.35 })).concat([[3.2, REST]]) },
-      { id: 7, n: 'Sentadillas', ico: '🏋️', k: 16, dur: 3.2, seq: kf(3.0, .4, i => i % 2 ? { by: -1, llx: -.2, lrx: -.2, alx: -1.5, arx: -1.5, alz: .1, arz: -.1 } : { by: -8, tx: .35, ix: .1, hx: -.3, llx: -1.5, lrx: -1.5, llz: .3, lrz: -.3, alx: -1.55, arx: -1.55, alz: .1, arz: -.1 }).concat([[3.2, REST]]) },
-      { id: 8, n: 'Breakdance', ico: '🌀', k: 22, dur: 3.4, spin: 6, seq: kf(3.2, .3, i => ({ by: -9, ix: .9, tx: .3, hx: -.5, llx: i % 2 ? -1.4 : 1.0, lrx: i % 2 ? 1.0 : -1.4, llz: .8, lrz: -.8, alx: -.4, alz: 1.2, arx: -.4, arz: -1.2 })).concat([[3.4, REST]]) },
-      { id: 9, n: 'Facepalm', ico: '🤦', k: 28, dur: 2.6, seq: [[.35, { ix: .08, tx: .1, hx: .55, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 }], ...kf(2.2, .26, i => ({ ix: .08, tx: .1, hx: .55, hy: i % 2 ? .35 : -.35, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 })), [2.6, REST]] },
-      { id: 10, n: 'Victoria', ico: '✌️', k: 35, dur: 3.0, seq: kf(2.8, .3, i => ({ by: i % 2 ? -.5 : -3, hx: -.2, alx: -2.95, alz: .5, arx: -2.95, arz: -.5, llx: i % 2 ? -.1 : -.5, lrx: i % 2 ? -.1 : -.5 })).concat([[3.0, REST]]), fx: 'confetti' },
-      { id: 11, n: 'Moonwalk', ico: '🎤', k: 45, dur: 3.0, moon: true, seq: kf(2.8, .22, i => ({ ix: -.05, tx: -.1, by: -1, alx: i % 2 ? -.6 : -1.2, arx: i % 2 ? -1.2 : -.6, alz: .3, arz: -.3, llx: i % 2 ? .35 : -.35, lrx: i % 2 ? -.35 : .35 })).concat([[3.0, REST]]) },
-      { id: 12, n: 'Llorar', ico: '😭', k: 60, dur: 3.0, seq: [[.3, { ix: .15, tx: .3, hx: .8, by: -2, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 }], ...kf(2.7, .12, i => ({ ix: .15, tx: i % 2 ? .36 : .26, hx: .8, by: i % 2 ? -2.5 : -1.7, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 })), [3.0, REST]] },
-      { id: 13, n: 'Pose final', ico: '🔥', k: 80, dur: 3.4, seq: [[.3, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.0, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2.4, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.4, REST]], fx: 'fire' },
-      { id: 14, n: 'Leyenda', ico: '👑', k: 120, dur: 3.6, seq: [[.4, { ix: -.05, tx: -.1, hx: -.28, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.2, { ix: -.05, tx: -.1, hx: -.28, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.6, REST]], fx: 'gold' },
+      { id: 0, n: 'Saludo', ico: '', k: 0, dur: 2.6, seq: [[.25, { hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: -.5, llx: -.1, lrx: .1, by: -.6 }], ...kf(2.3, .28, i => ({ hy: .25, alx: -.3, alz: .3, arx: -2.55, arz: i % 2 ? -.95 : -.15, llx: -.1, lrx: .1, by: -.6 })), [2.6, REST]] },
+      { id: 1, n: 'Baile', ico: '', k: 0, dur: 3.4, seq: kf(3.4, .4, i => { const s = i % 2 ? 1 : -1; return { ix: .08, tx: .1 * s, ty: .55 * s, hy: -.3 * s, hx: .1, by: i % 2 ? -3 : -1.2, alx: s > 0 ? -2.7 : -.5, alz: .4, arx: s > 0 ? -.5 : -2.7, arz: -.4, llx: s > 0 ? -.5 : .1, lrx: s > 0 ? .1 : -.5, llz: .2 * s, lrz: .2 * s }; }).concat([[3.4, REST]]) },
+      { id: 2, n: 'Risa', ico: '', k: 0, dur: 2.4, seq: kf(2.2, .14, i => ({ ix: -.18, tx: -.28, hx: -.55, by: i % 2 ? -2.4 : -1, alx: -1.0, alz: -.5, arx: -1.0, arz: .5, llx: -.15, lrx: .15 })).concat([[2.4, REST]]) },
+      { id: 3, n: 'Flexión de poder', ico: '', k: 3, dur: 2.8, seq: [[.35, { by: -2, tx: -.15, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3 }], ...kf(2.5, .3, i => ({ by: i % 2 ? -3 : -2, tx: -.15, ix: .05, alx: -.9, alz: 1.1, arx: -.9, arz: -1.1, llz: .3, lrz: -.3, hx: .05 })), [2.8, REST]] },
+      { id: 4, n: 'Reverencia', ico: '', k: 5, dur: 2.4, seq: [[.55, { ix: 1.15, tx: .5, hx: .25, by: -3, alx: .3, alz: .2, arx: .3, arz: -.2, llx: -.2, lrx: -.2 }], [1.7, { ix: 1.15, tx: .5, hx: .25, by: -3, alx: .3, alz: .2, arx: .3, arz: -.2, llx: -.2, lrx: -.2 }], [2.4, REST]] },
+      { id: 5, n: 'Meditar', ico: '', k: 8, dur: 3.8, seq: [[.7, { by: -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 }], ...kf(3.4, .8, i => ({ by: i % 2 ? -9.6 : -9, ix: .1, tx: .05, hx: .05, alx: -.9, alz: .95, arx: -.9, arz: -.95, llx: -1.5, lrx: -1.5, llz: .55, lrz: -.55 })), [3.8, REST]], fx: 'aura' },
+      { id: 6, n: 'Karate', ico: '', k: 12, dur: 3.2, seq: kf(3.0, .3, i => ({ by: -4, ix: .1, tx: .15, ty: i % 2 ? .5 : -.5, hy: i % 2 ? -.4 : .4, alx: i % 2 ? -1.57 : -.9, alz: .1, arx: i % 2 ? -.9 : -1.57, arz: -.1, llx: -.7, lrx: .5, llz: .35, lrz: -.35 })).concat([[3.2, REST]]) },
+      { id: 7, n: 'Sentadillas', ico: '', k: 16, dur: 3.2, seq: kf(3.0, .4, i => i % 2 ? { by: -1, llx: -.2, lrx: -.2, alx: -1.5, arx: -1.5, alz: .1, arz: -.1 } : { by: -8, tx: .35, ix: .1, hx: -.3, llx: -1.5, lrx: -1.5, llz: .3, lrz: -.3, alx: -1.55, arx: -1.55, alz: .1, arz: -.1 }).concat([[3.2, REST]]) },
+      { id: 8, n: 'Breakdance', ico: '', k: 22, dur: 3.4, spin: 6, seq: kf(3.2, .3, i => ({ by: -9, ix: .9, tx: .3, hx: -.5, llx: i % 2 ? -1.4 : 1.0, lrx: i % 2 ? 1.0 : -1.4, llz: .8, lrz: -.8, alx: -.4, alz: 1.2, arx: -.4, arz: -1.2 })).concat([[3.4, REST]]) },
+      { id: 9, n: 'Facepalm', ico: '', k: 28, dur: 2.6, seq: [[.35, { ix: .08, tx: .1, hx: .55, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 }], ...kf(2.2, .26, i => ({ ix: .08, tx: .1, hx: .55, hy: i % 2 ? .35 : -.35, by: -1, arx: -2.5, arz: -.1, alx: -.5, alz: .2, llx: -.1, lrx: .1 })), [2.6, REST]] },
+      { id: 10, n: 'Victoria', ico: '', k: 35, dur: 3.0, seq: kf(2.8, .3, i => ({ by: i % 2 ? -.5 : -3, hx: -.2, alx: -2.95, alz: .5, arx: -2.95, arz: -.5, llx: i % 2 ? -.1 : -.5, lrx: i % 2 ? -.1 : -.5 })).concat([[3.0, REST]]), fx: 'confetti' },
+      { id: 11, n: 'Moonwalk', ico: '', k: 45, dur: 3.0, moon: true, seq: kf(2.8, .22, i => ({ ix: -.05, tx: -.1, by: -1, alx: i % 2 ? -.6 : -1.2, arx: i % 2 ? -1.2 : -.6, alz: .3, arz: -.3, llx: i % 2 ? .35 : -.35, lrx: i % 2 ? -.35 : .35 })).concat([[3.0, REST]]) },
+      { id: 12, n: 'Llorar', ico: '', k: 60, dur: 3.0, seq: [[.3, { ix: .15, tx: .3, hx: .8, by: -2, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 }], ...kf(2.7, .12, i => ({ ix: .15, tx: i % 2 ? .36 : .26, hx: .8, by: i % 2 ? -2.5 : -1.7, alx: -2.35, alz: .35, arx: -2.35, arz: -.35, llx: -.2, lrx: .1 })), [3.0, REST]] },
+      { id: 13, n: 'Pose final', ico: '', k: 80, dur: 3.4, seq: [[.3, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.0, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2.4, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.4, REST]], fx: 'fire' },
+      { id: 14, n: 'Leyenda', ico: '', k: 120, dur: 3.6, seq: [[.4, { ix: -.05, tx: -.1, hx: -.28, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.2, { ix: -.05, tx: -.1, hx: -.28, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.6, REST]], fx: 'gold' },
     ];
     // emotes del JEFE (Kraken del abismo): solo se consiguen derrotándolo (ver grantBoss)
     EM.push(
-      { id: 200, n: 'Furia del Kraken', ico: '🦑', k: 1e9, boss: 'Kraken', dur: 3.4, fx: 'abyss', seq: [[.3, { ix: -.15, tx: -.3, hx: -.5, alx: -2.9, alz: .9, arx: -2.9, arz: -.9, llx: -.5, lrx: .3, by: -3 }], ...kf(3.0, .18, i => ({ ix: -.15, tx: -.3, hx: -.5 + (i % 2) * .12, alx: -2.9, alz: .9 + (i % 2) * .15, arx: -2.9, arz: -.9 - (i % 2) * .15, llx: -.5, lrx: .3, by: -3 - (i % 2) * .6 })), [3.4, REST]] },
-      { id: 201, n: 'Tentáculos', ico: '🐙', k: 1e9, boss: 'Kraken', dur: 3.6, fx: 'abyss', seq: kf(3.4, .22, i => ({ ix: .05, tx: .1 * Math.sin(i), ty: .5 * Math.sin(i * 1.3), hy: -.3 * Math.sin(i), by: -1.5, alx: -1.6 + Math.sin(i * 1.1) * 1.1, alz: .5 + Math.cos(i) * .4, arx: -1.6 - Math.sin(i * 1.1) * 1.1, arz: -.5 - Math.cos(i) * .4, llx: Math.sin(i) * .25, lrx: -Math.sin(i) * .25 })).concat([[3.6, REST]]) },
-      { id: 202, n: 'Rey del abismo', ico: '🔱', k: 1e9, boss: 'Kraken', dur: 3.8, fx: 'abyss', seq: [[.5, { ix: -.08, tx: -.15, hx: -.3, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.2, lrx: .25 }], [3.4, { ix: -.08, tx: -.15, hx: -.3, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.2, lrx: .25 }], [3.8, REST]] },
+      { id: 200, n: 'Furia del Kraken', ico: '', k: 1e9, boss: 'Kraken', dur: 3.4, fx: 'abyss', seq: [[.3, { ix: -.15, tx: -.3, hx: -.5, alx: -2.9, alz: .9, arx: -2.9, arz: -.9, llx: -.5, lrx: .3, by: -3 }], ...kf(3.0, .18, i => ({ ix: -.15, tx: -.3, hx: -.5 + (i % 2) * .12, alx: -2.9, alz: .9 + (i % 2) * .15, arx: -2.9, arz: -.9 - (i % 2) * .15, llx: -.5, lrx: .3, by: -3 - (i % 2) * .6 })), [3.4, REST]] },
+      { id: 201, n: 'Tentáculos', ico: '', k: 1e9, boss: 'Kraken', dur: 3.6, fx: 'abyss', seq: kf(3.4, .22, i => ({ ix: .05, tx: .1 * Math.sin(i), ty: .5 * Math.sin(i * 1.3), hy: -.3 * Math.sin(i), by: -1.5, alx: -1.6 + Math.sin(i * 1.1) * 1.1, alz: .5 + Math.cos(i) * .4, arx: -1.6 - Math.sin(i * 1.1) * 1.1, arz: -.5 - Math.cos(i) * .4, llx: Math.sin(i) * .25, lrx: -Math.sin(i) * .25 })).concat([[3.6, REST]]) },
+      { id: 202, n: 'Rey del abismo', ico: '', k: 1e9, boss: 'Kraken', dur: 3.8, fx: 'abyss', seq: [[.5, { ix: -.08, tx: -.15, hx: -.3, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.2, lrx: .25 }], [3.4, { ix: -.08, tx: -.15, hx: -.3, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.2, lrx: .25 }], [3.8, REST]] },
     );
     // emotes de animación (Blockbench): nombre, icono, kills y duración salen de js/emote_list.js
     for (const e of (window.CF_EMOTE_LIST || [])) EM.push({ id: e.id, n: e.n, ico: e.ico, k: e.k, clip: e.clip, len: e.len, loop: e.loop, dur: e.loop ? e.len * Math.max(1, Math.ceil(6 / e.len)) : e.len + .25 });
@@ -87,7 +87,7 @@
     // ---------------------------------------------------------------- reproducir un emote
     function play(f, id, fromNet) {
       const e = byId(id); if (!e || !f || !f.alive || f.ragdoll > 0) return false;
-      if (!fromNet && !unlocked(e)) { popText(chestOf(f), e.boss ? '🔒 Derrota al jefe ' + e.boss : '🔒 Aún no lo tienes (premio al azar cada 50 kills)', '#ff8a80', 18); return false; }
+      if (!fromNet && !unlocked(e)) { popText(chestOf(f), e.boss ? 'Derrota al jefe ' + e.boss : 'Aún no lo tienes (premio al azar cada 50 kills)', '#ff8a80', 18); return false; }
       if (f.action && !f.action.isEmote) return false;            // no corta un ataque
       if (e.clip && !window.CF_EMOTE_CLIPS) { loadClips(() => play(f, id, fromNet)); return true; }
       startAction(f, {
@@ -132,10 +132,10 @@
     // ---------------------------------------------------------------- premios al azar cada 50 kills públicas
     function rollReward() {
       const pool = EM.filter(e => !e.boss && e.k > 0 && !loot.e.includes(e.id)).map(e => ({ t: 'e', id: e.id })).concat(window.CF_COS && CF_COS.lockedPool ? CF_COS.lockedPool() : []);
-      if (!pool.length) { addFeedText('🎁 50 kills públicas, pero ya tienes todo lo que se gana por kills', '#ffd54f'); return; }
+      if (!pool.length) { addFeedText('50 kills públicas, pero ya tienes todo lo que se gana por kills', '#ffd54f'); return; }
       const w = pool[Math.random() * pool.length | 0];
-      if (w.t === 'e') { const e = byId(w.id); loot.e.push(e.id); saveLoot(); const free = slots.indexOf(null); if (free >= 0 && !slots.includes(e.id)) { slots[free] = e.id; saveSlots(); } showBanner('🎁 ¡PREMIO POR KILLS!', '#ffd54f', 'Emote «' + e.n + '»'); addFeedText('🎁 Premio por 50 kills públicas: emote «' + e.n + '»', '#ffd54f'); }
-      else if (window.CF_COS) { const n = CF_COS.unlock(w.id); showBanner('🎁 ¡PREMIO POR KILLS!', '#ffd54f', 'Cosmético «' + n + '»'); addFeedText('🎁 Premio por 50 kills públicas: cosmético «' + n + '»', '#ffd54f'); }
+      if (w.t === 'e') { const e = byId(w.id); loot.e.push(e.id); saveLoot(); const free = slots.indexOf(null); if (free >= 0 && !slots.includes(e.id)) { slots[free] = e.id; saveSlots(); } showBanner('¡PREMIO POR KILLS!', '#ffd54f', 'Emote «' + e.n + '»'); addFeedText('Premio por 50 kills públicas: emote «' + e.n + '»', '#ffd54f'); }
+      else if (window.CF_COS) { const n = CF_COS.unlock(w.id); showBanner('¡PREMIO POR KILLS!', '#ffd54f', 'Cosmético «' + n + '»'); addFeedText('Premio por 50 kills públicas: cosmético «' + n + '»', '#ffd54f'); }
     }
     function checkRolls() { let rolls = Math.max(0, rd('bsb_loot_rolls', 0) | 0); const due = Math.floor(kills / 50); while (rolls < due) { rolls++; rollReward(); } wr('bsb_loot_rolls', rolls); }
     setTimeout(() => { try { checkRolls(); } catch (e) { } }, 2500);
@@ -164,13 +164,13 @@
 #emw .mid span{font-size:12px;opacity:.85;text-shadow:0 1px 3px #000}
 #emw .hint{position:absolute;bottom:22px;left:0;right:0;text-align:center;color:#fff;opacity:.8;font-size:13px;text-shadow:0 1px 3px #000}
 #emw .dot{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#ffd54f;box-shadow:0 0 10px #ffd54f;pointer-events:none;z-index:5}
-#emlist{position:absolute;left:calc(50% + 250px);top:50%;transform:translateY(-50%);width:310px;max-height:74vh;overflow:auto;background:#12162a;border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:10px;color:#fff;display:none;z-index:6;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#emlist{position:absolute;left:calc(50% + 250px);top:50%;transform:translateY(-50%);width:260px;max-height:64vh;overflow:auto;background:#12162a;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px;color:#fff;display:none;z-index:6;box-shadow:0 10px 40px rgba(0,0,0,.6)}
 #emlist.on{display:block}
 #emlist h4{margin:0 0 8px;font-size:13px;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center;gap:8px}
-#emlist .gr{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
-#emlist button{border:1px solid rgba(255,255,255,.16);border-radius:10px;background:#1b2140;color:#fff;padding:7px 6px;text-align:left;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+#emlist .gr{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+#emlist button{border:1px solid rgba(255,255,255,.16);border-radius:6px;background:#1b2140;color:#fff;padding:5px 7px;text-align:left;font-size:11.5px;cursor:pointer;display:flex;align-items:center;gap:6px;min-height:0}
 #emlist button i{font-style:normal;font-size:20px}
-#emlist button small{display:block;opacity:.7;font-size:10px}
+#emlist button small{display:none}
 #emlist button.lock{opacity:.45;cursor:not-allowed}
 #emlist button.cur{outline:2px solid #4fd0c9}
 #emlist button.x{background:#3a2030;justify-content:center}
@@ -277,7 +277,7 @@
       const gr = list.querySelector('.gr');
       const mk = (e) => {
         const ok = unlocked(e), b = document.createElement('button'); b.type = 'button'; b.className = (ok ? '' : 'lock ') + (e.id === cur ? 'cur' : '');
-        b.innerHTML = '<i>' + (ok ? e.ico : '🔒') + '</i><span>' + e.n + '<small>' + (ok ? (slots.includes(e.id) ? 'en la rueda' : 'desbloqueado') : e.boss ? 'jefe: ' + e.boss : 'premio al azar cada 50 kills') + '</small></span>';
+        b.textContent = e.n; b.title = ok ? (slots.includes(e.id) ? 'En la rueda' : 'Desbloqueado') : e.boss ? 'Derrota al jefe ' + e.boss : 'Premio al azar cada 50 kills';
         b.addEventListener('click', ev => {
           ev.stopPropagation(); if (!ok) return;
           const old = slots.indexOf(e.id); if (old >= 0 && old !== i) slots[old] = slots[i];     // si ya estaba en otro slot, se intercambian
@@ -321,13 +321,13 @@
       const top = document.getElementById('topl'), book = document.getElementById('bookbtn');
       if (!top || document.getElementById('emotebtn')) return;
       const b = document.createElement('button'); b.id = 'emotebtn'; b.type = 'button'; b.className = 'chip'; b.title = 'Emotes'; b.setAttribute('aria-label', 'Emotes');
-      b.style.cssText = 'pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer'; b.innerHTML = '😀 <b id="emotekbd">' + bindKeyLabel(emoteKey()) + '</b>';
+      b.style.cssText = 'pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer'; b.innerHTML = 'Emotes <b id="emotekbd">' + bindKeyLabel(emoteKey()) + '</b>';
       b.addEventListener('click', ev => { ev.stopPropagation(); if (open) closeWheel(false); else { if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (x) { } } openWheel(true); } });
       top.insertBefore(b, book ? book.nextSibling : null);
     }
     injectBtn(); setTimeout(injectBtn, 800);
     setInterval(() => { const k = document.getElementById('emotekbd'); if (k) k.textContent = bindKeyLabel(emoteKey()); }, 1500);
-    const tb = document.createElement('button'); tb.id = 'emtouch'; tb.type = 'button'; tb.textContent = '😀'; tb.setAttribute('aria-label', 'Emotes');
+    const tb = document.createElement('button'); tb.id = 'emtouch'; tb.type = 'button'; tb.textContent = ''; tb.setAttribute('aria-label', 'Emotes');
     tb.addEventListener('click', () => { if (open) closeWheel(false); else openWheel(true); });
     document.body.appendChild(tb);
     setInterval(() => { tb.classList.toggle('show', !!(touchActive && touchActive()) && G.state === 'play' && !G.paused && !G.over); }, 700);
@@ -336,7 +336,7 @@
     // premios al derrotar al Kraken (se llama desde js/abismo.js): 1ª vez = Furia, 2ª = Tentáculos, 3ª = Rey del abismo
     function grantBoss() {
       const n = Math.max(0, rd('bsb_boss_kills', 0) | 0), id = [200, 201, 202][n % 3], got = [];
-      if (n < 3 && !extra.includes(id)) { extra.push(id); wr('bsb_emote_extra', extra); const free = slots.indexOf(null); if (free >= 0) { slots[free] = id; saveSlots(); } got.push('😀 Emote «' + byId(id).n + '»'); }
+      if (n < 3 && !extra.includes(id)) { extra.push(id); wr('bsb_emote_extra', extra); const free = slots.indexOf(null); if (free >= 0) { slots[free] = id; saveSlots(); } got.push('Emote «' + byId(id).n + '»'); }
       return got;
     }
     window.CF_EMOTES = { grantBoss, play: (f, i, net) => play(f, i, !!net), playClip, onPublicKill, get kills() { return kills; }, list: () => EM.map(e => ({ id: e.id, n: e.n, k: e.k })) };

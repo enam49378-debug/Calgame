@@ -19,7 +19,7 @@
       const grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, month ? '#14204a' : '#2a1646'); grd.addColorStop(1, '#070a1a'); g.fillStyle = grd; g.fillRect(0, 0, W, H);
       g.strokeStyle = month ? '#39e6ff' : '#ffd54f'; g.lineWidth = 8; g.strokeRect(10, 10, W - 20, H - 20);
       g.textAlign = 'center'; g.fillStyle = '#ffffff'; g.font = 'bold 66px system-ui,Arial'; g.fillText(month ? 'TOP DEL MES' : 'TOP HISTÓRICO', W / 2, 92);
-      g.font = 'bold 30px system-ui,Arial'; g.fillStyle = month ? '#7df9ff' : '#ffe08a'; g.fillText(month ? MESES[new Date().getUTCMonth()] + ' ' + new Date().getUTCFullYear() + ' · 🌍 MUNDIAL' : 'DE TODOS LOS TIEMPOS · 🌍 MUNDIAL', W / 2, 134);
+      g.font = 'bold 30px system-ui,Arial'; g.fillStyle = month ? '#7df9ff' : '#ffe08a'; g.fillText(month ? MESES[new Date().getUTCMonth()] + ' ' + new Date().getUTCFullYear() + ' · MUNDIAL' : 'DE TODOS LOS TIEMPOS · MUNDIAL', W / 2, 134);
       g.font = '22px system-ui,Arial'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText('Kills en salas públicas contra otros jugadores', W / 2, 166);
       const rows = R.rows[which];
       if (!rows) { g.font = 'bold 40px system-ui,Arial'; g.fillStyle = '#fff'; g.fillText(R.state === 'error' ? 'Sin conexión con el ranking' : 'Cargando…', W / 2, H / 2 + 40); g.font = '22px system-ui,Arial'; g.fillStyle = 'rgba(255,255,255,.6)'; if (R.state === 'error') g.fillText(R.err.slice(0, 60), W / 2, H / 2 + 80); }
@@ -27,7 +27,7 @@
       else rows.slice(0, 10).forEach((r, i) => {
         const y = 222 + i * 52, col = i === 0 ? '#ffd54f' : i === 1 ? '#d9dee6' : i === 2 ? '#ff9a4a' : '#9fb4ff', me = ACCT.user && r.uid === ACCT.user.uid;
         g.fillStyle = me ? 'rgba(255,213,79,.18)' : (i % 2 ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.08)'); g.fillRect(34, y - 36, W - 68, 46);
-        g.textAlign = 'left'; g.font = 'bold 34px system-ui,Arial'; g.fillStyle = col; g.fillText(i < 3 ? ['🥇', '🥈', '🥉'][i] : '#' + (i + 1), 52, y);
+        g.textAlign = 'left'; g.font = 'bold 34px system-ui,Arial'; g.fillStyle = col; g.fillText(i < 3 ? ['', '', ''][i] : '#' + (i + 1), 52, y);
         g.font = 'bold 32px system-ui,Arial'; g.fillStyle = me ? '#fff2a8' : '#ffffff'; g.fillText(String(r.n || 'Jugador').slice(0, 16), 150, y);
         g.textAlign = 'right'; g.fillStyle = col; g.fillText(String(r.k) + ' kills', W - 54, y);
       });
@@ -62,7 +62,7 @@
         for (const px of [-3.6, 3.6]) { const pole = new T.Mesh(new T.BoxGeometry(.5, 3.2, .5), metal); pole.position.set(w + px, 1.5, -.1); g.add(pole); }
       }
       const base = new T.Mesh(new T.BoxGeometry(21.4, .5, 3), metal); base.position.set(0, .25, -.1); g.add(base);
-      const lc = document.createElement('canvas'); lc.width = 1024; lc.height = 160; const l2 = lc.getContext('2d'); l2.font = 'bold 78px system-ui,Arial'; l2.textAlign = 'center'; l2.fillStyle = '#fff'; l2.shadowColor = '#39e6ff'; l2.shadowBlur = 30; l2.fillText('🌍 RANKING MUNDIAL', 512, 112);
+      const lc = document.createElement('canvas'); lc.width = 1024; lc.height = 160; const l2 = lc.getContext('2d'); l2.font = 'bold 78px system-ui,Arial'; l2.textAlign = 'center'; l2.fillStyle = '#fff'; l2.shadowColor = '#39e6ff'; l2.shadowBlur = 30; l2.fillText('RANKING MUNDIAL', 512, 112);
       const sp2 = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(lc), transparent: true, depthWrite: false, fog: false })); sp2.scale.set(12, 2, 1); sp2.position.set(0, 12.6, 0); g.add(sp2);
       draw('m'); draw('a');
     }

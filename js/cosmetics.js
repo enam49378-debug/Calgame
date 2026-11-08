@@ -1,6 +1,6 @@
 /* ===== COSMÉTICOS (estilo anime / cine épico) =====
    Objetos que se ponen sobre el personaje: halo, cuernos, máscara, capa, katana, alas, hombreras, auras y ojos.
-   - Botón 👑 arriba (junto a Panel, Guía y Emotes) abre el panel para equipar / quitar. Un cosmético por espacio (cabeza, cara, espalda, hombros, aura).
+   - Botón arriba (junto a Panel, Guía y Emotes) abre el panel para equipar / quitar. Un cosmético por espacio (cabeza, cara, espalda, hombros, aura).
    - Se desbloquean con KILLS en salas públicas (las mismas kills de los emotes) o derrotando al jefe KRAKEN del abismo.
    - Los demás jugadores los ven (se mandan en la presencia de la sala).
    Este archivo se ejecuta dentro de game.js (como habilidades.js), con sus funciones a mano. */
@@ -16,20 +16,33 @@
 
     // ---------------------------------------------------------------- catálogo: id, nombre, espacio, cómo se consigue (k = kills públicas, boss = n.º de victorias contra el Kraken)
     const CAT = [
-      { id: 1, n: 'Halo dorado', ico: '😇', slot: 'head', k: 10, mk: 'halo' },
-      { id: 2, n: 'Cuernos de Oni', ico: '👹', slot: 'head', k: 30, mk: 'oni' },
-      { id: 3, n: 'Capa épica', ico: '🦸', slot: 'back', free: 1, mk: 'cape' },
-      { id: 4, n: 'Katana a la espalda', ico: '🗡️', slot: 'back', k: 45, mk: 'katana' },
-      { id: 5, n: 'Máscara Kitsune', ico: '🦊', slot: 'face', k: 60, mk: 'kitsune' },
-      { id: 6, n: 'Hombreras de samurái', ico: '🛡️', slot: 'shoulders', k: 100, mk: 'shoulders' },
-      { id: 7, n: 'Aura dorada', ico: '✨', slot: 'aura', k: 80, mk: 'aura', col: '#ffd54f' },
-      { id: 8, n: 'Alas de ángel', ico: '🪽', slot: 'back', k: 150, mk: 'wings' },
-      { id: 9, n: 'Ojos de energía', ico: '👁️', slot: 'face', free: 1, mk: 'eyes', col: 0x6fd8ff },
-      { id: 10, n: 'Corona del Abismo', ico: '👑', slot: 'head', boss: 1, mk: 'crown' },
-      { id: 11, n: 'Aura abisal', ico: '🌊', slot: 'aura', boss: 1, mk: 'aura', col: '#39e6ff', ring: true },
-      { id: 12, n: 'Alas del Kraken', ico: '🐙', slot: 'back', boss: 2, mk: 'kwings' },
-      { id: 13, n: 'Ojos del Kraken', ico: '🔴', slot: 'face', boss: 3, mk: 'eyes', col: 0xff3b30 },
-      { id: 14, n: 'Hombreras del abismo', ico: '🔱', slot: 'shoulders', boss: 4, mk: 'shoulders', col: '#0b3a4a', trim: '#39e6ff' },
+      { id: 1, n: 'Halo dorado', slot: 'head', k: 10, mk: 'halo', bb: 'cos_halo' },
+      { id: 2, n: 'Cuernos de Oni', slot: 'head', k: 30, mk: 'oni', bb: 'cos_oni' },
+      { id: 3, n: 'Capa épica', slot: 'back', free: 1, mk: 'cape', bb: 'cos_capa' },
+      { id: 4, n: 'Katana a la espalda', slot: 'back', k: 45, mk: 'katana', bb: 'cos_katana' },
+      { id: 5, n: 'Máscara Kitsune', slot: 'face', k: 60, mk: 'kitsune', bb: 'cos_kitsune' },
+      { id: 6, n: 'Hombreras de samurái', slot: 'shoulders', k: 100, mk: 'shoulders', bb: 'cos_hombreras_samurai' },
+      { id: 7, n: 'Aura dorada', slot: 'aura', k: 80, mk: 'aura', col: '#ffd54f' },
+      { id: 8, n: 'Alas de ángel', slot: 'back', k: 150, mk: 'wings', bb: 'cos_alas_angel' },
+      { id: 9, n: 'Ojos de energía', slot: 'face', free: 1, mk: 'eyes', col: 0x6fd8ff, bb: 'cos_ojos_azul' },
+      { id: 10, n: 'Corona del Abismo', slot: 'head', boss: 1, mk: 'crown', bb: 'cos_corona' },
+      { id: 11, n: 'Aura abisal', slot: 'aura', boss: 1, mk: 'aura', col: '#39e6ff', ring: true },
+      { id: 12, n: 'Alas del Kraken', slot: 'back', boss: 2, mk: 'kwings', bb: 'cos_alas_kraken' },
+      { id: 13, n: 'Ojos del Kraken', slot: 'face', boss: 3, mk: 'eyes', col: 0xff3b30, bb: 'cos_ojos_kraken' },
+      { id: 14, n: 'Hombreras del abismo', slot: 'shoulders', boss: 4, mk: 'shoulders', col: '#0b3a4a', trim: '#39e6ff', bb: 'cos_hombreras_abismo' },
+      { id: 15, n: 'Kabuto de samurái', slot: 'head', k: 120, mk: 'kabuto', bb: 'cos_kabuto' },
+      { id: 16, n: 'Orejas de gato', slot: 'head', k: 25, mk: 'gato', bb: 'cos_gato' },
+      { id: 17, n: 'Sombrero pirata', slot: 'head', k: 70, mk: 'pirata', bb: 'cos_pirata' },
+      { id: 18, n: 'Cuernos de ciervo', slot: 'head', k: 90, mk: 'ciervo', bb: 'cos_ciervo' },
+      { id: 19, n: 'Gafas oscuras', slot: 'face', k: 15, mk: 'gafas', bb: 'cos_gafas' },
+      { id: 20, n: 'Antifaz ninja', slot: 'face', k: 55, mk: 'antifaz', bb: 'cos_antifaz' },
+      { id: 21, n: 'Mochila aventurera', slot: 'back', k: 35, mk: 'mochila', bb: 'cos_mochila' },
+      { id: 22, n: 'Alas de demonio', slot: 'back', k: 180, mk: 'dwings', bb: 'cos_alas_demonio' },
+      { id: 23, n: 'Escudo a la espalda', slot: 'back', k: 110, mk: 'escudo', bb: 'cos_escudo' },
+      { id: 24, n: 'Hombreras de pinchos', slot: 'shoulders', k: 130, mk: 'pinchos', bb: 'cos_hombreras_pinchos' },
+      { id: 25, n: 'Bufanda roja', slot: 'shoulders', k: 20, mk: 'bufanda', bb: 'cos_bufanda' },
+      { id: 26, n: 'Aura carmesí', slot: 'aura', k: 100, mk: 'aura', col: '#ff3b5c' },
+      { id: 27, n: 'Aura violeta', slot: 'aura', k: 140, mk: 'aura', col: '#b388ff', ring: true },
     ];
     const byId = id => CAT.find(c => c.id === id);
 
@@ -68,6 +81,10 @@
         g.userData.anim = (t) => { for (const [segs, k, s] of arms) segs.forEach((q, i) => { q.rotation.x = Math.sin(t * 2.2 + k + i * .6) * .22; q.rotation.y = s * Math.sin(t * 1.6 + i * .5 + k) * .18; }); }; return g; },
       shoulders(c) { const g = new T.Group(), a = lm(c.col2 || c.col || '#8a1620'), b = bm(c.trim ? new T.Color(c.trim).getHex() : 0xd4a73a, 1); for (const s of [-1, 1]) { const p = new T.Group(); p.position.set(s * .36, .78, 0); p.rotation.z = -s * .3; g.add(p); for (let i = 0; i < 3; i++) mk(p, .3 - i * .02, .05, .3, a, 0, -i * .06, 0); mk(p, .32, .02, .32, b, 0, .03, 0); mk(p, .06, .12, .06, b, s * .12, .1, 0, 0, 0, 0); } return g; },
     };
+    function bbObj(c) {   // cosmético hecho en Blockbench (modelos/cosmeticos/*.bbmodel)
+      const inst = CF_BBM.make(c.bb, 1 / 16), g = new T.Group(); g.add(inst.root);
+      g.userData.anim = (t, f) => { const mv = f && f.vel ? Math.hypot(f.vel.x, f.vel.z) : 0; inst.update(mv > 1.5 && inst.anims.walk ? 'walk' : 'idle', t, .016); }; return g;
+    }
     const mount = { head: f => f.model.head, face: f => f.model.head, back: f => f.model.torso, shoulders: f => f.model.torso };
 
     // ---------------------------------------------------------------- poner y quitar en los luchadores
@@ -75,7 +92,7 @@
     function mountFor(f, ids) {
       const key = ids.join(','); if (f._cosKey === key && f._cos) return; f._cosKey = key; unmount(f); if (!f.model || !f.model.head || !f.model.torso) return;
       const objs = [], auras = [];
-      for (const id of ids) { const c = byId(id); if (!c) continue; if (c.mk === 'aura') { auras.push(c); continue; } const mkr = MAKERS[c.mk]; if (!mkr) continue; const o = mkr(c); const par = mount[c.slot] && mount[c.slot](f); if (!par) continue; par.add(o); objs.push(o); }
+      for (const id of ids) { const c = byId(id); if (!c) continue; if (c.mk === 'aura') { auras.push(c); continue; } const useBB = c.bb && window.CF_BBM && CF_BBM.has(c.bb); const mkr = useBB ? null : MAKERS[c.mk]; if (!mkr && !useBB) continue; const o = useBB ? bbObj(c) : mkr(c); const par = mount[c.slot] && mount[c.slot](f); if (!par) continue; par.add(o); objs.push(o); }
       f._cos = { objs, auras, ids };
     }
     function remote(px, ids) {
@@ -89,6 +106,7 @@
     function loop(now) {
       requestAnimationFrame(loop); const dt = Math.min(.05, (now - last) / 1000); last = now; const t = now / 1000;
       if (G.state !== 'play') return;
+      if (window.CF_BBM) { const n = CF_BBM.loaded().length; if (n !== (loop.n || 0)) { loop.n = n; for (const f of G.fighters) f._cosKey = ''; if (WP.fl) WP.fl._cosKey = ''; } }
       const p = G.player; if (p && p.model) { sane(); mountFor(p, idsOf()); }
       auraT += dt;
       for (const f of G.fighters) {
@@ -105,17 +123,21 @@
 
     // ---------------------------------------------------------------- panel para equipar (con vista previa del modelo al lado, como el selector de personajes)
     const css = document.createElement('style');
-    css.textContent = `#cosdlg{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;background:rgba(6,8,16,.86);font-family:var(--body,system-ui,sans-serif);color:#fff}#cosdlg.on{display:flex}
-#cosdlg .box{width:min(980px,97vw);max-height:92vh;background:#12162a;border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:16px 18px;display:grid;grid-template-columns:340px 1fr;gap:16px;overflow:hidden}
-@media(max-width:820px){#cosdlg .box{grid-template-columns:1fr;overflow:auto}}
-#cosdlg .pv{display:flex;flex-direction:column;gap:8px}#cosdlg canvas{width:100%;height:340px;border-radius:14px;background:radial-gradient(circle at 50% 30%,#2a3470,#0c1024);cursor:grab;touch-action:none}
-#cosdlg .an{display:flex;flex-wrap:wrap;gap:6px}#cosdlg .an button{border:1px solid rgba(255,255,255,.2);border-radius:9px;background:#1b2140;color:#fff;padding:5px 9px;font-size:12px;cursor:pointer}#cosdlg .an button.on{background:#3a3010;border-color:#ffd54f}
-#cosdlg .info{min-height:64px;font-size:13px}#cosdlg .info b{display:block;font-size:15px}#cosdlg .go{border:0;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;background:#ffd54f;color:#201800;margin-top:6px}#cosdlg .go[disabled]{opacity:.45;cursor:not-allowed}
-#cosdlg .lst{overflow:auto;max-height:84vh;padding-right:4px}#cosdlg h2{margin:0 0 4px;letter-spacing:.06em;font-size:20px;display:flex;justify-content:space-between;align-items:center}#cosdlg .sub{opacity:.75;font-size:12px;margin-bottom:6px}
-#cosdlg h4{margin:10px 0 6px;font-size:12px;letter-spacing:.08em;opacity:.8}#cosdlg .gr{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px}
-#cosdlg .it{border:1px solid rgba(255,255,255,.18);border-radius:12px;background:#1b2140;padding:9px 7px;text-align:center;cursor:pointer;color:#fff;font-size:12px}#cosdlg .it .ic{font-size:24px;display:block}
-#cosdlg .it.lock{opacity:.6}#cosdlg .it.on{outline:2px solid #ffd54f;background:#3a3010}#cosdlg .it.sel{outline:2px solid #4fd0c9}#cosdlg .it small{display:block;opacity:.8;margin-top:2px;font-size:10px}
-#cosdlg button.b{border:0;border-radius:10px;padding:8px 14px;font-weight:700;cursor:pointer;background:#2a3158;color:#fff}`;
+    css.textContent = `#cosdlg{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 20%,rgba(30,40,90,.92),rgba(4,6,14,.95));font-family:var(--body,system-ui,sans-serif);color:#eef2ff}#cosdlg.on{display:flex}
+#cosdlg .box{width:min(1080px,97vw);height:min(660px,94vh);display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:0;background:linear-gradient(160deg,#141a38,#0b0f22);border:1px solid rgba(125,249,255,.25);border-radius:18px;box-shadow:0 20px 70px rgba(0,0,0,.7);overflow:hidden}
+@media(max-width:820px){#cosdlg .box{grid-template-columns:1fr;grid-template-rows:260px 1fr;height:96vh}}
+#cosdlg .pv{display:flex;flex-direction:column;gap:10px;padding:14px;background:radial-gradient(circle at 50% 30%,#2a3470,#0a0e20);border-right:1px solid rgba(255,255,255,.08);min-height:0}
+#cosdlg canvas{flex:1;min-height:0;width:100%;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,0));cursor:grab;touch-action:none}
+#cosdlg .an{display:flex;flex-wrap:wrap;gap:5px}#cosdlg .an button{border:1px solid rgba(255,255,255,.18);border-radius:7px;background:rgba(255,255,255,.05);color:#cfd8ff;padding:5px 10px;font-size:12px;cursor:pointer;font-weight:600}#cosdlg .an button.on{background:#7df9ff;color:#06101c;border-color:#7df9ff}
+#cosdlg .info{min-height:92px;font-size:13px;line-height:1.45;color:#b9c4ec}#cosdlg .info b{display:block;font-size:17px;color:#fff;margin-bottom:2px}#cosdlg .info .tag{display:inline-block;font-size:10px;letter-spacing:.1em;padding:2px 7px;border-radius:5px;margin-bottom:6px;font-weight:700;color:#06101c}
+#cosdlg .act{display:flex;gap:8px;margin-top:8px}#cosdlg .go{flex:1;border:0;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer;background:linear-gradient(90deg,#ffd54f,#ffb347);color:#1a1200;letter-spacing:.04em}#cosdlg .go:disabled{opacity:.35;cursor:not-allowed}#cosdlg .go.sec{flex:0 0 auto;background:rgba(255,255,255,.1);color:#fff}
+#cosdlg .lst{display:flex;flex-direction:column;min-height:0;padding:14px 16px}#cosdlg .hd{display:flex;align-items:center;gap:12px}#cosdlg h2{margin:0;letter-spacing:.14em;font-size:19px;flex:1}#cosdlg .cnt{font-size:12px;color:#8fa2d0}
+#cosdlg .tabs{display:flex;gap:5px;margin:10px 0;flex-wrap:wrap}#cosdlg .tabs button{border:0;border-radius:7px;background:rgba(255,255,255,.06);color:#b9c4ec;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}#cosdlg .tabs button.on{background:#ffd54f;color:#1a1200}
+#cosdlg .gr{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-content:start;padding-right:4px}
+#cosdlg .it{position:relative;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.04);padding:12px 10px 10px 14px;text-align:left;cursor:pointer;color:#fff;font-size:13px;overflow:hidden;transition:background .12s,transform .12s}
+#cosdlg .it:hover{background:rgba(125,249,255,.12);transform:translateY(-1px)}#cosdlg .it .sw{position:absolute;left:0;top:0;bottom:0;width:4px}#cosdlg .it b{display:block;font-size:13px}#cosdlg .it small{display:block;margin-top:3px;font-size:10.5px;color:#8fa2d0}
+#cosdlg .it.lock b{opacity:.55}#cosdlg .it.on{background:rgba(255,213,79,.14);border-color:#ffd54f}#cosdlg .it.sel{outline:2px solid #7df9ff}
+#cosdlg button.b{border:0;border-radius:9px;padding:8px 16px;font-weight:800;cursor:pointer;background:#2a3158;color:#fff;letter-spacing:.04em}`;
     document.head.appendChild(css);
     const D = document.createElement('div'); D.id = 'cosdlg'; D.setAttribute('role', 'dialog'); D.setAttribute('aria-modal', 'true'); document.body.appendChild(D);
     let panelOn = false, selId = 0, anim = 'idle', yawDrag = 0, rot = .5;
@@ -150,34 +172,45 @@
       WP.rr.render(WP.scene, WP.cam); WP.raf = requestAnimationFrame(wpFrame);
     }
     function previewIds() { const ids = Object.assign({}, eq); const c = byId(selId); if (c) ids[c.slot] = c.id; return SLOTS.map(([s]) => ids[s]).filter(Boolean); }
-    function paint() {
-      sane(); const sel = byId(selId);
-      let h = '<div class="box"><div class="pv"><canvas></canvas><div class="an">' + Object.entries(ANIMS).map(([k, a]) => '<button type="button" data-an="' + k + '" class="' + (k === anim ? 'on' : '') + '">' + a.n + '</button>').join('') + '</div><div class="info">';
-      if (sel) { const ok = owned(sel); h += '<b>' + sel.ico + ' ' + sel.n + '</b>' + (ok ? (eq[sel.slot] === sel.id ? 'Equipado.' : 'Desbloqueado.') : '🔒 ' + (sel.boss ? 'Se consigue derrotando al Kraken (' + sel.boss + (sel.boss > 1 ? ' victorias' : ' victoria') + ').' : 'Se consigue con kills: premio al azar cada 50 kills en salas públicas.')) + '<br><button type="button" class="go" id="coseq"' + (ok ? '' : ' disabled') + '>' + (eq[sel.slot] === sel.id ? 'Quitar' : 'Equipar') + '</button>'; }
-      else h += '<b>Tocá un cosmético</b>para verlo puesto en tu personaje (gíralo arrastrando).';
-      h += '</div></div><div class="lst"><h2><span>👑 COSMÉTICOS</span><button class="b" id="cosx" type="button">Listo</button></h2><div class="sub">Un cosmético por espacio. ' + (isOwner() ? 'Eres el dueño: tienes todo desbloqueado. ' : 'Cada 50 kills en salas públicas ganas uno al azar; los del abismo, derrotando al Kraken (' + bossKills() + ' victorias). ') + '</div>';
-      for (const [s, name] of SLOTS) { h += '<h4>' + name.toUpperCase() + '</h4><div class="gr">'; for (const c of CAT.filter(x => x.slot === s)) { const ok = owned(c), on = eq[s] === c.id; h += '<button type="button" class="it' + (ok ? '' : ' lock') + (on ? ' on' : '') + (c.id === selId ? ' sel' : '') + '" data-id="' + c.id + '"><span class="ic">' + (ok ? c.ico : '🔒') + '</span><b>' + c.n + '</b><small>' + (ok ? (on ? 'Equipado' : 'Tocá para ver') : c.boss ? 'Jefe Kraken' : 'Premio al azar') + '</small></button>'; } h += '</div>'; }
-      D.innerHTML = h + '</div></div>';
+    const TABS = [['all', 'Todos'], ['head', 'Cabeza'], ['face', 'Cara'], ['back', 'Espalda'], ['shoulders', 'Hombros'], ['aura', 'Aura']], SLOT_COL = { head: '#ffd54f', face: '#ff8fb0', back: '#7df9ff', shoulders: '#b388ff', aura: '#7dffb0' }; let tab = 'all';
+    const SLOT_NAME = Object.fromEntries(SLOTS);
+    const how = c => owned(c) ? (eq[c.slot] === c.id ? 'Equipado' : (isOwner() ? 'Dueño: desbloqueado' : 'Desbloqueado')) : c.boss ? 'Derrota al Kraken (' + c.boss + (c.boss > 1 ? ' veces' : ' vez') + ')' : 'Premio al azar cada 50 kills';
+    function build() {
+      D.innerHTML = '<div class="box"><div class="pv"><canvas></canvas><div class="an"></div><div class="info"></div></div><div class="lst"><div class="hd"><h2>COSMÉTICOS</h2><span class="cnt"></span><button class="b" id="cosx" type="button">Listo</button></div><div class="tabs"></div><div class="gr"></div></div></div>';
       D.querySelector('#cosx').onclick = closePanel;
-      D.querySelectorAll('.it').forEach(b => b.addEventListener('click', () => { selId = +b.dataset.id; paint(); }));
-      D.querySelectorAll('[data-an]').forEach(b => b.addEventListener('click', () => { anim = b.dataset.an; paint(); }));
-      const eqb = D.querySelector('#coseq'); if (eqb) eqb.onclick = () => { const c = byId(selId); if (!c || !owned(c)) return; if (eq[c.slot] === c.id) delete eq[c.slot]; else eq[c.slot] = c.id; save(); paint(); };
       const cv = D.querySelector('canvas'); let down = false, lx = 0;
       cv.addEventListener('pointerdown', e => { down = true; yawDrag = 1; lx = e.clientX; try { cv.setPointerCapture(e.pointerId); } catch (x) { } cv.style.cursor = 'grabbing'; });
       cv.addEventListener('pointermove', e => { if (down) { rot += (e.clientX - lx) * .012; lx = e.clientX; } });
       cv.addEventListener('pointerup', () => { down = false; yawDrag = 0; cv.style.cursor = 'grab'; });
-      // el canvas se vuelve a crear en cada repintado: se reconstruye el visor 3D
       try { if (WP.rr) WP.rr.dispose(); } catch (e) { } WP.ok = null; WP.rr = null; WP.key = ''; WP.scene = null; WP.model = null;
-      if (wpInit()) { mountFor(WP.fl, previewIds()); if (!WP.raf) { WP.t0 = performance.now(); WP.last = 0; WP.raf = requestAnimationFrame(wpFrame); } }
+      if (wpInit()) { if (!WP.raf) { WP.t0 = performance.now(); WP.last = 0; WP.raf = requestAnimationFrame(wpFrame); } }
+      refresh();
     }
-    function openPanel() { if (G.state !== 'play') return; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { } } panelOn = true; D.classList.add('on'); selId = 0; paint(); }
-    function closePanel() { panelOn = false; D.classList.remove('on'); try { if (WP.rr) WP.rr.dispose(); } catch (e) { } WP.ok = null; WP.rr = null; WP.fl = null; D.innerHTML = ''; }
+    function refresh() {
+      sane(); const sel = byId(selId), list = CAT.filter(c => tab === 'all' || c.slot === tab);
+      D.querySelector('.an').innerHTML = Object.entries(ANIMS).map(([k, a]) => '<button type="button" data-an="' + k + '" class="' + (k === anim ? 'on' : '') + '">' + a.n + '</button>').join('');
+      let h = ''; if (sel) { const ok = owned(sel); h = '<span class="tag" style="background:' + SLOT_COL[sel.slot] + '">' + SLOT_NAME[sel.slot].toUpperCase() + '</span><b>' + sel.n + '</b>' + how(sel) + '<div class="act"><button type="button" class="go" id="coseq"' + (ok ? '' : ' disabled') + '>' + (eq[sel.slot] === sel.id ? 'QUITAR' : 'EQUIPAR') + '</button><button type="button" class="go sec" id="cosclr">Quitar todo</button></div>'; }
+      else h = '<b>Elige un cosmético</b>Toca uno de la lista para verlo puesto en tu personaje. Arrastra el modelo para girarlo.<div class="act"><button type="button" class="go sec" id="cosclr">Quitar todo</button></div>';
+      D.querySelector('.info').innerHTML = h;
+      D.querySelector('.cnt').textContent = CAT.filter(owned).length + ' de ' + CAT.length + ' desbloqueados' + (isOwner() ? ' · dueño' : '');
+      D.querySelector('.tabs').innerHTML = TABS.map(([k, n]) => '<button type="button" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + n + '</button>').join('');
+      D.querySelector('.gr').innerHTML = list.map(c => { const ok = owned(c), on = eq[c.slot] === c.id; return '<button type="button" class="it' + (ok ? '' : ' lock') + (on ? ' on' : '') + (c.id === selId ? ' sel' : '') + '" data-id="' + c.id + '"><span class="sw" style="background:' + SLOT_COL[c.slot] + '"></span><b>' + c.n + '</b><small>' + (tab === 'all' ? SLOT_NAME[c.slot] + ' · ' : '') + how(c) + '</small></button>'; }).join('');
+      D.querySelectorAll('.it').forEach(b => b.addEventListener('click', () => { selId = +b.dataset.id; refresh(); }));
+      D.querySelectorAll('[data-an]').forEach(b => b.addEventListener('click', () => { anim = b.dataset.an; refresh(); }));
+      D.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; refresh(); }));
+      const eqb = D.querySelector('#coseq'); if (eqb) eqb.onclick = () => { const c = byId(selId); if (!c || !owned(c)) return; if (eq[c.slot] === c.id) delete eq[c.slot]; else eq[c.slot] = c.id; save(); refresh(); };
+      const cl = D.querySelector('#cosclr'); if (cl) cl.onclick = () => { eq = {}; save(); refresh(); };
+      if (WP.ok && WP.fl) mountFor(WP.fl, previewIds());
+    }
+    const paint = build;
+    function openPanel() { if (G.state !== 'play') return; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { } } panelOn = true; window.__uiOpen = true; D.classList.add('on'); selId = 0; build(); }
+    function closePanel() { panelOn = false; window.__uiOpen = false; D.classList.remove('on'); try { if (WP.rr) WP.rr.dispose(); } catch (e) { } WP.ok = null; WP.rr = null; WP.fl = null; D.innerHTML = ''; }
     D.addEventListener('click', e => { if (e.target === D) closePanel(); });
     addEventListener('keydown', e => { if (panelOn && e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closePanel(); } }, true);
     function injectBtn() {
       const top = document.getElementById('topl'); if (!top || document.getElementById('cosbtn')) return;
       const b = document.createElement('button'); b.id = 'cosbtn'; b.type = 'button'; b.className = 'chip'; b.title = 'Cosméticos'; b.setAttribute('aria-label', 'Cosméticos');
-      b.style.cssText = 'pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer'; b.textContent = '👑';
+      b.style.cssText = 'pointer-events:auto;border:0;color:var(--ink);font-family:var(--body);cursor:pointer'; b.textContent = 'Cosméticos';
       b.addEventListener('click', ev => { ev.stopPropagation(); panelOn ? closePanel() : openPanel(); });
       const em = document.getElementById('emotebtn'); top.insertBefore(b, em ? em.nextSibling : null);
     }

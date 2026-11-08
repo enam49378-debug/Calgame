@@ -153,3 +153,12 @@ En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** 
 
 ### Modelos de Blockbench del abismo
 Los enemigos (cangrejo, medusa, rape, marinero, capitán, calamarín) y el barco fantasma son modelos de Blockbench: `modelos/abismo/*.bbmodel`, con huesos y animaciones (idle, walk, attack). Se abren y editan en Blockbench; el juego los carga al iniciar. Los cubos cuyo nombre empieza por `glow_` brillan. `tools/gen_modelos_abismo.py` los regenera. Si un modelo no carga, el juego usa una versión de respaldo hecha por código.
+
+### Kraken v8 (rama mejoras-abismo2)
+- Cosmeticos como modelos de Blockbench (`modelos/cosmeticos/*.bbmodel`, generados con `tools/gen_modelos_cosmeticos.py`): 27 cosmeticos, 13 nuevos (kabuto, orejas de gato, sombrero pirata, cuernos de ciervo, gafas, antifaz ninja, mochila, alas de demonio, escudo, hombreras de pinchos, bufanda, dos auras). Menu nuevo con vista previa fija, pestanas por espacio y boton Equipar.
+- Lista de emotes mas pequena y solo con nombres. Sin emojis en la interfaz nueva.
+- Sonidos sinteticos para el Kraken, las criaturas y el barco (`js/sonidos.js`).
+- Colisiones: ya no te teletransporta al saltar sobre un objeto (sales por la cara mas cercana o subes al borde de lo bajo).
+- Regeneracion pasiva de vida para todos: tras 5 s sin recibir dano recuperas 2,2 de vida por segundo, hasta un maximo de 45.
+- Al morir en el abismo con el Kraken vivo reapareces dentro; el evento ya no termina mientras sigues dentro.
+- Abrir la rueda de emotes / la lista / el panel ya no abre el menu de pausa.

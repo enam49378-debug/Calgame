@@ -58,7 +58,7 @@ class Model:
                 'resolution': {'width': W, 'height': H}, 'elements': self.els, 'outliner': self.top,
                 'textures': [{'path': '', 'name': self.name + '.png', 'folder': '', 'namespace': '', 'id': '0', 'particle': False, 'render_mode': 'default', 'render_sides': 'auto', 'frame_time': 1, 'frame_order_type': 'loop', 'frame_order': '', 'frame_interpolate': False, 'visible': True, 'mode': 'bitmap', 'saved': True, 'uuid': uid(), 'relative_path': '', 'source': 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()}],
                 'animations': self.anims}
-        with open(os.path.join(OUT, self.name + '.bbmodel'), 'w', encoding='utf-8') as f: json.dump(data, f, separators=(',', ':'))
+        with open(os.path.join(getattr(self, 'out', None) or OUT, self.name + '.bbmodel'), 'w', encoding='utf-8') as f: json.dump(data, f, separators=(',', ':'))
         print(self.name, len(self.els), 'cubos', len(self.anims), 'animaciones')
 
 
@@ -311,4 +311,5 @@ def boat():
     m.anim('idle', 3.0, idle); m.save()
 
 
-crab(); jelly(); angler(); drowned(False); drowned(True); squid(); boat()
+if __name__ == '__main__':
+    crab(); jelly(); angler(); drowned(False); drowned(True); squid(); boat()

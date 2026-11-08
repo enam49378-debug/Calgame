@@ -9072,7 +9072,11 @@ function physics(f, dt) {
     const cx = clamp(f.pos.x, c.x - c.hx, c.x + c.hx), cz = clamp(f.pos.z, c.z - c.hz, c.z + c.hz);
     let dx = f.pos.x - cx, dz = f.pos.z - cz; const d = Math.hypot(dx, dz);
     if (d < .45) {
-      if (d < 1e-4) { dx = f.pos.x - c.x; dz = f.pos.z - c.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l; f.pos.x = c.x + dx * (c.hx + .46); f.pos.z = c.z + dz * (c.hz + .46); }
+      if (c.h - f.pos.y > 0 && c.h - f.pos.y <= .62 && f.vel.y <= 6 && f.alive && !(f.ragdoll > 0)) { f.pos.y = c.h; if (f.vel.y < 0) f.vel.y = 0; f.onGround = true; continue; }   // sube al borde de lo bajo (cajas, muros, bordillos)
+      if (d < 1e-4) {   // el centro quedó dentro de la caja: se sale por la cara mas cercana (antes era hacia el lado opuesto, lejos)
+        const l1 = f.pos.x - (c.x - c.hx), r1 = (c.x + c.hx) - f.pos.x, l2 = f.pos.z - (c.z - c.hz), r2 = (c.z + c.hz) - f.pos.z, mn = Math.min(l1, r1, l2, r2);
+        if (mn === l1) f.pos.x = c.x - c.hx - .46; else if (mn === r1) f.pos.x = c.x + c.hx + .46; else if (mn === l2) f.pos.z = c.z - c.hz - .46; else f.pos.z = c.z + c.hz + .46;
+      }
       else {
         f.pos.x = cx + dx / d * .45; f.pos.z = cz + dz / d * .45;
         const vn = (f.vel.x * dx + f.vel.z * dz) / d;
@@ -9279,6 +9283,8 @@ function tickTimers(f, dt) {
   }
   // los dummies recuperan toda la vida si pasan 3 segundos sin recibir golpes
   if (f.dummy && f.alive && G.time - (f.lastHurtT || 0) > 3) f.hp = f.maxHp;
+  // regeneración pasiva para todos: tras 5 s sin recibir daño recupera 2,2 de vida por segundo, pero solo hasta 45 de vida (no se cura entero)
+  if (!f.dummy && !f.isBoss && f.alive && !G.over) { if (f.hp < (f._hp0 == null ? f.hp : f._hp0) - .01) f._rgT = 5; if (f._rgT > 0) f._rgT -= dt; else if (f.hp < Math.min(45, f.maxHp)) f.hp = Math.min(45, f.maxHp, f.hp + 2.2 * dt); f._hp0 = f.hp; }
   // pose de lucimiento cuando está quieto un rato
   if (f.ch.flourish && f.alive && !f.action && f.onGround && !f.blocking && f.stun <= 0 && f.ragdoll <= 0 && Math.hypot(f.vel.x, f.vel.z) < 1) {
     f.flourT -= dt; if (f.flourT <= 0) { f.flourT = rand(5, 9); startFlourish(f); }
@@ -10536,7 +10542,7 @@ function requestLock(tries = 0) {
 function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas; if (locked && roomInputBlocked()) { unlock(); return; } if (locked) lockFailed = false;
-  if (!locked && G.shiftLock && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked()) setPause(true);
+  if (!locked && G.shiftLock && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked() && !window.__emoteWheelOpen && !window.__uiOpen) setPause(true);
 });
 document.addEventListener('pointerlockerror', () => { lockFailed = true; });
 function setPause(on) {
@@ -10657,7 +10663,7 @@ canvas.addEventListener('mousedown', e => {
   if (G.viewer) { VW.drag = true; return; }
   if (TOUCH.enabled || G.state !== 'play' || G.paused || G.over || roomInputBlocked()) return;
   initAudio();
-  if (!locked && G.shiftLock) { lockFailed = false; requestLock(); }
+  if (!locked && G.shiftLock && !window.__emoteWheelOpen && !window.__uiOpen) { lockFailed = false; requestLock(); }
   slTap = false;
   if (e.button === 0) mouse.left = true; if (e.button === 2) mouse.right = true;
 });

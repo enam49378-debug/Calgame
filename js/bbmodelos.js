@@ -5,7 +5,7 @@
    Este archivo se ejecuta dentro de game.js (como habilidades.js), con sus funciones a mano. */
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
-    const T = THREE, FILES = ['cangrejo', 'medusa', 'rape', 'marinero', 'capitan', 'calamarin', 'barco'], DATA = {};
+    const T = THREE, COS = ['halo', 'oni', 'corona', 'kabuto', 'gato', 'pirata', 'ciervo', 'kitsune', 'ojos_azul', 'ojos_kraken', 'gafas', 'antifaz', 'capa', 'katana', 'alas_angel', 'alas_demonio', 'alas_kraken', 'mochila', 'escudo', 'hombreras_samurai', 'hombreras_abismo', 'hombreras_pinchos', 'bufanda'].map(n => 'cos_' + n), FILES = ['cangrejo', 'medusa', 'rape', 'marinero', 'capitan', 'calamarin', 'barco'].concat(COS), DATA = {};
     const RAD = Math.PI / 180, nums = v => [parseFloat(v.x) || 0, parseFloat(v.y) || 0, parseFloat(v.z) || 0];
     const FACE_ORDER = ['east', 'west', 'up', 'down', 'south', 'north'];   // orden de las caras de BoxGeometry: +x, -x, +y, -y, +z, -z
     function parse(name, d) {
@@ -17,7 +17,7 @@
         }; img.onerror = () => ok(); img.src = d.textures[0].source;
       });
     }
-    for (const f of FILES) fetch('modelos/abismo/' + f + '.bbmodel').then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => parse(f, d)).catch(() => { });
+    for (const f of FILES) fetch('modelos/' + (f.startsWith('cos_') ? 'cosmeticos/' : 'abismo/') + f + '.bbmodel').then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => parse(f, d)).catch(() => { });
     function box(acc, c, s, uv) {   // agrega un cubo (24 vértices) a un acumulador de geometría
       const [cx, cy, cz] = c, [hx, hy, hz] = [s[0] / 2, s[1] / 2, s[2] / 2];
       const F = [[[1, 0, 0], [[1, -1, -1], [1, 1, -1], [1, 1, 1], [1, -1, 1]]], [[-1, 0, 0], [[-1, -1, 1], [-1, 1, 1], [-1, 1, -1], [-1, -1, -1]]], [[0, 1, 0], [[-1, 1, -1], [-1, 1, 1], [1, 1, 1], [1, 1, -1]]], [[0, -1, 0], [[-1, -1, 1], [-1, -1, -1], [1, -1, -1], [1, -1, 1]]], [[0, 0, 1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]], [[0, 0, -1], [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]]]];

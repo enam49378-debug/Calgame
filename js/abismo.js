@@ -1,4 +1,4 @@
-/* ===== EL ABISMO: torbellino en el mar profundo → cascada → cueva (y el jefe KRAKEN cuando hay evento) =====
+/* ===== EL ABISMO: torbellino en el mar profundo cascada cueva (y el jefe KRAKEN cuando hay evento) =====
    - En el mar PROFUNDO hay un TORBELLINO gigante (columna de luz + cartel "EL ABISMO"): absorbe a quien nada cerca. Al llegar al centro caes
      por una cascada a la cueva del abismo. Se puede entrar SIEMPRE: sin evento el abismo está en calma y el Kraken duerme.
    - Con el EVENTO "Calamar gigante" (cada varios minutos, o desde Opciones) el Kraken despierta: JEFE con sistema de combate propio:
@@ -71,7 +71,7 @@
     const fmt = s => { s = Math.max(0, Math.ceil(s)); return (s / 60 | 0) + ':' + String(s % 60).padStart(2, '0'); };
     function paintCounter() {
       if (!AB.cnt) return; let txt, col;
-      if (eventOn()) { txt = '🦑 KRAKEN ACTIVO · ' + fmt(SEA.ev.squid); col = '#ff8fb0'; }
+      if (eventOn()) { txt = 'KRAKEN ACTIVO · ' + fmt(SEA.ev.squid); col = '#ff8fb0'; }
       else if (SEA.noKraken && !(typeof NETPUB === 'function' && NETPUB())) { txt = 'Kraken desactivado'; col = '#9aa0b8'; }
       else if (SEA.eventsAuto === false) { txt = 'Eventos desactivados'; col = '#9aa0b8'; }
       else { txt = 'Próximo evento en ' + fmt(SEA.evTimer); col = '#bff6ff'; }
@@ -99,6 +99,8 @@
     }
 
     // ---------------------------------------------------------------- el KRAKEN: modelo, animación y combate
+    const snd = (k, pos, v, r) => { if (window.CF_SND) CF_SND.play(k, pos, v, r); };
+    const SND_WIND = { crab: 'clack', jelly: 'bubble', angler: 'growl', drowned: 'moan', squidling: 'chirp', captain: 'laugh' }, SND_ATK = { crab: 'clack', jelly: 'zap', angler: 'screech', drowned: 'thud', squidling: 'chirp', captain: 'slam' }, SND_SPAWN = { crab: 'squelch', jelly: 'bubble', angler: 'growl', drowned: 'moan', squidling: 'chirp', captain: 'roarShort' };
     const KS = 1.6;   // escala del Kraken (más grande)
     const B = { f: null, g: null, arms: [], longs: [], fins: [], eyes: [], spots: [], mantle: null, head: null, body: null, mats: [], zones: [], tele: [], atk: null, cd: 3, t: 0, state: 'sleep', phase2: false, bar: null, last: '', hitT: 0, vuln: 0, stagger: 0, exposed: 0, deadT: 0, idle: 0, jet: 0 };
     let skinTex = null;
@@ -163,8 +165,8 @@
       G.fighters.push(f); B.f = f;
       B.g.visible = true; B.state = 'intro'; B.t = 0; B.cd = 3.2; B.atk = null; B.phase2 = false; B.last = ''; B.vuln = B.stagger = B.exposed = 0;
       B.arms.forEach(a => { a.hp = a.max; a.severed = false; a.root.visible = true; a.root.scale.setScalar(1); a.flash = 0; a.busy = false; });
-      mkBar(); const me = G.player; showBanner('¡EL KRAKEN DESPIERTA!', '#ff5577', (me && me.ch && QUIPS[me.ch.id]) || 'Jefe final del abismo');
-      for (const q of abyssPlayers()) q.iframes = Math.max(q.iframes, 4.4); if (me && me.abyss) cinCam(() => new V3(B.g.position.x, B.g.position.y + 4, B.g.position.z), 4.2, 62, 26, .3); screenFlash(.3); G.shake = Math.max(G.shake, 1.4); sfx('boom', B.g.position, 1);
+      snd('roar', null, 1); mkBar(); const me = G.player; showBanner('¡EL KRAKEN DESPIERTA!', '#ff5577', (me && me.ch && QUIPS[me.ch.id]) || 'Jefe final del abismo');
+      for (const q of abyssPlayers()) q.iframes = Math.max(q.iframes, 4.4); if (me && me.abyss) cinCam(() => new V3(B.g.position.x, B.g.position.y + 4, B.g.position.z), 4.2, 62, 26, .3); screenFlash(.3); G.shake = Math.max(G.shake, 1.4); sfx('boom', B.g.position, 1); snd('roar', null, 1);
     }
     function sleepBoss(msg) {   // vuelve a dormir (se acabó el evento o nadie queda)
       if (B.f) { const i = G.fighters.indexOf(B.f); if (i >= 0) G.fighters.splice(i, 1); try { B.f.dispose(); } catch (e) { } B.f = null; }
@@ -220,7 +222,7 @@
               h.done = true; h.hold = .55; h.tele.life = .05;
               armReach(a, Math.hypot(h.x - wp.x, h.z - wp.z), ABY.y + .3 - wp.y, 1);
               for (const p of abyssPlayers()) { const dx = p.pos.x - h.x, dz = p.pos.z - h.z, d = Math.hypot(dx, dz); if (d < 6.6 && p.pos.y < ABY.y + 3.4) hurt(p, 20, dx / (d || 1), dz / (d || 1), 10); }
-              burst(new V3(h.x, ABY.y + .4, h.z), 34, '#6f8aa8', 11, .3, .9, 1); ringAt(new V3(h.x, ABY.y + .2, h.z), '#ff8fb0', 7, .5); G.shake = Math.max(G.shake, .6); sfx('crash', new V3(h.x, ABY.y, h.z), .8);
+              snd('slam', new V3(h.x, ABY.y, h.z), 1, 120); burst(new V3(h.x, ABY.y + .4, h.z), 34, '#6f8aa8', 11, .3, .9, 1); ringAt(new V3(h.x, ABY.y + .2, h.z), '#ff8fb0', 7, .5); G.shake = Math.max(G.shake, .6); sfx('crash', new V3(h.x, ABY.y, h.z), .8);
             } else if (h.done && h.hold > 0) { h.hold -= dt; armReach(a, Math.hypot(h.x - wp.x, h.z - wp.z), ABY.y + .3 - wp.y, 1); }
             else if (h.done) { a.segs.forEach((s, i) => { s.rotation.x += (a.rest[i] - s.rotation.x) * Math.min(1, dt * 4); }); a.busy = false; }
           }
@@ -354,12 +356,13 @@
       const arms = aliveArms().length, pool = ['slam', 'ink', 'suction', 'whip', 'rocks', 'shock', 'grab'].concat(arms >= 3 ? ['sweep'] : []).concat(arms >= 4 ? ['spin'] : []).concat(B.phase2 ? ['beam', 'slam', 'rocks', 'spin', 'shock', 'grab'] : []).filter(n => n !== B.last);
       const name = pool[Math.random() * pool.length | 0]; B.last = name;
       const a = { slam: atkSlam, sweep: atkSweep, ink: atkInk, suction: atkSuction, whip: atkWhip, rocks: atkRocks, beam: atkBeam, shock: atkShock, spin: atkSpin, grab: atkGrab }[name]();
+      if (a) snd(a.name === 'slam' || a.name === 'shock' ? 'slam' : 'roarShort', null, a.name === 'ink' ? .6 : .9);
       if (a) popText(B.g.position.clone().add(new V3(0, 16 * KS, 0)), { slam: '¡APLASTAMIENTO!', sweep: '¡SALTA!', ink: '¡TINTA!', suction: '¡SUCCIÓN!', beam: '¡RAYOS!', whip: '¡LATIGAZO!', rocks: '¡DERRUMBE!', shock: '¡SALTA LA ONDA!', spin: '¡TORMENTA!', grab: '¡AGARRE!' }[a.name], '#ff8fb0', 26);
       return a;
     }
     // --- combate propio: tentáculos con vida, expuesto, etc.
     function severArm(a) {
-      a.severed = true; a.regrow = 25; a.busy = false; const tip = new V3(); a.segs[a.segs.length - 1].getWorldPosition(tip); a.root.visible = false;
+      snd('squelch', B.g.position, 1, 90); snd('roarShort', null, .6); a.severed = true; a.regrow = 25; a.busy = false; const tip = new V3(); a.segs[a.segs.length - 1].getWorldPosition(tip); a.root.visible = false;
       burst(tip, 40, '#c2566e', 12, .35, 1, .6); burst(tip, 24, '#1a0a20', 9, .4, 1.2, .3); ringAt(new V3(tip.x, ABY.y + .2, tip.z), '#ff8fb0', 6, .5); sfx('crash', tip, .8); G.shake = Math.max(G.shake, 1);
       popText(B.g.position.clone().add(new V3(0, 17, 0)), '¡TENTÁCULO CORTADO!', '#ffd23f', 26);
       if (B.atk) { if (B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.cd = 2.4; }
@@ -382,10 +385,10 @@
       if (B.state === 'dead') return; B.state = 'dead'; B.deadT = 0; if (B.atk && B.atk.cleanup) B.atk.cleanup(); B.atk = null;
       for (const z of B.zones) scene.remove(z.m); B.zones = []; for (const z of B.tele) scene.remove(z.m); B.tele = [];
       AB.clearedAt = G.time; AB.cleared = true; screenFlash(.9); G.slowT = Math.max(G.slowT, 1.2); G.shake = Math.max(G.shake, 2);
-      showBanner('¡KRAKEN DERROTADO!', '#ffd54f', 'Ya puedes salir por el portal de la superficie'); sfx('boom', B.g.position, 1);
+      snd('roar', null, 1); later(1.2, () => snd('roarShort', null, .8)); showBanner('¡KRAKEN DERROTADO!', '#ffd54f', 'Ya puedes salir por el portal de la superficie'); sfx('boom', B.g.position, 1);
       for (let i = 0; i < 8; i++) later(i * .25, () => { if (B.g) { burst(B.g.position.clone().add(new V3(rand(-4, 4), rand(2, 16), rand(-4, 4))), 40, i % 2 ? '#ffd54f' : '#ff8fb0', 16, .35, 1.1, .2); ringAt(B.g.position.clone().add(new V3(0, rand(1, 8), 0)), '#ffd54f', 12, .6); } });
       const prize = []; if (window.CF_EMOTES && CF_EMOTES.grantBoss) prize.push(...CF_EMOTES.grantBoss()); if (window.CF_COS && CF_COS.grantBoss) prize.push(...CF_COS.grantBoss());
-      later(2.2, () => { if (prize.length) { showBanner('¡RECOMPENSAS!', '#ffd54f', prize.join(' · ')); for (const p of prize) addFeedText('🎁 ' + p, '#ffd54f'); } else addFeedText('El Kraken no soltó nada nuevo esta vez', '#9aa0b8'); });
+      later(2.2, () => { if (prize.length) { showBanner('¡RECOMPENSAS!', '#ffd54f', prize.join(' · ')); for (const p of prize) addFeedText('' + p, '#ffd54f'); } else addFeedText('El Kraken no soltó nada nuevo esta vez', '#9aa0b8'); });
       later(7, () => { sleepBoss(); if (B.g) B.g.visible = false; });
       if (G.player && G.player.abyss) { cinCam(() => new V3(B.g.position.x, B.g.position.y + 5, B.g.position.z), 6.8, 84, 36, .22); for (let i = 0; i < 6; i++) later(.5 + i * .9, () => { if (B.g) { const q = B.g.position.clone().add(new V3(rand(-9, 9), rand(6, 26), rand(-9, 9))); burst(q, 50, ['#ffd54f', '#ff8fb0', '#7df9ff'][i % 3], 15, .35, 1.2, .1); ringAt(q, '#ffd54f', 10, .7); sfx('boom', q, .5); } }); }
     }
@@ -416,7 +419,7 @@
       if (B.stagger > 0) { g.rotation.z = Math.sin(t * 30) * .03 * Math.min(1, B.stagger); } else if (!dead) { g.rotation.z *= .9; }
       if (B.state === 'intro') { B.t += dt; g.position.y = ABY.y - 1.5; B.body.position.y = 7 - 9 + Math.min(1, B.t / 3.2) * 9; if (Math.random() < dt * 22) emit(ABY.x + rand(-9, 9), ABY.y + .5, ABY.z + rand(-9, 9), rand(-3, 3), rand(2, 6), rand(-3, 3), '#8aa4b8', .3, .9, 1, 2); if (B.t > 3.4) { B.state = 'fight'; B.body.position.y = 7; } }
       else if (B.state === 'fight') {
-        if (!B.phase2 && f.hp < f.maxHp * .5) { B.phase2 = true; showBanner('¡EL KRAKEN SE ENFURECE!', '#ff3b30', 'Más rápido · rayos de los ojos'); camPunch(1, 1); G.shake = Math.max(G.shake, 1.6); screenFlash(.5); sfx('boom', g.position, 1); }
+        if (!B.phase2 && f.hp < f.maxHp * .5) { B.phase2 = true; snd('roar', null, 1); showBanner('¡EL KRAKEN SE ENFURECE!', '#ff3b30', 'Más rápido · rayos de los ojos'); camPunch(1, 1); G.shake = Math.max(G.shake, 1.6); screenFlash(.5); sfx('boom', g.position, 1); }
         if (B.atk) { B.atk.t += dt; B.atk.upd(dt); if (B.atk.t >= B.atk.dur) { if (B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.cd = B.phase2 ? rand(.9, 1.7) : rand(1.7, 2.6); } }
         else if (ps.length && B.stagger <= 0) { B.cd -= dt; if (B.cd <= 0) B.atk = pickAttack(); }
       }
@@ -615,10 +618,10 @@
       const sp = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), transparent: true, depthWrite: false, blending: T.AdditiveBlending, fog: false })); sp.scale.set(5, 5, 1); g.add(sp); g.scale.setScalar(1.3); return g;
     }
     const KEY = { st: 'none', holder: null, g: null, pos: new V3(), chip: null };
-    function keyChip(on) { if (!KEY.chip) { KEY.chip = document.createElement('div'); KEY.chip.style.cssText = 'position:fixed;top:112px;left:50%;transform:translateX(-50%);z-index:70;background:rgba(10,16,30,.85);border:2px solid #ffd54f;color:#ffe9a0;border-radius:12px;padding:7px 16px;font:700 15px system-ui,Arial;letter-spacing:.06em;display:none;pointer-events:none;text-shadow:0 1px 4px #000'; KEY.chip.textContent = '🗝️ LLAVE DEL KRAKEN · llévala al portón enorme'; document.body.appendChild(KEY.chip); } KEY.chip.style.display = on ? 'block' : 'none'; }
+    function keyChip(on) { if (!KEY.chip) { KEY.chip = document.createElement('div'); KEY.chip.style.cssText = 'position:fixed;top:112px;left:50%;transform:translateX(-50%);z-index:70;background:rgba(10,16,30,.85);border:2px solid #ffd54f;color:#ffe9a0;border-radius:12px;padding:7px 16px;font:700 15px system-ui,Arial;letter-spacing:.06em;display:none;pointer-events:none;text-shadow:0 1px 4px #000'; KEY.chip.textContent = 'LLAVE DEL KRAKEN · llévala al portón enorme'; document.body.appendChild(KEY.chip); } KEY.chip.style.display = on ? 'block' : 'none'; }
     function dropKey(x, z, msg) {
       if (!KEY.g) { KEY.g = goldKey(); scene.add(KEY.g); } KEY.st = 'ground'; KEY.holder = null; KEY.pos.set(x, ABY.y + 1.6, z); KEY.g.visible = true; KEY.g.position.copy(KEY.pos);
-      if (msg !== false && G.player && G.player.abyss) { showBanner('🗝️ ¡LA LLAVE!', '#ffd54f', 'Recógela y llévala al portón enorme'); addFeedText('🗝️ La llave del Kraken cayó al suelo', '#ffd54f'); }
+      if (msg !== false && G.player && G.player.abyss) { showBanner('¡LA LLAVE!', '#ffd54f', 'Recógela y llévala al portón enorme'); addFeedText('La llave del Kraken cayó al suelo', '#ffd54f'); }
     }
     function resetRun() {
       for (const m of AB.mobs) { scene.remove(m.g); const j = G.fighters.indexOf(m.f); if (j >= 0) G.fighters.splice(j, 1); try { m.f.dispose(); } catch (e) { } } AB.mobs = []; AB.groups = null; AB.bolts.forEach(b => scene.remove(b.m)); AB.bolts = [];
@@ -631,7 +634,7 @@
       f.pos.set(x, ABY.y + (T0.fly || 0), z); f.home = f.pos.clone(); f.model.root.visible = false; G.fighters.push(f);
       let g; const bbi = window.CF_BBM && CF_BBM.make(BB_MOB[kind][0], BB_MOB[kind][1]);   // modelo de Blockbench (si no cargó, el de respaldo hecho por código)
       if (bbi) { g = new T.Group(); g.add(bbi.root); g.userData = { bb: bbi }; const au = glowSprite(BB_MOB[kind][2], BB_MOB[kind][3], BB_MOB[kind][4]); g.add(au); g.userData.aura = au; } else { g = MOB_BUILD[kind](); detailMob(kind, g); }
-      g.position.copy(f.pos); scene.add(g);
+      g.position.copy(f.pos); scene.add(g); snd(SND_SPAWN[kind], f.pos, .9);
       const m = { f, g, k: kind, bs: g.scale.x * (kind === 'captain' ? 1 : 1), spawnT: 0, kx: 0, kz: 0, dot: null, slow: 0, slowK: 1, stun: 0, conf: 0, marks: 0, fxT: 0, squash: 0, T: T0, cd: rand(.6, 1.6), wind: 0, lastHp: T0.hp, flash: 0, dead: 0, ph: rand(0, 6), hx: x, hz: z, yaw: rand(0, 6), aggro: false, mats: [], lunge: 0, hitDone: false, step: 0 };
       g.traverse(o => { if (o.material && o.material.emissive && o.material.color) m.mats.push(o.material); }); AB.mobs.push(m); return m;
     }
@@ -692,21 +695,21 @@
       if (m.k === 'squidling') burst(p.clone().add(new V3(0, 1.5, 0)), 36, '#2a1030', 8, .45, 1.1, 0);
       if (m.k === 'drowned') for (let i = 0; i < 12; i++) emit(p.x + rand(-1, 1), p.y + rand(.5, 2.5), p.z + rand(-1, 1), rand(-.5, .5), rand(1.5, 4), rand(-.5, .5), '#cfeeff', .14, 1.6, -.2, 1);
       if (m.k === 'captain') { G.slowT = Math.max(G.slowT, 1.1); G.shake = Math.max(G.shake, 1.4); screenFlash(.4); for (let i = 0; i < 5; i++) later(i * .12, () => ringAt(new V3(p.x, ABY.y + .3 + i * .5, p.z), '#ffd54f', 6 + i * 3, .5)); showBanner('¡CAPITÁN DERROTADO!', '#ffd54f', 'Soltó la llave del portón'); }
-      m.kind2 = m.k;
+      m.kind2 = m.k; snd({ crab: 'squelch', jelly: 'zap', angler: 'growl', drowned: 'moan', squidling: 'chirp', captain: 'roarShort' }[m.k], p, 1);
     }
     // ---- interacciones especiales según el personaje que golpea
     const CH_FX = {
-      ukyo: { tag: '🔥 ¡EN LLAMAS!', col: '#ff7a2a', dot: [6, 4], mult: 1.1 },
-      rocket: { tag: '☠ ¡ENVENENADO!', col: '#9be84a', dot: [5, 6], slow: [.5, 3], mult: 1 },
-      redbird: { tag: '🎯 ¡BLANCO!', col: '#ff4d4d', mult: 1.25 },
-      javi: { tag: '📌 ¡CLAVADO!', col: '#e8f8ff', stun: .9, mult: 1 },
-      sekza: { tag: '🌪 ¡VIENTO!', col: '#bfe8ff', kb: 11, mult: 1 },
-      mattux: { tag: '⚡ ¡CRÍTICO!', col: '#ffe14a', crit: .22, mult: 1 },
+      ukyo: { tag: '¡EN LLAMAS!', col: '#ff7a2a', dot: [6, 4], mult: 1.1 },
+      rocket: { tag: '¡ENVENENADO!', col: '#9be84a', dot: [5, 6], slow: [.5, 3], mult: 1 },
+      redbird: { tag: '¡BLANCO!', col: '#ff4d4d', mult: 1.25 },
+      javi: { tag: '¡CLAVADO!', col: '#e8f8ff', stun: .9, mult: 1 },
+      sekza: { tag: '¡VIENTO!', col: '#bfe8ff', kb: 11, mult: 1 },
+      mattux: { tag: '¡CRÍTICO!', col: '#ffe14a', crit: .22, mult: 1 },
       jesuluto: { tag: 'ERROR 404', col: '#6fa8ff', stun: .8, chance: .25, mult: 1 },
-      randi: { tag: '🕊 PICOTEADO', col: '#ffd0a0', mark: 1, mult: 1 },
-      sebolla: { tag: '💚 ¡VERITY!', col: '#7dffb0', heal: 4, chance: .18, mult: 1 },
-      gato: { tag: '🌀 ¡ENGAÑADO!', col: '#c9a0ff', conf: 2, chance: .2, mult: 1 },
-      capitan: { tag: '🇵🇪 ¡FUERZA!', col: '#ff6b6b', mult: 1.15, kb: 7 },
+      randi: { tag: 'PICOTEADO', col: '#ffd0a0', mark: 1, mult: 1 },
+      sebolla: { tag: '¡VERITY!', col: '#7dffb0', heal: 4, chance: .18, mult: 1 },
+      gato: { tag: '¡ENGAÑADO!', col: '#c9a0ff', conf: 2, chance: .2, mult: 1 },
+      capitan: { tag: '¡FUERZA!', col: '#ff6b6b', mult: 1.15, kb: 7 },
     };
     const popAt = (f, txt, col) => popText(new V3(f.pos.x, f.pos.y + (f.hitH || 2) + 1.2, f.pos.z), txt, col, 17);
     function mobHit(att, o, tg) {
@@ -717,7 +720,7 @@
       if (fx.stun && (!fx.chance || Math.random() < fx.chance)) { m.stun = Math.max(m.stun || 0, fx.stun); m.wind = 0; tag(); }
       if (fx.kb) { const dx = tg.pos.x - att.pos.x, dz = tg.pos.z - att.pos.z, d = Math.hypot(dx, dz) || 1; m.kx = dx / d * fx.kb; m.kz = dz / d * fx.kb; tag(); }
       if (fx.crit && Math.random() < fx.crit) { dmg *= 1.6; tag(); burst(chestOf(tg), 12, '#ffe14a', 9, .2, .5, .3); }
-      if (fx.mark) { m.marks = Math.min(3, (m.marks || 0) + 1); dmg *= 1 + .1 * m.marks; popAt(tg, '🕊 ×' + m.marks, fx.col); }
+      if (fx.mark) { m.marks = Math.min(3, (m.marks || 0) + 1); dmg *= 1 + .1 * m.marks; popAt(tg, '×' + m.marks, fx.col); }
       if (fx.heal && Math.random() < fx.chance && att.alive) { att.hp = Math.min(att.maxHp, att.hp + fx.heal); popText(chestOf(att), '+' + fx.heal, '#7dffb0', 16); tag(); }
       if (fx.conf && Math.random() < fx.chance) { m.conf = fx.conf; m.wind = 0; tag(); }
       if (!shown && (m.fxT || 0) <= 0 && fx.tag && Math.random() < .35) tag();
@@ -732,7 +735,7 @@
     }
     function mobAttack(m, tgt) { HS = m.f; try { mobAttack0(m, tgt); } finally { HS = null; } }
     function mobAttack0(m, tgt) {
-      const f = m.f, T0 = m.T; if (!tgt || !tgt.alive) return;
+      const f = m.f, T0 = m.T; if (!tgt || !tgt.alive) return; snd(SND_ATK[m.k], f.pos, .9);
       const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, d = Math.hypot(dx, dz) || 1, ux = dx / d, uz = dz / d;
       if (m.k === 'jelly') { for (const p of abyssPlayers()) if (dist2d(p, f) < T0.rng + .8) hurt(p, T0.dmg, ux, uz, 3); ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#7df9ff', T0.rng * 1.2, .5); burst(f.pos.clone(), 18, '#9ef2ff', 8, .2, .5, 0); sfx('beam', f.pos, .6); }
       else if (m.k === 'angler') { m.lunge = .4; m.lx = ux; m.lz = uz; m.hitDone = false; sfx('rush', f.pos, .7); }
@@ -752,7 +755,7 @@
     function mobsUpdate(dt, t) {
       const ps = abyssPlayers(), lk = locked(); if (AB.cineT > 0) AB.cineT -= dt;
       if (lk && !AB.groups && ps.length) AB.groups = planGroups();
-      if (AB.groups) for (const gr of AB.groups) { if (gr.spawned) continue; if (ps.some(p => { const q = sdOf(p.pos.x, p.pos.z); return q > gr.sd - 55 && q < gr.sd + 12 && abyPath(p.pos.x, p.pos.z).d < 40; })) { gr.spawned = true; const q = pathAt(gr.sd); gr.kinds.forEach((k, i) => { const u = (rnd() - .5) * 10, v = (rnd() - .5) * 12; const m = spawnMob(k, q.x + q.tx * u + q.nx * v, q.z + q.tz * u + q.nz * v); abyssClamp(m.f.pos); m.f.home.copy(m.f.pos); if (k === 'captain') { m.cap = true; showBanner('⚠ CAPITÁN AHOGADO', '#ffb347', 'Guardián de la llave del portón'); AB.cineT = 3.6; for (const q of ps) q.iframes = Math.max(q.iframes, 3.8); if (G.player && G.player.abyss) cinCam(() => new V3(m.f.pos.x, m.f.pos.y + 1, m.f.pos.z), 3.4, 15, 6, .35); sfx('boom', m.f.pos, .9); } }); } }
+      if (AB.groups) for (const gr of AB.groups) { if (gr.spawned) continue; if (ps.some(p => { const q = sdOf(p.pos.x, p.pos.z); return q > gr.sd - 55 && q < gr.sd + 12 && abyPath(p.pos.x, p.pos.z).d < 40; })) { gr.spawned = true; const q = pathAt(gr.sd); gr.kinds.forEach((k, i) => { const u = (rnd() - .5) * 10, v = (rnd() - .5) * 12; const m = spawnMob(k, q.x + q.tx * u + q.nx * v, q.z + q.tz * u + q.nz * v); abyssClamp(m.f.pos); m.f.home.copy(m.f.pos); if (k === 'captain') { m.cap = true; showBanner('CAPITÁN AHOGADO', '#ffb347', 'Guardián de la llave del portón'); AB.cineT = 3.6; for (const q of ps) q.iframes = Math.max(q.iframes, 3.8); if (G.player && G.player.abyss) cinCam(() => new V3(m.f.pos.x, m.f.pos.y + 1, m.f.pos.z), 3.4, 15, 6, .35); sfx('boom', m.f.pos, .9); } }); } }
       if (!lk && AB.mobs.length) for (const m of AB.mobs) if (!m.dead) { m.f.hp = 0; m.f.alive = false; m.dead = .001; }
       for (let i = AB.mobs.length - 1; i >= 0; i--) {
         const m = AB.mobs[i], f = m.f, T0 = m.T, g = m.g;
@@ -766,10 +769,11 @@
           if (d > (m.cap ? 1.4 : .75)) { scene.remove(g); const j = G.fighters.indexOf(f); if (j >= 0) G.fighters.splice(j, 1); try { f.dispose(); } catch (e) { } AB.mobs.splice(i, 1); } continue; }
         if (m.spawnT < 1) { m.spawnT += dt / (m.cap ? 1.6 : .9); const e = 1 - Math.pow(1 - Math.min(1, m.spawnT), 3), bs = m.bs; g.scale.setScalar(Math.max(.05, bs * (.2 + .8 * e))); g.position.set(f.pos.x, f.pos.y - (1 - e) * 4.5, f.pos.z); if (Math.random() < dt * 45) emit(f.pos.x + rand(-1.4, 1.4), ABY.y + .3, f.pos.z + rand(-1.4, 1.4), rand(-2, 2), rand(1.5, 4), rand(-2, 2), '#8aa4b8', .3, .8, 1, 2); if (m.spawnT >= 1) { g.scale.setScalar(bs); ringAt(new V3(f.pos.x, ABY.y + .2, f.pos.z), '#9ef2ff', 5, .5); } mobDetailAnim(m, t); continue; }
         m.fxT = Math.max(0, m.fxT - dt); const hit0 = f.hp < m.lastHp - .01;
-        if (hit0) { m.flash = .16; m.aggro = true; m.squash = .22; const pn = ps.length ? ps.reduce((a2, b2) => dist2d(a2, f) < dist2d(b2, f) ? a2 : b2) : null; if (pn && !m.kx && !m.kz && !m.cap) { const kx = f.pos.x - pn.pos.x, kz = f.pos.z - pn.pos.z, kd = Math.hypot(kx, kz) || 1; m.kx = kx / kd * 4; m.kz = kz / kd * 4; } burst(chestOf(f), 5, '#e8f8ff', 6, .15, .35, .2); } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt); m.squash = Math.max(0, m.squash - dt);
+        if (hit0) { m.flash = .16; m.aggro = true; m.squash = .22; snd('thud', f.pos, .6); const pn = ps.length ? ps.reduce((a2, b2) => dist2d(a2, f) < dist2d(b2, f) ? a2 : b2) : null; if (pn && !m.kx && !m.kz && !m.cap) { const kx = f.pos.x - pn.pos.x, kz = f.pos.z - pn.pos.z, kd = Math.hypot(kx, kz) || 1; m.kx = kx / kd * 4; m.kz = kz / kd * 4; } burst(chestOf(f), 5, '#e8f8ff', 6, .15, .35, .2); } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt); m.squash = Math.max(0, m.squash - dt);
         if (m.dot) { m.dot.t -= dt; f.hp -= m.dot.dps * dt; m.lastHp = f.hp; if (Math.random() < dt * 14) emit(f.pos.x + rand(-.8, .8), f.pos.y + rand(.5, (f.hitH || 2)), f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, m.dot.col, .16, .6, -.3, 1); if (f.hp <= 0 && f.alive) kill(f, m.dot.by || null); if (m.dot && m.dot.t <= 0) m.dot = null; }
         if (m.slow > 0) m.slow -= dt; if (m.conf > 0) m.conf -= dt; if (AB.cineT > 0) m.aggro = false;
         for (const mt of m.mats) { if (m.flash > 0) mt.emissive.setRGB(.7, .7, .7); else if (mt.userData && mt.userData.em) mt.emissive.copy(mt.userData.em); else mt.emissive.copy(mt.color).multiplyScalar(.4); }
+        if (m.aggro && Math.random() < dt * .22) snd(SND_WIND[m.k], f.pos, .45);
         let tgt = null, bd = 1e9; for (const p of ps) { const d = dist2d(p, f); if (d < bd) { bd = d; tgt = p; } }
         let mx = 0, mz = 0, moving = false, sp = T0.spd * (m.slow > 0 ? m.slowK : 1) * (m.dot && m.k === 'crab' ? 1.5 : 1);
         if (tgt && bd < T0.aggro) m.aggro = true; else if (!tgt || bd > T0.aggro * 2.2) m.aggro = false;
@@ -781,7 +785,7 @@
           const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, dd = Math.hypot(dx, dz) || 1; m.yaw = Math.atan2(dx, dz);
           const want = T0.ranged ? 12 : T0.rng * .75;
           if (dd > want) { mx = dx / dd * sp; mz = dz / dd * sp; moving = true; } else if (T0.ranged && dd < 8) { mx = -dx / dd * sp * .7; mz = -dz / dd * sp * .7; moving = true; }
-          m.cd -= dt; if (m.cd <= 0 && dd < (T0.ranged ? T0.rng : T0.rng + .6)) { m.wind = T0.wind; m.cd = T0.cd * rand(.85, 1.25); if (m.k === 'jelly') ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff8fe8', T0.rng, T0.wind); if (m.k === 'captain' && m.alt) ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff9a4a', 6.2, T0.wind); }
+          m.cd -= dt; if (m.cd <= 0 && dd < (T0.ranged ? T0.rng : T0.rng + .6)) { m.wind = T0.wind; m.cd = T0.cd * rand(.85, 1.25); snd(SND_WIND[m.k], f.pos, .8); if (m.k === 'jelly') ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff8fe8', T0.rng, T0.wind); if (m.k === 'captain' && m.alt) ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff9a4a', 6.2, T0.wind); }
         } else { const a = t * .4 + m.ph; mx = (m.hx + Math.cos(a) * 3 - f.pos.x) * .5; mz = (m.hz + Math.sin(a * 1.3) * 3 - f.pos.z) * .5; moving = Math.hypot(mx, mz) > .6; m.yaw = Math.atan2(mx, mz) || m.yaw; }
         f.pos.x += (mx + m.kx) * dt; f.pos.z += (mz + m.kz) * dt; m.kx *= Math.exp(-6 * dt); m.kz *= Math.exp(-6 * dt); abyssClamp(f.pos); f.pos.y = ABY.y + (T0.fly ? T0.fly + Math.sin(t * 2 + m.ph) * .35 : 0);
         g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' && !g.userData.bb ? Math.PI / 2 : 0), 0);
@@ -798,10 +802,10 @@
       if (KEY.g) {
         if (KEY.st === 'ground') {
           KEY.g.visible = true; KEY.g.position.set(KEY.pos.x, KEY.pos.y + Math.sin(t * 2.5) * .25, KEY.pos.z); KEY.g.rotation.y += dt * 2.2; if (Math.random() < dt * 14) emit(KEY.pos.x + rand(-.6, .6), KEY.pos.y + rand(-.5, 1.5), KEY.pos.z + rand(-.6, .6), 0, rand(.6, 1.6), 0, '#ffe58a', .12, 1, 0, 1);
-          for (const p of ps) if (Math.hypot(p.pos.x - KEY.pos.x, p.pos.z - KEY.pos.z) < 2.8) { KEY.st = 'held'; KEY.holder = p; if (p.isPlayer) { showBanner('🗝️ ¡TIENES LA LLAVE!', '#ffd54f', 'Llévala al portón enorme · solo un jugador la puede tener'); sfx('whoosh', null, .8); } break; }
+          for (const p of ps) if (Math.hypot(p.pos.x - KEY.pos.x, p.pos.z - KEY.pos.z) < 2.8) { KEY.st = 'held'; KEY.holder = p; snd('key', null, .9); if (p.isPlayer) { showBanner('¡TIENES LA LLAVE!', '#ffd54f', 'Llévala al portón enorme · solo un jugador la puede tener'); sfx('whoosh', null, .8); } break; }
         } else if (KEY.st === 'held') {
-          const h = KEY.holder; if (!h || !h.alive || !h.abyss) { const lp = h ? h.pos : KEY.pos; dropKey(lp.x, lp.z, h && h.isPlayer ? '' : false); if (h && h.isPlayer) addFeedText('🗝️ Soltaste la llave', '#ffd54f'); }
-          else { KEY.g.position.set(h.pos.x, h.pos.y + 3.3 + Math.sin(t * 3) * .15, h.pos.z); KEY.g.rotation.y += dt * 2.5; const dd = doorAbs(); if (!D.open && Math.hypot(h.pos.x - dd.x, h.pos.z - dd.z) < 9) { D.open = true; KEY.st = 'used'; KEY.g.visible = false; showBanner('¡EL PORTÓN SE ABRE!', '#ff8fb0', 'La sala del Kraken te espera'); G.shake = Math.max(G.shake, 1.2); sfx('boom', null, 1); sfx('crash', null, .8); } }
+          const h = KEY.holder; if (!h || !h.alive || !h.abyss) { const lp = h ? h.pos : KEY.pos; dropKey(lp.x, lp.z, h && h.isPlayer ? '' : false); if (h && h.isPlayer) addFeedText('Soltaste la llave', '#ffd54f'); }
+          else { KEY.g.position.set(h.pos.x, h.pos.y + 3.3 + Math.sin(t * 3) * .15, h.pos.z); KEY.g.rotation.y += dt * 2.5; const dd = doorAbs(); if (!D.open && Math.hypot(h.pos.x - dd.x, h.pos.z - dd.z) < 9) { D.open = true; snd('door', null, 1); KEY.st = 'used'; KEY.g.visible = false; showBanner('¡EL PORTÓN SE ABRE!', '#ff8fb0', 'La sala del Kraken te espera'); G.shake = Math.max(G.shake, 1.2); sfx('boom', null, 1); sfx('crash', null, .8); } }
         }
       }
       keyChip(KEY.st === 'held' && KEY.holder === G.player);
@@ -836,7 +840,7 @@
     }
     function ascend(f) {   // victoria: un géiser te lanza por el torbellino y la corriente te devuelve al muelle
       f.fellIn = 0; f.exitMsg = 0; f.gateMsg = false; showWorld(); f.pos.set(VX, SEA_Y - .3, VZ); f.vel.set(0, 0, 0); f.iframes = 14; f.boatSink = true; f.onGround = false;
-      AB.asc = { f, t: 0, ph: 1 }; screenFlash(.9); showBanner('¡LA CORRIENTE TE LLEVA!', '#7df9ff', 'Un géiser te lanza a la superficie'); sfx('rush', null, 1); G.shake = Math.max(G.shake, 1);
+      AB.asc = { f, t: 0, ph: 1 }; snd('horn', null, .7); screenFlash(.9); showBanner('¡LA CORRIENTE TE LLEVA!', '#7df9ff', 'Un géiser te lanza a la superficie'); sfx('rush', null, 1); G.shake = Math.max(G.shake, 1);
       cinCam(() => new V3(VX, SEA_Y + 9, VZ), 3.6, 36, 15, .6);
     }
     function ascUpdate(dt) {
@@ -866,9 +870,9 @@
       pathInfo(); const x0 = -330, x1 = 95, z0 = -85, z1 = 150, sc = Math.min((W - 30) / (x1 - x0), (W - 30) / (z1 - z0)), ox = (W - (x1 - x0) * sc) / 2, oz = (W - (z1 - z0) * sc) / 2;
       const X = ax => ox + (ax - ABY.x - x0) * sc, Z = az => oz + (az - ABY.z - z0) * sc;
       g.clearRect(0, 0, W, W); g.fillStyle = '#03101b'; g.fillRect(0, 0, W, W);
-      g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#123f5a'; g.lineWidth = ABY_COR.hw * 2 * sc; g.beginPath(); ABY_PTS.forEach((q, i) => { if (i % 3 && i < ABY_PTS.length - 1) return; i ? g.lineTo(X(q[0]), Z(q[1])) : g.moveTo(X(q[0]), Z(q[1])); }); g.stroke();
-      g.strokeStyle = 'rgba(57,230,255,.45)'; g.lineWidth = 2; g.stroke();
-      g.fillStyle = '#0b2c44'; g.beginPath(); g.arc(X(ABY.x), Z(ABY.z), ABY.R * sc, 0, 7); g.fill(); g.strokeStyle = '#39e6ff'; g.lineWidth = 2; g.stroke();
+      g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#1d6a8e'; g.lineWidth = ABY_COR.hw * 2 * sc; g.beginPath(); ABY_PTS.forEach((q, i) => { if (i % 3 && i < ABY_PTS.length - 1) return; i ? g.lineTo(X(q[0]), Z(q[1])) : g.moveTo(X(q[0]), Z(q[1])); }); g.stroke();
+      g.strokeStyle = 'rgba(160,245,255,.8)'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = '#16486a'; g.beginPath(); g.arc(X(ABY.x), Z(ABY.z), ABY.R * sc, 0, 7); g.fill(); g.strokeStyle = '#39e6ff'; g.lineWidth = 2; g.stroke();
       const dot = (ax, az, r, c, ring) => { g.fillStyle = c; g.beginPath(); g.arc(X(ax), Z(az), r, 0, 7); g.fill(); if (ring) { g.strokeStyle = ring; g.lineWidth = 2; g.stroke(); } };
       const e = ENTRY(); dot(e.x, e.z, 7, '#7df9ff', '#fff'); const dd = doorAbs(); dot(dd.x, dd.z, 6, AB.door && (AB.door.open || !locked()) ? '#7dffb0' : '#ff4d7a', '#fff'); const ex = EXIT(); dot(ex.x, ex.z, 6, '#ffd54f', '#fff');
       for (const m of AB.mobs) if (!m.dead) dot(m.f.pos.x, m.f.pos.z, m.cap ? 6 : 3.4, m.cap ? '#ffb347' : '#ff5577', m.cap ? '#fff' : null);
@@ -935,7 +939,7 @@
           if (AB.fallTex) AB.fallTex.offset.y += dt * 1.6;
           if (AB.foam) { AB.foam.rotation.z += dt * .6; AB.foam.material.opacity = .3 + Math.sin(t * 5) * .06; const e = ENTRY(); if (Math.random() < dt * 40) emit(e.x + rand(-6, 6), ABY.y + .4, e.z + rand(-6, 6), rand(-3, 3), rand(1, 5), rand(-3, 3), '#dff6ff', .22, 1, -.2, 1); }
           AB.kelp.forEach(([k, ph]) => { k.rotation.z = Math.sin(t * .8 + ph) * .12; });
-          AB.ambT -= dt; if (AB.ambT <= 0) { const inRoom = G.player && G.player.abyss && Math.hypot(G.player.pos.x - ABY.x, G.player.pos.z - ABY.z) < ABY.R + 4; AB.ambT = inRoom ? rand(3, 5) : rand(5, 9); sfx(inRoom ? (B.state === 'fight' ? 'heavy' : 'whoom') : 'whoom', null, inRoom ? .3 : .2); if (!inRoom && Math.random() < .5) sfx('whoosh', null, .12); }
+          AB.ambT -= dt; if (AB.ambT <= 0) { const inRoom = G.player && G.player.abyss && Math.hypot(G.player.pos.x - ABY.x, G.player.pos.z - ABY.z) < ABY.R + 4; AB.ambT = inRoom ? rand(3, 5) : rand(5, 9); snd(Math.random() < .5 ? 'drip' : 'bubble', null, .3); sfx(inRoom ? (B.state === 'fight' ? 'heavy' : 'whoom') : 'whoom', null, inRoom ? .3 : .2); if (!inRoom && Math.random() < .5) sfx('whoosh', null, .12); }
           AB.fallT -= dt; if (AB.fallT <= 0 && AB.fall) { AB.fallT = 1.8; const e = ENTRY(); sfx('rush', new V3(e.x, ABY.y + 3, e.z), .6, { range: 70 }); }
           if (AB.gate) AB.gate.material.opacity = .06 + Math.sin(t * 2) * .03 + (B.state === 'fight' ? .06 : 0);
           if (AB.exit) { AB.exit.rotation.y += dt * .8; AB.exit.visible = !locked(); AB.exit.userData.disc.material.opacity = .25 + Math.sin(t * 3) * .1; }
@@ -951,6 +955,7 @@
       if (SEA.life && SEA.life.squid) SEA.life.squid.g.visible = false;     // el calamar del evento vive en el abismo, no pasa por la superficie
       if (!ev) AB.cleared = false;
       const insideNow = G.fighters.some(g => g.abyss && !g.isBoss && !g.remote);
+      if (insideNow && ev && !AB.cleared && SEA.ev.squid < 25) SEA.ev.squid = 25;   // el evento no se acaba mientras sigues dentro sin vencer al Kraken
       if (insideNow) { AB.emptyT = 0; mobsUpdate(dt, t); keyUpdate(dt, t); } else { AB.emptyT += dt; if (AB.emptyT > 15 && (AB.mobs.length || AB.groups || KEY.st !== 'none')) resetRun(); else if (AB.mobs.length) mobsUpdate(dt, t); }
       if (AB.root && AB.root.visible && !AB.door.open && !locked()) { /* sin evento el portón queda abierto */ }
       for (const f of G.fighters) if (f.abyss && f.isPlayer && f.alive && !f.gateMsg && f.pos.x > GATE_X) { f.gateMsg = true; showBanner('SALA DEL KRAKEN', '#ff8fb0', ev && !AB.cleared ? 'No hay vuelta atrás…' : 'Todo está en calma'); G.shake = Math.max(G.shake, .5); sfx('whoom', null, .9); }

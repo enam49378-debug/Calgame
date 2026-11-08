@@ -40,7 +40,7 @@
     }
 
     // ---------------------------------------------------------------- el tablón de eventos (madera + papeles)
-    const EV_ROWS = [['school', '🐟', 'Cardumen gigante'], ['frenzy', '🦈', 'Frenesí de tiburones'], ['glow', '✨', 'Marea luminosa'], ['squid', '🦑', 'Calamar gigante']];
+    const EV_ROWS = [['school', '', 'Cardumen gigante'], ['frenzy', '', 'Frenesí de tiburones'], ['glow', '', 'Marea luminosa'], ['squid', '', 'Calamar gigante']];
     function buildBoard() {
       const g = new T.Group(); g.position.set(8.4, 0, 81.6); g.rotation.y = Math.PI; g.scale.setScalar(.6); scene.add(g); M.board = g;   // mira hacia la ciudad
       const wood = lm('#5a3d24'), c = document.createElement('canvas'); c.width = 1024; c.height = 700; M.bg = c.getContext('2d'); M.bt = new T.CanvasTexture(c); M.bt.anisotropy = 4;
@@ -59,9 +59,9 @@
       const rowH = 176, y0 = 106, colW = 470;
       const cells = EV_ROWS.map(([k, ico, n]) => { const left = SEA.ev[k] || 0; return { ico, n, on: left > 0, txt: left > 0 ? '¡ACTIVO! ' + fmt(left) : 'En espera' }; });
       const sq = SEA.ev.squid > 0, bs = M.state;
-      cells.push({ ico: '⛵', n: 'Barco al abismo', on: bs === 'dock' || bs === 'sail' || bs === 'arrive', txt: bs === 'dock' ? 'Zarpa en ' + fmt(M.wait) : bs === 'arrive' ? 'Llegando…' : bs === 'sail' || bs === 'sink' ? 'En ruta' : sq ? 'Ya se fue' : 'Llega con el Calamar' });
+      cells.push({ ico: '', n: 'Barco al abismo', on: bs === 'dock' || bs === 'sail' || bs === 'arrive', txt: bs === 'dock' ? 'Zarpa en ' + fmt(M.wait) : bs === 'arrive' ? 'Llegando…' : bs === 'sail' || bs === 'sink' ? 'En ruta' : sq ? 'Ya se fue' : 'Llega con el Calamar' });
       const noK = SEA.noKraken && !(typeof NETPUB === 'function' && NETPUB());
-      cells.push({ ico: '⏳', n: 'Próximo evento', on: false, txt: SEA.eventsAuto === false ? 'Desactivados' : fmt(SEA.evTimer), hi: true });
+      cells.push({ ico: '', n: 'Próximo evento', on: false, txt: SEA.eventsAuto === false ? 'Desactivados' : fmt(SEA.evTimer), hi: true });
       cells.forEach((c, i) => {
         const x = 30 + (i % 2) * (colW + 24), y = y0 + (i / 2 | 0) * rowH, w = colW, h = rowH - 20;
         paper(g, x, y, w, h, ((i * 37) % 7 - 3) * .006, c.hi ? '#fbeab0' : '#efe5c8');
@@ -190,7 +190,7 @@
     function arrive() {
       if (!M.boat) buildBoat(); M.state = 'arrive'; M.t = 0; M.wait = 150; M.aboard.clear(); M.used = true; M.msgAt = 99;
       M.pos.set(-95, SEA_Y, 250); M.yaw = Math.atan2(158 - 250, 95 - -95) * -1; M.roll = M.pitch = 0; M.boat.visible = true; place();
-      addFeedText('⛵ ¡Llega un barco al muelle! Súbete antes de que zarpe', '#ffd54f'); showBanner('⛵ BARCO EN CAMINO', '#ffd54f', 'Llegará al muelle y esperará unos minutos'); sfx('whoosh', null, .5);
+      if (window.CF_SND) CF_SND.play('horn', null, .8); addFeedText('¡Llega un barco al muelle! Súbete antes de que zarpe', '#ffd54f'); showBanner('BARCO EN CAMINO', '#ffd54f', 'Llegará al muelle y esperará unos minutos'); sfx('whoosh', null, .5);
     }
     function sail(dt, tx, tz, speed, turn) {
       const dx = tx - M.pos.x, dz = tz - M.pos.z, d = Math.hypot(dx, dz) || 1; const want = Math.atan2(-dz, dx); let da = want - M.yaw; da = Math.atan2(Math.sin(da), Math.cos(da)); M.yaw += da * Math.min(1, dt * turn);
@@ -207,7 +207,7 @@
       M.state = 'sink'; M.sinkT = 0; const dx = M.pos.x - VXC, dz = M.pos.z - VZC; M.sinkAng = Math.atan2(dz, dx); M.sinkR = Math.hypot(dx, dz); M.sinkYaw0 = M.yaw;
       for (const [f, o] of M.aboard) { f.boatSink = true; o.lx0 = o.lx; o.lz0 = o.lz; }
       const me = G.player; if (me && M.aboard.has(me)) { camScript(me); showBanner('¡LA CORRIENTE!', '#7df9ff', 'El torbellino atrapa el barco…'); }
-      sfx('rush', null, 1); G.shake = Math.max(G.shake, .6);
+      sfx('rush', null, 1); G.shake = Math.max(G.shake, .6); if (window.CF_SND) { CF_SND.play('creak', null, 1); CF_SND.play('roarShort', null, .6); }
     }
     function sinkStep(dt) {
       M.sinkT += dt; const u = M.sinkT / 11, e = u * u;
@@ -232,18 +232,18 @@
       M.prevSquid = ev ? 1 : 0;
       if (!M.boat || M.state === 'off') return;
       const prev = { x: M.pos.x, z: M.pos.z, yaw: M.yaw };
-      M.t += dt;
+      M.t += dt; M.snT = (M.snT || 0) - dt; if (M.snT <= 0 && M.boat.visible && window.CF_SND) { M.snT = 4 + Math.random() * 4; CF_SND.play(Math.random() < .6 ? 'creak' : 'drip', M.pos, .5, 90); }
       if (M.state !== 'sink') { M.pos.y = SEA_Y + Math.sin(t * 1.5) * .07; M.roll = Math.sin(t * 1.1) * .018 + .045; M.pitch = Math.cos(t * 1.3) * .012; }
       if (M.state === 'arrive') {
         const d = sail(dt, BERTH.x, BERTH.z, 9, 1.4); const near = Math.min(1, d / 22); if (d < 24) { M.yaw += (0 - M.yaw) * Math.min(1, dt * 2.2 * (1 - near)); }
-        if (d < .35) { M.state = 'dock'; M.pos.x = BERTH.x; M.pos.z = BERTH.z; M.yaw = 0; sfx('rush', M.pos, .5); showBanner('⛵ EL BARCO ESTÁ EN EL MUELLE', '#ffd54f', 'Sube a bordo · zarpa en ' + fmt(M.wait)); }
+        if (d < .35) { M.state = 'dock'; M.pos.x = BERTH.x; M.pos.z = BERTH.z; M.yaw = 0; sfx('rush', M.pos, .5); showBanner('EL BARCO ESTÁ EN EL MUELLE', '#ffd54f', 'Sube a bordo · zarpa en ' + fmt(M.wait)); }
       } else if (M.state === 'dock') {
         M.wait -= dt; const hs = humans(), on = hs.filter(f => M.aboard.has(f));
-        if (on.length && hs.length === on.length && M.wait > 10 && M.t > 25) { M.wait = 10; addFeedText('⛵ Todos a bordo: el barco zarpa en 10 s', '#ffd54f'); }
-        for (const k of [60, 30, 10]) if (M.wait < k && M.msgAt > k && G.player && !G.player.abyss) { addFeedText('⛵ El barco zarpa en ' + k + ' s' + (on.length ? '' : ' · ¡súbete!'), '#ffd54f'); sfx('whoosh', M.pos, .4); }
+        if (on.length && hs.length === on.length && M.wait > 10 && M.t > 25) { M.wait = 10; addFeedText('Todos a bordo: el barco zarpa en 10 s', '#ffd54f'); }
+        for (const k of [60, 30, 10]) if (M.wait < k && M.msgAt > k && G.player && !G.player.abyss) { addFeedText('El barco zarpa en ' + k + ' s' + (on.length ? '' : ' · ¡súbete!'), '#ffd54f'); sfx('whoosh', M.pos, .4); }
         M.msgAt = M.wait;
         if (!ev && M.wait > 8) M.wait = 8;
-        if (M.wait <= 0) { if (M.aboard.size) { M.state = 'sail'; M.t = 0; addFeedText('⛵ ¡El barco zarpa hacia el mar profundo!', '#ffd54f'); showBanner('⛵ ¡ZARPAMOS!', '#7df9ff', 'El mar está inquieto…'); sfx('rush', M.pos, .9); } else { M.state = 'leave'; addFeedText('⛵ El barco se fue sin pasajeros', '#9aa0b8'); } }
+        if (M.wait <= 0) { if (M.aboard.size) { M.state = 'sail'; M.t = 0; addFeedText('¡El barco zarpa hacia el mar profundo!', '#ffd54f'); showBanner('¡ZARPAMOS!', '#7df9ff', 'El mar está inquieto…'); sfx('rush', M.pos, .9); if (window.CF_SND) CF_SND.play('horn', M.pos, 1, 200); } else { M.state = 'leave'; addFeedText('El barco se fue sin pasajeros', '#9aa0b8'); } }
       } else if (M.state === 'sail') {
         const d = Math.hypot(M.pos.x - VXC, M.pos.z - VZC); const ang = Math.atan2(M.pos.z - VZC, M.pos.x - VXC);
         sail(dt, VXC + Math.cos(ang) * 30, VZC + Math.sin(ang) * 30, 4.6, .8);
@@ -271,7 +271,7 @@
           else { const dy = M.pos.y + DECK; if (f.vel.y <= .2 && f.pos.y <= dy + .12) { f.pos.y = dy; f.vel.y = Math.min(0, f.vel.y); f.onGround = true; } }
         } else if (st === 'dock' || st === 'arrive') {   // ¿se acaba de subir?
           const { lx, lz } = toLocal(f.pos.x, f.pos.z, M.pos && { x: M.pos.x, z: M.pos.z, yaw: M.yaw });
-          if (Math.abs(lx) < HX && Math.abs(lz) < HZ && f.pos.y < M.pos.y + 1.6 && f.pos.y > -2.2) { M.aboard.set(f, { lx, lz }); if (f.isPlayer) { popText(chestOf(f), '⛵ A bordo', '#ffd54f', 16); sfx('whoosh', f.pos, .4); } }
+          if (Math.abs(lx) < HX && Math.abs(lz) < HZ && f.pos.y < M.pos.y + 1.6 && f.pos.y > -2.2) { M.aboard.set(f, { lx, lz }); if (f.isPlayer) { popText(chestOf(f), 'A bordo', '#ffd54f', 16); sfx('whoosh', f.pos, .4); } }
         }
       }
       if (M.bb && M.boat.visible) M.bb.update('idle', t, dt);
