@@ -888,7 +888,7 @@ function cityGrassAt(x,z) {
     sea.side=THREE.DoubleSide;const water=new THREE.Mesh(new THREE.PlaneGeometry(1200,700),sea);water.frustumCulled=false;water.renderOrder=-4;water.rotation.x=-Math.PI/2;water.position.set(0,-.04,67+350);scene.add(water);BEACH.water=water;
   }
   // el mar ya se puede nadar: sin muro. La cubierta del muelle es suelo propio (sobre el agua)
-  solid(0,98,4.7,40.4,.06);solid(0,115,9.4,6,.06);
+  solid(0,112,7.5,68.7,.06);solid(0,140.9,15,10.2,.06);   // el muelle se agrandó (x1.6 de ancho, x1.7 de largo)
   // bosque alrededor de la ciudad
   for(let gx=-112;gx<=112;gx+=8)for(let gz=-112;gz<=60;gz+=8){
     const x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,r=Math.hypot(x,z);
@@ -908,7 +908,7 @@ function cityGrassAt(x,z) {
     PR.push(Object.assign({m,x,z,ry},o));};
   addP('muelle',0,78,0);
   // huellas de los adornos fijos [x, z, medio ancho, medio largo]: las palmeras no se plantan encima ni con la copa tapándolos
-  const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,98,5.4,22],[-46,88,2.4,3.8],[50,89,2.4,3.8],
+  const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,112,8.6,36],[-46,88,2.4,3.8],[50,89,2.4,3.8],
     [-72,74.8,1.8,1.8],[-68.4,74.8,1.8,1.8],[-64.8,74.8,1.8,1.8],[-61.2,74.8,1.8,1.8],
     [-70,80,2.4,3.8],[-58,84,2.4,3.8],[-34,86,2.4,3.8],[-10,83,2.4,3.8],[12,87,2.4,3.8],[40,85,2.4,3.8],[50,79,2.4,3.8],[78,85,2.4,3.8],
     [-52,SHORE(-52)-6,1.4,1.4],[-12,SHORE(-12)-6,1.4,1.4],[34,SHORE(34)-6,1.4,1.4],[76,SHORE(76)-6,1.4,1.4]];
@@ -931,7 +931,7 @@ function cityGrassAt(x,z) {
     pGeo.boundingBox = geo.boundingBox;
     pGeo.boundingSphere = geo.boundingSphere;
     pGeo.userData = Object.assign({}, geo.userData);
-    const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;
+    const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;if(pr.m==='muelle')mesh.scale.set(1.6,1,1.7);mesh.castShadow=true;mesh.receiveShadow=true;
     mesh.userData.model = pr.m;
     mesh.userData.isProp = true;
     mesh.updateMatrix();
@@ -1608,8 +1608,21 @@ function seaFloor(x, z) {
 let GUIDE_Y=0;
 window.groundAt = groundAt;
 const ABY = { x: 0, z: 720, y: -90, R: 72 };   // el abismo: cueva bajo el torbellino del mar profundo (ver js/abismo.js)
-const ABY_FLOOR = (x, z) => Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 ? ABY.y : -400;
-function abyssClamp(v) { const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz); if (d > ABY.R) { v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; } return v; }
+const ABY_COR = { hw: 11 };   // medio ancho del pasillo
+const ABY_WP = [[-300, 118], [-300, 40], [-262, -34], [-192, -52], [-152, -6], [-144, 50], [-118, 40], [-100, 0], [-78, 0]];   // puntos del camino (relativos al centro de la sala)
+const ABY_PTS = (() => { const c = new THREE.CatmullRomCurve3(ABY_WP.map(q => new THREE.Vector3(ABY.x + q[0], 0, ABY.z + q[1])), false, 'centripetal'); return c.getSpacedPoints(260).map(v => [v.x, v.z]); })();
+function abyPath(x, z) {   // punto mas cercano del camino: { d: distancia, x, z, i: indice (con decimales) }
+  let bd = 1e9, bx = 0, bz = 0, bi = 0;
+  for (let i = 0; i < ABY_PTS.length - 1; i++) { const a = ABY_PTS[i], b = ABY_PTS[i + 1], dx = b[0] - a[0], dz = b[1] - a[1]; let u = ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1); u = u < 0 ? 0 : u > 1 ? 1 : u; const px = a[0] + dx * u, pz = a[1] + dz * u, d = Math.hypot(x - px, z - pz); if (d < bd) { bd = d; bx = px; bz = pz; bi = i + u; } }
+  return { d: bd, x: bx, z: bz, i: bi };
+}
+const abyNearPath = (x, z) => x > ABY.x - 335 && x < ABY.x - 55 && z > ABY.z - 85 && z < ABY.z + 150;
+const ABY_FLOOR = (x, z) => (Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 || (abyNearPath(x, z) && abyPath(x, z).d < ABY_COR.hw + 1.5)) ? ABY.y : -400;
+function abyssClamp(v) {
+  const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz); if (d <= ABY.R) return v;
+  const lim = ABY_COR.hw - 1.2; if (abyNearPath(v.x, v.z)) { const p = abyPath(v.x, v.z); if (p.d <= lim) return v; if (p.d - lim < d - ABY.R) { const k = lim / p.d; v.x = p.x + (v.x - p.x) * k; v.z = p.z + (v.z - p.z) * k; return v; } }
+  v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; return v;
+}
 function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;if(z>600)return ABY_FLOOR(x,z);let g=(z>SHORE(x)+.2&&z<560&&Math.abs(x)<360)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
 // ================= Partículas (bloquecitos) =================
@@ -4231,7 +4244,7 @@ function iceBlock(f, dur) {
 // Impacto anime: destello breve y rayos radiales sobre el mundo, que sigue dibujándose.
 const IMPACT = { t: 0, col: '#ffffff', cd: 0, until: 0 };
 function impactFrame(col, dur = .11) {
-  if (IMPACT.cd > 0) return;
+  if (IMPACT.cd > 0 || FX_MUTE) return;
   const duration = clamp(Number.isFinite(dur) ? dur : .11, .04, .12);
   IMPACT.t = duration; IMPACT.col = col; IMPACT.cd = .45; IMPACT.until = performance.now() + duration * 1000;
   document.body.classList.add('impact-active');
@@ -4313,7 +4326,7 @@ function copiesAround(f, n = 4, r = 1.8, life = 1, sc = scene) {
     addFx(g, life, (o, k) => { mat.opacity = .35 * Math.sin(k * Math.PI); o.position.y = f.pos.y + Math.sin(k * 6 + i) * .1; }, () => mat.dispose(), sc);
   }
 }
-function screenFlash(op = .7) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 0; try { f.animate([{ opacity: op }, { opacity: 0 }], { duration: 450, easing: 'ease-out' }); } catch (e) { } }
+function screenFlash(op = .7) { if (FX_MUTE) return; const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 0; try { f.animate([{ opacity: op }, { opacity: 0 }], { duration: 450, easing: 'ease-out' }); } catch (e) { } }
 function shakeFrom(p, amt) { const d = camera.position.distanceTo(p); G.shake = Math.max(G.shake, amt * clamp(1 - d / 40, 0, 1)); }
 
 // ================= Números de daño =================
@@ -4324,6 +4337,7 @@ function popText(p, text, col, size = 22) {
   $('nums').appendChild(el); DN.push({ el, p: p.clone().add(new V3(rand(-.4, .4), .9, rand(-.4, .4))), t: 0, rot: rand(-6, 6) });
 }
 function comicPop(p, text, burstClass = 'burst-gold', size = 32, rot = 0) {
+  if (FX_MUTE) return;
   const el = document.createElement('div');
   el.className = 'comic-onom ' + burstClass;
   el.textContent = text;
@@ -4834,11 +4848,13 @@ function dialogueAudible(){
   return false;
 }
 function updateMusic(dt){
-  const want=G.state==='menu'?'menu':G.state==='play'?'fight':'';
+  const xs=G.state==='play'&&window.CF_MUS_SCENE?CF_MUS_SCENE():null;   // {id, src}: pista propia de una zona (el abismo)
+  const want=xs?'x:'+xs.id:G.state==='menu'?'menu':G.state==='play'?'fight':'';
   if(want!==MUS.want){
     if(MUS.want==='menu')stopMenuVoice();
     MUS.want=want;
-    if(want==='menu')musicPlay(MUS.tracks.menu,'menu',true);
+    if(xs){musicPlay(xs.src,'x_'+xs.id,true);if(MUS.track&&MUS.track.el)MUS.track.el.addEventListener('error',()=>{if(window.CF_MUS_FAIL)CF_MUS_FAIL(xs.id);},{once:true});}
+    else if(want==='menu')musicPlay(MUS.tracks.menu,'menu',true);
     else if(want==='fight'){MUS.failed.clear();musicNextFight();}
     else {if(MUS.old)releaseHtmlAudio(MUS.old);MUS.old=MUS.track;MUS.track=null;}
   }
@@ -5003,7 +5019,7 @@ function updateAmbience(dt) {
   let kind = '', inside = 0;
   for (const b of CITY.buildings) if (b.accessible && b.model && Math.abs(p.pos.x - b.x) < b.w / 2 - .2 && Math.abs(p.pos.z - b.z) < b.d / 2 - .2 && p.pos.y < b.base + .6) { kind = AMB_KIND[b.model] || ''; inside = 1; break; }
   AMB.ins += (inside - AMB.ins) * Math.min(1, dt * 3);
-  const on = WX.sound ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .84, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = clamp((WX.rain || 0) * 2, 0, 1), cloud = WX.cloud || 0, night = WX.night || 0;
+  const ab0 = !!p.abyss, on = WX.sound && !ab0 ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .84, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = clamp((WX.rain || 0) * 2, 0, 1), cloud = WX.cloud || 0, night = WX.night || 0;
   AMB.acc += dt;
   if (AMB.acc > .12) {
     AMB.acc = 0;
@@ -5015,7 +5031,7 @@ function updateAmbience(dt) {
       wind_strong: outs * clamp(high * 1.1 + storm * .8 + cloud * .25 - .05, 0, 1.15), night: outs * night * (1 - storm * .7),
       waves: outs * Math.pow(clamp(1 - (SHORE(p.pos.x) - p.pos.z) / 62, 0, 1), 1.3) * (1 - high * .5)
     };
-    for (const L of AMB.L) L.set(L.group === 'out' ? target[L.name] : (L.group === kind ? ins : 0));
+    for (const L of AMB.L) L.set(ab0 ? 0 : L.group === 'out' ? target[L.name] : (L.group === kind ? ins : 0));
   }
   if (!on||G.paused) return;
   const due = (key, a, b) => { if (now < (AMB.t[key] || 0)) return false; AMB.t[key] = now + a + Math.random() * (b - a); return true; };
@@ -5100,10 +5116,16 @@ function netHit(att, t, o) {
     }
   }
 }
-function applyHit(att, t, o) {
+let FX_MUTE = false;
+function applyHit(att, t, o) {   // si el golpe ocurre en OTRO mundo (abismo vs superficie) no hay marcos de impacto, temblor ni cámara lenta para mí
+  const me = G.player;
+  if (!me || (!!att.abyss === !!me.abyss && !!t.abyss === !!me.abyss)) return applyHit0(att, t, o);
+  const hs = G.hitstop, sh = G.shake, sl = G.slowT; FX_MUTE = true; let r; try { r = applyHit0(att, t, o); } finally { FX_MUTE = false; } G.hitstop = hs; G.shake = sh; G.slowT = sl; return r;
+}
+function applyHit0(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
   if (t.isBoss) o = Object.assign({}, o, { kb: 0, up: 0, ragdoll: 0, stun: 0, guardBreak: false, noCounter: true, pull: 0 });   // el Kraken no se empuja ni se aturde
-  if (t.isBoss && att.isPlayer && window.CF_ABISMO) CF_ABISMO.bossHit(att, o);
+  if (t.isBoss && att.isPlayer && window.CF_ABISMO) o = CF_ABISMO.bossHit(att, o, t) || o;   // el jefe decide cuanto daño recibe (tentaculos, expuesto)
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
   // en ragdoll en el suelo no recibe dano (wake up), pero en el aire si se permite juggle combo
   if (!t.alive || t.iframes > 0) return false;
@@ -5320,6 +5342,7 @@ function kill(v, k) {
 }
 function respawn(f) {
   f.reset(); f.iframes = 2;
+  if (f.abyss && window.CF_ABISMO && CF_ABISMO.locked()) { CF_ABISMO.respawnIn(f); if (f.isPlayer) $('death').classList.add('hidden'); return; }
   if (f.home) { f.pos.copy(f.home); f.onGround = true; f.iframes = .5; burst(chestOf(f), 20, f.ch.color, 6, .2, .6, -.2); return; }
   let best = null, score = -Infinity;
   for (const p of SPAWN_POINTS) {
@@ -7956,7 +7979,7 @@ function splashFx(f) {
 const UW = { k: 0, bub: 0 };
 function updateUnderwater(dt) {
   const cp = camera.position, p = G.player;
-  const under = G.state === 'play' && !G.cine && cp.y < SEA_Y - .02 && cp.z > SHORE(cp.x) - 1;
+  const under = G.state === 'play' && !G.cine && !(p && p.abyss) && cp.y < SEA_Y - .02 && cp.z > SHORE(cp.x) - 1;
   UW.k += ((under ? 1 : 0) - UW.k) * Math.min(1, dt * 9);
   $('uw').style.opacity = UW.k.toFixed(3);
   if (UW.k > .01) {
@@ -8266,11 +8289,14 @@ const SEA_EVENTS = {
   school: { n: 'Cardumen gigante', ico: '🐟', msg: '¡Un cardumen gigante cruza el mar hacia la costa!', col: '#7ad7ff', dur: 26 },
   frenzy: { n: 'Frenesí de tiburones', ico: '🦈', msg: '¡Frenesí de tiburones! Salieron más tiburones en aguas profundas.', col: '#ff6b6b', dur: 28 },
   glow: { n: 'Marea luminosa', ico: '✨', msg: '¡Marea luminosa! Las aguas profundas brillan.', col: '#7df9ff', dur: 30 },
-  squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡El Kraken despertó! Baja por el torbellino del mar profundo y derrótalo.', col: '#ff8fb0', dur: 45 },
+  squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡El Kraken despertó en el abismo! Nada hasta el torbellino del mar profundo y derrótalo.', col: '#ff8fb0', dur: 420 },
 };
+SEA.noKraken = false; try { SEA.noKraken = localStorage.getItem('bsb_no_kraken') === '1'; } catch (e) { }
+const krakenBlocked = () => SEA.noKraken && !(typeof NETPUB === 'function' && NETPUB());   // el truco solo vale en privadas y bots
 function triggerSeaEvent(name) {
   const e = SEA_EVENTS[name]; if (!e || !SEA.life) return false;
   if (SEA.ev[name] > 0) return false;
+  if (name === 'squid' && krakenBlocked()) { if (G.state === 'play') addFeedText('🦑 El evento del Kraken está desactivado (Panel H)', '#9aa0b8'); return false; }
   SEA.ev[name] = e.dur;
   if (name === 'school') SEA.life.school.t = 0;
   if (name === 'squid') SEA.life.squid.t = 0;
@@ -8336,7 +8362,7 @@ function updateSeaLife(dt, t, cp) {
   const L = SEA.life; if (!L) return;
   // temporizador de eventos y cuenta atras de los activos
   for (const k in SEA.ev) if (SEA.ev[k] > 0) SEA.ev[k] = Math.max(0, SEA.ev[k] - dt);
-  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0)); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
+  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && krakenBlocked())); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
   const glow = SEA.ev.glow > 0 ? 1 + .8 * Math.min(1, SEA.ev.glow / 4, (SEA_EVENTS.glow.dur - SEA.ev.glow) / 3 + .2) : 1;
   const near = (x, z, R) => (x - cp.x) * (x - cp.x) + (z - cp.z) * (z - cp.z) < R * R;
   for (const a of L.mantas) {
@@ -8391,6 +8417,9 @@ function seaEventsUi() {
   const host = $('btn-whale-now'); if (!host) return;
   const row = host.parentNode;
   for (const k in SEA_EVENTS) { const e = SEA_EVENTS[k], b = document.createElement('button'); b.type = 'button'; b.textContent = e.ico + ' Evento marino: ' + e.n; b.addEventListener('click', () => { if (!triggerSeaEvent(k)) addFeedText('Ese evento ya está en curso', '#9aa0b8'); }); row.appendChild(b); }
+  const lk = document.createElement('label'); lk.className = 'chk'; lk.innerHTML = '<input id="opt-no-kraken" type="checkbox"><span>Bloquear el evento del Kraken<small>Truco: el Kraken nunca despierta en salas privadas ni contra bots. En salas públicas no tiene efecto.</small></span>';
+  row.parentNode.insertBefore(lk, row.nextSibling);
+  { const c2 = lk.querySelector('input'); c2.checked = !!SEA.noKraken; c2.addEventListener('change', () => { SEA.noKraken = c2.checked; try { localStorage.setItem('bsb_no_kraken', c2.checked ? '1' : '0'); } catch (e) { } if (c2.checked && SEA.ev.squid > 0) SEA.ev.squid = 0; }); }
   const lab = document.createElement('label'); lab.className = 'chk'; lab.innerHTML = '<input id="opt-sea-events" type="checkbox" checked><span>Eventos del mar<small>Cardumen gigante, frenesí de tiburones, marea luminosa y calamar gigante aparecen solos de vez en cuando.</small></span>';
   row.parentNode.insertBefore(lab, row.nextSibling);
   const c = lab.querySelector('input'); c.checked = SEA.eventsAuto !== false; c.addEventListener('change', () => { SEA.eventsAuto = c.checked; try { localStorage.setItem('bsb_sea_events', c.checked ? '1' : '0'); } catch (e) { } });
@@ -10496,7 +10525,7 @@ const canvas = renderer.domElement;
 let locked = false, lockFailed = false;
 // Captura del mouse robusta: movimiento sin aceleración del sistema y reintentos (el navegador rechaza el bloqueo si se pide justo después de soltarlo)
 function requestLock(tries = 0) {
-  if (TOUCH.enabled || roomInputBlocked()) return;
+  if (TOUCH.enabled || roomInputBlocked() || !G.shiftLock) return;   // sin Shift Lock el cursor es libre
   if (document.pointerLockElement === canvas) return;
   const retry = () => { if (tries < 8 && G.state === 'play' && !G.paused && !G.over && !roomInputBlocked()) setTimeout(() => requestLock(tries + 1), 180 + tries * 120); else lockFailed = true; };
   try {
@@ -10507,7 +10536,7 @@ function requestLock(tries = 0) {
 function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas; if (locked && roomInputBlocked()) { unlock(); return; } if (locked) lockFailed = false;
-  if (!locked && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked()) setPause(true);
+  if (!locked && G.shiftLock && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked()) setPause(true);
 });
 document.addEventListener('pointerlockerror', () => { lockFailed = true; });
 function setPause(on) {
@@ -10539,7 +10568,8 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
 });
 let slTap = false;
-function toggleShiftLock() { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { } }
+function toggleShiftLock() { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { }
+  if (G.shiftLock) { lockFailed = false; requestLock(); } else unlock(); }   // encendido: captura el mouse · apagado: lo suelta y se pueden tocar los botones
 addEventListener('keyup', e => {
   keys[e.code] = false;
   if (isBindShift(e.code) && slTap) { slTap = false; if (G.state === 'play' && !G.paused && !G.over && !G.panelOpen && !G.viewer) toggleShiftLock(); }
@@ -10560,7 +10590,7 @@ body.inplay,body.inplay *{cursor:none!important}
   setInterval(() => {
     const play = G.state === 'play' && !G.paused && !G.over && !G.viewer && !roomInputBlocked() && !TOUCH.enabled;
     document.body.classList.toggle('inplay', play && locked);
-    hint.style.display = play && !locked ? 'block' : 'none';
+    hint.style.display = play && !locked && G.shiftLock ? 'block' : 'none';
   }, 200);
 }
 // Controles táctiles: cada dedo tiene su propio identificador, por lo que se puede mover, mirar y atacar a la vez.
@@ -10627,7 +10657,7 @@ canvas.addEventListener('mousedown', e => {
   if (G.viewer) { VW.drag = true; return; }
   if (TOUCH.enabled || G.state !== 'play' || G.paused || G.over || roomInputBlocked()) return;
   initAudio();
-  if (!locked) { lockFailed = false; requestLock(); }
+  if (!locked && G.shiftLock) { lockFailed = false; requestLock(); }
   slTap = false;
   if (e.button === 0) mouse.left = true; if (e.button === 2) mouse.right = true;
 });
@@ -10635,7 +10665,7 @@ addEventListener('mouseup', e => { if (e.button === 0) mouse.left = false; if (e
 addEventListener('contextmenu', e => { if (G.state === 'play') e.preventDefault(); });
 addEventListener('mousemove', e => {
   if (G.state !== 'play' || G.paused || G.cine || roomInputBlocked() || window.__emoteWheelOpen) return;   // con la rueda de emotes abierta el mouse no gira la camara
-  if (locked || (lockFailed && (mouse.left || mouse.right))) {
+  if (locked || (lockFailed && (mouse.left || mouse.right)) || (!G.shiftLock && !TOUCH.enabled && mouse.right)) {   // cursor libre: la camara gira manteniendo el click derecho
     cam.yaw -= e.movementX * .0026;
     cam.pitch = clamp(cam.pitch + e.movementY * .0022, -.35, 1.2);
   }
@@ -11264,6 +11294,19 @@ const CF_A = (() => {
     miniCut,
     get keys() { return keys; },
     get ABY() { return ABY; },
+    get ABY_COR() { return ABY_COR; },
+    get ABY_PTS() { return ABY_PTS; },
+    get applyHit() { return applyHit; },
+    get ABY_WP() { return ABY_WP; },
+    abyPath,
+    get triggerSeaEvent() { return triggerSeaEvent; },
+    get SEA_EVENTS() { return SEA_EVENTS; },
+    get krakenBlocked() { return krakenBlocked; },
+    get SOC() { return SOC; },
+    get ACCT() { return ACCT; },
+    get DEV() { return DEV; },
+    socialLoad,
+    acctLoad,
     abyssClamp,
     get BINDS() { return BINDS; },
     bindKeyLabel,
@@ -16577,6 +16620,7 @@ function mmDraw() {
   const vis = MM.on && !HUD_CFG.all && G.state === 'play' && !G.cine && !G.viewer && !STAGE.on && !!G.player;
   cv.classList.toggle('hidden', !vis); $('hud').classList.toggle('mm', vis);
   if (!vis) return;
+  if (G.player.abyss && window.CF_ABISMO && CF_ABISMO.mini && CF_ABISMO.mini(cv.getContext('2d'), cv.width, G.player, cam.yaw)) return;   // el abismo tiene su propio mapa
   const W = cv.width, g = cv.getContext('2d');
   if (!MM.bg && CITY.buildings.length) MM.bg = mmBackground(MM.bgW);
   const p = G.player;

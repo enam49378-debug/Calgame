@@ -96,6 +96,22 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
       allow delete: if verified() && request.auth.uid == uid;
     }
+    // ranking mundial de kills (publicas): cada uno escribe SOLO su fila, subiendo pocas kills por vez y con 10 s entre escrituras
+    function lbOk(uid, ks) {
+      let d = request.resource.data;
+      return verified() && request.auth.uid == uid && d.keys().hasOnly(ks)
+        && d.uid == uid && d.n is string && d.n.size() >= 1 && d.n.size() <= 16 && d.t == request.time
+        && d.k is int && d.k >= 1
+        && (resource == null ? d.k <= 8 : (d.k > resource.data.k && d.k - resource.data.k <= 8 && request.time > resource.data.t + duration.value(10, 's')));
+    }
+    match /cf_lba/{uid} {
+      allow read: if true;
+      allow create, update: if lbOk(uid, ['uid','n','k','t']);
+    }
+    match /cf_lbm/{month}/p/{uid} {
+      allow read: if true;
+      allow create, update: if month.matches('20[0-9]{4}') && lbOk(uid, ['uid','n','k','t','m']);
+    }
     // todo lo que no esta escrito arriba queda prohibido
     match /{document=**} { allow read, write: if false; }
   }

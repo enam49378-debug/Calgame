@@ -105,12 +105,51 @@ Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, 
 - **Eventos del mar más difíciles de ver:** aparecen solos cada **5 a 9 minutos** (antes cada 1 minuto).
 - **Torbellino gigante** en el mar profundo (una columna de luz azul y la señal «EL ABISMO» se ven desde lejos): absorbe poco a poco a quien nada cerca. En el borde se puede escapar nadando; más adentro ya no. Al llegar al centro **caes por una cascada** a la cueva del **Abismo**, muy por debajo del mar.
 - **El Abismo:** una cueva enorme con ruinas, cristales luminosos, algas gigantes y un barco hundido. La salida (portal «SUPERFICIE») se abre cuando derrotas al jefe.
-- **Jefe final: el KRAKEN.** Un calamar gigante con 1500 de vida y 5 ataques: **Aplastamiento** (tentáculos que salen del suelo donde marca el círculo rojo), **Barrido** (hay que saltarlo), **Tinta** (charcos que queman y frenan), **Succión** (te arrastra al centro y explota) y, al enfurecerse con la mitad de la vida, **Rayos de los ojos**. Se le pega con **las habilidades de tu personaje**; las cinemáticas de agarre no funcionan con él (le hacen daño directo). Cada jugador pelea con su propio Kraken.
-- **Recompensas:** la primera vez da el emote «Furia del Kraken» y los cosméticos «Corona del Abismo» y «Aura abisal»; las siguientes victorias dan «Tentáculos», «Rey del abismo», «Alas del Kraken», «Ojos del Kraken» y «Hombreras del abismo».
+- **Jefe final: el KRAKEN (v2).** Duerme en el abismo y solo despierta con el evento «Calamar gigante» (dura 7 min). Entrar al abismo por el torbellino se puede **siempre**; sin evento el Kraken está dormido. Tiene su propio sistema de combate: 8 tentáculos con vida propia (se pueden cortar), brazo aplastante con cinemática IK, barrido, látigo, lluvia de rocas, tinta, succión y rayo ocular al enfurecerse. Se le pega con las habilidades de tu personaje.
+- **Recompensas:** al vencerlo suelta emote y cosméticos del abismo. **Cada 50 kills en salas públicas** ganas **1 objeto aleatorio** (emote o cosmético, no por orden). El dueño tiene todo desbloqueado.
 - **Evento «Calamar gigante»:** cuando ocurre, el torbellino brilla más y se avisa que el Kraken despertó.
 
 ## Cosméticos (estilo anime / cine épico)
 
 - Botón **👑** arriba, junto a Panel, Guía y Emotes: eliges un cosmético por espacio (cabeza, cara, espalda, hombros y aura). Los demás jugadores los ven.
-- Halo dorado, cuernos de Oni, capa épica, katana a la espalda, máscara Kitsune, hombreras de samurái, aura dorada, alas de ángel y ojos de energía se consiguen con **kills en salas públicas** (las mismas que los emotes). Los del abismo, derrotando al Kraken.
+- Los cosméticos tienen panel con **vista previa del modelo** al lado (se anima y cambia al tocar cada objeto). Se consiguen con el premio aleatorio de cada 50 kills públicas; los del abismo, venciendo al Kraken.
+
+### Ranking mundial
+En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** con los 10 jugadores del mundo con más kills en salas públicas (no privadas ni bots). Necesita publicar `firestore.rules` (colecciones `cf_lba` y `cf_lbm`).
 - Código: `js/cosmetics.js`, `js/abismo.js`.
+
+### Kraken v3 (privado)
+- **Abismo con pasillo:** caes por la cascada, sigues un camino con arcos, cristales, ruinas y un barco hundido, y cruzas el portón hasta la sala del Kraken. Con el evento activo **no se puede salir hasta vencerlo** y si mueres reapareces dentro. Sin evento entras y sales libremente.
+- Dentro del abismo el resto del mundo (ciudad, mar, otros jugadores) se oculta para ahorrar rendimiento.
+- **Muelle grande + Tablón de eventos + Barco:** al empezar el evento del Calamar llega un barco, espera ~2:30 y zarpa con quien suba; la corriente lo atrapa y cae al abismo (cinemática).
+- **Panel H → "Bloquear el evento del Kraken":** truco que impide el evento en privadas y bots (en públicas no aplica).
+- El ranking mundial ahora es un cartel pequeño al norte de la ciudad.
+
+### Kraken v4 (privado)
+- **Mouse:** con **Shift Lock apagado** el cursor queda libre (se tocan todos los botones; la cámara gira con el click derecho). Con **Shift Lock encendido** el mouse se captura. Al apagarlo se suelta de verdad.
+- **Muelle:** ahora es el muelle original agrandado (x1.6 de ancho, x1.7 de largo), con farolas y el barco atracado en la punta.
+- **Barco:** modelo nuevo (casco curvo, cabina, chimenea, vela, bandera).
+- **Abismo:** camino largo con giros (cascada → jardín de algas → ruinas → naufragios → raíces del Kraken) y **portón enorme** cerrado. Enemigos variados (cangrejo, medusa, rape abisal, marinero ahogado, calamarín) y el **Capitán Ahogado** que suelta la **llave** (solo un jugador la puede tener). Con la llave cerca del portón se abre; sin evento está abierto y sin enemigos.
+- **Música del abismo:** pon tus pistas en `musica/abismo_pasillo.mp3`, `musica/abismo_kraken.mp3` y `musica/abismo_calma.mp3`. Si no existen suena la música normal.
+- **Consola del Owner (F2):** eventos, barco, teletransportes, llave, portón, enemigos, Kraken y comandos (`/ayuda`). Funciona en todos los modos. En localhost eres owner automáticamente.
+
+### Kraken v5 (privado)
+- **Enemigos del abismo mejorados:** modelos con más detalle (púas, percebes, branquias, costillas, algas, capa y sabela del capitán, llamas fantasma), brillo propio, **aparición** emergiendo del suelo, **reacción al golpe** (retroceso y aplastamiento), y **muertes distintas** (la medusa estalla, el cangrejo se voltea, el marinero se desploma en burbujas, el calamarín suelta tinta, el capitán tiene muerte cinemática).
+- **Cinemáticas:** el Capitán Ahogado aparece con cámara propia, y el Kraken despierta con una cámara que lo rodea (los jugadores son invulnerables unos segundos).
+- **Interacciones por personaje (contra enemigos):** Ukyo prende fuego, Rocket envenena y ralentiza, Redbird marca (+25 %), Javi clava (aturde), Sekza empuja con el viento, Mattux da críticos, Jesuluto provoca «ERROR 404», ElRandi apila Picoteado (×3), Seb0lla cura con Verity, Loki confunde, Capitán Perú pega más fuerte. Cada personaje también tiene su frase al despertar el Kraken.
+- **Kraken 1,6 veces más grande**, con ataques nuevos: **Onda sísmica** (anillos que se saltan), **Tormenta de tentáculos** (tres barras giratorias) y **Agarre** (te levanta y te estampa; se evita cortando ese tentáculo). Latigazo y alcances ampliados.
+
+### Kraken v6 (privado) · arreglos
+- Los enemigos y el Kraken golpean como jugadores (pasan por `applyHit`): **el parry, el bloqueo y el contraataque funcionan**, y al morir sale «Te noqueó X». Se arregló el K.O. que se quedaba pegado en pantalla.
+- **Abismo = mundo aparte:** sin el efecto de «estar bajo el agua» (pantalla azul y sonido apagado), sin sonidos ambientales de la superficie, con su propia niebla y su **propio minimapa** (camino, portón, enemigos, llave y Kraken). Los golpes/efectos de los jugadores del otro mundo (impactos, temblor, cámara lenta) ya no se sienten, y sus modelos no se ven.
+- **Colisiones:** el cuerpo del Kraken es sólido, los enemigos se separan entre sí y de los jugadores, el barco tiene colisión en cabina, mástil y barriles. Hitboxes de los ataques del Kraken ajustados a lo que se ve (aplastamiento, barrido).
+- **Suelo de la sala del Kraken** arreglado (sin la plataforma elevada que hundía a los jugadores ni parpadeos entre capas).
+- **Barco** rehecho como un navío fantasma: madera podrida con algas, vela hecha jirones, óxido, cadenas, calavera de proa, esqueleto al timón, faroles verdes y niebla.
+- **Cinemáticas:** muerte del Kraken (cámara orbitando y fuegos) y regreso: un géiser te lanza por el torbellino y apareces en el muelle con fuegos artificiales.
+
+### Kraken v7 (privado)
+- **Enemigos rehechos y de miedo:** piel con textura, articulaciones y animaciones propias: cangrejo acorazado con pinzas dentadas y 8 patas articuladas, medusa translúcida con 12 tentáculos y rayos eléctricos, rape abisal con boca de agujas y señuelo, marinero ahogado (calavera, costillas, harapos, algas) y el Capitán Ahogado (sombrero, capa, sable, linterna, llave), calamarín de 8 tentáculos.
+- **Barco:** el casco es sólido. Desde el muelle solo se sube por la pasarela; a bordo las bordas te contienen y la cabina, el mástil y los barriles tienen colisión.
+
+### Modelos de Blockbench del abismo
+Los enemigos (cangrejo, medusa, rape, marinero, capitán, calamarín) y el barco fantasma son modelos de Blockbench: `modelos/abismo/*.bbmodel`, con huesos y animaciones (idle, walk, attack). Se abren y editan en Blockbench; el juego los carga al iniciar. Los cubos cuyo nombre empieza por `glow_` brillan. `tools/gen_modelos_abismo.py` los regenera. Si un modelo no carga, el juego usa una versión de respaldo hecha por código.
