@@ -1,0 +1,158 @@
+/* ===== FICHA PUBLICA (LA QUE VEN LOS DEMAS Y LA VISTA PREVIA DEL VESTIDOR) =====
+   Estilo tipo Discord con la piel del juego: degradado de dos colores, decoracion del avatar, efectos sobre toda la ficha,
+   estilos de nombre, insignias, "miembro desde" y la tarjeta de su main. Va despues de style.css y cuentas.css. */
+
+/* ---------- la tarjeta ---------- */
+#playerdlg .public-card.profile-showcase,#acctdlg .profile-editor .pe-preview.profile-showcase{
+  --showcase-pad:20px;--pf-c2:var(--profile-bg);
+  border:3px solid #050608!important;border-radius:14px!important;overflow:hidden;
+  background:
+    linear-gradient(180deg,color-mix(in srgb,var(--profile-accent) 26%,#0b0c12) 0%,color-mix(in srgb,var(--profile-accent) 10%,var(--profile-bg)) 42%,var(--profile-bg) 100%)!important;
+  box-shadow:8px 8px 0 #000!important}
+.profile-showcase[data-grad]{
+  background:linear-gradient(180deg,color-mix(in srgb,var(--profile-accent) 62%,#0b0c12) 0%,color-mix(in srgb,var(--pf-c2) 58%,#0b0c12) 100%)!important}
+#playerdlg .public-card.profile-showcase{overflow:auto}
+
+/* banner */
+.profile-showcase .public-banner{height:clamp(110px,19vh,150px)!important}
+.profile-showcase .public-banner::after{background:linear-gradient(transparent 40%,#0006)!important}
+
+/* cabeza: avatar con anillo del color, burbuja de estado a la derecha */
+.profile-showcase .public-head{position:relative;z-index:3;margin-top:-52px!important;grid-template-columns:auto minmax(0,1fr)!important}
+.profile-showcase .public-head>img{width:100px!important;height:100px!important;border:6px solid color-mix(in srgb,var(--profile-accent) 22%,#0b0c12)!important;box-shadow:none!important}
+.profile-showcase .public-status-slot{align-self:center!important;padding-top:44px}
+.profile-showcase .public-status-slot .profile-status{position:relative;border-radius:16px!important;background:#ffffffee!important;color:#1a1b24!important;font:700 12px/1.35 var(--body)!important;padding:7px 12px!important;box-shadow:0 3px 0 #0004}
+.profile-showcase .public-status-slot .profile-status::before{content:""!important;position:absolute;left:-7px;top:6px;width:10px;height:10px;border-radius:50%;background:#ffffffee;margin:0}
+.profile-showcase .public-status-slot .profile-status::after{content:"";position:absolute;left:-13px;top:17px;width:5px;height:5px;border-radius:50%;background:#ffffffcc}
+
+/* nombre */
+.profile-showcase .public-identity{position:relative;z-index:3}
+.profile-showcase .public-head h2{font:italic 900 clamp(26px,4vw,34px)/1.05 var(--display)!important;text-transform:none!important;letter-spacing:.01em}
+.profile-showcase[data-nf=neon] .public-head h2{color:#fff;text-shadow:0 0 6px var(--profile-accent),0 0 16px var(--profile-accent),0 0 30px var(--profile-accent)!important;animation:pfNeon 2.8s ease-in-out infinite}
+@keyframes pfNeon{50%{text-shadow:0 0 4px var(--profile-accent),0 0 10px var(--profile-accent)}}
+.profile-showcase[data-nf=arcoiris] .public-head h2{background:linear-gradient(90deg,#ff6b9d,#ffd166,#8ef08a,#7ee0ff,#b39dff,#ff6b9d) 0 0/200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important;filter:drop-shadow(2px 2px 0 #000);animation:pfRain 4s linear infinite}
+@keyframes pfRain{to{background-position:200% 0}}
+.profile-showcase[data-nf=dorado] .public-head h2{background:linear-gradient(180deg,#fff6c8 0%,#ffd75a 45%,#c98a12 55%,#ffe58a 100%);-webkit-background-clip:text;background-clip:text;color:transparent!important;text-shadow:none!important;filter:drop-shadow(2px 2px 0 #3a2300)}
+.profile-showcase[data-nf=glitch] .public-head h2{color:#fff;text-shadow:2px 0 #ff2d6f,-2px 0 #2de2ff!important;animation:pfGlitch 3s steps(1) infinite}
+@keyframes pfGlitch{0%,86%,100%{transform:none;text-shadow:2px 0 #ff2d6f,-2px 0 #2de2ff}88%{transform:translate(2px,-1px) skewX(-8deg);text-shadow:-3px 0 #ff2d6f,3px 0 #2de2ff}92%{transform:translate(-2px,1px);text-shadow:3px 0 #ff2d6f,-3px 0 #2de2ff}}
+
+/* bloques de informacion en paneles translucidos (como Discord) */
+.profile-showcase .profile-extras,.profile-showcase .pf-more,.profile-showcase .public-stats{position:relative;z-index:3}
+.profile-showcase .profile-extras:not(:empty),.profile-showcase .pf-more{margin:12px var(--showcase-pad) 0;padding:12px 14px!important;background:#0b0c1299;border-radius:10px;backdrop-filter:blur(6px)}
+.profile-showcase .profile-extras h4,.profile-showcase .pf-more h4{margin:12px 0 6px!important;font:800 11px var(--body)!important;letter-spacing:.06em;text-transform:none;color:#fff!important;opacity:.85}
+.profile-showcase .profile-extras h4:first-child,.profile-showcase .pf-more h4:first-child{margin-top:0!important}
+.profile-showcase .profile-bio{white-space:pre-wrap;font:500 13px/1.5 var(--body);color:#eef0f8;margin:0}
+.pf-chips{display:flex;flex-wrap:wrap;gap:6px}
+.pf-chips span{display:inline-flex;align-items:center;gap:6px;padding:4px 9px 4px 7px;border-radius:6px;background:#ffffff12;border:1px solid #ffffff1f;font:700 11px var(--body);color:#fff}
+.pf-chips span::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--chip);box-shadow:0 0 8px var(--chip)}
+.pf-since{margin:0;font:600 13px var(--body);color:#e8eaf3}
+.pf-main{display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;background:#ffffff0d;border:1px solid #ffffff17}
+.pf-main-art{flex:none;width:64px;height:64px;border-radius:8px;background:#222 center/cover;box-shadow:0 0 0 2px var(--main),0 4px 12px #0008}
+.pf-main b{display:block;font:italic 900 18px var(--display);color:#fff}
+.pf-main small{display:block;font:600 11px var(--body);color:#c4c8d8;margin-top:2px}
+.profile-showcase .public-stats{gap:6px!important;padding:12px var(--showcase-pad) 16px!important}
+.profile-showcase .public-stats>div{background:#0b0c1299!important;border:0!important;border-radius:8px;box-shadow:none!important;backdrop-filter:blur(6px)}
+.profile-showcase .public-stats b{color:#fff!important;font:italic 900 20px var(--display)!important}
+
+/* ---------- decoracion del avatar ---------- */
+.profile-showcase .public-head>img{justify-self:center}
+.pf-deco{grid-column:1;grid-row:1;justify-self:center;align-self:center;position:relative;width:124px;height:124px;margin:-12px;pointer-events:none;z-index:4}
+.pf-deco i{position:absolute;display:none}
+.pf-deco::before,.pf-deco::after{content:"";position:absolute;display:none}
+/* orbita: anillo punteado que gira con dos chispas */
+.pf-deco[data-deco=orbita]::before{display:block;inset:4px;border-radius:50%;border:2px dashed color-mix(in srgb,var(--profile-accent) 80%,#fff);animation:pfSpin 14s linear infinite}
+.pf-deco[data-deco=orbita] i:nth-child(-n+2){display:block;left:50%;top:50%;width:10px;height:10px;margin:-5px;background:#fff;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);filter:drop-shadow(0 0 4px var(--profile-accent));animation:pfOrbit 6s linear infinite}
+.pf-deco[data-deco=orbita] i:nth-child(2){animation-delay:-3s;width:7px;height:7px;margin:-3.5px}
+@keyframes pfSpin{to{transform:rotate(360deg)}}
+@keyframes pfOrbit{from{transform:rotate(0) translateX(60px) rotate(0)}to{transform:rotate(360deg) translateX(60px) rotate(-360deg)}}
+/* anillo de fuego */
+.pf-deco[data-deco=fuego]::before{display:block;inset:6px;border-radius:50%;background:conic-gradient(from 0deg,#ff3d00,#ffb300,#ff6d00,#ffea00,#ff3d00,#ff9100,#ff3d00);-webkit-mask:radial-gradient(circle,transparent 52px,#000 53px);mask:radial-gradient(circle,transparent 52px,#000 53px);filter:blur(1px) drop-shadow(0 0 8px #ff6d00);animation:pfSpin 3s linear infinite}
+.pf-deco[data-deco=fuego]::after{display:block;inset:0;border-radius:50%;box-shadow:0 0 22px 4px #ff6d0066;animation:pfPulse 1.4s ease-in-out infinite alternate}
+@keyframes pfPulse{to{box-shadow:0 0 30px 8px #ffb30055}}
+/* neon */
+.pf-deco[data-deco=neon]::before{display:block;inset:8px;border-radius:50%;border:3px solid var(--profile-accent);box-shadow:0 0 10px var(--profile-accent),inset 0 0 10px var(--profile-accent);animation:pfNeonRing 2.2s ease-in-out infinite}
+@keyframes pfNeonRing{50%{box-shadow:0 0 22px var(--profile-accent),inset 0 0 16px var(--profile-accent);opacity:.75}}
+/* corona */
+.pf-deco[data-deco=corona]::before{display:block;left:2px;top:-6px;width:46px;height:32px;transform:rotate(-24deg);background:linear-gradient(#ffe680,#f2b301);clip-path:polygon(0 100%,0 25%,22% 55%,50% 0,78% 55%,100% 25%,100% 100%);filter:drop-shadow(2px 2px 0 #6a4500);animation:pfBob 2.4s ease-in-out infinite}
+.pf-deco[data-deco=corona] i:first-child{display:block;left:22px;top:6px;width:7px;height:7px;border-radius:50%;background:#ff3d6e;transform:rotate(-24deg);animation:pfBob 2.4s ease-in-out infinite}
+@keyframes pfBob{50%{translate:0 -4px}}
+/* orejas de gato */
+.pf-deco[data-deco=orejas]::before,.pf-deco[data-deco=orejas]::after{display:block;top:2px;width:34px;height:36px;background:color-mix(in srgb,var(--profile-accent) 70%,#fff);clip-path:polygon(50% 0,100% 100%,0 100%);filter:drop-shadow(0 0 0 #000);animation:pfEar 3s ease-in-out infinite}
+.pf-deco[data-deco=orejas]::before{left:14px;transform:rotate(-22deg)}
+.pf-deco[data-deco=orejas]::after{right:14px;transform:rotate(22deg);animation-delay:.15s}
+.pf-deco[data-deco=orejas] i:nth-child(-n+2){display:block;top:14px;width:16px;height:18px;background:#ffb3c7;clip-path:polygon(50% 0,100% 100%,0 100%);z-index:1}
+.pf-deco[data-deco=orejas] i:nth-child(1){left:23px;transform:rotate(-22deg)}.pf-deco[data-deco=orejas] i:nth-child(2){right:23px;transform:rotate(22deg)}
+@keyframes pfEar{0%,80%,100%{translate:0 0}85%{translate:0 -3px}90%{translate:0 0}}
+/* halo */
+.pf-deco[data-deco=halo]::before{display:block;left:22px;right:22px;top:-4px;height:16px;border-radius:50%;border:4px solid #ffe680;box-shadow:0 0 12px #ffd54f,inset 0 0 6px #ffd54f;animation:pfBob 3s ease-in-out infinite}
+/* petalos que giran alrededor */
+.pf-deco[data-deco=petalos]{animation:pfSpin 18s linear infinite}
+.pf-deco[data-deco=petalos] i{display:block;left:50%;top:50%;width:14px;height:10px;margin:-5px -7px;border-radius:0 100% 0 100%;background:linear-gradient(135deg,#ffd1e0,#ff7aa8);filter:drop-shadow(0 1px 1px #0005)}
+.pf-deco[data-deco=petalos] i:nth-child(1){transform:rotate(0) translateY(-60px)}.pf-deco[data-deco=petalos] i:nth-child(2){transform:rotate(60deg) translateY(-60px)}
+.pf-deco[data-deco=petalos] i:nth-child(3){transform:rotate(120deg) translateY(-60px)}.pf-deco[data-deco=petalos] i:nth-child(4){transform:rotate(180deg) translateY(-60px)}
+.pf-deco[data-deco=petalos] i:nth-child(5){transform:rotate(240deg) translateY(-60px)}.pf-deco[data-deco=petalos] i:nth-child(6){transform:rotate(300deg) translateY(-60px)}
+/* marco pixel: esquinas en escalera */
+.pf-deco[data-deco=pixel] i:nth-child(-n+4){display:block;width:30px;height:30px;
+  background:linear-gradient(var(--profile-accent),var(--profile-accent)) 0 0/30px 6px no-repeat,linear-gradient(var(--profile-accent),var(--profile-accent)) 0 0/6px 30px no-repeat,linear-gradient(#fff,#fff) 6px 6px/6px 6px no-repeat;
+  filter:drop-shadow(2px 2px 0 #000);animation:pfPix 1.6s steps(2) infinite}
+.pf-deco[data-deco=pixel] i:nth-child(1){left:6px;top:6px}.pf-deco[data-deco=pixel] i:nth-child(2){right:6px;top:6px;transform:scaleX(-1)}
+.pf-deco[data-deco=pixel] i:nth-child(3){left:6px;bottom:6px;transform:scaleY(-1)}.pf-deco[data-deco=pixel] i:nth-child(4){right:6px;bottom:6px;transform:scale(-1)}
+@keyframes pfPix{50%{opacity:.55}}
+
+/* ---------- efectos sobre toda la ficha ---------- */
+.pf-fx{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+.pf-fx i{position:absolute;left:var(--x);top:var(--y);width:10px;height:10px;scale:var(--s);will-change:transform,opacity}
+/* estrellas que titilan */
+.pf-fx[data-fx=estrellas] i{width:14px;height:14px;background:var(--c);clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 4px var(--c));animation:pfTwinkle var(--d) ease-in-out var(--l) infinite}
+@keyframes pfTwinkle{0%,100%{opacity:0;transform:scale(.3) rotate(0)}50%{opacity:1;transform:scale(1) rotate(90deg)}}
+/* nieve */
+.pf-fx[data-fx=nieve] i{top:-12px;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 4px #fff;animation:pfFall var(--d) linear var(--l) infinite}
+@keyframes pfFall{from{transform:translate3d(0,-10px,0)}to{transform:translate3d(var(--w),900px,0)}}
+/* petalos */
+.pf-fx[data-fx=petalos] i{top:-14px;width:13px;height:9px;border-radius:0 100% 0 100%;background:linear-gradient(135deg,#ffe0ea,#ff7aa8);animation:pfPetal var(--d) linear var(--l) infinite}
+@keyframes pfPetal{from{transform:translate3d(0,-10px,0) rotate(var(--r))}to{transform:translate3d(calc(var(--w) * 2),900px,0) rotate(calc(var(--r) + 540deg))}}
+/* burbujas que suben */
+.pf-fx[data-fx=burbujas] i{top:auto;bottom:-20px;width:14px;height:14px;border-radius:50%;border:1.5px solid #ffffffaa;background:radial-gradient(circle at 30% 30%,#ffffff88 0 2px,transparent 4px),#7ee0ff1a;animation:pfRise var(--d) ease-in var(--l) infinite}
+@keyframes pfRise{from{transform:translate3d(0,0,0);opacity:0}10%{opacity:1}to{transform:translate3d(var(--w),-900px,0);opacity:.2}}
+/* confeti */
+.pf-fx[data-fx=confeti] i{top:-12px;width:6px;height:11px;background:var(--c);animation:pfConf var(--d) linear var(--l) infinite}
+@keyframes pfConf{from{transform:translate3d(0,-10px,0) rotate(0) rotateY(0)}to{transform:translate3d(var(--w),900px,0) rotate(720deg) rotateY(720deg)}}
+/* pixeles que suben y se apagan */
+.pf-fx[data-fx=pixeles] i{top:auto;bottom:-10px;width:7px;height:7px;background:color-mix(in srgb,var(--profile-accent) 70%,var(--c));box-shadow:0 0 6px var(--profile-accent);animation:pfRise var(--d) steps(24) var(--l) infinite}
+/* luciernagas */
+.pf-fx[data-fx=luciernagas] i{width:6px;height:6px;border-radius:50%;background:#fff6a0;box-shadow:0 0 8px 3px #ffe75866;animation:pfFly var(--d) ease-in-out var(--l) infinite alternate}
+@keyframes pfFly{0%{transform:translate3d(0,0,0);opacity:.2}50%{opacity:1}100%{transform:translate3d(var(--w),-40px,0);opacity:.3}}
+/* corazones */
+.pf-fx[data-fx=corazones] i{top:auto;bottom:-16px;width:14px;height:14px;background:transparent;animation:pfRise var(--d) ease-out var(--l) infinite}
+.pf-fx[data-fx=corazones] i::before{content:"";position:absolute;inset:0;background:#ff5c93;clip-path:path('M7 13 L1.2 7.2 A3.4 3.4 0 0 1 7 2.6 A3.4 3.4 0 0 1 12.8 7.2 Z');filter:drop-shadow(0 0 4px #ff5c93)}
+
+/* ---------- vestidor: mismas opciones, ahora con muestra ---------- */
+.pe-colors{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.pe-options [data-choice]::before{content:"";height:27px}
+.pe-decos [data-choice]::before{border-radius:50%!important;width:27px;justify-self:center;background:#151924!important;box-shadow:0 0 0 3px #3a4256}
+.pe-decos [data-choice=orbita]::before{box-shadow:0 0 0 2px #151924,0 0 0 4px #b39dff}
+.pe-decos [data-choice=fuego]::before{box-shadow:0 0 0 3px #ff6d00,0 0 10px #ffb300}
+.pe-decos [data-choice=neon]::before{box-shadow:0 0 0 3px #d7ff2f,0 0 10px #d7ff2f}
+.pe-decos [data-choice=corona]::before{box-shadow:0 -6px 0 -2px #ffd54f}
+.pe-decos [data-choice=orejas]::before{box-shadow:-8px -8px 0 -6px #ffb3c7,8px -8px 0 -6px #ffb3c7}
+.pe-decos [data-choice=halo]::before{box-shadow:0 -9px 0 -5px #ffe680}
+.pe-decos [data-choice=petalos]::before{box-shadow:0 0 0 3px #ff9ec4}
+.pe-decos [data-choice=pixel]::before{border-radius:0!important;box-shadow:0 0 0 3px #d7ff2f}
+.pe-cardfx [data-choice]::before{background:#151924!important}
+.pe-cardfx [data-choice=estrellas]::before{background:radial-gradient(circle,#ffd166 0 1.5px,transparent 2.5px) 0 0/9px 9px,#151924!important}
+.pe-cardfx [data-choice=nieve]::before{background:radial-gradient(circle,#fff 0 1.5px,transparent 2.5px) 0 0/7px 8px,#1a2a3a!important}
+.pe-cardfx [data-choice=petalos]::before{background:radial-gradient(ellipse,#ff9ec4 0 2px,transparent 3px) 0 0/8px 7px,#2a1a26!important}
+.pe-cardfx [data-choice=burbujas]::before{background:radial-gradient(circle,transparent 2px,#7ee0ff 2.5px,transparent 3.5px) 0 0/10px 10px,#10222b!important}
+.pe-cardfx [data-choice=confeti]::before{background:linear-gradient(90deg,#ff6b9d 0 3px,transparent 3px 6px,#ffd166 6px 9px,transparent 9px 12px,#7ee0ff 12px 15px,transparent 15px) 0 0/18px 9px,#151924!important}
+.pe-cardfx [data-choice=pixeles]::before{background:linear-gradient(#d7ff2f,#d7ff2f) 0 0/4px 4px,#151924!important;background-size:8px 8px!important}
+.pe-cardfx [data-choice=luciernagas]::before{background:radial-gradient(circle,#fff6a0 0 1.5px,#ffe75844 3px,transparent 4px) 0 0/11px 10px,#121a14!important}
+.pe-cardfx [data-choice=corazones]::before{background:radial-gradient(circle,#ff5c93 0 2px,transparent 3px) 0 0/9px 9px,#2a141e!important}
+.pe-names [data-choice]::before{display:none}
+.pe-names button{grid-template-rows:auto!important;min-height:38px;font:italic 900 13px var(--display)!important}
+.pe-names [data-choice=neon]{text-shadow:0 0 6px #d7ff2f}
+.pe-names [data-choice=arcoiris]{background:linear-gradient(90deg,#ff6b9d,#ffd166,#7ee0ff,#b39dff)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}
+.pe-names [data-choice=dorado]{color:#ffd75a!important}
+.pe-names [data-choice=glitch]{text-shadow:2px 0 #ff2d6f,-2px 0 #2de2ff}
+
+@media (prefers-reduced-motion:reduce){.pf-fx i,.pf-deco,.pf-deco::before,.pf-deco::after,.pf-deco i,.profile-showcase .public-head h2{animation:none!important}}
+body.lite-profiles .pf-fx{display:none}

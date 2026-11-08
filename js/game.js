@@ -9470,7 +9470,9 @@ function localPublicProfile() {
   for (const [id, c] of Object.entries(ST.d?.c || {})) { g += +c[0] || 0; if (CHAR_IDS.includes(id) && c[0] > best) { best = c[0]; f = id; } }
   for (const day of Object.values(ST.d?.dy || {})) m += +day[2] || 0;
   const p = cleanPublicProfile({ v: 1, uid: ACCT.user?.uid || '', ...cosmeticsGet(), n: ACCT.user?.displayName || $('pname-in').value || 'Jugador', a: avatarGet() || ACCT.user?.photoURL, b: bannerGet(), acct: !!ACCT.user, g, m, f });
-  p.b = bannerGet(); return p;
+  p.b = bannerGet();
+  try { const t = ACCT.user?.metadata?.creationTime; if (t) { const d = new Date(t); if (!isNaN(d)) p.fx = { ...(p.fx || { deco: 'none', fx: 'none', nf: 'normal', c2: '' }), since: d.toISOString().slice(0, 10) }; } } catch (e) { }
+  return p;
 }
 let publicBannerSource = '', publicBannerData = '', profileShareTicket = 0;
 async function netShareProfile() {
@@ -13375,6 +13377,18 @@ const PROFILE_AURAS = [['none','Sin aura'],['gold','Dorada'],['aurora','Aurora']
 const PROFILE_STICKERS = {cal:['','CAL'],star:['⭐','Estrella'],heart:['💜','Corazón'],bolt:['⚡','Rayo'],moon:['🌙','Luna'],crown:['👑','Corona'],sword:['⚔️','Espadas'],diamond:['💎','Diamante'],flower:['🌸','Flor'],ghost:['👻','Fantasma'],fire:['🔥','Fuego'],ice:['❄️','Hielo'],wave:['🌊','Ola'],clippy:['📎','Clippy'],javi:['🔱','Lanza'],gull:['🕊️','Gaviota'],onion:['🧅','Sebolla'],pixel:['👾','Píxel']};
 const PROFILE_FRAMES = [['none','Ninguno'],['ember','Forja'],['frost','Escarcha'],['neon','Circuito']];
 const PROFILE_EFFECTS = [['none','Ninguno'],['embers','Brasas'],['scan','Pulso digital'],['aurora','Aurora']];
+// Extras tipo Discord (van en p.fx): decoracion del avatar, efecto sobre toda la ficha, estilo del nombre, segundo color y fecha de alta
+const PROFILE_DECOS = [['none','Ninguna'],['orbita','Órbita'],['fuego','Anillo de fuego'],['neon','Neón'],['corona','Corona'],['orejas','Orejas de gato'],['halo','Halo'],['petalos','Pétalos'],['pixel','Marco pixel']];
+const PROFILE_CARDFX = [['none','Ninguno'],['estrellas','Estrellas'],['nieve','Nieve'],['petalos','Pétalos'],['burbujas','Burbujas'],['confeti','Confeti'],['pixeles','Píxeles'],['luciernagas','Luciérnagas'],['corazones','Corazones']];
+const PROFILE_NAMEFX = [['normal','Normal'],['neon','Neón'],['arcoiris','Arcoíris'],['dorado','Dorado'],['glitch','Glitch']];
+function cleanProfileFx(x) {
+  if (!x || typeof x !== 'object') return undefined;
+  const pick = (list, v, d) => list.some(([id]) => id === v) ? v : d;
+  const r = { deco: pick(PROFILE_DECOS, x.deco, 'none'), fx: pick(PROFILE_CARDFX, x.fx, 'none'), nf: pick(PROFILE_NAMEFX, x.nf, 'normal'),
+    c2: /^#[\da-f]{6}$/i.test(x.c2 || '') ? x.c2 : '', since: /^\d{4}-\d{2}-\d{2}$/.test(x.since || '') ? x.since : '' };
+  if (r.deco === 'none' && r.fx === 'none' && r.nf === 'normal' && !r.c2 && !r.since) return undefined;
+  return r;
+}
 function cleanProfileDecor(decor, stickers) {
   if (!decor || typeof decor !== 'object') return undefined;
   const frame = PROFILE_FRAMES.some(([id]) => id === decor.frame) ? decor.frame : 'none';
@@ -13398,6 +13412,8 @@ function cleanCosmetics(p={}) {
   const result = {bio:profileText(p.bio,240),pronouns:profileText(p.pronouns,32),status:profileText(p.status,80),accent:/^#[\da-f]{6}$/i.test(p.accent||'')?p.accent:'#a5a0ff',theme:PROFILE_THEMES.some(x=>x[0]===p.theme)?p.theme:'midnight',aura:PROFILE_AURAS.some(x=>x[0]===p.aura)?p.aura:'none',stickers:Array.isArray(p.stickers)?[...new Set(p.stickers.filter(x=>Object.hasOwn(PROFILE_STICKERS,x)))].slice(0,6):[]};
   const decor = cleanProfileDecor(p.decor, result.stickers);
   if (decor) result.decor = decor;
+  const fx = cleanProfileFx(p.fx);
+  if (fx) result.fx = fx;
   return result;
 }
 const cosmeticKey=()=> 'cf_profile_v2_'+(ACCT.user?.uid||'guest');
@@ -13490,6 +13506,52 @@ function decorateProfile(container,p,editDecal){
   }
   bannerDecals(container, c, editDecal);
   if(c.bio){const label=document.createElement('h4');label.textContent='SOBRE MÍ';const bio=document.createElement('p');bio.className='profile-bio';bio.textContent=c.bio;area.append(label,bio);}
+  if(container.classList.contains('profile-showcase'))profileShowcase(container,c,p);
+}
+const PF_FX_COUNT = { estrellas: 16, nieve: 26, petalos: 16, burbujas: 14, confeti: 26, pixeles: 18, luciernagas: 14, corazones: 12 };
+function profileShowcase(card, c, raw) {
+  const fx = c.fx || { deco: 'none', fx: 'none', nf: 'normal', c2: '', since: '' };
+  const since = fx.since || raw?.fx?.since || '';
+  // degradado de dos colores (como los temas de Discord)
+  if (fx.c2) { card.style.setProperty('--pf-c2', fx.c2); card.dataset.grad = '1'; } else { card.style.removeProperty('--pf-c2'); delete card.dataset.grad; }
+  card.dataset.nf = fx.nf;
+  // decoracion del avatar: va en la misma celda que la foto
+  const head = card.querySelector('.public-head');
+  if (head) { let d = head.querySelector('.pf-deco'); if (!d) { d = document.createElement('span'); d.className = 'pf-deco'; d.setAttribute('aria-hidden', 'true'); d.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i>'; head.appendChild(d); } d.dataset.deco = fx.deco; }
+  // efecto sobre toda la ficha
+  let layer = card.querySelector(':scope > .pf-fx');
+  if (!layer) { layer = document.createElement('div'); layer.className = 'pf-fx'; layer.setAttribute('aria-hidden', 'true'); card.prepend(layer); }
+  if (layer.dataset.fx !== fx.fx) {
+    layer.dataset.fx = fx.fx; layer.replaceChildren();
+    let seed = 7; const rn = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+    const cols = ['#ff6b9d', '#ffd166', '#7ee0ff', '#b39dff', '#8ef08a', '#ffffff'];
+    for (let i = 0; i < (PF_FX_COUNT[fx.fx] || 0); i++) {
+      const s = document.createElement('i');
+      s.style.cssText = `--x:${(rn() * 100).toFixed(1)}%;--y:${(rn() * 100).toFixed(1)}%;--s:${(.6 + rn() * .9).toFixed(2)};--d:${(5 + rn() * 7).toFixed(1)}s;--l:${(-rn() * 12).toFixed(1)}s;--r:${(rn() * 360) | 0}deg;--w:${((rn() - .5) * 60) | 0}px;--c:${cols[i % cols.length]}`;
+      layer.appendChild(s);
+    }
+  }
+  // insignias, miembro desde y su main
+  let more = card.querySelector('.pf-more');
+  if (!more) { more = document.createElement('section'); more.className = 'pf-more'; const st = card.querySelector('.public-stats'); if (st) st.before(more); else card.appendChild(more); }
+  more.replaceChildren();
+  const g = +raw?.g || 0, h = (+raw?.m || 0) / 60, main = CHARS[raw?.f];
+  const chips = [];
+  chips.push(g >= 500 ? ['Leyenda', '#ffd400'] : g >= 100 ? ['Veterano', '#ff9e5e'] : g >= 10 ? ['Peleador', '#7ee0ff'] : ['Novato', '#9aa2b8']);
+  if (h >= 10) chips.push(['Vive en la ciudad', '#b39dff']);
+  if (raw?.acct) chips.push(['Cuenta', '#8ef08a']);
+  if (main) chips.push(['Main ' + main.name, main.color || '#d7ff2f']);
+  const add = (title, node) => { const t = document.createElement('h4'); t.textContent = title; more.append(t, node); };
+  const row = document.createElement('div'); row.className = 'pf-chips';
+  for (const [n, col] of chips) { const ch = document.createElement('span'); ch.style.setProperty('--chip', col); ch.textContent = n; row.appendChild(ch); }
+  add('Insignias', row);
+  if (since) { const d = new Date(since + 'T12:00:00'); const t = document.createElement('p'); t.className = 'pf-since'; t.textContent = d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' }); add('Miembro desde', t); }
+  if (main) {
+    const box = document.createElement('div'); box.className = 'pf-main';
+    const art = document.createElement('span'); art.className = 'pf-main-art'; try { art.style.backgroundImage = `url("${bannerURL({ k: 'char:' + raw.f })}")`; } catch (e) { }
+    const tx = document.createElement('div'); const b = document.createElement('b'); b.textContent = main.name; const sm = document.createElement('small'); sm.textContent = 'Su peleador más usado · ' + g + ' peleas en total'; tx.append(b, sm);
+    box.style.setProperty('--main', main.color || '#d7ff2f'); box.append(art, tx); add('Su main', box);
+  }
 }
 function drawMapBanner(id,w,h){
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d', { willReadFrequently: true });let seed=91;const rn=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
@@ -13519,6 +13581,7 @@ let profileEditDraft=null;
 function acctCustomize(){
   const p = profileEditDraft || (profileEditDraft = cosmeticsGet());
   p.decor ||= {frame: 'none', effect: 'none', positions: []};
+  p.fx ||= {deco: 'none', fx: 'none', nf: 'normal', c2: '', since: ''};
   const body = $('acct-body');
   const profile = localPublicProfile();
   const fields = ['status', 'pronouns', 'bio', 'accent'];
@@ -13539,15 +13602,17 @@ function acctCustomize(){
           <p class="pe-caption">Aura del avatar</p><div class="pe-auras"></div>
         </fieldset>
         <fieldset data-tab="Colores"><legend>Tema y color</legend>
-          <div class="pe-themes"></div><label>Color de acento<input id="pe-accent" type="color"></label>
+          <div class="pe-themes"></div><div class="pe-colors"><label>Color principal<input id="pe-accent" type="color"></label><label>Segundo color<input id="pe-c2" type="color"></label></div><button type="button" id="pe-c2-off" class="pe-subtle">Sin degradado</button>
         </fieldset>
         <fieldset data-tab="Datos"><legend>Lo que dice tu ficha</legend>
           <label>Estado<input id="pe-status" maxlength="80" placeholder="Hoy toca pelear"></label>
           <label>Pronombres<input id="pe-pronouns" maxlength="32" placeholder="Opcional"></label>
           <label>Biografía<textarea id="pe-bio" maxlength="240" rows="3" placeholder="Cuenta algo de ti: tu main, tu combo favorito, de dónde juegas..."></textarea><small id="pe-count"></small></label>
         </fieldset>
+        <fieldset data-tab="Avatar"><legend>Decoración del avatar</legend><div class="pe-options pe-decos"></div></fieldset>
+        <fieldset data-tab="Nombre"><legend>Estilo del nombre</legend><div class="pe-options pe-names"></div></fieldset>
         <fieldset data-tab="Marco"><legend>Marco de la ficha</legend><div class="pe-options pe-frames"></div></fieldset>
-        <fieldset data-tab="Efecto"><legend>Efecto del banner</legend><div class="pe-options pe-effects"></div></fieldset>
+        <fieldset data-tab="Efecto"><legend>Efecto de la ficha</legend><div class="pe-options pe-cardfx"></div><p class="pe-caption">Efecto del banner</p><div class="pe-options pe-effects"></div></fieldset>
         <fieldset data-tab="Pegatinas"><legend>Pegatinas <small id="pe-sticker-count"></small></legend>
           <div class="pe-stickers"></div><button type="button" id="pe-place">Ubicar en el banner ↗</button>
         </fieldset>
@@ -13577,7 +13642,7 @@ function acctCustomize(){
     for (const key of fields) p[key] = $('pe-' + key).value;
     $('pe-count').textContent = p.bio.length + ' / 240';
     $('pe-sticker-count').textContent = p.stickers.length + ' / 6';
-    decorateProfile(card, p, (id, x, y) => {
+    decorateProfile(card, {...profile, ...p, fx: {...p.fx, since: profile.fx?.since || ''}}, (id, x, y) => {
       const position = p.decor.positions.find(point => point.id === id);
       if (position) Object.assign(position, {x, y});
       else p.decor.positions.push({id, x, y});
@@ -13628,6 +13693,12 @@ function acctCustomize(){
   choices(PROFILE_AURAS, '.pe-auras', 'aura');
   choices(PROFILE_FRAMES, '.pe-frames', 'frame', p.decor);
   choices(PROFILE_EFFECTS, '.pe-effects', 'effect', p.decor);
+  choices(PROFILE_DECOS, '.pe-decos', 'deco', p.fx);
+  choices(PROFILE_CARDFX, '.pe-cardfx', 'fx', p.fx);
+  choices(PROFILE_NAMEFX, '.pe-names', 'nf', p.fx);
+  $('pe-c2').value = p.fx.c2 || '#ff6b9d';
+  $('pe-c2').oninput = () => { p.fx.c2 = $('pe-c2').value; preview(); };
+  $('pe-c2-off').onclick = () => { p.fx.c2 = ''; preview(); };
   for(const[id,[_,n]]of Object.entries(PROFILE_STICKERS)){const bt=document.createElement('button');bt.type='button';bt.title=n;bt.setAttribute('aria-label',n);bt.setAttribute('aria-pressed',p.stickers.includes(id));bt.appendChild(stickerNode(id));bt.classList.toggle('on',p.stickers.includes(id));bt.onclick=()=>{if(p.stickers.includes(id)){p.stickers=p.stickers.filter(x=>x!==id);p.decor.positions=p.decor.positions.filter(point=>point.id!==id);}else if(p.stickers.length<6)p.stickers.push(id);else return acctMsg('Podés elegir hasta 6 stickers.');bt.classList.toggle('on',p.stickers.includes(id));bt.setAttribute('aria-pressed',p.stickers.includes(id));preview();};body.querySelector('.pe-stickers').appendChild(bt);}
   for(const k of ['status','pronouns','bio','accent'])$('pe-'+k).oninput=preview;
   $('pe-back').onclick=()=>{profileEditDraft=null;acctRender();};$('pe-photo').onclick=uploadProfileAvatar;$('pe-photo-reset').onclick=()=>{localStorage.removeItem(cosmeticKey()+'_avatar');acctPaint();acctCustomize();netShareProfile();socialSaveProfile();};$('pe-banner').onclick=()=>{acctBannerPick();};
@@ -13809,10 +13880,10 @@ async function socialSaveProfile(force=false){
     try {
       await write(clean);
     } catch (error) {
-      if (error.code !== 'permission-denied' || !clean.decor || ACCT.user?.uid !== uid) throw error;
+      if (error.code !== 'permission-denied' || !(clean.decor || clean.fx) || ACCT.user?.uid !== uid) throw error;
       // Los servidores con las reglas anteriores aún pueden guardar el resto del perfil.
       const legacy = {...clean};
-      delete legacy.decor;
+      delete legacy.decor; delete legacy.fx;
       await write(legacy);
       return ACCT.user?.uid === uid ? 'basic' : false;
     }

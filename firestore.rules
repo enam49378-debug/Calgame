@@ -29,8 +29,17 @@ service cloud.firestore {
         && (d.positions.size() < 5 || decal(d.positions[4], stickers))
         && (d.positions.size() < 6 || decal(d.positions[5], stickers));
     }
+    function profileFx(x) {
+      return x is map && x.keys().hasOnly(['deco','fx','nf','c2','since'])
+        && x.deco in ['none','orbita','fuego','neon','corona','orejas','halo','petalos','pixel']
+        && x.fx in ['none','estrellas','nieve','petalos','burbujas','confeti','pixeles','luciernagas','corazones']
+        && x.nf in ['normal','neon','arcoiris','dorado','glitch']
+        && x.c2 is string && (x.c2 == '' || x.c2.matches('#[0-9a-fA-F]{6}'))
+        && x.since is string && (x.since == '' || x.since.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'));
+    }
     function profile(p, uid) {
-      return p.keys().hasOnly(['v','uid','n','a','b','acct','g','m','f','bio','pronouns','status','accent','theme','aura','stickers','decor','updated'])
+      return p.keys().hasOnly(['v','uid','n','a','b','acct','g','m','f','bio','pronouns','status','accent','theme','aura','stickers','decor','fx','updated'])
+        && (!('fx' in p) || profileFx(p.fx))
         && p.v == 1 && p.uid == uid && p.acct == true && p.n is string && p.n.size() > 0 && p.n.size() <= 32
         && p.a is string && p.a.size() <= 14000 && (p.a == '' || p.a.matches('https://lh3[.]googleusercontent[.]com/.*') || p.a.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'))
         && p.b is map && p.b.keys().hasOnly(['k','d']) && p.b.k is string && p.b.k.size() <= 32
