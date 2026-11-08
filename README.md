@@ -138,3 +138,11 @@ En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** 
 - **Cinemáticas:** el Capitán Ahogado aparece con cámara propia, y el Kraken despierta con una cámara que lo rodea (los jugadores son invulnerables unos segundos).
 - **Interacciones por personaje (contra enemigos):** Ukyo prende fuego, Rocket envenena y ralentiza, Redbird marca (+25 %), Javi clava (aturde), Sekza empuja con el viento, Mattux da críticos, Jesuluto provoca «ERROR 404», ElRandi apila Picoteado (×3), Seb0lla cura con Verity, Loki confunde, Capitán Perú pega más fuerte. Cada personaje también tiene su frase al despertar el Kraken.
 - **Kraken 1,6 veces más grande**, con ataques nuevos: **Onda sísmica** (anillos que se saltan), **Tormenta de tentáculos** (tres barras giratorias) y **Agarre** (te levanta y te estampa; se evita cortando ese tentáculo). Latigazo y alcances ampliados.
+
+### Kraken v6 (privado) · arreglos
+- Los enemigos y el Kraken golpean como jugadores (pasan por `applyHit`): **el parry, el bloqueo y el contraataque funcionan**, y al morir sale «Te noqueó X». Se arregló el K.O. que se quedaba pegado en pantalla.
+- **Abismo = mundo aparte:** sin el efecto de «estar bajo el agua» (pantalla azul y sonido apagado), sin sonidos ambientales de la superficie, con su propia niebla y su **propio minimapa** (camino, portón, enemigos, llave y Kraken). Los golpes/efectos de los jugadores del otro mundo (impactos, temblor, cámara lenta) ya no se sienten, y sus modelos no se ven.
+- **Colisiones:** el cuerpo del Kraken es sólido, los enemigos se separan entre sí y de los jugadores, el barco tiene colisión en cabina, mástil y barriles. Hitboxes de los ataques del Kraken ajustados a lo que se ve (aplastamiento, barrido).
+- **Suelo de la sala del Kraken** arreglado (sin la plataforma elevada que hundía a los jugadores ni parpadeos entre capas).
+- **Barco** rehecho como un navío fantasma: madera podrida con algas, vela hecha jirones, óxido, cadenas, calavera de proa, esqueleto al timón, faroles verdes y niebla.
+- **Cinemáticas:** muerte del Kraken (cámara orbitando y fuegos) y regreso: un géiser te lanza por el torbellino y apareces en el muelle con fuegos artificiales.

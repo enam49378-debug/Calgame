@@ -178,7 +178,10 @@
     document.head.appendChild(css);
     function mkBar() { if (!B.bar) { B.bar = document.createElement('div'); B.bar.id = 'bossbar'; B.bar.innerHTML = '<b>KRAKEN DEL ABISMO</b><div class="bb"><i></i></div><div class="ar"></div><small></small>'; document.body.appendChild(B.bar); } B.bar.classList.add('on'); }
     const abyssPlayers = () => G.fighters.filter(f => f.abyss && f.alive && !f.remote && !f.isBoss);
-    function hurt(f, dmg, dx, dz, kb) {
+    let HS = null;   // quién está atacando ahora (un enemigo o el jefe)
+    function hurt(f, dmg, dx, dz, kb, src) {
+      src = src || HS || B.f; if (!f.alive) return;
+      if (src && src.alive && src !== f && window.CF_ABISMO) { const dd = Math.hypot(dx, dz) || 1; applyHit(src, f, { dmg, dir: dx || dz ? new V3(dx / dd, 0, dz / dd) : null, kb: kb || 3, up: (kb || 0) * .3, stun: kb > 8 ? .4 : 0, color: '#ff5577' }); return; }
       if (!f.alive || f.iframes > 0 || f.cineLock) return;
       if (f.blocking) dmg *= .35;
       f.hp -= dmg; f.flashT = .16; f.vel.x += dx * kb; f.vel.z += dz * kb; f.vel.y = Math.max(f.vel.y, kb * .45); f.onGround = false;
@@ -201,7 +204,7 @@
         const p = targets.length ? targets[i % targets.length] : null; let x = p ? p.pos.x + rand(-3, 3) : ABY.x + rand(-14, 14), z = p ? p.pos.z + rand(-3, 3) : ABY.z + rand(-14, 14);
         const dx = x - ABY.x, dz = z - ABY.z, d = Math.hypot(dx, dz); if (d > 34) { x = ABY.x + dx / d * 34; z = ABY.z + dz / d * 34; }
         const ang = Math.atan2(z - ABY.z, x - ABY.x); let best = null, bd = 9; for (const a of arms) { if (a.busy) continue; const wp = armWorld(a), dd = angDiff(Math.atan2(wp.z - ABY.z, wp.x - ABY.x), ang); if (dd < bd) { bd = dd; best = a; } }
-        if (!best) continue; best.busy = true; hits.push({ x, z, at: .85 + i * .5, done: false, tele: telegraph(x, z, 4.6, 1.3 + i * .5), arm: best, lift: 0, hold: 0 });
+        if (!best) continue; best.busy = true; hits.push({ x, z, at: .85 + i * .5, done: false, tele: telegraph(x, z, 6.4, 1.3 + i * .5), arm: best, lift: 0, hold: 0 });
       }
       if (!hits.length) return null;
       return { name: 'slam', t: 0, dur: .85 + hits.length * .5 + 1.3, hits,
@@ -216,7 +219,7 @@
             if (!h.done && this.t >= h.at) {
               h.done = true; h.hold = .55; h.tele.life = .05;
               armReach(a, Math.hypot(h.x - wp.x, h.z - wp.z), ABY.y + .3 - wp.y, 1);
-              for (const p of abyssPlayers()) { const dx = p.pos.x - h.x, dz = p.pos.z - h.z, d = Math.hypot(dx, dz); if (d < 4.8 && p.pos.y < ABY.y + 3.2) hurt(p, 20, dx / (d || 1), dz / (d || 1), 10); }
+              for (const p of abyssPlayers()) { const dx = p.pos.x - h.x, dz = p.pos.z - h.z, d = Math.hypot(dx, dz); if (d < 6.6 && p.pos.y < ABY.y + 3.4) hurt(p, 20, dx / (d || 1), dz / (d || 1), 10); }
               burst(new V3(h.x, ABY.y + .4, h.z), 34, '#6f8aa8', 11, .3, .9, 1); ringAt(new V3(h.x, ABY.y + .2, h.z), '#ff8fb0', 7, .5); G.shake = Math.max(G.shake, .6); sfx('crash', new V3(h.x, ABY.y, h.z), .8);
             } else if (h.done && h.hold > 0) { h.hold -= dt; armReach(a, Math.hypot(h.x - wp.x, h.z - wp.z), ABY.y + .3 - wp.y, 1); }
             else if (h.done) { a.segs.forEach((s, i) => { s.rotation.x += (a.rest[i] - s.rotation.x) * Math.min(1, dt * 4); }); a.busy = false; }
@@ -225,15 +228,15 @@
         cleanup() { for (const h of this.hits) h.arm.busy = false; } };
     }
     function atkSweep() {   // barrido: un tentáculo gigante gira por el suelo; hay que saltarlo
-      const bar = new T.Mesh(new T.CylinderGeometry(.5, 1.0, ABY.R - 4, 10), new T.MeshToonMaterial({ color: 0xc2566e, gradientMap: TOON_GRAD })); bar.geometry.rotateZ(Math.PI / 2); bar.geometry.translate((ABY.R - 4) / 2, 0, 0); bar.position.set(ABY.x, ABY.y + .9, ABY.z); scene.add(bar);
+      const bar = new T.Mesh(new T.CylinderGeometry(1.1, 2.0, ABY.R - 4, 12), new T.MeshToonMaterial({ color: 0xc2566e, gradientMap: TOON_GRAD })); bar.geometry.rotateZ(Math.PI / 2); bar.geometry.translate((ABY.R - 4) / 2, 0, 0); bar.position.set(ABY.x, ABY.y + .9, ABY.z); scene.add(bar);
       const p0 = abyssPlayers()[0], dirn = Math.random() < .5 ? 1 : -1, a0 = p0 ? Math.atan2(p0.pos.z - ABY.z, p0.pos.x - ABY.x) - 1.2 * dirn : rand(0, 6.28);
-      const warn = new T.Mesh(new T.BoxGeometry(ABY.R - 4, .05, 1.4), new T.MeshBasicMaterial({ color: 0xff2d2d, transparent: true, opacity: .5, depthWrite: false })); warn.geometry.translate((ABY.R - 4) / 2, 0, 0); warn.position.set(ABY.x, ABY.y + .12, ABY.z); warn.rotation.y = -a0; scene.add(warn);
+      const warn = new T.Mesh(new T.BoxGeometry(ABY.R - 4, .05, 3.6), new T.MeshBasicMaterial({ color: 0xff2d2d, transparent: true, opacity: .5, depthWrite: false })); warn.geometry.translate((ABY.R - 4) / 2, 0, 0); warn.position.set(ABY.x, ABY.y + .12, ABY.z); warn.rotation.y = -a0; scene.add(warn);
       return { name: 'sweep', t: 0, dur: 1.2 + 2.7, bar, warn, a0, dirn, hit: new Set(),
         upd(dt) {
           if (this.t < 1.2) { this.bar.visible = false; this.warn.material.opacity = .25 + Math.sin(this.t * 16) * .15; return; }
           this.warn.visible = false; this.bar.visible = true; const sp = (B.phase2 ? 2.7 : 2.2), a = this.a0 + this.dirn * (this.t - 1.2) * sp; this.bar.rotation.y = -a;
           const cx = Math.cos(a), cz = Math.sin(a);
-          for (const p of abyssPlayers()) { if (this.hit.has(p)) continue; const dx = p.pos.x - ABY.x, dz = p.pos.z - ABY.z, along = dx * cx + dz * cz, off = Math.abs(-dx * cz + dz * cx); if (along > 3 && along < ABY.R && off < 1.7 && p.pos.y < ABY.y + 1.7) { this.hit.add(p); hurt(p, 16, -cz * this.dirn, cx * this.dirn, 9); } }
+          for (const p of abyssPlayers()) { if (this.hit.has(p)) continue; const dx = p.pos.x - ABY.x, dz = p.pos.z - ABY.z, along = dx * cx + dz * cz, off = Math.abs(-dx * cz + dz * cx); if (along > 3 && along < ABY.R && off < 2.4 && p.pos.y < ABY.y + 2.0) { this.hit.add(p); hurt(p, 16, -cz * this.dirn, cx * this.dirn, 9); } }
           if (Math.random() < dt * 20) emit(ABY.x + cx * rand(4, 60), ABY.y + .6, ABY.z + cz * rand(4, 60), 0, 1.5, 0, '#a9c4d8', .22, .5, 1, 2);
         },
         cleanup() { scene.remove(this.bar); scene.remove(this.warn); if (B.state === 'fight') B.vuln = Math.max(B.vuln, 2.2); } };
@@ -384,6 +387,7 @@
       const prize = []; if (window.CF_EMOTES && CF_EMOTES.grantBoss) prize.push(...CF_EMOTES.grantBoss()); if (window.CF_COS && CF_COS.grantBoss) prize.push(...CF_COS.grantBoss());
       later(2.2, () => { if (prize.length) { showBanner('¡RECOMPENSAS!', '#ffd54f', prize.join(' · ')); for (const p of prize) addFeedText('🎁 ' + p, '#ffd54f'); } else addFeedText('El Kraken no soltó nada nuevo esta vez', '#9aa0b8'); });
       later(7, () => { sleepBoss(); if (B.g) B.g.visible = false; });
+      if (G.player && G.player.abyss) { cinCam(() => new V3(B.g.position.x, B.g.position.y + 5, B.g.position.z), 6.8, 84, 36, .22); for (let i = 0; i < 6; i++) later(.5 + i * .9, () => { if (B.g) { const q = B.g.position.clone().add(new V3(rand(-9, 9), rand(6, 26), rand(-9, 9))); burst(q, 50, ['#ffd54f', '#ff8fb0', '#7df9ff'][i % 3], 15, .35, 1.2, .1); ringAt(q, '#ffd54f', 10, .7); sfx('boom', q, .5); } }); }
     }
     function bossUpdate(dt, t) {
       const f = B.f; if (!f || !B.g) return; const g = B.g;
@@ -393,11 +397,13 @@
       const rage = B.phase2 ? 1.7 : 1, dead = B.state === 'dead';
       B.jet = Math.max(0, B.jet - dt * 1.6); const pulse = Math.sin(t * 1.5 * rage) * .035 + B.jet * .12;
       B.mantle.scale.set(1 + pulse, 1 - pulse * .8, 1 + pulse); B.head.scale.set(1 + pulse * .3, .86 - pulse * .2, 1.05);
+      if (tgt && !dead) { const hy = Math.max(-.5, Math.min(.5, (Math.atan2(tgt.pos.x - g.position.x, tgt.pos.z - g.position.z) - g.rotation.y) * .35)); B.head.rotation.y += (hy - B.head.rotation.y) * Math.min(1, dt * 4); }
       B.fins.forEach(([fin, s]) => { fin.rotation.z = s * (.5 + Math.sin(t * 2.4 * rage) * .22); });
       B.arms.forEach(a => {
         if (a.severed) { a.regrow -= dt; if (a.regrow <= 0) { a.severed = false; a.hp = a.max; a.root.visible = true; a.root.scale.setScalar(.2); burst(armWorld(a).add(new V3(0, 1, 0)), 14, '#ffd0dc', 6, .2, .6, -.2); } return; }
         a.root.scale.setScalar(Math.min(1, a.root.scale.x + dt * .8)); a.flash = Math.max(0, a.flash - dt);
         if (a.busy) return;
+        { const tAng = tgt ? Math.atan2(tgt.pos.x - g.position.x, tgt.pos.z - g.position.z) - g.rotation.y : 0; let dy = tAng - (Math.PI / 2 - a.ang); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const lean = dead ? 0 : Math.max(-.7, Math.min(.7, dy)) * .3 * (1 - Math.abs(dy) / Math.PI); a.root.rotation.y += ((Math.PI / 2 - a.ang + lean) - a.root.rotation.y) * Math.min(1, dt * 3); }
         const ph = a.ang * 1.7;
         a.segs.forEach((s, i) => { const w = dead ? 0 : 1, base = dead ? .45 + i * .03 : a.rest[i]; s.rotation.x += ((base + Math.sin(t * 1.5 * rage - i * .55 + ph) * (.04 + .022 * i) * w) - s.rotation.x) * Math.min(1, dt * (dead ? 1.5 : 6)); s.rotation.y = Math.sin(t * 1.1 * rage - i * .4 + ph * 1.3) * .07 * w; });
       });
@@ -441,7 +447,7 @@
     function buildAbyss() {
       if (AB.built) return; AB.built = true;
       const r = new T.Group(); r.position.set(ABY.x, ABY.y, ABY.z); r.visible = false; scene.add(r); AB.root = r;
-      const fl = new T.Mesh(new T.CircleGeometry(ABY.R + 10, 96), new T.MeshBasicMaterial({ map: floorTex() })); fl.rotation.x = -Math.PI / 2; r.add(fl);
+      const fl = new T.Mesh(new T.CircleGeometry(ABY.R + 10, 96), new T.MeshBasicMaterial({ map: floorTex() })); fl.rotation.x = -Math.PI / 2; fl.position.y = -.05; r.add(fl);
       const N = 260, im = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xffffff }), N), M = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), P = new V3(), S = new V3(), col = new T.Color();
       for (let i = 0; i < N; i++) { const a = rnd() * 6.283, d = 30 + Math.sqrt(rnd()) * (ABY.R - 30), w = .8 + rnd() * 3.2, h = .12 + rnd() * (i % 9 ? .5 : 1.8); P.set(Math.cos(a) * d, h / 2, Math.sin(a) * d); E.set(0, rnd() * 3, 0); Q.setFromEuler(E); S.set(w, h, w * (.6 + rnd() * .8)); M.compose(P, Q, S); im.setMatrixAt(i, M); im.setColorAt(i, col.set(rnd() < .15 ? '#1f5272' : rnd() < .5 ? '#16304a' : '#0f2338')); }
       im.instanceColor.needsUpdate = true; r.add(im);
@@ -450,8 +456,7 @@
       const ceil = new T.Mesh(new T.CircleGeometry(ABY.R + 12, 56), new T.MeshBasicMaterial({ color: 0x0c5a7a, transparent: true, opacity: .55, side: T.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.y = 100; r.add(ceil);
       for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283; const sh = new T.Mesh(new T.CylinderGeometry(3, 9, 100, 12, 1, true), bmat(0x6fd8ff, .05, true)); sh.position.set(Math.cos(a) * 36, 50, Math.sin(a) * 36); r.add(sh); }
       const stalM = lm('#1c3a52'); for (let i = 0; i < 46; i++) { const a = rnd() * 6.283, d = rnd() * (ABY.R + 6), h = 6 + rnd() * 26, c = new T.Mesh(new T.ConeGeometry(1 + rnd() * 2.6, h, 7), stalM); c.rotation.x = Math.PI; c.position.set(Math.cos(a) * d, 100 - h / 2 + 1, Math.sin(a) * d); r.add(c); }
-      const plat = new T.Mesh(new T.CylinderGeometry(38, 40, 1.2, 48), new T.MeshBasicMaterial({ color: 0x12304a })); plat.position.y = .45; r.add(plat);
-      const edge = new T.Mesh(new T.RingGeometry(37.6, 39.5, 64), bmat(0x39e6ff, .7, true)); edge.rotation.x = -Math.PI / 2; edge.position.y = 1.08; r.add(edge);
+      const edge = new T.Mesh(new T.RingGeometry(37.6, 39.5, 64), bmat(0x39e6ff, .7, true)); edge.rotation.x = -Math.PI / 2; edge.position.y = .07; r.add(edge);
       for (let i = 0; i < 4; i++) { const a = i / 4 * 6.283 + .78, x = Math.cos(a) * 46, z = Math.sin(a) * 46; mkbox(r, 3, 17, 3, lm('#1b3047'), x, 8.5, z, 0, a, 0); mkbox(r, 2.2, 2.2, 2.2, bmat(i % 2 ? 0xff4fd8 : 0x39e6ff, .95, true), x, 18.3, z, .7, .7, 0); const bm2 = new T.Mesh(new T.CylinderGeometry(.5, .5, 80, 8, 1, true), bmat(i % 2 ? 0xff4fd8 : 0x39e6ff, .18, true)); bm2.position.set(x, 58, z); r.add(bm2); }
       const stone = lm('#26405a'), stone2 = lm('#1b3047');
       for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283 + rnd() * .3, d = 52 + rnd() * 14, h = 7 + rnd() * 12, x = Math.cos(a) * d, z = Math.sin(a) * d; mkbox(r, 3.2, h, 3.2, i % 2 ? stone : stone2, x, h / 2, z); mkbox(r, 4, .8, 4, stone, x, h + .2, z, .1, rnd() * 3, .08); }
@@ -496,7 +501,7 @@
     }
     function buildCorridor(r, fallTex) {
       const { len } = pathInfo(), hw = ABY_COR.hw, rel = q => [q.x - ABY.x, q.z - ABY.z];
-      const ft = pathTex(); ribbon(r, 0, hw * 2 + 2.6, .03, new T.MeshBasicMaterial({ map: ft, side: T.DoubleSide }), 14);
+      const ft = pathTex(); ribbon(r, 0, hw * 2 + 2.6, .03, new T.MeshBasicMaterial({ map: ft, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 14);
       for (const [sd, col] of [[-1, 0x39e6ff], [1, 0xff4fd8]]) ribbon(r, sd * (hw - .5), .5, .09, bmat(col, .9, true), 30);
       const stone = lm('#26405a'), stone2 = lm('#1b3047'), rockCols = ['#0a2233', '#0e2d44', '#08192a', '#12384f'];
       // paredes: rocas altas, una cada ~2.8 m a cada lado (se saltan donde otro tramo del camino pasa cerca)
@@ -723,12 +728,13 @@
       for (let i = 0; i < 12; i++) { const z = .09 + i * .072, pool = pools[Math.min(pools.length - 1, i * pools.length / 12 | 0)], n = 2 + (i / 4 | 0), kinds = []; for (let j = 0; j < n; j++) kinds.push(pool[(rnd() * pool.length) | 0]); g.push({ sd: len * z, kinds, spawned: false }); }
       g.push({ sd: len * .58, kinds: ['captain', 'drowned', 'drowned'], spawned: false, cap: true }); g.sort((a, b) => a.sd - b.sd); return g;
     }
-    function mobAttack(m, tgt) {
+    function mobAttack(m, tgt) { HS = m.f; try { mobAttack0(m, tgt); } finally { HS = null; } }
+    function mobAttack0(m, tgt) {
       const f = m.f, T0 = m.T; if (!tgt || !tgt.alive) return;
       const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, d = Math.hypot(dx, dz) || 1, ux = dx / d, uz = dz / d;
       if (m.k === 'jelly') { for (const p of abyssPlayers()) if (dist2d(p, f) < T0.rng + .8) hurt(p, T0.dmg, ux, uz, 3); ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#7df9ff', T0.rng * 1.2, .5); burst(f.pos.clone(), 18, '#9ef2ff', 8, .2, .5, 0); sfx('beam', f.pos, .6); }
       else if (m.k === 'angler') { m.lunge = .4; m.lx = ux; m.lz = uz; m.hitDone = false; sfx('rush', f.pos, .7); }
-      else if (m.k === 'squidling') { const b = new T.Mesh(new T.SphereGeometry(.4, 8, 6), bmat(0x2a1030, .95, false)); b.position.copy(f.pos); b.position.y += 1.6; scene.add(b); AB.bolts.push({ m: b, vx: ux * 15, vz: uz * 15, t: 0, dmg: T0.dmg }); sfx('whoosh', f.pos, .6); }
+      else if (m.k === 'squidling') { const b = new T.Mesh(new T.SphereGeometry(.4, 8, 6), bmat(0x2a1030, .95, false)); b.position.copy(f.pos); b.position.y += 1.6; scene.add(b); AB.bolts.push({ m: b, vx: ux * 15, vz: uz * 15, t: 0, dmg: T0.dmg, src: f }); sfx('whoosh', f.pos, .6); }
       else if (m.k === 'captain' && m.alt) { const R = 6.2; for (const p of abyssPlayers()) if (dist2d(p, f) < R + 1) hurt(p, T0.dmg * 1.1, ux, uz, 9); ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ffb347', R * 1.3, .6); burst(f.pos.clone(), 26, '#ffd0a0', 10, .3, .7, .4); G.shake = Math.max(G.shake, .5); sfx('crash', f.pos, .8); }
       else { if (d < T0.rng + 1.4) hurt(tgt, T0.dmg, ux, uz, m.k === 'captain' ? 7 : 5); burst(new V3(f.pos.x + ux * 1.6, f.pos.y + 1, f.pos.z + uz * 1.6), 8, '#e8f8ff', 6, .2, .4, 0); sfx('heavy', f.pos, .5); }
       if (m.k === 'captain') m.alt = !m.alt;
@@ -767,7 +773,7 @@
         if (tgt && bd < T0.aggro) m.aggro = true; else if (!tgt || bd > T0.aggro * 2.2) m.aggro = false;
         if (m.stun > 0) { m.stun -= dt; m.wind = 0; m.lunge = 0; }
         else if (m.conf > 0) { const a = t * 3 + m.ph; mx = Math.cos(a) * sp; mz = Math.sin(a * 1.3) * sp; moving = true; m.yaw = Math.atan2(mx, mz); }
-        else if (m.lunge > 0) { m.lunge -= dt; mx = m.lx * 17; mz = m.lz * 17; moving = true; if (!m.hitDone && tgt && dist2d(tgt, f) < 2.6) { m.hitDone = true; hurt(tgt, T0.dmg, m.lx, m.lz, 8); } }
+        else if (m.lunge > 0) { m.lunge -= dt; mx = m.lx * 17; mz = m.lz * 17; moving = true; if (!m.hitDone && tgt && dist2d(tgt, f) < 2.6) { m.hitDone = true; hurt(tgt, T0.dmg, m.lx, m.lz, 8, f); } }
         else if (m.wind > 0) { m.wind -= dt; if (tgt) m.yaw = Math.atan2(tgt.pos.x - f.pos.x, tgt.pos.z - f.pos.z); if (m.wind <= 0) mobAttack(m, tgt); }
         else if (m.aggro && tgt) {
           const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, dd = Math.hypot(dx, dz) || 1; m.yaw = Math.atan2(dx, dz);
@@ -783,7 +789,7 @@
         if (m.dot) for (const mt of m.mats) mt.emissive.setRGB(.5, .2, .02);
         if (m.cap && KEY.st !== 'ground' && KEY.st !== 'held' && KEY.st !== 'used') { /* el capitán lleva la llave encima */ }
       }
-      for (let i = AB.bolts.length - 1; i >= 0; i--) { const b = AB.bolts[i]; b.t += dt; b.m.position.x += b.vx * dt; b.m.position.z += b.vz * dt; let hit = false; for (const p of ps) if (Math.hypot(p.pos.x - b.m.position.x, p.pos.z - b.m.position.z) < 1.3 && p.pos.y < ABY.y + 3.4) { hurt(p, b.dmg, Math.sign(b.vx), Math.sign(b.vz), 3); hit = true; break; } if (hit || b.t > 2.4) { burst(b.m.position.clone(), 8, '#4a2060', 5, .2, .5, 0); scene.remove(b.m); AB.bolts.splice(i, 1); } }
+      for (let i = AB.bolts.length - 1; i >= 0; i--) { const b = AB.bolts[i]; b.t += dt; b.m.position.x += b.vx * dt; b.m.position.z += b.vz * dt; let hit = false; for (const p of ps) if (Math.hypot(p.pos.x - b.m.position.x, p.pos.z - b.m.position.z) < 1.3 && p.pos.y < ABY.y + 3.4) { hurt(p, b.dmg, Math.sign(b.vx), Math.sign(b.vz), 3, b.src); hit = true; break; } if (hit || b.t > 2.4) { burst(b.m.position.clone(), 8, '#4a2060', 5, .2, .5, 0); scene.remove(b.m); AB.bolts.splice(i, 1); } }
     }
     function keyUpdate(dt, t) {
       const D = AB.door; if (!D) return; const ps = abyssPlayers(), lk = locked();
@@ -826,12 +832,64 @@
       burst(new V3(VX, SEA_Y + .3, VZ), 60, '#dff6ff', 14, .3, .9, -.4); ringAt(new V3(VX, SEA_Y + .1, VZ), '#7df9ff', 14, .7);
       B.g.visible = true;
     }
+    function ascend(f) {   // victoria: un géiser te lanza por el torbellino y la corriente te devuelve al muelle
+      f.fellIn = 0; f.exitMsg = 0; f.gateMsg = false; showWorld(); f.pos.set(VX, SEA_Y - .3, VZ); f.vel.set(0, 0, 0); f.iframes = 14; f.boatSink = true; f.onGround = false;
+      AB.asc = { f, t: 0, ph: 1 }; screenFlash(.9); showBanner('¡LA CORRIENTE TE LLEVA!', '#7df9ff', 'Un géiser te lanza a la superficie'); sfx('rush', null, 1); G.shake = Math.max(G.shake, 1);
+      cinCam(() => new V3(VX, SEA_Y + 9, VZ), 3.6, 36, 15, .6);
+    }
+    function ascUpdate(dt) {
+      const a = AB.asc; if (!a) return; a.t += dt; const f = a.f; if (!G.fighters.includes(f)) { AB.asc = null; return; }
+      if (a.ph === 1) {
+        const u = Math.min(1, a.t / 3.4), e = u * u * (3 - 2 * u); f.pos.set(VX, SEA_Y + e * 21, VZ); f.vel.set(0, 0, 0); G.shake = Math.max(G.shake, .4 + e * .8);
+        for (let i = 0; i < 4; i++) emit(VX + rand(-2.5, 2.5), SEA_Y + rand(0, 24), VZ + rand(-2.5, 2.5), rand(-3, 3), rand(8, 18), rand(-3, 3), '#dff6ff', .3, 1, -.2, 1);
+        if (a.t >= 3.4) {
+          a.ph = 2; a.t = 0; screenFlash(1); f.pos.set(0, .35, 127); f.vel.set(0, 0, 0); f.yaw = Math.PI; f.onGround = true; if (f.model && f.model.root) { f.model.root.rotation.x = f.model.root.rotation.z = 0; f.model.root.scale.setScalar(1); }
+          burst(new V3(0, 1, 127), 70, '#ffe9a0', 14, .3, 1, .5); ringAt(new V3(0, .2, 127), '#ffd54f', 10, .8); showBanner('¡BIENVENIDO DE VUELTA!', '#ffd54f', 'Derrotaste al Kraken del abismo'); sfx('boom', null, .8);
+          cinCam(() => new V3(f.pos.x, f.pos.y + 1, f.pos.z), 4.6, 15, 5, .3);
+          for (let i = 0; i < 10; i++) later(.3 + i * .42, () => { const c = ['#ff6b6b', '#ffd54f', '#7df9ff', '#9d6bff', '#7dffb0'][i % 5], q = new V3(rand(-16, 16), rand(18, 34), 118 + rand(-8, 14)); burst(q, 60, c, 15, .35, 1.2, -.1); ringAt(q, c, 7, .6); sfx('boom', q, .45); });
+        }
+      } else if (a.t > 4.8) { f.boatSink = false; f.iframes = Math.max(f.iframes, 1); AB.asc = null; }
+    }
+
     function leaveAbyss(f) {
       if (!f.abyss) return; f.abyss = false;
+      if (f.isPlayer && AB.cleared) { ascend(f); if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); return; }
       const a = rand(0, 6.283); f.pos.set(VX + Math.cos(a) * (VR + 10), SEA_Y + .4, VZ + Math.sin(a) * (VR + 10)); f.vel.set(Math.cos(a) * 6, 15, Math.sin(a) * 6); f.onGround = false; f.iframes = Math.max(f.iframes, 1.2); f.gateMsg = false; if (f.isPlayer) showWorld();
       if (f.isPlayer) { screenFlash(.7); showBanner('SUPERFICIE', '#fff2a8', 'Saliste del abismo'); sfx('rush', null, .8); }
       burst(f.pos.clone(), 40, '#dff6ff', 12, .25, .8, -.3);
       if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss();
+    }
+
+    function mini(g, W, p, yaw) {
+      pathInfo(); const x0 = -330, x1 = 95, z0 = -85, z1 = 150, sc = Math.min((W - 30) / (x1 - x0), (W - 30) / (z1 - z0)), ox = (W - (x1 - x0) * sc) / 2, oz = (W - (z1 - z0) * sc) / 2;
+      const X = ax => ox + (ax - ABY.x - x0) * sc, Z = az => oz + (az - ABY.z - z0) * sc;
+      g.clearRect(0, 0, W, W); g.fillStyle = '#03101b'; g.fillRect(0, 0, W, W);
+      g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#123f5a'; g.lineWidth = ABY_COR.hw * 2 * sc; g.beginPath(); ABY_PTS.forEach((q, i) => { if (i % 3 && i < ABY_PTS.length - 1) return; i ? g.lineTo(X(q[0]), Z(q[1])) : g.moveTo(X(q[0]), Z(q[1])); }); g.stroke();
+      g.strokeStyle = 'rgba(57,230,255,.45)'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = '#0b2c44'; g.beginPath(); g.arc(X(ABY.x), Z(ABY.z), ABY.R * sc, 0, 7); g.fill(); g.strokeStyle = '#39e6ff'; g.lineWidth = 2; g.stroke();
+      const dot = (ax, az, r, c, ring) => { g.fillStyle = c; g.beginPath(); g.arc(X(ax), Z(az), r, 0, 7); g.fill(); if (ring) { g.strokeStyle = ring; g.lineWidth = 2; g.stroke(); } };
+      const e = ENTRY(); dot(e.x, e.z, 7, '#7df9ff', '#fff'); const dd = doorAbs(); dot(dd.x, dd.z, 6, AB.door && (AB.door.open || !locked()) ? '#7dffb0' : '#ff4d7a', '#fff'); const ex = EXIT(); dot(ex.x, ex.z, 6, '#ffd54f', '#fff');
+      for (const m of AB.mobs) if (!m.dead) dot(m.f.pos.x, m.f.pos.z, m.cap ? 6 : 3.4, m.cap ? '#ffb347' : '#ff5577', m.cap ? '#fff' : null);
+      if (KEY.st === 'ground') dot(KEY.pos.x, KEY.pos.z, 5, '#ffd54f', '#fff');
+      if (B.f && B.state !== 'dead') dot(ABY.x, ABY.z, 11 + Math.sin(performance.now() / 200) * 2, '#ff2d7a', '#ffd0dc');
+      const px = X(p.pos.x), pz = Z(p.pos.z); const grd = g.createRadialGradient(px, pz, 3, px, pz, 52); grd.addColorStop(0, 'rgba(255,255,255,.4)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = grd; g.beginPath(); g.moveTo(px, pz); for (let i = 0; i <= 8; i++) { const a = yaw - .55 + i / 8 * 1.1; g.lineTo(px + Math.sin(a) * 52, pz + Math.cos(a) * 52); } g.closePath(); g.fill();
+      dot(p.pos.x, p.pos.z, 6, '#7dffb0', '#fff'); g.fillStyle = 'rgba(255,255,255,.75)'; g.font = 'bold 22px system-ui,Arial'; g.textAlign = 'left'; g.fillText('EL ABISMO', 14, 28); return true;
+    }
+    function collide() {
+      const ps = abyssPlayers(), R = 4.9 * KS + .4;
+      if (B.g && B.g.visible) for (const p of ps) { const dx = p.pos.x - ABY.x, dz = p.pos.z - ABY.z, d = Math.hypot(dx, dz); if (d < R && p.pos.y < ABY.y + 22 * KS && d > .01) { p.pos.x = ABY.x + dx / d * R; p.pos.z = ABY.z + dz / d * R; p.vel.x *= .5; p.vel.z *= .5; } }
+      const ms = AB.mobs.filter(m => !m.dead && m.spawnT >= 1);
+      for (let i = 0; i < ms.length; i++) {
+        const a = ms[i], fa = a.f;
+        for (let j = i + 1; j < ms.length; j++) { const b = ms[j], fb = b.f, dx = fb.pos.x - fa.pos.x, dz = fb.pos.z - fa.pos.z, d = Math.hypot(dx, dz), r = a.T.r + b.T.r; if (d < r && d > .001) { const k = (r - d) / 2 / d; fa.pos.x -= dx * k; fa.pos.z -= dz * k; fb.pos.x += dx * k; fb.pos.z += dz * k; } }
+        for (const p of ps) { if (p.pos.y > fa.pos.y + (a.T.h || 2) - .3) continue; const dx = p.pos.x - fa.pos.x, dz = p.pos.z - fa.pos.z, d = Math.hypot(dx, dz), r = a.T.r + .5; if (d < r && d > .001) { const k = (r - d) / d; p.pos.x += dx * k * .7; p.pos.z += dz * k * .7; fa.pos.x -= dx * k * .3; fa.pos.z -= dz * k * .3; abyssClamp(fa.pos); } }
+      }
+      for (const p of ps) abyssClamp(p.pos);
+    }
+    const ABY_FOG = new T.Color(0x03111d);
+    function abyssAtmosphere(meIn) {
+      for (const f of G.fighters) if (f.remote && f.model && f.model.root && (meIn || f.abyss)) f.model.root.visible = (!!f.abyss === meIn);   // los jugadores de "el otro mundo" no se ven
+      if (!meIn || !scene.fog) return; scene.fog.color.copy(ABY_FOG); if (scene.background && scene.background.copy) scene.background.copy(ABY_FOG); scene.fog.near = 14; scene.fog.far = 240;
     }
 
     // ---------------------------------------------------------------- bucle (lo llama updateSea cada cuadro)
@@ -896,6 +954,7 @@
       for (const f of G.fighters) if (f.abyss && f.isPlayer && f.alive && !f.gateMsg && f.pos.x > GATE_X) { f.gateMsg = true; showBanner('SALA DEL KRAKEN', '#ff8fb0', ev && !AB.cleared ? 'No hay vuelta atrás…' : 'Todo está en calma'); G.shake = Math.max(G.shake, .5); sfx('whoom', null, .9); }
       if (ev && !AB.cleared && B.state === 'sleep' && G.fighters.some(g => g.abyss && !g.isBoss && !g.remote && g.alive && g.pos.x > GATE_X)) spawnBoss();   // al cruzar el portón despierta
       const meIn = !!(G.player && G.player.abyss); if (!meIn && AB.hidden) showWorld(); else if (meIn && !AB.hidden && G.state === 'play') hideWorld(); if (G.state !== 'play') showWorld();
+      abyssAtmosphere(meIn); if (insideNow) collide(); ascUpdate(dt);
       if (window.CF_MUELLE) CF_MUELLE.update(dt, t, cp);
       for (const f of G.fighters) if (f.abyss && !f.isBoss && (f.pos.z < ABY.z - 130 || (!f.alive && f.deathT > 1.2 && !locked()))) { f.abyss = false; f.fellIn = 0; f.exitMsg = 0; if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); }
       if (B.f) bossUpdate(dt, t); else if (B.g && B.g.visible && B.state === 'sleep') sleepAnim(dt, t);
@@ -918,7 +977,7 @@
       tpDoor(f) { buildVortex(); f = f || G.player; if (!f.abyss) enterAbyss(f); const d = doorAbs(); f.pos.set(d.x - 8, ABY.y + .2, d.z); f.vel.set(0, 0, 0); },
       tpStart(f) { buildVortex(); f = f || G.player; if (!f.abyss) enterAbyss(f); },
       killBoss() { if (B.f && B.state === 'fight') { B.f.hp = 0; kill(B.f, G.player); } },
-      get mobCount() { return AB.mobs.length; }, get key() { return KEY.st; }, get door() { return AB.door ? AB.door.open : null; }, mobs: () => AB.mobs, resetRun, update, bossHit, bossDown, enter: enterAbyss, leave: leaveAbyss, get boss() { return B.f; }, get mesh() { return B.g; }, VORTEX: { x: VX, z: VZ, r: VR }, get state() { return B.state; }, get arms() { return B.arms; },
+      mini, get atk() { return B.atk && B.atk.name; }, get asc() { return !!AB.asc; }, get mobCount() { return AB.mobs.length; }, get key() { return KEY.st; }, get door() { return AB.door ? AB.door.open : null; }, mobs: () => AB.mobs, resetRun, update, bossHit, bossDown, enter: enterAbyss, leave: leaveAbyss, get boss() { return B.f; }, get mesh() { return B.g; }, VORTEX: { x: VX, z: VZ, r: VR }, get state() { return B.state; }, get arms() { return B.arms; },
       tp(f) { buildVortex(); enterAbyss(f || G.player); },
       locked, respawnIn, hideWorld, showWorld, get cleared() { return AB.cleared; }, get hiddenCount() { return AB.hidden ? AB.hidden.length : 0; },
       wake() { spawnBoss(); },

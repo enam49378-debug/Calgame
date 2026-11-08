@@ -77,37 +77,85 @@
     // ---------------------------------------------------------------- el barco
     function hullShape(len, wid, bow) {
       const sh = new T.Shape(), l = len / 2, w = wid / 2;
-      sh.moveTo(-l, -w); sh.lineTo(l - bow, -w); sh.quadraticCurveTo(l - bow * .25, -w, l, 0); sh.quadraticCurveTo(l - bow * .25, w, l - bow, w); sh.lineTo(-l, w); sh.lineTo(-l, -w); return sh;
+      sh.moveTo(-l, -w); sh.lineTo(l - bow, -w); sh.bezierCurveTo(l - bow * .5, -w, l - bow * .12, -w * .5, l, 0); sh.bezierCurveTo(l - bow * .12, w * .5, l - bow * .5, w, l - bow, w); sh.lineTo(-l, w); sh.lineTo(-l, -w); return sh;
     }
-    function layer(g, len, wid, bow, y0, h, col) {
-      const geo = new T.ExtrudeGeometry(hullShape(len, wid, bow), { depth: h, bevelEnabled: false, curveSegments: 10 }); geo.rotateX(-Math.PI / 2);
-      const m = new T.Mesh(geo, lm(col)); m.position.y = y0; g.add(m); return m;
+    // ---- texturas procedurales: madera podrida con algas, tela rota, óxido, pintura descascarada
+    function texCanvas(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t; }
+    function woodTexture(base, slime, planks) {
+      return texCanvas(512, 512, (g, w, h) => {
+        g.fillStyle = base; g.fillRect(0, 0, w, h); const ph = h / planks;
+        for (let p = 0; p < planks; p++) { const tone = (rnd() - .5) * 26; g.fillStyle = 'rgba(' + (tone > 0 ? '255,235,200' : '0,0,0') + ',' + (Math.abs(tone) / 160).toFixed(2) + ')'; g.fillRect(0, p * ph, w, ph);
+          for (let i = 0; i < 26; i++) { g.strokeStyle = 'rgba(20,10,4,' + (.1 + rnd() * .22).toFixed(2) + ')'; g.lineWidth = .6 + rnd() * 1.4; g.beginPath(); const y = p * ph + rnd() * ph; g.moveTo(rnd() * 60, y); g.bezierCurveTo(w * .3, y + (rnd() - .5) * 6, w * .6, y + (rnd() - .5) * 6, w, y + (rnd() - .5) * 4); g.stroke(); }
+          g.strokeStyle = 'rgba(0,0,0,.7)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, p * ph); g.lineTo(w, p * ph); g.stroke();
+          for (let n = 0; n < 4; n++) { g.fillStyle = 'rgba(30,26,24,.85)'; g.beginPath(); g.arc(20 + rnd() * (w - 40), p * ph + 5 + rnd() * (ph - 10), 2.2, 0, 7); g.fill(); } }
+        for (let i = 0; i < 70; i++) { g.fillStyle = 'rgba(8,16,10,' + (.08 + rnd() * .2).toFixed(2) + ')'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 6 + rnd() * 30, 0, 7); g.fill(); }
+        if (slime) for (let i = 0; i < 90; i++) { const yy = h * (.45 + rnd() * .55); g.fillStyle = 'rgba(' + (20 + rnd() * 30 | 0) + ',' + (70 + rnd() * 60 | 0) + ',' + (40 + rnd() * 30 | 0) + ',' + (.18 + rnd() * .3).toFixed(2) + ')'; g.beginPath(); g.arc(rnd() * w, yy, 5 + rnd() * 24, 0, 7); g.fill(); }
+        for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(190,200,190,' + (.1 + rnd() * .25).toFixed(2) + ')'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 1.5 + rnd() * 3, 0, 7); g.fill(); }
+      });
+    }
+    function sailTexture() {
+      return texCanvas(256, 256, (g, w, h) => {
+        g.fillStyle = '#b9b19a'; g.fillRect(0, 0, w, h); for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(' + (60 + rnd() * 50 | 0) + ',' + (50 + rnd() * 40 | 0) + ',30,' + (.08 + rnd() * .2).toFixed(2) + ')'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 6 + rnd() * 34, 0, 7); g.fill(); }
+        g.strokeStyle = 'rgba(60,50,40,.35)'; g.lineWidth = 1.5; for (let y = 0; y < h; y += 18) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); } g.fillStyle = 'rgba(120,20,20,.55)'; g.fillRect(0, h * .3, w, 20);
+        g.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 16; i++) { g.beginPath(); const x = rnd() * w, y = rnd() * h, r = 4 + rnd() * 22; g.moveTo(x, y); for (let k = 0; k < 7; k++) { const a = k / 7 * 6.283; g.lineTo(x + Math.cos(a) * r * (.5 + rnd()), y + Math.sin(a) * r * (.5 + rnd())); } g.fill(); }
+        for (let x = 0; x < w; x += 8) { g.fillRect(x, h - rnd() * 34, 6, 40); } g.globalCompositeOperation = 'source-over';
+      });
+    }
+    function rustTexture() { return texCanvas(128, 128, (g, w, h) => { g.fillStyle = '#4a2c20'; g.fillRect(0, 0, w, h); for (let i = 0; i < 140; i++) { g.fillStyle = 'rgba(' + (110 + rnd() * 70 | 0) + ',' + (50 + rnd() * 30 | 0) + ',20,' + (.1 + rnd() * .3).toFixed(2) + ')'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 2 + rnd() * 12, 0, 7); g.fill(); } }); }
+    function paintTexture() { return texCanvas(256, 256, (g, w, h) => { g.fillStyle = '#9aa294'; g.fillRect(0, 0, w, h); for (let i = 0; i < 160; i++) { g.fillStyle = 'rgba(' + (rnd() < .5 ? '60,70,56' : '190,196,180') + ',' + (.08 + rnd() * .25).toFixed(2) + ')'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 3 + rnd() * 20, 0, 7); g.fill(); } for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(70,40,24,.5)'; g.beginPath(); g.arc(rnd() * w, rnd() * h, 2 + rnd() * 9, 0, 7); g.fill(); } g.strokeStyle = 'rgba(20,24,20,.5)'; g.lineWidth = 2; for (let y = 0; y < h; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); } }); }
+    function netTexture() { return texCanvas(128, 128, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(70,60,40,.95)'; g.lineWidth = 3; for (let i = -h; i < w + h; i += 16) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); g.beginPath(); g.moveTo(i + h, 0); g.lineTo(i, h); g.stroke(); } }); }
+    const std = (map, rough, metal, col) => new T.MeshStandardMaterial({ map: map || null, color: col || 0xffffff, roughness: rough, metalness: metal || 0 });
+    function layer(g, len, wid, bow, y0, h, mat, bevel) {
+      const geo = new T.ExtrudeGeometry(hullShape(len, wid, bow), { depth: h, bevelEnabled: !!bevel, bevelThickness: .12, bevelSize: .12, bevelSegments: 2, curveSegments: 14 }); geo.rotateX(-Math.PI / 2);
+      const m = new T.Mesh(geo, mat); m.position.y = y0; g.add(m); return m;
     }
     function buildBoat() {
       const g = new T.Group(); g.visible = false; scene.add(g); M.boat = g;
-      const white = lm('#f1ead8'), red = lm('#c0392b'), wood = lm('#8a5a34'), dark = lm('#2b2f38'), glass = bm(0xffe8a0, .95, true), navy = lm('#22456b');
-      layer(g, 13.4, 3.4, 4.2, -1.7, .9, '#5a2218'); layer(g, 15.2, 5.0, 4.6, -.85, .95, '#b3392a'); layer(g, 15.5, 5.3, 4.8, .06, .16, '#f1ead8'); layer(g, 14.6, 4.7, 4.3, .2, .12, '#c79a62');
-      for (let x = -6.6; x <= 4.4; x += 1.1) mkbox(g, .05, .02, 4.5, lm('#a77e48'), x, .33, 0);
-      for (const sd of [-1, 1]) { mkbox(g, 11.2, .12, .14, wood, -1.4, 1.3, sd * 2.35); mkbox(g, 11.2, .09, .09, wood, -1.4, .8, sd * 2.35); for (let x = -6.6; x <= 3.8; x += 1.7) mkbox(g, .13, 1.05, .13, wood, x, .85, sd * 2.35); }
-      mkbox(g, .12, .12, 3.2, wood, 4.0, 1.3, 1.9, 0, .5, 0); mkbox(g, .12, .12, 3.2, wood, 4.0, 1.3, -1.9, 0, -.5, 0);
-      mkbox(g, 4.2, 2.6, 3.6, white, -4.6, 1.65, 0); mkbox(g, 4.6, .3, 4.0, red, -4.6, 3.1, 0); mkbox(g, 3.2, 1.5, 2.8, white, -4.6, 3.95, 0); mkbox(g, 3.6, .25, 3.2, red, -4.6, 4.8, 0);
-      for (const sd of [-1, 1]) { mkbox(g, 1.3, .9, .08, glass, -5.5, 1.9, sd * 1.82); mkbox(g, 1.3, .9, .08, glass, -3.5, 1.9, sd * 1.82); mkbox(g, 1.9, .7, .08, glass, -4.6, 4.05, sd * 1.42); mkbox(g, 1.4, .06, .1, navy, -5.5, 1.38, sd * 1.82); }
-      mkbox(g, .08, .9, 1.4, glass, -2.46, 1.9, 0); mkbox(g, .08, .7, 2.2, glass, -3.02, 4.05, 0);
-      const stack = new T.Mesh(new T.CylinderGeometry(.55, .65, 2.4, 14), lm('#d6452f')); stack.position.set(-6.1, 5.4, 0); g.add(stack); const band = new T.Mesh(new T.CylinderGeometry(.56, .58, .4, 14), lm('#f1ead8')); band.position.set(-6.1, 5.5, 0); g.add(band); const top = new T.Mesh(new T.CylinderGeometry(.66, .6, .3, 14), dark); top.position.set(-6.1, 6.7, 0); g.add(top);
-      for (const sd of [-1, 1]) { const lb = new T.Mesh(new T.TorusGeometry(.42, .13, 8, 18), lm('#e8543c')); lb.position.set(-4.6, 2.2, sd * 1.86); g.add(lb); }
-      mkbox(g, .3, 11, .3, wood, 1.4, 5.8, 0); mkbox(g, .18, .18, 6.2, wood, 1.4, 9.4, 0); mkbox(g, .18, .18, 5.4, wood, 1.4, 3.0, 0);
-      const sail = new T.Mesh(new T.PlaneGeometry(5.4, 5.8, 8, 1), new T.MeshLambertMaterial({ color: 0xf4eedc, side: T.DoubleSide })); sail.rotation.y = Math.PI / 2; sail.position.set(1.5, 6.2, 0); g.add(sail); M.sail = sail;
-      const stripe = new T.Mesh(new T.PlaneGeometry(5.4, .7), new T.MeshLambertMaterial({ color: 0xc0392b, side: T.DoubleSide })); stripe.rotation.y = Math.PI / 2; stripe.position.set(1.52, 7.3, 0); g.add(stripe);
-      const flag = new T.Mesh(new T.PlaneGeometry(1.6, .9), new T.MeshLambertMaterial({ color: 0xffd54f, side: T.DoubleSide })); flag.position.set(1.4, 11.2, .85); flag.rotation.y = Math.PI / 2; g.add(flag); M.flag = flag;
-      for (const [x, z] of [[-1.2, 1.5], [-.2, 1.9], [-2.1, -1.8]]) mkbox(g, .9, .9, .9, lm('#9a7a4a'), x, .8, z, 0, rnd() * 2, 0);
-      for (const [x, z] of [[-1.6, -1.5], [-1.2, 1.0]]) { const b = new T.Mesh(new T.CylinderGeometry(.38, .38, .8, 10), lm('#5a3d24')); b.position.set(x, .72, z); g.add(b); }
-      const anc = new T.Mesh(new T.TorusGeometry(.35, .08, 6, 14, Math.PI * 1.4), dark); anc.position.set(6.6, 1.0, 0); anc.rotation.set(0, Math.PI / 2, 0); g.add(anc);
-      for (const sd of [-1, 1]) { const lan = new T.Mesh(new T.SphereGeometry(.26, 10, 8), bm(sd > 0 ? 0x66ff88 : 0xff5a5a, .95, true)); lan.position.set(5.0, 1.25, sd * 1.6); g.add(lan); }
-      const top2 = new T.Mesh(new T.SphereGeometry(.28, 10, 8), bm(0xffe8a0, .95, true)); top2.position.set(1.4, 11.6, 0); g.add(top2);
-      const nm = label('SS. CALAMAR', 512, 96, 'bold 56px system-ui,Arial', '#fff', '#000'); nm.scale.set(5, .95, 1); nm.position.set(0, 1.3, 2.9); g.add(nm);
-      const wake = new T.Mesh(new T.RingGeometry(2.6, 6.6, 28), bm(0xdff6ff, .3, true)); wake.rotation.x = -Math.PI / 2; wake.scale.set(2.1, 1, .8); wake.position.set(0, -.18, 0); g.add(wake); M.wake = wake;
+      const wd = woodTexture('#4a3626', true, 9), wd2 = woodTexture('#5a4430', false, 7), deckT = woodTexture('#6a5238', false, 11); wd.repeat.set(.18, 1); wd2.repeat.set(1, 1); deckT.repeat.set(.12, .12);
+      const hullM = std(wd, .96), deckM = std(deckT, .97), wood = std(wd2, .95), rust = std(rustTexture(), .78, .5), paint = std(paintTexture(), .9), dark = std(null, .9, .2, 0x1a1c20), rope = std(null, 1, 0, 0x8a7a52);
+      const sailM = new T.MeshStandardMaterial({ map: sailTexture(), transparent: true, alphaTest: .5, side: T.DoubleSide, roughness: 1 });
+      const glowG = new T.MeshBasicMaterial({ color: 0x66ffb0, transparent: true, opacity: .9, blending: T.AdditiveBlending, depthWrite: false });
+      layer(g, 13.4, 3.4, 4.4, -1.9, .95, hullM, true); layer(g, 15.2, 5.0, 4.8, -.95, 1.0, hullM, true); layer(g, 15.6, 5.3, 5.0, .02, .2, wood, true); layer(g, 14.6, 4.7, 4.5, .2, .13, deckM, false);
+      // casco: tablones, bandas de hierro, hierros oxidados y mella
+      for (const sd of [-1, 1]) { for (let i = 0; i < 6; i++) mkbox(g, .16, 1.5, .2, rust, -6.4 + i * 2.5, -.4, sd * 2.62); mkbox(g, 14.2, .13, .1, rust, -.4, -.05, sd * 2.66); mkbox(g, 13, .1, .09, rust, -.3, -.7, sd * 2.58); }
+      // borda con tablas rotas y cuerdas
+      for (const sd of [-1, 1]) { let x = -7; while (x < 3.8) { const len = 1.2 + rnd() * 1.6, hh = .5 + rnd() * .35; if (rnd() < .78) mkbox(g, len, hh, .13, wood, x + len / 2, .62 + hh / 2, sd * 2.4, 0, 0, (rnd() - .5) * .08); x += len + (rnd() < .3 ? .6 : .06); } for (let x2 = -6.6; x2 <= 3.8; x2 += 2.1) mkbox(g, .16, 1.15, .16, wood, x2, .9, sd * 2.4, 0, 0, (rnd() - .5) * .12); }
+      mkbox(g, .15, .15, 3.4, wood, 4.2, 1.1, 1.8, 0, .5, 0); mkbox(g, .15, .15, 3.4, wood, 4.2, 1.1, -1.8, 0, -.5, 0);
+      // cabina: pintura descascarada, ventanas rotas con luz verdosa, puerta torcida
+      mkbox(g, 4.2, 2.6, 3.6, paint, -4.6, 1.65, 0); mkbox(g, 4.6, .3, 4.0, wood, -4.6, 3.1, 0); mkbox(g, 3.2, 1.5, 2.8, paint, -4.6, 3.95, 0); mkbox(g, 3.6, .25, 3.2, wood, -4.6, 4.8, 0, 0, 0, .04);
+      for (const sd of [-1, 1]) { for (const wx of [-5.5, -3.7]) { mkbox(g, 1.1, .8, .08, glowG, wx, 1.95, sd * 1.82); mkbox(g, 1.3, .06, .12, dark, wx, 2.38, sd * 1.83); mkbox(g, 1.3, .06, .12, dark, wx, 1.52, sd * 1.83); mkbox(g, .06, .9, .12, dark, wx, 1.95, sd * 1.83); mkbox(g, 1.1, .05, .1, dark, wx, 1.95, sd * 1.84, 0, 0, .6); } mkbox(g, 1.7, .6, .08, glowG, -4.6, 4.05, sd * 1.42); }
+      mkbox(g, .08, 1.4, .9, dark, -2.46, 1.5, .3, 0, 0, .06); mkbox(g, .08, .8, 1.1, glowG, -2.46, 1.95, -.7);
+      const stack = new T.Mesh(new T.CylinderGeometry(.55, .68, 2.5, 14), rust); stack.position.set(-6.2, 5.5, 0); stack.rotation.z = .06; g.add(stack); const top = new T.Mesh(new T.CylinderGeometry(.7, .62, .32, 14), dark); top.position.set(-6.25, 6.82, 0); g.add(top);
+      // mástil partido, vela hecha jirones, cuerdas
+      const mast = new T.Mesh(new T.CylinderGeometry(.14, .26, 9, 8), wood); mast.position.set(1.4, 4.9, 0); mast.rotation.z = -.05; g.add(mast); const broken = new T.Mesh(new T.CylinderGeometry(.04, .14, 2.2, 6), wood); broken.position.set(1.15, 9.6, 0); broken.rotation.z = -.55; g.add(broken);
+      const yard = new T.Mesh(new T.CylinderGeometry(.09, .11, 6, 6), wood); yard.rotation.x = Math.PI / 2; yard.rotation.z = .04; yard.position.set(1.4, 8.2, 0); g.add(yard);
+      const sail = new T.Mesh(new T.PlaneGeometry(5.4, 5.6, 14, 8), sailM); sail.rotation.y = Math.PI / 2; sail.position.set(1.5, 5.3, 0); g.add(sail); M.sail = sail; M.sailBase = sail.geometry.attributes.position.array.slice();
+      const sail2 = new T.Mesh(new T.PlaneGeometry(3.2, 2.6, 8, 4), sailM); sail2.rotation.set(0, Math.PI / 2, .2); sail2.position.set(1.5, 9.2, 0); sail2.scale.set(.7, .7, 1); g.add(sail2);
+      for (const sd of [-1, 1]) { const r1 = new T.Mesh(new T.CylinderGeometry(.03, .03, 9.6, 4), rope); r1.position.set(.2, 4.4, sd * 1.7); r1.rotation.set(sd * .22, 0, .72); g.add(r1); const r2 = new T.Mesh(new T.CylinderGeometry(.03, .03, 8, 4), rope); r2.position.set(3.6, 4.2, sd * 1.4); r2.rotation.set(sd * .2, 0, -.68); g.add(r2); }
+      // figura de proa: calavera con cuernos y cadenas
+      { const fh = new T.Group(); fh.position.set(8.2, .4, 0); g.add(fh); const sk = new T.Mesh(new T.SphereGeometry(.62, 14, 10), std(null, .7, 0, 0xd8d2bf)); sk.scale.set(1, 1.1, .95); sk.position.y = .7; fh.add(sk); const jw = mkbox(fh, .7, .3, .55, std(null, .7, 0, 0xcfc9b6), .15, .15, 0); for (const sd of [-1, 1]) { const eye = new T.Mesh(new T.SphereGeometry(.15, 8, 6), glowG); eye.position.set(.46, .78, sd * .24); fh.add(eye); const horn = new T.Mesh(new T.ConeGeometry(.12, 1.1, 6), std(null, .8, 0, 0xcfc9b6)); horn.position.set(0, 1.3, sd * .5); horn.rotation.x = sd * .6; fh.add(horn); } for (let i = 0; i < 4; i++) mkbox(fh, .08, .22, .08, std(null, .7, 0, 0xe9e4d2), .5 + i * .08, .12, -.2 + i * .13); M.fig = fh; }
+      for (let i = 0; i < 7; i++) { const lk = new T.Mesh(new T.TorusGeometry(.12, .035, 5, 8), rust); lk.position.set(6.2 + i * .2, .5 - i * .28, 1.6); lk.rotation.y = i % 2 ? 1.57 : 0; g.add(lk); }
+      for (let i = 0; i < 9; i++) { const lk = new T.Mesh(new T.TorusGeometry(.12, .035, 5, 8), rust); lk.position.set(-7.5, 1.4 - i * .26, -1.2 + (i % 2) * .05); lk.rotation.y = i % 2 ? 1.57 : 0; g.add(lk); }
+      // red de pesca colgando, cajas manchadas, barriles, ancla y esqueleto en el timón
+      const net = new T.Mesh(new T.PlaneGeometry(2.6, 1.8), new T.MeshStandardMaterial({ map: netTexture(), transparent: true, alphaTest: .4, side: T.DoubleSide, roughness: 1 })); net.position.set(-1.6, 1.3, 2.46); net.rotation.x = .1; g.add(net);
+      for (const [x, z, s] of [[-1.2, 1.5, .9], [-.1, 1.9, .8], [-2.4, -1.9, 1]]) mkbox(g, s, s, s, wood, x, .8, z, 0, rnd() * 2, 0);
+      for (const [x, z] of [[-1.7, -1.5], [-1.2, 1.0], [.4, -1.8]]) { const b = new T.Mesh(new T.CylinderGeometry(.38, .4, .85, 10), wood); b.position.set(x, .75, z); g.add(b); const r2 = new T.Mesh(new T.TorusGeometry(.4, .04, 5, 12), rust); r2.rotation.x = Math.PI / 2; r2.position.set(x, .95, z); g.add(r2); }
+      const anc = new T.Mesh(new T.TorusGeometry(.38, .09, 6, 14, Math.PI * 1.4), rust); anc.position.set(6.6, 1.05, 0); anc.rotation.set(0, Math.PI / 2, 0); g.add(anc); mkbox(g, .13, 1.4, .13, rust, 6.6, .7, 0);
+      { const sk = new T.Group(); sk.position.set(-2.8, .35, 1.0); sk.rotation.y = -.4; g.add(sk); const bone = std(null, .75, 0, 0xdcd6c2); mkbox(sk, .7, .9, .4, std(null, .95, 0, 0x2a2e2a), 0, .8, 0); const head = new T.Mesh(new T.SphereGeometry(.28, 10, 8), bone); head.position.set(0, 1.5, 0); head.rotation.z = .25; sk.add(head); for (const sd of [-1, 1]) { const e = new T.Mesh(new T.SphereGeometry(.07, 6, 5), glowG); e.position.set(.2, 1.55, sd * .1); sk.add(e); mkbox(sk, .1, .8, .1, bone, .15, .75, sd * .45, 0, 0, sd * .5); mkbox(sk, .1, .7, .1, bone, .3, .35, sd * .2, 0, 0, 1.2); } }
+      // faroles fantasma, luz verde, niebla y estela
+      M.lamps = []; for (const [x, y, z] of [[5.0, 1.3, 1.6], [5.0, 1.3, -1.6], [1.4, 9.0, 0], [-6.9, 2.5, 1.7], [-6.9, 2.5, -1.7]]) { const l = new T.Mesh(new T.SphereGeometry(.26, 10, 8), glowG); l.position.set(x, y, z); g.add(l); const hl = glowSprite(0x66ffb0, 3.2, 0); hl.position.set(x, y, z); g.add(hl); M.lamps.push(hl); }
+      M.light = new T.PointLight(0x66ffb0, 1.0, 26, 1.6); M.light.position.set(0, 3.5, 0); g.add(M.light);
+      M.mist = []; for (let i = 0; i < 9; i++) { const m = glowSprite(0x8fb0a8, 8 + rnd() * 6, .6); m.material.opacity = .16; m.position.set((rnd() - .5) * 15, .6 + rnd() * 1.5, (rnd() - .5) * 6); g.add(m); M.mist.push(m); m.userData.ph = rnd() * 6; }
+      const plaque = texCanvas(512, 96, (c, w, h) => { c.clearRect(0, 0, w, h); c.font = 'bold 66px Georgia,serif'; c.textAlign = 'center'; c.fillStyle = 'rgba(120,26,22,.9)'; c.fillText('S.S. CALAMAR', w / 2, 70); c.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 60; i++) { c.fillRect(rnd() * w, rnd() * h, 6 + rnd() * 14, 2 + rnd() * 5); } });
+      for (const sd of [-1, 1]) { const pl = new T.Mesh(new T.PlaneGeometry(5.6, 1.05), new T.MeshBasicMaterial({ map: plaque, transparent: true, depthWrite: false })); pl.position.set(-.8, .1, sd * 2.67); pl.rotation.y = sd > 0 ? 0 : Math.PI; g.add(pl); }
+      const wake = new T.Mesh(new T.RingGeometry(2.6, 6.6, 28), bm(0xcfe8e4, .3, true)); wake.rotation.x = -Math.PI / 2; wake.scale.set(2.1, 1, .8); wake.position.set(0, -.18, 0); g.add(wake); M.wake = wake;
       const lc = document.createElement('canvas'); lc.width = 640; lc.height = 110; M.lc = lc; M.lg = lc.getContext('2d'); M.lt = new T.CanvasTexture(lc);
-      const sp = new T.Sprite(new T.SpriteMaterial({ map: M.lt, transparent: true, depthWrite: false, fog: false })); sp.scale.set(12.5, 2.15, 1); sp.position.set(0, 13.2, 0); g.add(sp); M.sprite = sp;
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: M.lt, transparent: true, depthWrite: false, fog: false })); sp.scale.set(12.5, 2.15, 1); sp.position.set(0, 13.4, 0); g.add(sp); M.sprite = sp; M.flag = null;
+    }
+    let glowTexM = null;
+    function glowSprite(col, sc, y) {
+      if (!glowTexM) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 31); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(.4, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); glowTexM = new T.CanvasTexture(c); }
+      const s = new T.Sprite(new T.SpriteMaterial({ map: glowTexM, color: col, transparent: true, depthWrite: false, blending: T.AdditiveBlending, fog: false, opacity: .8 })); s.scale.set(sc, sc, 1); s.position.y = y; return s;
     }
     function paintBoatLabel(txt, col) {
       if (txt === M.spriteTxt) return; M.spriteTxt = txt; const g = M.lg; g.clearRect(0, 0, 640, 110); g.fillStyle = 'rgba(8,20,34,.78)'; g.fillRect(8, 10, 624, 90); g.strokeStyle = col; g.lineWidth = 4; g.strokeRect(8, 10, 624, 90);
@@ -167,7 +215,7 @@
       if (!M.boat || M.state === 'off') return;
       const prev = { x: M.pos.x, z: M.pos.z, yaw: M.yaw };
       M.t += dt;
-      if (M.state !== 'sink') { M.pos.y = SEA_Y + Math.sin(t * 1.5) * .07; M.roll = Math.sin(t * 1.1) * .018; M.pitch = Math.cos(t * 1.3) * .012; }
+      if (M.state !== 'sink') { M.pos.y = SEA_Y + Math.sin(t * 1.5) * .07; M.roll = Math.sin(t * 1.1) * .018 + .045; M.pitch = Math.cos(t * 1.3) * .012; }
       if (M.state === 'arrive') {
         const d = sail(dt, BERTH.x, BERTH.z, 9, 1.4); const near = Math.min(1, d / 22); if (d < 24) { M.yaw += (0 - M.yaw) * Math.min(1, dt * 2.2 * (1 - near)); }
         if (d < .35) { M.state = 'dock'; M.pos.x = BERTH.x; M.pos.z = BERTH.z; M.yaw = 0; sfx('rush', M.pos, .5); showBanner('⛵ EL BARCO ESTÁ EN EL MUELLE', '#ffd54f', 'Sube a bordo · zarpa en ' + fmt(M.wait)); }
@@ -195,6 +243,9 @@
           let { lx, lz } = st === 'sink' ? { lx: o.lx0, lz: o.lz0 } : toLocal(f.pos.x, f.pos.z, prev);
           if (st !== 'dock') { lx = clamp(lx, -HX + .6, HX - .6); lz = clamp(lz, -HZ + .5, HZ - .5); }
           else if (Math.abs(lx) > HX + .6 || Math.abs(lz) > HZ + .6) { M.aboard.delete(f); continue; }
+          { if (lx > -6.9 && lx < -2.4 && Math.abs(lz) < 2.0) { const dl = lx + 6.9, dr = -2.4 - lx, dz = 2.0 - Math.abs(lz), mn = Math.min(dl, dr, dz); if (mn === dr) lx = -2.4; else if (mn === dl) lx = -6.9; else lz = (lz < 0 ? -1 : 1) * 2.0; }
+            const mdx = lx - 1.4, md = Math.hypot(mdx, lz); if (md < .6) { const k = .6 / (md || 1); lx = 1.4 + (md ? mdx * k : .6); lz = md ? lz * k : 0; }
+            for (const [cx, cz, r] of [[-1.7, -1.5, .6], [-1.2, 1.0, .6], [.4, -1.8, .6], [-1.2, 1.5, .7], [-.1, 1.9, .7], [-2.4, -1.9, .75]]) { const dx = lx - cx, dz2 = lz - cz, d = Math.hypot(dx, dz2); if (d < r && d > .001) { lx = cx + dx / d * r; lz = cz + dz2 / d * r; } } }
           o.lx = lx; o.lz = lz; const w = toWorld(lx, lz); f.pos.x = w.x; f.pos.z = w.z;
           if (st === 'sink') { const c = M.boat; const p = c.localToWorld(new V3(lx, DECK, lz)); f.pos.set(p.x, p.y, p.z); f.vel.set(0, 0, 0); f.onGround = true; }
           else { const dy = M.pos.y + DECK; if (f.vel.y <= .2 && f.pos.y <= dy + .12) { f.pos.y = dy; f.vel.y = Math.min(0, f.vel.y); f.onGround = true; } }
@@ -205,7 +256,8 @@
       }
       place();
       if (M.sprite) { const nA = M.aboard.size; const txt = st === 'dock' ? 'ZARPA EN ' + fmt(M.wait) + ' · A BORDO: ' + nA : st === 'sail' ? 'RUMBO AL MAR PROFUNDO' : st === 'sink' ? '¡LA CORRIENTE!' : st === 'arrive' ? 'LLEGANDO…' : 'SE VA…'; paintBoatLabel(txt, st === 'sink' ? '#ff8fb0' : '#ffd54f'); M.sprite.visible = st !== 'sink' || M.sinkT < 5; }
-      if (M.sail) M.sail.rotation.z = Math.sin(t * 1.3) * .03; if (M.flag) M.flag.rotation.z = Math.sin(t * 6) * .25; if (M.wake) M.wake.material.opacity = (st === 'sail' || st === 'arrive' || st === 'leave' ? .32 : .12) + Math.sin(t * 3) * .04;
+      if (M.sailBase && M.sail.visible !== false) { const pos = M.sail.geometry.attributes.position, ar = pos.array; for (let i = 0; i < pos.count; i++) { const x = M.sailBase[i * 3], y = M.sailBase[i * 3 + 1]; ar[i * 3 + 2] = Math.sin(t * 1.7 + x * 1.2 + y * .8) * .22 * (.6 + (y + 2.8) / 5.6 * .8); } pos.needsUpdate = true; }
+      if (M.lamps) M.lamps.forEach((l, i) => { l.material.opacity = .55 + Math.sin(t * 3 + i * 1.7) * .25 - (Math.random() < .02 ? .3 : 0); }); if (M.light) M.light.intensity = .8 + Math.sin(t * 5) * .2; if (M.mist) M.mist.forEach(m => { m.position.x += Math.sin(t * .4 + m.userData.ph) * .004; }); if (M.fig) M.fig.rotation.z = Math.sin(t * 1.3) * .04; if (M.flag) M.flag.rotation.z = Math.sin(t * 6) * .25; if (M.wake) M.wake.material.opacity = (st === 'sail' || st === 'arrive' || st === 'leave' ? .32 : .12) + Math.sin(t * 3) * .04;
     }
 
     function update(dt, t, cp) {

@@ -4244,7 +4244,7 @@ function iceBlock(f, dur) {
 // Impacto anime: destello breve y rayos radiales sobre el mundo, que sigue dibujándose.
 const IMPACT = { t: 0, col: '#ffffff', cd: 0, until: 0 };
 function impactFrame(col, dur = .11) {
-  if (IMPACT.cd > 0) return;
+  if (IMPACT.cd > 0 || FX_MUTE) return;
   const duration = clamp(Number.isFinite(dur) ? dur : .11, .04, .12);
   IMPACT.t = duration; IMPACT.col = col; IMPACT.cd = .45; IMPACT.until = performance.now() + duration * 1000;
   document.body.classList.add('impact-active');
@@ -4326,7 +4326,7 @@ function copiesAround(f, n = 4, r = 1.8, life = 1, sc = scene) {
     addFx(g, life, (o, k) => { mat.opacity = .35 * Math.sin(k * Math.PI); o.position.y = f.pos.y + Math.sin(k * 6 + i) * .1; }, () => mat.dispose(), sc);
   }
 }
-function screenFlash(op = .7) { const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 0; try { f.animate([{ opacity: op }, { opacity: 0 }], { duration: 450, easing: 'ease-out' }); } catch (e) { } }
+function screenFlash(op = .7) { if (FX_MUTE) return; const f = $('flash'); f.style.transition = 'none'; f.style.opacity = 0; try { f.animate([{ opacity: op }, { opacity: 0 }], { duration: 450, easing: 'ease-out' }); } catch (e) { } }
 function shakeFrom(p, amt) { const d = camera.position.distanceTo(p); G.shake = Math.max(G.shake, amt * clamp(1 - d / 40, 0, 1)); }
 
 // ================= Números de daño =================
@@ -4337,6 +4337,7 @@ function popText(p, text, col, size = 22) {
   $('nums').appendChild(el); DN.push({ el, p: p.clone().add(new V3(rand(-.4, .4), .9, rand(-.4, .4))), t: 0, rot: rand(-6, 6) });
 }
 function comicPop(p, text, burstClass = 'burst-gold', size = 32, rot = 0) {
+  if (FX_MUTE) return;
   const el = document.createElement('div');
   el.className = 'comic-onom ' + burstClass;
   el.textContent = text;
@@ -5018,7 +5019,7 @@ function updateAmbience(dt) {
   let kind = '', inside = 0;
   for (const b of CITY.buildings) if (b.accessible && b.model && Math.abs(p.pos.x - b.x) < b.w / 2 - .2 && Math.abs(p.pos.z - b.z) < b.d / 2 - .2 && p.pos.y < b.base + .6) { kind = AMB_KIND[b.model] || ''; inside = 1; break; }
   AMB.ins += (inside - AMB.ins) * Math.min(1, dt * 3);
-  const on = WX.sound ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .84, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = clamp((WX.rain || 0) * 2, 0, 1), cloud = WX.cloud || 0, night = WX.night || 0;
+  const ab0 = !!p.abyss, on = WX.sound && !ab0 ? 1 : 0, ins = AMB.ins, outs = 1 - ins * .84, high = clamp((p.pos.y - 8) / 30, 0, 1), storm = clamp((WX.rain || 0) * 2, 0, 1), cloud = WX.cloud || 0, night = WX.night || 0;
   AMB.acc += dt;
   if (AMB.acc > .12) {
     AMB.acc = 0;
@@ -5030,7 +5031,7 @@ function updateAmbience(dt) {
       wind_strong: outs * clamp(high * 1.1 + storm * .8 + cloud * .25 - .05, 0, 1.15), night: outs * night * (1 - storm * .7),
       waves: outs * Math.pow(clamp(1 - (SHORE(p.pos.x) - p.pos.z) / 62, 0, 1), 1.3) * (1 - high * .5)
     };
-    for (const L of AMB.L) L.set(L.group === 'out' ? target[L.name] : (L.group === kind ? ins : 0));
+    for (const L of AMB.L) L.set(ab0 ? 0 : L.group === 'out' ? target[L.name] : (L.group === kind ? ins : 0));
   }
   if (!on||G.paused) return;
   const due = (key, a, b) => { if (now < (AMB.t[key] || 0)) return false; AMB.t[key] = now + a + Math.random() * (b - a); return true; };
@@ -5115,7 +5116,13 @@ function netHit(att, t, o) {
     }
   }
 }
-function applyHit(att, t, o) {
+let FX_MUTE = false;
+function applyHit(att, t, o) {   // si el golpe ocurre en OTRO mundo (abismo vs superficie) no hay marcos de impacto, temblor ni cámara lenta para mí
+  const me = G.player;
+  if (!me || (!!att.abyss === !!me.abyss && !!t.abyss === !!me.abyss)) return applyHit0(att, t, o);
+  const hs = G.hitstop, sh = G.shake, sl = G.slowT; FX_MUTE = true; let r; try { r = applyHit0(att, t, o); } finally { FX_MUTE = false; } G.hitstop = hs; G.shake = sh; G.slowT = sl; return r;
+}
+function applyHit0(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
   if (t.isBoss) o = Object.assign({}, o, { kb: 0, up: 0, ragdoll: 0, stun: 0, guardBreak: false, noCounter: true, pull: 0 });   // el Kraken no se empuja ni se aturde
   if (t.isBoss && att.isPlayer && window.CF_ABISMO) o = CF_ABISMO.bossHit(att, o, t) || o;   // el jefe decide cuanto daño recibe (tentaculos, expuesto)
@@ -5335,7 +5342,7 @@ function kill(v, k) {
 }
 function respawn(f) {
   f.reset(); f.iframes = 2;
-  if (f.abyss && window.CF_ABISMO && CF_ABISMO.locked()) { CF_ABISMO.respawnIn(f); return; }
+  if (f.abyss && window.CF_ABISMO && CF_ABISMO.locked()) { CF_ABISMO.respawnIn(f); if (f.isPlayer) $('death').classList.add('hidden'); return; }
   if (f.home) { f.pos.copy(f.home); f.onGround = true; f.iframes = .5; burst(chestOf(f), 20, f.ch.color, 6, .2, .6, -.2); return; }
   let best = null, score = -Infinity;
   for (const p of SPAWN_POINTS) {
@@ -7972,7 +7979,7 @@ function splashFx(f) {
 const UW = { k: 0, bub: 0 };
 function updateUnderwater(dt) {
   const cp = camera.position, p = G.player;
-  const under = G.state === 'play' && !G.cine && cp.y < SEA_Y - .02 && cp.z > SHORE(cp.x) - 1;
+  const under = G.state === 'play' && !G.cine && !(p && p.abyss) && cp.y < SEA_Y - .02 && cp.z > SHORE(cp.x) - 1;
   UW.k += ((under ? 1 : 0) - UW.k) * Math.min(1, dt * 9);
   $('uw').style.opacity = UW.k.toFixed(3);
   if (UW.k > .01) {
@@ -11289,6 +11296,7 @@ const CF_A = (() => {
     get ABY() { return ABY; },
     get ABY_COR() { return ABY_COR; },
     get ABY_PTS() { return ABY_PTS; },
+    get applyHit() { return applyHit; },
     get ABY_WP() { return ABY_WP; },
     abyPath,
     get triggerSeaEvent() { return triggerSeaEvent; },
@@ -16612,6 +16620,7 @@ function mmDraw() {
   const vis = MM.on && !HUD_CFG.all && G.state === 'play' && !G.cine && !G.viewer && !STAGE.on && !!G.player;
   cv.classList.toggle('hidden', !vis); $('hud').classList.toggle('mm', vis);
   if (!vis) return;
+  if (G.player.abyss && window.CF_ABISMO && CF_ABISMO.mini && CF_ABISMO.mini(cv.getContext('2d'), cv.width, G.player, cam.yaw)) return;   // el abismo tiene su propio mapa
   const W = cv.width, g = cv.getContext('2d');
   if (!MM.bg && CITY.buildings.length) MM.bg = mmBackground(MM.bgW);
   const p = G.player;
