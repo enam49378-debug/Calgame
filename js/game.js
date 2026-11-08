@@ -2620,7 +2620,15 @@ function addWings(model, col) {
   }
   root.visible = false; model.wings = { root, sides, k: 0 };
 }
+function updateBBWings(f, m, dt, T) {   // alas de Sekza hechas en Blockbench (modelos/sekza/alas_sekza.bbmodel)
+  let b = m.bbw; if (!b) { const inst = CF_BBM.make('sekza_alas', 1 / 16); if (!inst) return false; const g = new THREE.Group(); inst.root.rotation.y = Math.PI; g.add(inst.root); g.visible = false; m.root.add(g); b = m.bbw = { g, inst, k: 0, t: 0 }; }
+  if (m.wings) m.wings.root.visible = false;
+  b.k = clamp(b.k + (f.alive && (f.awak > 0 || f.rFlightT > 0) ? 1 : -1) * dt * 3.5, 0, 1); b.g.visible = b.k > .01; if (!b.g.visible) return true;
+  const e = b.k * b.k * (3 - 2 * b.k), air = !f.onGround || f.rFlightT > 0, sp = Math.hypot(f.vel.x, f.vel.z); b.g.scale.setScalar(.2 + .8 * e); b.t += dt;
+  b.inst.update(air ? (sp > 4 || f.rFlightT > 0 && sp > 1.5 ? 'fly' : 'flap') : (sp > 1 ? 'walk' : 'idle'), b.t, dt); return true;
+}
 function updateWings(f, m, dt, T) {
+  if (f && f.ch && f.ch.wings && window.CF_BBM && CF_BBM.has('sekza_alas') && updateBBWings(f, m, dt, T)) return;
   const w = m.wings; if (!w) return;
   w.k = clamp(w.k + (f.alive && (f.awak > 0 || f.rFlightT>0) ? 1 : -1) * dt * 3.5, 0, 1);
   w.root.visible = w.k > .01; if (!w.root.visible) return;
@@ -3520,6 +3528,8 @@ const POSE = {
   jump: { ix: -.05, tx: -.1, alx: -.6, alz: .9, arx: -.4, arz: -.9, llx: -1.1, lrx: -.2, hx: -.15 },
   fall: { ix: .1, alx: -2.2, alz: .5, arx: -2.0, arz: -.5, llx: -.3, lrx: .4, hx: .1 },
   land: { ix: .35, by: -3, tx: .3, alx: -.4, alz: .4, arx: -.4, arz: -.4, llx: -.6, lrx: .5, hx: -.2 },
+  ironFly: { ix: 1.05, tx: .12, by: -2.5, alx: 1.25, alz: .12, arx: 1.25, arz: -.12, llx: .7, lrx: .6, llz: .05, lrz: -.05, hx: -.75 },
+  ironHover: { ix: .08, tx: .05, by: -.8, alx: -.15, alz: .85, arx: -.15, arz: -.85, llx: .25, lrx: -.15, llz: .08, lrz: -.08, hx: -.1 },
   dash: { ix: .55, tx: .25, by: -1.5, alx: .9, alz: .25, arx: 1.0, arz: -.25, llx: -.9, lrx: .7, hx: -.4 },
   block: { ix: .12, tx: .15, by: -1, alx: -1.5, alz: -.8, aly: .3, arx: -1.45, arz: .8, ary: -.3, llx: -.35, lrx: .3, llz: .1, lrz: -.1, hx: .25 },
   hurtA: { ix: -.3, tx: -.35, ty: .35, hx: -.55, hy: .3, alx: -.9, alz: .9, arx: .5, arz: -.5, llx: .3, lrx: -.4 },
@@ -7597,11 +7607,11 @@ const keys = {}, pressed = new Set(), mouse = { left: false, right: false };
 // Especial de R: movilidad breve. La orden de gaviotas es una variante exclusiva de la playa.
 const SEKZA_R={duration:3.5,flightCooldown:8,gullCooldown:14,doubleTap:.28,range:32,flocks:[]};
 function onSekzaBeach(f){return f.pos.z>=68&&f.pos.z<=SHORE(f.pos.x)+2&&Math.abs(f.pos.x)<110&&!inSea(f.pos.x,f.pos.z);}
-function canSekzaSpecial(f){return f&&f.ch===CHARS.sekza&&!(f.isPlayer&&(G.panelOpen||G.paused||G.over))&&f.alive&&f.stun<=0&&f.ragdoll<=0&&f.frozen<=0&&!f.grabbed&&!f.cineLock&&!f.choreTrack&&!(f.action&&f.action.noControl)&&!(typeof VB!=='undefined'&&VB.on&&(f===G.player||f===VB.bot));}
+function canSekzaSpecial(f){return f&&(f.ch===CHARS.sekza||f.ch.canFly)&&!(f.isPlayer&&(G.panelOpen||G.paused||G.over))&&f.alive&&f.stun<=0&&f.ragdoll<=0&&f.frozen<=0&&!f.grabbed&&!f.cineLock&&!f.choreTrack&&!(f.action&&f.action.noControl)&&!(typeof VB!=='undefined'&&VB.on&&(f===G.player||f===VB.bot));}
 function sekzaSpecialKey(f){
   if(!canSekzaSpecial(f))return false;
   const now=G.time;
-  if(onSekzaBeach(f)){
+  if(f.ch===CHARS.sekza&&onSekzaBeach(f)){
     if(f.rTapUntil>now){f.rTapUntil=0;return summonSekzaGulls(f);}
     f.rTapUntil=now+SEKZA_R.doubleTap;return true;
   }
@@ -7610,7 +7620,7 @@ function sekzaSpecialKey(f){
 }
 function startSekzaFlight(f,remote=false){
   if(!remote&&(!canSekzaSpecial(f)||f.rFlightCD>0))return false;
-  f.rFlightT=SEKZA_R.duration;f.rFlightCD=SEKZA_R.flightCooldown;f.rFlightAltitude=Math.max(f.pos.y+.9,groundAt(f.pos.x,f.pos.z,f.pos.y)+2.7);
+  f.rFlightT=f.ch.canFly?5:SEKZA_R.duration;f.rFlightCD=SEKZA_R.flightCooldown;f.rFlightAltitude=Math.max(f.pos.y+.9,groundAt(f.pos.x,f.pos.z,f.pos.y)+2.7);
   f.onGround=false;f.vel.y=Math.max(f.vel.y,4.5);f.blocking=false;
   if(!remote)javiSpeak(f,'fly');
   if(!remote){ringAt(new V3(f.pos.x,f.pos.y+.15,f.pos.z),'#b9eff2',1.6,.3);sfx('whoosh',f.pos,.55);if(f.isPlayer&&G.mp)netAct({k:'r',mode:'flight'});}
@@ -7651,7 +7661,8 @@ function updateSekzaSpecials(dt){
     if(f.remote)continue;
     f.rFlightCD=Math.max(0,(f.rFlightCD||0)-dt);f.rGullCD=Math.max(0,(f.rGullCD||0)-dt);
     if(f.rTapUntil>0&&G.time>=f.rTapUntil){f.rTapUntil=0;startSekzaFlight(f);}
-    if(f.rFlightT>0){f.rFlightT=Math.max(0,f.rFlightT-dt);if(!canSekzaSpecial(f)||!f.rFlightT)stopSekzaFlight(f);}
+    if(f.rFlightT>0){f.rFlightT=Math.max(0,f.rFlightT-dt);if(!canSekzaSpecial(f)||!f.rFlightT)stopSekzaFlight(f);
+      if(f.ch.canFly&&f.rFlightT>0){const sp=Math.hypot(f.vel.x,f.vel.z);for(let i=0;i<2;i++)emit(f.pos.x+rand(-.25,.25),f.pos.y+.1,f.pos.z+rand(-.25,.25),rand(-.4,.4),rand(-7,-3),rand(-.4,.4),Math.random()<.5?'#7df9ff':'#ffffff',.24,.28,0,1);if(sp>2&&Math.random()<.7){const R=rightOf(f.yaw);emit(f.pos.x+R.x*.5,f.pos.y+1.1,f.pos.z+R.z*.5,rand(-.3,.3),rand(-.5,.5),rand(-.3,.3),'#7df9ff',.16,.2,0,1);emit(f.pos.x-R.x*.5,f.pos.y+1.1,f.pos.z-R.z*.5,rand(-.3,.3),rand(-.5,.5),rand(-.3,.3),'#7df9ff',.16,.2,0,1);}}}
   }
   for(let i=SEKZA_R.flocks.length-1;i>=0;i--){
     const g=SEKZA_R.flocks[i];g.time+=dt;const t=g.time;
@@ -7675,11 +7686,11 @@ function updateSekzaSpecials(dt){
 }
 function clearSekzaFlocks(){for(const g of SEKZA_R.flocks)scene.remove(g.root);SEKZA_R.flocks.length=0;}
 function updateSekzaSpecialHud(f){
-  const el=$('sekza-special');el.classList.toggle('hidden',f.ch!==CHARS.sekza||G.viewer||G.cine!=null);
-  if(f.ch!==CHARS.sekza)return;
+  const el=$('sekza-special');const fl=f.ch===CHARS.sekza||f.ch.canFly;el.classList.toggle('hidden',!fl||G.viewer||G.cine!=null);
+  if(!fl)return;
   const flight=f.rFlightT>0?'Volando · '+f.rFlightT.toFixed(1)+' s':f.rFlightCD>0?'Vuelo · '+Math.ceil(f.rFlightCD)+' s':'Vuelo breve · listo';
   const gull=f.rGullCD>0?'Gaviotas · '+Math.ceil(f.rGullCD)+' s':onSekzaBeach(f)?'Gaviotas · listas':'Gaviotas · solo en la playa';
-  el.firstElementChild.textContent='R  '+flight;el.lastElementChild.textContent='R ×2  '+gull;
+  el.firstElementChild.textContent='R  '+flight;el.lastElementChild.textContent=f.ch===CHARS.sekza?'R ×2  '+gull:'';
 }
 
 const BINDS_DEF = {
@@ -7718,7 +7729,7 @@ function isBindShift(code) {
 function playerCtl() {
   if (G.viewer) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   if (G.paused || roomInputBlocked()) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
-  const c = { mx: 0, mz: 0, jump: !!keys[BINDS.jump], dash: pressed.has(BINDS.dash), m1: mouse.left, block: !!keys[BINDS.block] || mouse.right, skill: -1, ult: pressed.has(BINDS.ult), down: !!keys.KeyC, up: !!keys[BINDS.jump] };
+  const c = { mx: 0, mz: 0, jump: !!keys[BINDS.jump], dash: pressed.has(BINDS.dash), m1: mouse.left, block: !!keys[BINDS.block], skill: -1, ult: pressed.has(BINDS.ult), down: !!keys.KeyC, up: !!keys[BINDS.jump] };
   const ix = (keys[BINDS.right] ? 1 : 0) - (keys[BINDS.left] ? 1 : 0) + (touchActive() ? TOUCH.x : 0), iz = (keys[BINDS.forward] ? 1 : 0) - (keys[BINDS.back] ? 1 : 0) + (touchActive() ? TOUCH.y : 0);
   if (ix || iz) { const d = fwd(cam.yaw).multiplyScalar(iz).add(rightOf(cam.yaw).multiplyScalar(ix)).normalize(); c.mx = d.x; c.mz = d.z; }
   const skBinds = [BINDS.skill1, BINDS.skill2, BINDS.skill3, BINDS.skill4];
@@ -9311,6 +9322,7 @@ function animate(f, dt) {
   else if (f.forcePose) { pose = POSE[f.forcePose]; k = 1000; z = .4; }
   else if (f.hurtT > 0) { pose = POSE[f.hurtPose]; k = 900; z = .45; }
   else if (f.grabbed) { pose = POSE.hurtA; k = 400; }
+  else if (f.ch.canFly && f.rFlightT > 0 && !a) { pose = sp > 2.5 ? POSE.ironFly : POSE.ironHover; k = 500; z = .5; }   // vuelo de la armadura
   else if (f.swim && f.stun <= 0 && !a) {   // nadando: crol al avanzar, patadas flotando al estar quieto
     const ph = T * 6.5 + f.seed, mv = sp > 1.2;
     pose = mv ? { ix: 1.25, tx: -.15, hx: -.85, alx: -2.45 + Math.sin(ph) * 1.0, arx: -2.45 + Math.sin(ph + Math.PI) * 1.0, alz: .1, arz: -.1, llx: Math.sin(ph * 2) * .4, lrx: -Math.sin(ph * 2) * .4, by: -2 }
@@ -10568,7 +10580,7 @@ addEventListener('keydown', e => {
   if(!G.over&&e.code==='Escape'&&!locked){e.preventDefault();if(G.panelOpen)togglePanel(false);else if(G.paused){if($('pause').dataset.view==='options')setPauseView('home');else{setPause(false);requestLock();}}else setPause(true);return;}
   if (!G.over && e.code === 'KeyP') { setPause(!G.paused); if (!G.paused) requestLock(); return; }
   if (isBindShift(e.code)) { if (!e.repeat) { slTap = true; } } else slTap = false;
-  if(e.code==='KeyR'&&!e.repeat&&!G.panelOpen&&!G.paused&&!G.over){if(G.player?.ch===CHARS.sekza){e.preventDefault();sekzaSpecialKey(G.player);}return;}
+  if(e.code==='KeyR'&&!e.repeat&&!G.panelOpen&&!G.paused&&!G.over){if(G.player?.ch===CHARS.sekza||G.player?.ch.canFly){e.preventDefault();sekzaSpecialKey(G.player);}return;}
   if (e.code === 'KeyH' && !e.repeat && !G.paused && !G.over) { togglePanel(); return; }
   if (!keys[e.code]) pressed.add(e.code);
   keys[e.code] = true;
@@ -14546,7 +14558,7 @@ function proxyUpdate(px, dt) {
   m.root.visible = px.alive;
   if (px.spear) { const out = !!pr.sp; if (out !== px.spearOut) setSpear(px, out); px.spear.visible = !!pr.sv && !ownsMissingSpear(px); }
   px.flashT -= dt;
-  px.rFlightT=clamp(+pr.rft||0,0,SEKZA_R.duration);
+  px.rFlightT=clamp(+pr.rft||0,0,6);
   const fl = Math.max(0, px.flashT) / .12;
   m.mats.forEach(x => { if (fl > 0) x.emissive.setRGB(fl * .9, fl * .9, fl * .9); else if (px.awak) x.emissive.set(px.ch.color).multiplyScalar(.15); else x.emissive.setRGB(0, 0, 0); });
   if (px.action) updateAction(px, dt);

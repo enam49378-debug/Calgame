@@ -167,3 +167,10 @@ Los enemigos (cangrejo, medusa, rape, marinero, capitán, calamarín) y el barco
 - **Sunn** (tematica Iron Man): armadura escarlata y dorada. Repulsor, salva de misiles, impacto orbital y propulsores; ulti Rayo del Reactor; al despertar Sobrecarga del Reactor, Drones Reflectores, Satelite Stark y Explosion del Reactor. Vive en `personajes/sunn/`.
 - **Mini**: su companera pequena y cabezona (el modelo del jugador, mas chico y con cabeza grande). Sigue a Sunn y le dispara a los rivales (mas rapido con el despertar). Skin en `personajes/mini/skin.png`, logica en `js/mini.js`.
 - Barco: a bordo la cubierta cuenta como suelo, ya no se "nada" ni te hundes.
+
+### Sunn original, vuelo y alas de Sekza
+- Sunn ya no copia a Redbird ni a Mattux: habilidades propias (`personajes/sunn/Skills/Code/`): Repulsores Gemelos, Salva Stark, Mini al ataque, Mini bombardea, ulti Protocolo Casa Vacia; despierto: Unirrayo Estelar, Enjambre de Drones, Misil Estelar y Armadura Reforzada. Mini participa en sus ataques.
+- Sunn vuela con R (como Sekza, 5 s) con pose de Iron Man (inclinado hacia delante al moverse, brazos abiertos al flotar) y llamas en botas y manos. Mini vuela con el.
+- El click derecho ya no bloquea: solo mueve la camara (el bloqueo es con F).
+- Las alas de Sekza son ahora el modelo de Blockbench `modelos/sekza/alas.bbmodel` (generado con `tools/convertir_alas_sekza.py` desde Alas de sekza.bbmodel), con sus animaciones (idle, walk, fly, flap).
+- La skin de Mini tenia la segunda capa en negro opaco: se hizo transparente.

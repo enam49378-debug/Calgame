@@ -2904,6 +2904,113 @@ CF.mover('jlError', function (f, o) {
     });
   });
 
+/* ===== personajes/sunn/Skills/Code/Armadura Reforzada/sunnShield.js ===== */
+/* Habilidad: Armadura Reforzada  ·  personaje: sunn  ·  movimiento: sunnShield
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnShield', function (f, o) {
+  startAction(f, { name: 'sunnShield', dur: .9, aim: false, speedMul: .4, anim: [[0, 'charge', 500], [.4, 'castUp', 700]] });
+  f.hp = Math.min(f.maxHp, f.hp + (o.heal || 18)); f.iframes = Math.max(f.iframes, o.time || 2.5);
+  ringAt(new V3(f.pos.x, f.pos.y + .3, f.pos.z), '#7df9ff', 3, .6); lightColumn(f.pos, '#7df9ff', 8); popText(chestOf(f), 'ARMADURA REFORZADA', '#7df9ff', 22); sfx('ult', f.pos, .6);
+  for (let i = 0; i < 12; i++) later(i * .2, () => { if (f.alive && f.iframes > 0) burst(chestOf(f), 5, '#7df9ff', 4, .3, .4, .2); });
+});
+
+/* ===== personajes/sunn/Skills/Code/Enjambre de Drones/sunnDrones.js ===== */
+/* Habilidad: Enjambre de Drones  ·  personaje: sunn  ·  movimiento: sunnDrones
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnDrones', function (f, o) {
+  const N = o.n || 10, drones = [], g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: 0x9d6bff }), core = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (let i = 0; i < 4; i++) { const d = new THREE.Group(); d.add(new THREE.Mesh(new THREE.BoxGeometry(.32, .12, .32), mat), new THREE.Mesh(new THREE.BoxGeometry(.14, .16, .14), core)); g.add(d); drones.push(d); }
+  scene.add(g); let t = 0; const life = .4 + N * .45 + .6, iv = setInterval(() => { t += .016; if (!f.alive || t > life || G.state !== 'play') { clearInterval(iv); scene.remove(g); return; } drones.forEach((d, i) => { const a = t * 3 + i * Math.PI / 2; d.position.set(f.pos.x + Math.cos(a) * 1.8, f.pos.y + 2.5 + Math.sin(t * 5 + i) * .2, f.pos.z + Math.sin(a) * 1.8); d.rotation.y = a * 2; }); }, 16);
+  startAction(f, { name: 'sunnDrones', dur: .55, aim: true, speedMul: .5, anim: [[0, 'castUp', 800]] }); sfx('whoosh', f.pos, .5);
+  for (let i = 0; i < N; i++) later(.4 + i * .45, () => {
+    if (!f.alive) return; const tg = findTarget(f, 32); if (!tg) return; const d = drones[i % 4], from = d.position.clone(), q = chestOf(tg);
+    spawnProj(f, Math.atan2(q.x - from.x, q.z - from.z), { from, color: '#9d6bff', speed: 50, size: .24, long: 1.8, homing: 3.2, range: 34, dmg: o.dmg || 3.4, stun: .25, kb: 2, up: .5 }); sfx('zap', from, .4); burst(from, 4, '#9d6bff', 4, .12, .2, 0);
+  });
+});
+
+/* ===== personajes/sunn/Skills/Code/Mini al ataque/sunnMiniStrike.js ===== */
+/* Habilidad: Mini al ataque  ·  personaje: sunn  ·  movimiento: sunnMiniStrike
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnMiniStrike', function (f, o) {
+  const tg = findTarget(f, o.range || 24);
+  startAction(f, { name: 'sunnMiniStrike', dur: .45, aim: true, speedMul: .6, anim: [[0, 'castUp', 800]] });
+  if (!tg) { popText(chestOf(f), 'Mini: ¿a quién?', '#ff8fb0', 18); return; }
+  popText(chestOf(f), '¡Mini, ataca!', '#ff8fb0', 20);
+  if (window.CF_MINI) CF_MINI.cmd(f, 'strike', tg, 2.3);
+  for (let i = 0; i < 6; i++) later(.5 + i * .22, () => { if (!f.alive || !tg.alive) return; const mp = window.CF_MINI && CF_MINI.pos(f); if (mp && Math.hypot(mp.x - tg.pos.x, mp.z - tg.pos.z) > 4) return; applyHit(f, tg, { dmg: o.dmg || 2.8, stun: .2, kb: 1.2, up: 0, color: '#ff8fb0', noAssist: true, hitstop: .02 }); burst(chestOf(tg), 5, '#ff8fb0', 5, .14, .25, 0); sfx('hit', tg.pos, .4); });
+  later(1.95, () => { if (!f.alive || !tg.alive) return; applyHit(f, tg, { dmg: o.dmg2 || 6, stun: .5, kb: 8, up: 11, ragdoll: .9, color: '#ffd54f', guardBreak: true }); ringAt(chestOf(tg), '#ffd54f', 2.4, .35); popText(chestOf(tg), '¡PATADA DE MINI!', '#ffd54f', 22); shakeFrom(tg.pos, .3); });
+});
+
+/* ===== personajes/sunn/Skills/Code/Mini bombardea/sunnMiniBomb.js ===== */
+/* Habilidad: Mini bombardea  ·  personaje: sunn  ·  movimiento: sunnMiniBomb
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnMiniBomb', function (f, o) {
+  const tg = findTarget(f, 24), F = fwd(f.yaw), p = tg ? new V3(tg.pos.x, 0, tg.pos.z) : new V3(f.pos.x + F.x * 9, 0, f.pos.z + F.z * 9); p.y = groundAt(p.x, p.z);
+  startAction(f, { name: 'sunnMiniBomb', dur: .45, aim: true, speedMul: .6, anim: [[0, 'castUp', 800]] });
+  warnCircle(p, 3.4, '#ff8fb0', 1.25); popText(chestOf(f), '¡Mini, bombardea!', '#ff8fb0', 20);
+  if (window.CF_MINI) CF_MINI.cmd(f, 'bomb', p, 2.1);
+  [1.25, 1.5, 1.75].forEach((t, i) => later(t, () => { if (!f.alive) return; const q = new V3(p.x + rand(-1.6, 1.6) * (i ? 1 : 0), p.y + .6, p.z + rand(-1.6, 1.6) * (i ? 1 : 0)); explode(f, q, 2.7, { dmg: o.dmg || 5.5, kb: 4, up: 7, ragdoll: .6, color: '#ff8fb0' }); ringAt(q, '#ff8fb0', 3, .4); burst(q, 18, '#ffd0e0', 8, .25, .5, .6); sfx('crash', q, .5); }));
+});
+
+/* ===== personajes/sunn/Skills/Code/Misil Estelar/sunnNuke.js ===== */
+/* Habilidad: Misil Estelar  ·  personaje: sunn  ·  movimiento: sunnNuke
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnNuke', function (f, o) {
+  const tg = findTarget(f, 34), F = fwd(f.yaw), p = tg ? new V3(tg.pos.x, 0, tg.pos.z) : new V3(f.pos.x + F.x * 12, 0, f.pos.z + F.z * 12); p.y = groundAt(p.x, p.z);
+  startAction(f, { name: 'sunnNuke', dur: 1.0, aim: true, speedMul: 0, anim: [[0, 'castUp', 1000]] });
+  warnCircle(p, 7, '#ff3b30', 2.1); popText(chestOf(f), 'MISIL EN CAMINO', '#ff3b30', 24); sfx('whoosh', f.pos, .6);
+  later(1.2, () => { for (let i = 0; i < 6; i++) emit(p.x + rand(-1, 1), p.y + 18 - i * 3, p.z + rand(-1, 1), 0, -30, 0, '#ffb020', .5, .4, 0, 1); });
+  later(2.1, () => { if (!f.alive) return; explode(f, new V3(p.x, p.y + 1, p.z), 7, { dmg: o.dmg || 20, kb: 9, up: 20, ragdoll: 1.6, color: '#ff5a1a', guardBreak: true }); fireColumn(p, 6, '#ff5a1a'); ringAt(p, '#ffd54f', 10, .7); G.shake = Math.max(G.shake, 1); sfx('boom', p, 1); });
+});
+
+/* ===== personajes/sunn/Skills/Code/Repulsores Gemelos/sunnTwin.js ===== */
+/* Habilidad: Repulsores Gemelos  ·  personaje: sunn  ·  movimiento: sunnTwin
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnTwin', function (f, o) {
+  startAction(f, { name: 'sunnTwin', dur: .95, aim: true, speedMul: .3, anim: [[0, 'charge', 400], [.2, 'cast', 900]],
+    steps: [0, 1].map(i => ({ at: .24 + i * .24, fn: () => {
+      const tg = findTarget(f, 26), R = rightOf(f.yaw), side = i ? 1 : -1, from = front(f, .5, 1.35).add(new V3(R.x * side * .55, 0, R.z * side * .55)), q = tg ? chestOf(tg) : null;
+      const yaw = q ? Math.atan2(q.x - from.x, q.z - from.z) : f.yaw;
+      spawnProj(f, yaw, { from, color: '#7df9ff', speed: 60, size: .3, long: 2.6, homing: 1.6, range: 30, dmg: o.dmg || 5.5, stun: .4, kb: 4, up: .6 });
+      ringAt(from, '#7df9ff', 1.3, .22); burst(from, 8, '#7df9ff', 6, .14, .25, 0); sfx('zap', from, .6);
+    } })) });
+});
+
+/* ===== personajes/sunn/Skills/Code/Salva Stark/sunnMissiles.js ===== */
+/* Habilidad: Salva Stark  ·  personaje: sunn  ·  movimiento: sunnMissiles
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnMissiles', function (f, o) {
+  const n = o.n || 5;
+  startAction(f, { name: 'sunnMissiles', dur: .35 + n * .13 + .4, aim: true, speedMul: .25, anim: [[0, 'charge', 500], [.3, 'castUp', 900]],
+    steps: Array.from({ length: n }, (_, i) => ({ at: .3 + i * .13, fn: () => {
+      const tg = findTarget(f, 30), F = fwd(f.yaw), R = rightOf(f.yaw), spread = (i - (n - 1) / 2) * .22, from = new V3(f.pos.x + R.x * spread * 1.6, f.pos.y + 2.3 + (i % 2) * .5, f.pos.z + R.z * spread * 1.6), q = tg ? chestOf(tg) : null;
+      const yaw = (q ? Math.atan2(q.x - from.x, q.z - from.z) : f.yaw) + spread * .5;
+      spawnProj(f, yaw, { from, color: '#ffb020', speed: 34, size: .34, long: 3.2, homing: 4, range: 34, explode: 2.1, dmg: o.dmg || 5, stun: .3, kb: 5, up: 6 });
+      burst(from, 10, '#ffb020', 5, .2, .35, .6); sfx('fire', from, .5);
+    } })) });
+});
+
+/* ===== personajes/sunn/Skills/Code/Unirrayo Estelar/sunnUnibeam.js ===== */
+/* Habilidad: Unirrayo Estelar  ·  personaje: sunn  ·  movimiento: sunnUnibeam
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnUnibeam', function (f, o) {
+  MOVES.beam(f, { eyes: false, len: 46, width: 1.3, dur: 1.7, dmg: o.dmg || 2.9, charge: .9, push: 9, gb: true, sweep: 1.6, color: '#ffd54f', fromFn: () => front(f, .5, 1.45) });
+});
+
+/* ===== personajes/sunn/Skills/Ulti/Code/sunnUlt.js ===== */
+/* Habilidad: Ultimate  ·  personaje: sunn  ·  movimiento: sunnUlt
+   Código y lógica de esta habilidad. Los números (daño, recarga, alcance) están en personaje.js. */
+CF.mover('sunnUlt', function (f, o) {
+  startAction(f, { name: 'sunnUlt', dur: 3.1, aim: true, speedMul: 0, noControl: true, anim: [[0, 'charge', 500], [.9, 'castUp', 1200]],
+    steps: [{ at: .9, fn: () => { ringAt(new V3(f.pos.x, f.pos.y + .2, f.pos.z), '#ffd54f', 6, .6); lightColumn(f.pos, '#ffd54f', 14); sfx('ult', f.pos); if (f.isPlayer) showBanner('PROTOCOLO CASA VACÍA', '#ffd54f', 'Sunn y Mini lo bombardean todo'); } }] });
+  if (window.CF_MINI) CF_MINI.cmd(f, 'bomb', new V3(f.pos.x, f.pos.y, f.pos.z), 3.2);
+  for (let i = 0; i < (o.n || 11); i++) later(1.0 + i * .17, () => {
+    if (!f.alive) return; const es = enemiesOf(f).filter(g => g.alive && dist2d(f, g) < 36), tg = es.length ? es[i % es.length] : null, a = Math.random() * TAU, r = tg ? rand(0, 2.2) : rand(4, 14);
+    const p = new V3((tg ? tg.pos.x : f.pos.x) + Math.cos(a) * r, 0, (tg ? tg.pos.z : f.pos.z) + Math.sin(a) * r); p.y = groundAt(p.x, p.z); warnCircle(p, 2.5, '#ffb020', .55);
+    later(.55, () => { explode(f, new V3(p.x, p.y + .6, p.z), 2.6, { dmg: o.dmg || 6.5, kb: 4, up: 10, ragdoll: .8, color: '#ffb020', guardBreak: true }); fireColumn(p, 2.2, '#ffb020'); sfx('boom', p, .6); shakeFrom(p, .3); });
+  });
+});
+
   }
 });
 
