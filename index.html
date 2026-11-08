@@ -40,6 +40,7 @@
 .ld-cubes i{position:absolute;display:block;width:var(--s);height:var(--s);left:var(--x);top:var(--y);background:var(--c);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.3);animation:ldBob var(--d) ease-in-out infinite alternate;animation-delay:var(--l);opacity:.8}
 .ld-shell{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;text-align:center;width:min(520px,90vw);gap:18px}
 .ld-logo{position:relative;display:flex;align-items:center;justify-content:center;padding:6px 0}
+.ld-logo img,.ld-cubes i,.ld-sun,.ld-bar::before,.ld-title span i{will-change:transform,opacity}
 .ld-logo img{width:min(300px,72vw);filter:drop-shadow(0 8px 0 rgba(20,8,40,.55)) drop-shadow(0 0 28px rgba(255,190,120,.6));animation:ldFloat 5s ease-in-out infinite}
 .ld-tag{letter-spacing:.42em;font-size:11px;color:#ffe3c4;opacity:.9;text-shadow:0 2px 0 rgba(40,10,50,.7)}
 .ld-title{margin:0;font-size:22px;letter-spacing:.5em;font-weight:700;text-shadow:0 3px 0 rgba(40,10,50,.75)}
@@ -568,34 +569,34 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <!-- ==================================================================== -->
 <!-- Librerías de motor 3D y red (Locales para juego 100% offline)        -->
 <!-- ==================================================================== -->
-<script src="lib/three.min.js?v=6.8"></script>
-<script src="lib/CopyShader.js?v=6.8"></script>
-<script src="lib/LuminosityHighPassShader.js?v=6.8"></script>
-<script src="lib/EffectComposer.js?v=6.8"></script>
-<script src="lib/RenderPass.js?v=6.8"></script>
-<script src="lib/ShaderPass.js?v=6.8"></script>
-<script src="lib/UnrealBloomPass.js?v=6.8"></script>
-<script src="lib/mqtt.min.js?v=6.8"></script>
+<script defer src="lib/three.min.js?v=6.8"></script>
+<script defer src="lib/CopyShader.js?v=6.8"></script>
+<script defer src="lib/LuminosityHighPassShader.js?v=6.8"></script>
+<script defer src="lib/EffectComposer.js?v=6.8"></script>
+<script defer src="lib/RenderPass.js?v=6.8"></script>
+<script defer src="lib/ShaderPass.js?v=6.8"></script>
+<script defer src="lib/UnrealBloomPass.js?v=6.8"></script>
+<script defer src="lib/mqtt.min.js?v=6.8"></script>
 
 <!-- ==================================================================== -->
 <!-- Scripts modulares del juego                                          -->
 <!-- ==================================================================== -->
-<script src="js/physics.js?v=6.8"></script>
-<script src="js/destruction.js?v=6.8"></script>
-<script src="js/animations.js?v=6.8"></script>
-<script src="js/personajes.js?v=7.0"></script>
-<script src="js/habilidades.js?v=7.0"></script>
-<script src="js/emote_list.js?v=1"></script>
-<script src="js/emotes.js?v=4"></script>
-<script src="js/cosmetics.js?v=2"></script>
-<script src="js/bbmodelos.js?v=3"></script>
-<script src="js/sonidos.js?v=1"></script>
-<script src="js/mini.js?v=2"></script>
-<script src="js/muelle.js?v=7"></script>
-<script src="js/abismo.js?v=10"></script>
-<script src="js/ranking.js?v=1"></script>
-<script src="js/owner.js?v=1"></script>
-<script src="js/game.js?v=7.3"></script>
+<script defer src="js/physics.js?v=6.8"></script>
+<script defer src="js/destruction.js?v=6.8"></script>
+<script defer src="js/animations.js?v=6.8"></script>
+<script defer src="js/personajes.js?v=7.0"></script>
+<script defer src="js/habilidades.js?v=7.0"></script>
+<script defer src="js/emote_list.js?v=1"></script>
+<script defer src="js/emotes.js?v=4"></script>
+<script defer src="js/cosmetics.js?v=2"></script>
+<script defer src="js/bbmodelos.js?v=3"></script>
+<script defer src="js/sonidos.js?v=1"></script>
+<script defer src="js/mini.js?v=2"></script>
+<script defer src="js/muelle.js?v=7"></script>
+<script defer src="js/abismo.js?v=10"></script>
+<script defer src="js/ranking.js?v=1"></script>
+<script defer src="js/owner.js?v=1"></script>
+<script defer src="js/game.js?v=7.3"></script>
 
 </body>
 </html>
