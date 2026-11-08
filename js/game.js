@@ -15656,9 +15656,17 @@ if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').ma
 // El último peleador que usaste, de espaldas, en una de dos escenas con el atardecer (apoyado en la barandilla del muelle o sentado en la arena).
 // Cámara fija con un leve temblor. Al pulsar algo: el personaje nota que estamos detrás, gira, la cámara se cae, todo negro y el menú cae poco a poco.
 const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4, wreck: null };
+// lista de la pantalla de inicio: se turnan las canciones (el disco muestra cuál suena)
+const TITLE_SONGS=['musica/green_room.mp3','musica/calfight_intro.mp3'];
+function titleSong(i){
+  TITLE.si=((i%TITLE_SONGS.length)+TITLE_SONGS.length)%TITLE_SONGS.length;
+  if(TITLE.mus)releaseHtmlAudio(TITLE.mus);
+  const tr=TITLE.mus=makeMusicTrack(musFile('intro'+(TITLE.si?'2':''),TITLE_SONGS[TITLE.si]),'intro',false);
+  tr.el.addEventListener('ended',()=>{if(TITLE.mus===tr&&TITLE.on)titleSong(TITLE.si+1);},{once:true});
+}
 function titleAudio(on){
   if(on){
-    TITLE.mus=makeMusicTrack(musFile('intro','musica/green_room.mp3'),'intro',true);
+    titleSong(0);
     for(const [name,volume] of [['waves',.24],['breeze',.12]]){
       const el=new Audio(sndUrl(name));el.loop=true;
       const record=trackHtmlAudio(el,volume*(AUDIO_CFG.amb[name]?.vol??1),'ambient','title');

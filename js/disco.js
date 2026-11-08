@@ -4,14 +4,14 @@
    Para anadir mas canciones: agrega su archivo en TRACKS (nombre del mp3 -> titulo, autor, portada). Este archivo se ejecuta dentro de game.js. */
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
-    const TRACKS = { 'green_room.mp3': { t: 'Welcome to the Green Room (Wii U Mix)', a: 'Toby Fox · Tai Undead', cover: 'musica/portadas/green_room.jpg' } };
+    const TRACKS = { 'calfight_intro.mp3': { t: 'CalFight · Tema principal', a: 'CalFight (canción original)', cover: 'assets/calfight_logo.png', fit: '80% auto' }, 'green_room.mp3': { t: 'Welcome to the Green Room (Wii U Mix)', a: 'Toby Fox · Tai Undead', cover: 'musica/portadas/green_room.jpg' } };
     const DISCORD = 'https://discord.gg/hwU3SYxeuZ';
     const css = document.createElement('style');
     css.textContent = '#disco{position:fixed;left:22px;top:44%;z-index:60;display:none;align-items:center;pointer-events:none}#disco.on{display:flex}'
-      + '#disco .dk{position:relative;width:88px;height:88px;border-radius:50%;flex:0 0 auto;background:#111 center/cover;box-shadow:0 6px 18px rgba(0,0,0,.55),0 0 0 3px #1b1b24;animation:dkSpin 5s linear infinite;animation-play-state:paused}'
+      + '#disco .dk{position:relative;width:88px;height:88px;border-radius:50%;flex:0 0 auto;background:#111 center/cover;box-shadow:0 6px 18px rgba(0,0,0,.55),0 0 0 3px #1b1b24;animation:dkSpin 16s linear infinite;animation-play-state:paused}'
       + '#disco.spin .dk{animation-play-state:running}#disco .dk::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 5px,rgba(0,0,0,.18) 5px 6px)}'
       + '#disco .dk::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border-radius:50%;background:#0d0d14;box-shadow:inset 0 0 0 4px #2a2a38}'
-      + '#disco .pp{height:62px;max-width:0;overflow:hidden;margin-left:-14px;background:linear-gradient(180deg,#fbf3dc,#ecdfba);color:#2a2014;border-radius:0 6px 6px 0;box-shadow:0 5px 14px rgba(0,0,0,.45);transition:max-width .6s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;justify-content:center;white-space:nowrap}'
+      + '#disco .pp{height:62px;max-width:0;overflow:hidden;margin-left:-14px;background:linear-gradient(180deg,#fbf3dc,#ecdfba);color:#2a2014;border-radius:0 6px 6px 0;box-shadow:0 5px 14px rgba(0,0,0,.45);transition:max-width 1.1s cubic-bezier(.22,.9,.25,1);display:flex;flex-direction:column;justify-content:center;white-space:nowrap}'
       + '#disco.open .pp{max-width:330px}#disco .pp div{padding:0 16px 0 28px}#disco .pp b{display:block;font:700 13px "Chakra Petch",system-ui,sans-serif}#disco .pp small{display:block;font:600 11px "Chakra Petch",system-ui,sans-serif;opacity:.7;margin-top:2px}'
       + '@keyframes dkSpin{to{transform:rotate(360deg)}}'
       + '#dclink{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:61;display:none;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;background:#5865f2;color:#fff;font:700 12px "Chakra Petch",system-ui,sans-serif;letter-spacing:.08em;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.4)}#dclink.on{display:flex}#dclink:hover{background:#6f7bff}#dclink svg{width:20px;height:20px;fill:#fff}';
@@ -25,7 +25,7 @@
       const show = G.state === 'title' || G.state === 'menu'; D.classList.toggle('on', show && !!cur); L.classList.toggle('on', show);
       const tr = (G.state === 'title' && TITLE.mus) || (MUS && MUS.track), src = tr && tr.el ? decodeURIComponent((tr.el.src || '').split('/').pop()) : '', meta = TRACKS[src];
       if (!show) { D.classList.remove('open'); return; }
-      if (meta && src !== cur) { cur = src; const dk = D.querySelector('.dk'); dk.style.backgroundImage = 'url("' + meta.cover + '")'; D.querySelector('b').textContent = meta.t; D.querySelector('small').textContent = meta.a; D.classList.add('on'); D.classList.remove('open'); void D.offsetWidth; setTimeout(() => D.classList.add('open'), 250); clearTimeout(hide); hide = setTimeout(() => D.classList.remove('open'), 7500); }
+      if (meta && src !== cur) { cur = src; const dk = D.querySelector('.dk'); dk.style.backgroundImage = 'url("' + meta.cover + '")'; dk.style.backgroundSize = meta.fit || 'cover'; dk.style.backgroundColor = meta.fit ? '#1a1530' : '#111'; D.querySelector('b').textContent = meta.t; D.querySelector('small').textContent = meta.a; D.classList.add('on'); D.classList.remove('open'); void D.offsetWidth; setTimeout(() => D.classList.add('open'), 250); clearTimeout(hide); hide = setTimeout(() => D.classList.remove('open'), 10000); }
       else if (!meta && cur) { cur = ''; D.classList.remove('open', 'on'); }
       D.classList.toggle('spin', !!(tr && tr.el && !tr.el.paused));
     }, 400);
