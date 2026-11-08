@@ -2621,11 +2621,11 @@ function addWings(model, col) {
   root.visible = false; model.wings = { root, sides, k: 0 };
 }
 function updateBBWings(f, m, dt, T) {   // alas de Sekza hechas en Blockbench (modelos/sekza/alas_sekza.bbmodel)
-  let b = m.bbw; if (!b) { const inst = CF_BBM.make('sekza_alas', 1 / 16); if (!inst) return false; const g = new THREE.Group(); inst.root.rotation.y = Math.PI; g.add(inst.root); g.visible = false; m.root.add(g); b = m.bbw = { g, inst, k: 0, t: 0 }; }
+  let b = m.bbw; if (!b) { const inst = CF_BBM.make('sekza_alas', 1 / 16); if (!inst) return false; const g = new THREE.Group(); inst.root.rotation.y = Math.PI; inst.root.position.y = -12 * PX; g.add(inst.root); g.visible = false; m.torso.add(g); b = m.bbw = { g, inst, k: 0, t: 0 }; }
   if (m.wings) m.wings.root.visible = false;
   b.k = clamp(b.k + (f.alive && (f.awak > 0 || f.rFlightT > 0) ? 1 : -1) * dt * 3.5, 0, 1); b.g.visible = b.k > .01; if (!b.g.visible) return true;
   const e = b.k * b.k * (3 - 2 * b.k), air = !f.onGround || f.rFlightT > 0, sp = Math.hypot(f.vel.x, f.vel.z); b.g.scale.setScalar(.2 + .8 * e); b.t += dt;
-  b.inst.update(air ? (sp > 4 || f.rFlightT > 0 && sp > 1.5 ? 'fly' : 'flap') : (sp > 1 ? 'walk' : 'idle'), b.t, dt); return true;
+  const vy = f.vel.y, an = !air ? (sp > 1 ? 'walk' : 'idle') : vy > 2.5 ? 'flyup' : vy < -9 ? 'dive' : vy < -2.5 ? (f.rFlightT > 0 ? 'flydown' : 'soar') : (sp > 4 ? 'fly' : 'flap'); b.inst.update(b.inst.anims[an] ? an : 'fly', b.t, dt); return true;
 }
 function updateWings(f, m, dt, T) {
   if (f && f.ch && f.ch.wings && window.CF_BBM && CF_BBM.has('sekza_alas') && updateBBWings(f, m, dt, T)) return;
@@ -2701,7 +2701,12 @@ function firePatch(f, pos, r, dur, col) {
 // ===== Verity: la esfera amarilla sonriente (de un "mod" de terror analógico de Minecraft) que acompaña a Seb0lla al despertar =====
 const VERITY_KINDS = { verity: { col: '#ffd91a', ink: '#1b1306' }, love: { col: '#ff7ab8', ink: '#3a0a22' }, anti: { col: '#1a1a22', ink: '#f4f4f4' } };
 const _vh = new V3();
+// caras de Verity dibujadas a mano (personajes/sebolla/verity_caras.png, 7x5): la carita va girando por la esfera
+const VERITY_SHEET = { img: new Image(), ready: false }; VERITY_SHEET.img.onload = () => { VERITY_SHEET.ready = true; }; VERITY_SHEET.img.src = 'personajes/sebolla/verity_caras.png';
+const VERITY_FACE_CELL = { happy: 13, open: 28, angry: 8 };
+function verityIdleFace() { return VERITY_SHEET.ready ? 'c' + ((G.time * 7) | 0) % 35 : 'happy'; }
 function drawVerityFace(g, kind, st) {
+  if (kind === 'verity' && VERITY_SHEET.ready) { const i = st[0] === 'c' ? +st.slice(1) : (VERITY_FACE_CELL[st] ?? 13); g.clearRect(0, 0, 128, 128); g.save(); g.beginPath(); g.arc(64, 64, 64, 0, TAU); g.clip(); g.drawImage(VERITY_SHEET.img, (i % 7) * 128, (i / 7 | 0) * 128, 128, 128, 0, 0, 128, 128); g.restore(); return; }
   const K = VERITY_KINDS[kind] || VERITY_KINDS.verity;
   g.clearRect(0, 0, 128, 128); g.fillStyle = K.ink; g.strokeStyle = K.ink; g.lineWidth = 8; g.lineCap = 'round';
   const e = (x, y, rx, ry) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); };
@@ -2746,7 +2751,7 @@ function updateVerity(f, m, dt, T) {
   verityBillboard(v);
   v.angryT -= dt; v.glitch -= dt; if (v.glitch <= 0 && Math.random() < dt * .3) v.glitch = .14;      // de vez en cuando se "corrompe" un instante
   v.face.scale.set(1, v.glitch > 0 ? 1.45 : 1, 1); v.sphMat.color.set(v.glitch > 0 ? '#ffffff' : v.col);
-  verityFace(v, v.angryT > 0 ? 'angry' : v.ov && v.ov.face ? v.ov.face : 'happy');
+  verityFace(v, v.angryT > 0 ? 'angry' : v.ov && v.ov.face ? v.ov.face : v.kind === 'verity' ? verityIdleFace() : 'happy');
   // ataque automático: dispara una bola a quien tenga cerca
   if (on && awake && !v.ov && f.ragdoll <= 0 && f.stun <= 0 && !f.choreTrack && !f.grabbed) {
     v.cd -= dt;
