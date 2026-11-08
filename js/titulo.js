@@ -17,16 +17,16 @@
       // logo con flotado suave
       + 'body.tl #title .tlogo{left:2.4vw;top:calc(5vh + 118px);bottom:auto;animation:tlLogo 1.1s .5s ' + B + ' backwards}'
       + '@keyframes tlLogo{from{opacity:0;transform:translateX(-50px) scale(.8) rotate(-5deg)}}'
-      + 'body.tl #title .tlogo img{height:min(18vh,170px);animation:tlFloat 6s 1.3s ease-in-out infinite;transform-origin:50% 60%}'
-      + '@keyframes tlFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(-1deg)}}'
+      + 'body.tl #title .tlogo img{height:min(18vh,170px);animation:tlFloat 3.2s 1.6s steps(7,jump-none) infinite alternate;backface-visibility:hidden}'
+      + '@keyframes tlFloat{from{transform:translateY(0)}to{transform:translateY(-6px)}}'
       + 'body.tl #title .tlogo p{animation:tlFade .8s .9s ease backwards}@keyframes tlFade{from{opacity:0;letter-spacing:.4em}}'
       // JUGAR: entrada con rebote, brillo que cruza y halo suave
       + 'body.tl #tplay{left:2.4vw;right:auto;top:' + TOP + ' + 64px);bottom:auto;width:' + W + ';text-align:center;overflow:hidden;'
-      + 'animation:tlPlay 1s .8s ' + B + ' backwards,tlGlow 3.6s 1.6s ease-in-out infinite;transition:transform .22s ' + E + ',box-shadow .22s,background .2s}'
+      + 'animation:tlPlay 1s .8s ' + B + ' backwards;transition:transform .22s ' + E + ',box-shadow .22s,background .2s}'
       + '@keyframes tlPlay{from{opacity:0;transform:translateX(-90px) skewX(-8deg) scale(.9)}}'
       + '@keyframes tlGlow{0%,100%{box-shadow:6px 6px 0 #000}50%{box-shadow:6px 6px 0 #000,0 0 28px rgba(255,212,0,.65)}}'
-      + 'body.tl #tplay::after{content:"";position:absolute;top:-20%;bottom:-20%;left:-40%;width:28%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:tlShine 5.5s 2s ease-in-out infinite;pointer-events:none}'
-      + '@keyframes tlShine{0%{left:-40%}35%,100%{left:120%}}'
+      + 'body.tl #tplay::after{content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:28%;will-change:transform;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:translateX(-150%) skewX(-20deg);animation:tlShine 5.5s 2s ease-in-out infinite;pointer-events:none}'
+      + '@keyframes tlShine{0%{transform:translateX(-150%) skewX(-20deg)}35%,100%{transform:translateX(450%) skewX(-20deg)}}'
       + 'body.tl #tplay:hover{transform:skewX(-8deg) translate(4px,-3px);box-shadow:10px 9px 0 #000;animation:none}'
       + 'body.tl #tplay:active{transform:skewX(-8deg) translate(2px,2px);box-shadow:3px 3px 0 #000}'
       // AJUSTES / ESCENA

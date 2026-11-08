@@ -8,7 +8,7 @@
     const DISCORD = 'https://discord.gg/hwU3SYxeuZ';
     const css = document.createElement('style');
     css.textContent = '#disco{position:fixed;left:22px;top:44%;z-index:60;display:none;align-items:center;pointer-events:none}#disco.on{display:flex}'
-      + '#disco .dk{position:relative;width:88px;height:88px;border-radius:50%;flex:0 0 auto;background:#111 center/cover;box-shadow:0 6px 18px rgba(0,0,0,.55),0 0 0 3px #1b1b24;will-change:transform}'
+      + '#disco .dk{position:relative;width:88px;height:88px;border-radius:50%;flex:0 0 auto;background:#111 center/cover;box-shadow:0 6px 18px rgba(0,0,0,.55),0 0 0 3px #1b1b24;will-change:transform;backface-visibility:hidden}'
       + '#disco .dk::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 5px,rgba(0,0,0,.18) 5px 6px)}'
       + '#disco .dk::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border-radius:50%;background:#0d0d14;box-shadow:inset 0 0 0 4px #2a2a38}'
       + '#disco .pp{height:62px;max-width:0;overflow:hidden;margin-left:-14px;background:linear-gradient(180deg,#fbf3dc,#ecdfba);color:#2a2014;border-radius:0 6px 6px 0;box-shadow:0 5px 14px rgba(0,0,0,.45);transition:max-width 1.1s cubic-bezier(.22,.9,.25,1);display:flex;flex-direction:column;justify-content:center;white-space:nowrap}'
@@ -25,14 +25,15 @@
     /* El giro va por tiempo real (no por fotogramas): da igual si el jugador tiene 30 o 240 FPS, siempre tarda lo mismo en dar la vuelta.
        Cuando la musica arranca o se para, el disco acelera / frena suave como un tocadiscos. */
     const VUELTA = 30; // segundos por vuelta completa
-    const dkEl = D.querySelector('.dk'); let ang = 0, vel = 0, last = 0;
-    function giro(now) {
-      requestAnimationFrame(giro); const dt = last ? Math.min(.5, (now - last) / 1000) : 0; last = now;
-      if (!D.classList.contains('on')) { vel = 0; return; }
-      const target = D.classList.contains('spin') ? 360 / VUELTA : 0; vel += (target - vel) * Math.min(1, dt * 1.6);
-      if (vel < .05 && !target) return; ang = (ang + vel * dt) % 360; dkEl.style.transform = 'rotate(' + ang.toFixed(2) + 'deg)';
-    }
-    requestAnimationFrame(giro);
+    const dkEl = D.querySelector('.dk');
+    // La vuelta la hace el compositor del navegador (como una animacion CSS): no tiembla aunque el juego este ocupado.
+    const anim = dkEl.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: VUELTA * 1000, iterations: Infinity });
+    let vel = 0; anim.playbackRate = 0;
+    setInterval(() => {
+      const target = D.classList.contains('on') && D.classList.contains('spin') ? 1 : 0;
+      const nv = Math.abs(target - vel) < .02 ? target : vel + (target - vel) * .12;
+      if (nv !== vel) { vel = nv; anim.updatePlaybackRate ? anim.updatePlaybackRate(vel) : (anim.playbackRate = vel); }
+    }, 100);
     setInterval(() => {
       const show = G.state === 'title' || G.state === 'menu'; D.classList.toggle('on', show && !!cur); L.classList.toggle('on', show);
       const tr = (G.state === 'title' && TITLE.mus) || (MUS && MUS.track), src = tr && tr.el ? decodeURIComponent((tr.el.src || '').split('/').pop()) : '', meta = TRACKS[src];
