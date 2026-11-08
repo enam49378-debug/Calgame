@@ -1608,8 +1608,15 @@ function seaFloor(x, z) {
 let GUIDE_Y=0;
 window.groundAt = groundAt;
 const ABY = { x: 0, z: 720, y: -90, R: 72 };   // el abismo: cueva bajo el torbellino del mar profundo (ver js/abismo.js)
-const ABY_FLOOR = (x, z) => Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 ? ABY.y : -400;
-function abyssClamp(v) { const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz); if (d > ABY.R) { v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; } return v; }
+const ABY_COR = { x0: ABY.x - 205, x1: ABY.x - 60, hw: 11 };   // pasillo de entrada (a la izquierda de la sala redonda)
+const ABY_FLOOR = (x, z) => (Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 || (x > ABY_COR.x0 && x < ABY_COR.x1 + 14 && Math.abs(z - ABY.z) < ABY_COR.hw + 1)) ? ABY.y : -400;
+function abyssClamp(v) {
+  if (v.x < ABY_COR.x1 + 4 && Math.abs(v.z - ABY.z) <= ABY_COR.hw + 20) { v.x = Math.max(ABY_COR.x0 + 1.5, v.x); if (v.x < ABY_COR.x1 - 6) v.z = clamp(v.z, ABY.z - ABY_COR.hw + 1.2, ABY.z + ABY_COR.hw - 1.2); }
+  const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz);
+  if (d > ABY.R && v.x > ABY_COR.x1 - 6) { v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; }
+  else if (d > ABY.R && Math.abs(dz) > ABY_COR.hw - 1.2) v.z = clamp(v.z, ABY.z - ABY_COR.hw + 1.2, ABY.z + ABY_COR.hw - 1.2);
+  return v;
+}
 function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;if(z>600)return ABY_FLOOR(x,z);let g=(z>SHORE(x)+.2&&z<560&&Math.abs(x)<360)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
 // ================= Partículas (bloquecitos) =================
@@ -5320,6 +5327,7 @@ function kill(v, k) {
 }
 function respawn(f) {
   f.reset(); f.iframes = 2;
+  if (f.abyss && window.CF_ABISMO && CF_ABISMO.locked()) { CF_ABISMO.respawnIn(f); return; }
   if (f.home) { f.pos.copy(f.home); f.onGround = true; f.iframes = .5; burst(chestOf(f), 20, f.ch.color, 6, .2, .6, -.2); return; }
   let best = null, score = -Infinity;
   for (const p of SPAWN_POINTS) {
@@ -8268,9 +8276,12 @@ const SEA_EVENTS = {
   glow: { n: 'Marea luminosa', ico: '✨', msg: '¡Marea luminosa! Las aguas profundas brillan.', col: '#7df9ff', dur: 30 },
   squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡El Kraken despertó en el abismo! Nada hasta el torbellino del mar profundo y derrótalo.', col: '#ff8fb0', dur: 420 },
 };
+SEA.noKraken = false; try { SEA.noKraken = localStorage.getItem('bsb_no_kraken') === '1'; } catch (e) { }
+const krakenBlocked = () => SEA.noKraken && !(typeof NETPUB === 'function' && NETPUB());   // el truco solo vale en privadas y bots
 function triggerSeaEvent(name) {
   const e = SEA_EVENTS[name]; if (!e || !SEA.life) return false;
   if (SEA.ev[name] > 0) return false;
+  if (name === 'squid' && krakenBlocked()) { if (G.state === 'play') addFeedText('🦑 El evento del Kraken está desactivado (Panel H)', '#9aa0b8'); return false; }
   SEA.ev[name] = e.dur;
   if (name === 'school') SEA.life.school.t = 0;
   if (name === 'squid') SEA.life.squid.t = 0;
@@ -8336,7 +8347,7 @@ function updateSeaLife(dt, t, cp) {
   const L = SEA.life; if (!L) return;
   // temporizador de eventos y cuenta atras de los activos
   for (const k in SEA.ev) if (SEA.ev[k] > 0) SEA.ev[k] = Math.max(0, SEA.ev[k] - dt);
-  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0)); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
+  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && krakenBlocked())); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
   const glow = SEA.ev.glow > 0 ? 1 + .8 * Math.min(1, SEA.ev.glow / 4, (SEA_EVENTS.glow.dur - SEA.ev.glow) / 3 + .2) : 1;
   const near = (x, z, R) => (x - cp.x) * (x - cp.x) + (z - cp.z) * (z - cp.z) < R * R;
   for (const a of L.mantas) {
@@ -8391,6 +8402,9 @@ function seaEventsUi() {
   const host = $('btn-whale-now'); if (!host) return;
   const row = host.parentNode;
   for (const k in SEA_EVENTS) { const e = SEA_EVENTS[k], b = document.createElement('button'); b.type = 'button'; b.textContent = e.ico + ' Evento marino: ' + e.n; b.addEventListener('click', () => { if (!triggerSeaEvent(k)) addFeedText('Ese evento ya está en curso', '#9aa0b8'); }); row.appendChild(b); }
+  const lk = document.createElement('label'); lk.className = 'chk'; lk.innerHTML = '<input id="opt-no-kraken" type="checkbox"><span>Bloquear el evento del Kraken<small>Truco: el Kraken nunca despierta en salas privadas ni contra bots. En salas públicas no tiene efecto.</small></span>';
+  row.parentNode.insertBefore(lk, row.nextSibling);
+  { const c2 = lk.querySelector('input'); c2.checked = !!SEA.noKraken; c2.addEventListener('change', () => { SEA.noKraken = c2.checked; try { localStorage.setItem('bsb_no_kraken', c2.checked ? '1' : '0'); } catch (e) { } if (c2.checked && SEA.ev.squid > 0) SEA.ev.squid = 0; }); }
   const lab = document.createElement('label'); lab.className = 'chk'; lab.innerHTML = '<input id="opt-sea-events" type="checkbox" checked><span>Eventos del mar<small>Cardumen gigante, frenesí de tiburones, marea luminosa y calamar gigante aparecen solos de vez en cuando.</small></span>';
   row.parentNode.insertBefore(lab, row.nextSibling);
   const c = lab.querySelector('input'); c.checked = SEA.eventsAuto !== false; c.addEventListener('change', () => { SEA.eventsAuto = c.checked; try { localStorage.setItem('bsb_sea_events', c.checked ? '1' : '0'); } catch (e) { } });
@@ -11264,6 +11278,7 @@ const CF_A = (() => {
     miniCut,
     get keys() { return keys; },
     get ABY() { return ABY; },
+    get ABY_COR() { return ABY_COR; },
     get SOC() { return SOC; },
     get ACCT() { return ACCT; },
     get DEV() { return DEV; },

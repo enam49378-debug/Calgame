@@ -37,19 +37,20 @@
     }
 
     // ---------------------------------------------------------------- el cartel 3D (se pone en un lugar libre cerca del centro de la ciudad)
-    function freeSpot() {
-      const hit = (x, z) => { for (const c of COL) { if (c.rubble) continue; if (Math.abs(x - c.x) < c.hx + 2.5 && Math.abs(z - c.z) < c.hz + 2.5) return true; } return false; };
+    function freeSpot() {   // un rincón tranquilo al norte de la ciudad (lejos del mar y del muelle), con espacio para el cartel pequeño
+      const hit = (x, z) => { for (const c of COL) { if (c.rubble) continue; if (Math.abs(x - c.x) < c.hx + 1.8 && Math.abs(z - c.z) < c.hz + 1.8) return true; } return false; };
       const fits = (x, z) => {
         const yaw = Math.atan2(-x, -z) || 0, cs = Math.cos(yaw), sn = Math.sin(yaw);
-        for (let u = -11; u <= 11; u += 2) for (let w = -3; w <= 5; w += 2) { const px = x + u * cs + w * sn, pz = z - u * sn + w * cs; if (hit(px, pz) || groundAt(px, pz) > .3) return false; }
+        for (let u = -6.5; u <= 6.5; u += 1.6) for (let w = -1.5; w <= 3.5; w += 1.6) { const px = x + u * cs + w * sn, pz = z - u * sn + w * cs; if (hit(px, pz) || groundAt(px, pz) > .3) return false; }
         return true;
       };
-      for (let r = 0; r <= 160; r += 2) for (let a = 0; a < 360; a += 5) { const x = Math.cos(a * Math.PI / 180) * r, z = Math.sin(a * Math.PI / 180) * r; if (fits(x, z)) return { x, z }; }
-      return { x: 0, z: 0 };
+      for (let r = 62; r <= 130; r += 2) for (let a = 200; a <= 340; a += 4) { const x = Math.cos(a * Math.PI / 180) * r, z = Math.sin(a * Math.PI / 180) * r; if (z < -40 && fits(x, z)) return { x, z }; }
+      for (let r = 40; r <= 130; r += 2) for (let a = 0; a < 360; a += 5) { const x = Math.cos(a * Math.PI / 180) * r, z = Math.sin(a * Math.PI / 180) * r; if (z < 20 && fits(x, z)) return { x, z }; }
+      return { x: 0, z: -60 };
     }
     function build() {
       if (R.root) return; const sp = freeSpot(), y0 = groundAt(sp.x, sp.z);
-      const g = new T.Group(); g.position.set(sp.x, y0, sp.z); g.rotation.y = Math.atan2(-sp.x, -sp.z) || 0; scene.add(g); R.root = g;
+      const g = new T.Group(); g.position.set(sp.x, y0, sp.z); g.rotation.y = Math.atan2(-sp.x, -sp.z) || 0; g.scale.setScalar(.56); scene.add(g); R.root = g;
       const metal = new T.MeshLambertMaterial({ color: 0x1b2036 }), neon = new T.MeshBasicMaterial({ color: 0x39e6ff }), gold = new T.MeshBasicMaterial({ color: 0xffd54f });
       for (const [i, w] of [['m', -5.4], ['a', 5.4]]) {
         const c = document.createElement('canvas'); c.width = 1024; c.height = 760; R.cv[i] = c; R.ctx[i] = c.getContext('2d'); R.tex[i] = new T.CanvasTexture(c); R.tex[i].anisotropy = 4;
@@ -61,8 +62,8 @@
         for (const px of [-3.6, 3.6]) { const pole = new T.Mesh(new T.BoxGeometry(.5, 3.2, .5), metal); pole.position.set(w + px, 1.5, -.1); g.add(pole); }
       }
       const base = new T.Mesh(new T.BoxGeometry(21.4, .5, 3), metal); base.position.set(0, .25, -.1); g.add(base);
-      const lc = document.createElement('canvas'); lc.width = 1024; lc.height = 160; const l2 = lc.getContext('2d'); l2.font = 'bold 96px system-ui,Arial'; l2.textAlign = 'center'; l2.fillStyle = '#fff'; l2.shadowColor = '#39e6ff'; l2.shadowBlur = 30; l2.fillText('🌍 RANKING MUNDIAL', 512, 112);
-      const sp2 = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(lc), transparent: true, depthWrite: false, fog: false })); sp2.scale.set(14, 2.2, 1); sp2.position.set(0, 12.6, 0); g.add(sp2);
+      const lc = document.createElement('canvas'); lc.width = 1024; lc.height = 160; const l2 = lc.getContext('2d'); l2.font = 'bold 78px system-ui,Arial'; l2.textAlign = 'center'; l2.fillStyle = '#fff'; l2.shadowColor = '#39e6ff'; l2.shadowBlur = 30; l2.fillText('🌍 RANKING MUNDIAL', 512, 112);
+      const sp2 = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(lc), transparent: true, depthWrite: false, fog: false })); sp2.scale.set(12, 2, 1); sp2.position.set(0, 12.6, 0); g.add(sp2);
       draw('m'); draw('a');
     }
 

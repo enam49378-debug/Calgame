@@ -117,3 +117,10 @@ Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, 
 ### Ranking mundial
 En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** con los 10 jugadores del mundo con más kills en salas públicas (no privadas ni bots). Necesita publicar `firestore.rules` (colecciones `cf_lba` y `cf_lbm`).
 - Código: `js/cosmetics.js`, `js/abismo.js`.
+
+### Kraken v3 (privado)
+- **Abismo con pasillo:** caes por la cascada, sigues un camino con arcos, cristales, ruinas y un barco hundido, y cruzas el portón hasta la sala del Kraken. Con el evento activo **no se puede salir hasta vencerlo** y si mueres reapareces dentro. Sin evento entras y sales libremente.
+- Dentro del abismo el resto del mundo (ciudad, mar, otros jugadores) se oculta para ahorrar rendimiento.
+- **Muelle grande + Tablón de eventos + Barco:** al empezar el evento del Calamar llega un barco, espera ~2:30 y zarpa con quien suba; la corriente lo atrapa y cae al abismo (cinemática).
+- **Panel H → "Bloquear el evento del Kraken":** truco que impide el evento en privadas y bots (en públicas no aplica).
+- El ranking mundial ahora es un cartel pequeño al norte de la ciudad.

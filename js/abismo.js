@@ -16,48 +16,67 @@
     const lm = c => new T.MeshLambertMaterial({ color: c }), bmat = (c, op, add) => new T.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false, blending: add ? T.AdditiveBlending : T.NormalBlending, side: T.DoubleSide });
     const mkbox = (par, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const q = new T.Mesh(new T.BoxGeometry(w, h, d), m); q.position.set(x, y, z); if (rx || ry || rz) q.rotation.set(rx, ry, rz); par.add(q); return q; };
     const rnd = (() => { let q = 424242; return () => (q = (q * 1664525 + 1013904223) >>> 0) / 4294967296; })();
-    const AB = { vortex: null, root: null, built: false, uni: null, rings: [], funnel: null, pillar: null, kelp: [], fall: null, fallTex: null, exit: null, clearedAt: -999, far: false, lights: [], sfxT: 0 };
+    const AB = { vortex: null, root: null, built: false, uni: null, rings: [], funnel: null, pillar: null, kelp: [], fall: null, fallTex: null, exit: null, clearedAt: -999, far: false, lights: [], sfxT: 0, cleared: false, hidden: null, ambT: 3, fallT: 0, cnt: null, cntT: 0, cntTxt: '' };
     const EXIT = () => ({ x: ABY.x + 58, z: ABY.z });
-    const ENTRY = () => ({ x: ABY.x - 54, z: ABY.z });
+    const ENTRY = () => ({ x: ABY_COR.x0 + 10, z: ABY.z });                       // la cascada del principio del pasillo
+    const GATE_X = ABY.x - 82;                                                      // al pasarlo ya estás en la sala del Kraken
     const eventOn = () => !!(SEA.ev && SEA.ev.squid > 0);
+    const locked = () => eventOn() && !AB.cleared;                                  // con el evento activo no se sale hasta vencer al Kraken
 
     // ---------------------------------------------------------------- el torbellino del mar profundo (agua con shader: espiral, espuma, centro oscuro)
+    const NOISE = `float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y); }`;
     const VORTEX_FRAG = `varying vec2 vUv; uniform float uTime, uGlow;
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y); }
+      ${NOISE}
       void main(){
-        vec2 p = (vUv - .5) * 2.; float r = length(p), a = atan(p.y, p.x);
-        float sw = a + 9. * pow(1. - r, 2.) - uTime * (.7 + (1. - r) * 2.2);
-        vec2 q = vec2(cos(sw), sin(sw)) * r;
-        float n = noise(q * 8. + vec2(uTime * .35, 0.)) * .6 + noise(q * 19. - uTime * .25) * .4;
-        float arms = .5 + .5 * sin(sw * 4. + n * 4.);
-        float foam = smoothstep(.55, .95, arms * (.4 + n)) * smoothstep(1., .25, r);
-        float streak = smoothstep(.8, 1., sin(sw * 11. + r * 30. - uTime * 3.) * .5 + .5) * (1. - r) * .5;
-        vec3 deep = mix(vec3(.0, .004, .016), vec3(.01, .1, .24), smoothstep(.0, .95, r));
-        vec3 col = deep + (foam + streak) * vec3(.74, .93, 1.);
-        col += vec3(.1, .6, .9) * uGlow * smoothstep(.3, .0, r) * (.6 + .4 * sin(uTime * 3.));
-        float hole = smoothstep(.1, .02, r);
-        col = mix(col, vec3(0.), hole);
-        float alpha = smoothstep(1., .86, r) * mix(.88, 1., hole);
-        gl_FragColor = vec4(col, alpha);
+        float r = vUv.y, a = vUv.x * 6.2831853, w = 1. - r;
+        float sw = a + 7. * pow(w, 1.6) - uTime * (.5 + w * 2.6);
+        vec2 q = vec2(cos(sw), sin(sw)) * (r + .25);
+        float n = noise(q * 9. + vec2(uTime * .3, 0.)) * .6 + noise(q * 22. - uTime * .2) * .4;
+        float arms = .5 + .5 * sin(sw * 5. + n * 3.);
+        float foam = smoothstep(.62, .96, arms * (.35 + n)) * smoothstep(.0, .5, r);
+        float streak = smoothstep(.86, 1., sin(sw * 13. + r * 40. - uTime * 3.) * .5 + .5) * w * .6;
+        vec3 col = mix(vec3(.05, .38, .52), vec3(.01, .1, .24), smoothstep(.0, .55, w));
+        col = mix(col, vec3(.0, .006, .022), smoothstep(.5, .98, w));
+        col += (foam * .75 + streak) * vec3(.78, .95, 1.) * (1. - w * .45);
+        float rim = smoothstep(.88, .985, r) * (.45 + n) * (1. - smoothstep(.985, 1., r));
+        col += rim * vec3(.92, 1., 1.) * .85;
+        col += vec3(.1, .6, .9) * uGlow * smoothstep(.3, 1., w) * (.5 + .5 * sin(uTime * 3.));
+        float spec = pow(max(0., sin(sw * 3. + n * 6.)), 24.) * (1. - w) * .5;
+        col += spec * vec3(1.);
+        gl_FragColor = vec4(col, (1. - smoothstep(.93, 1., r)) * .97);
       }`;
     const FUNNEL_FRAG = `varying vec2 vUv; uniform float uTime;
-      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y); }
+      ${NOISE}
       void main(){ vec2 uv = vec2(vUv.x * 14. + vUv.y * 6. - uTime * .3, vUv.y * 5. - uTime * 1.6); float n = noise(uv * vec2(2., 3.)) * .6 + noise(uv * vec2(6., 8.) + 4.) * .4; float s = smoothstep(.45, .9, n);
-        gl_FragColor = vec4(vec3(.5, .85, 1.) * s + vec3(.0, .1, .2), (.15 + s * .55) * smoothstep(.0, .25, vUv.y)); }`;
+        gl_FragColor = vec4(vec3(.5, .85, 1.) * s + vec3(.0, .1, .2), (.1 + s * .4) * smoothstep(.0, .25, vUv.y)); }`;
     const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`;
+    const VR_R = VR + 10, VR_D = 26, VR_P = 2.4;                                      // forma del embudo: y = -D * (1 - r/R)^P
+    const surfY = d => -VR_D * Math.pow(Math.max(0, 1 - d / VR_R), VR_P);
     function buildVortex() {
       if (AB.vortex || !SEA.root) return;
       const g = new T.Group(); g.position.set(VX, SEA_Y + .07, VZ); SEA.root.add(g); AB.vortex = g;
       AB.uni = { uTime: { value: 0 }, uGlow: { value: 0 } };
-      const disc = new T.Mesh(new T.CircleGeometry(VR + 10, 96), new T.ShaderMaterial({ uniforms: AB.uni, vertexShader: VERT, fragmentShader: VORTEX_FRAG, transparent: true, depthWrite: false }));
-      disc.rotation.x = -Math.PI / 2; disc.renderOrder = -3; g.add(disc);
+      const prof = []; for (let i = 0; i <= 48; i++) { const u = i / 48; prof.push(new T.Vector2(.05 + u * (VR_R - .05), surfY(u * VR_R))); }
+      const disc = new T.Mesh(new T.LatheGeometry(prof, 96), new T.ShaderMaterial({ uniforms: AB.uni, vertexShader: VERT, fragmentShader: VORTEX_FRAG, transparent: true, depthWrite: false, side: T.DoubleSide }));
+      disc.renderOrder = -3; g.add(disc);
       for (let i = 0; i < 4; i++) { const r = new T.Mesh(new T.RingGeometry(1, 1.5, 72), bmat(0xdff6ff, .35, true)); r.rotation.x = -Math.PI / 2; r.position.y = .05 + i * .01; r.renderOrder = -2; g.add(r); AB.rings.push(r); }
-      const fun = new T.Mesh(new T.CylinderGeometry(VR, 3.5, 44, 64, 1, true), new T.ShaderMaterial({ uniforms: { uTime: AB.uni.uTime }, vertexShader: VERT, fragmentShader: FUNNEL_FRAG, transparent: true, depthWrite: false, side: T.BackSide, blending: T.AdditiveBlending })); fun.position.y = -22; g.add(fun); AB.funnel = fun;
-      const pil = new T.Mesh(new T.CylinderGeometry(3.4, 3.4, 90, 20, 1, true), bmat(0x7df9ff, .12, true)); pil.position.y = 45; g.add(pil); AB.pillar = pil;   // columna de luz: se ve desde lejos
+      const pil = new T.Mesh(new T.CylinderGeometry(3.4, 3.4, 90, 20, 1, true), bmat(0x7df9ff, .12, true)); pil.position.y = 45; g.add(pil); AB.pillar = pil;
+      const dk = new T.Mesh(new T.CylinderGeometry(4.5, 1.2, VR_D, 24, 1, true), new T.ShaderMaterial({ uniforms: { uTime: AB.uni.uTime }, vertexShader: VERT, fragmentShader: FUNNEL_FRAG, transparent: true, depthWrite: false, side: T.BackSide, blending: T.AdditiveBlending })); dk.position.y = -VR_D / 2; g.add(dk);   // columna de agua en el centro   // columna de luz: se ve desde lejos
       const lc = document.createElement('canvas'); lc.width = 512; lc.height = 128; const l2 = lc.getContext('2d'); l2.font = 'bold 76px system-ui,Arial'; l2.textAlign = 'center'; l2.fillStyle = '#bff6ff'; l2.shadowColor = '#00e5ff'; l2.shadowBlur = 24; l2.fillText('EL ABISMO', 256, 90);
       const sp = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(lc), transparent: true, depthWrite: false, fog: false })); sp.scale.set(26, 6.5, 1); sp.position.y = 26; g.add(sp);
+      { const cc = document.createElement('canvas'); cc.width = 512; cc.height = 96; AB.cnt = { c: cc, g: cc.getContext('2d'), tex: new T.CanvasTexture(cc) }; const cs = new T.Sprite(new T.SpriteMaterial({ map: AB.cnt.tex, transparent: true, depthWrite: false, fog: false })); cs.scale.set(22, 4.1, 1); cs.position.y = 21; g.add(cs); }
+    }
+
+    const fmt = s => { s = Math.max(0, Math.ceil(s)); return (s / 60 | 0) + ':' + String(s % 60).padStart(2, '0'); };
+    function paintCounter() {
+      if (!AB.cnt) return; let txt, col;
+      if (eventOn()) { txt = '🦑 KRAKEN ACTIVO · ' + fmt(SEA.ev.squid); col = '#ff8fb0'; }
+      else if (SEA.noKraken && !(typeof NETPUB === 'function' && NETPUB())) { txt = 'Kraken desactivado'; col = '#9aa0b8'; }
+      else if (SEA.eventsAuto === false) { txt = 'Eventos desactivados'; col = '#9aa0b8'; }
+      else { txt = 'Próximo evento en ' + fmt(SEA.evTimer); col = '#bff6ff'; }
+      if (txt === AB.cntTxt) return; AB.cntTxt = txt; const g = AB.cnt.g; g.clearRect(0, 0, 512, 96); g.fillStyle = 'rgba(4,16,30,.72)'; g.beginPath(); g.roundRect ? g.roundRect(6, 10, 500, 76, 18) : g.rect(6, 10, 500, 76); g.fill(); g.strokeStyle = col; g.lineWidth = 3; g.stroke();
+      g.font = 'bold 38px system-ui,Arial'; g.textAlign = 'center'; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 10; g.fillText(txt, 256, 62); g.shadowBlur = 0; AB.cnt.tex.needsUpdate = true;
     }
 
     // ---------------------------------------------------------------- el mar nuevo (lejos de la costa): rocas y corales luminosos
@@ -132,7 +151,7 @@
     function spawnBoss() {
       if (B.f && G.fighters.includes(B.f)) return;
       B.f = null;
-      if (G.time - AB.clearedAt < 60) return;
+      if (AB.cleared) return;
       buildAbyss(); ensureSquid();
       const ch = Object.assign({}, DUMMY_CH, { name: 'Kraken', hp: 1500, color: '#ff5577' });
       const f = new Fighter({ name: 'KRAKEN', ch, lvlVar: 0 });
@@ -301,8 +320,8 @@
     function bossDown() {
       if (B.state === 'dead') return; B.state = 'dead'; B.deadT = 0; if (B.atk && B.atk.cleanup) B.atk.cleanup(); B.atk = null;
       for (const z of B.zones) scene.remove(z.m); B.zones = []; for (const z of B.tele) scene.remove(z.m); B.tele = [];
-      AB.clearedAt = G.time; screenFlash(.9); G.slowT = Math.max(G.slowT, 1.2); G.shake = Math.max(G.shake, 2);
-      showBanner('¡KRAKEN DERROTADO!', '#ffd54f', 'El abismo queda en calma'); sfx('boom', B.g.position, 1);
+      AB.clearedAt = G.time; AB.cleared = true; screenFlash(.9); G.slowT = Math.max(G.slowT, 1.2); G.shake = Math.max(G.shake, 2);
+      showBanner('¡KRAKEN DERROTADO!', '#ffd54f', 'Ya puedes salir por el portal de la superficie'); sfx('boom', B.g.position, 1);
       for (let i = 0; i < 8; i++) later(i * .25, () => { if (B.g) { burst(B.g.position.clone().add(new V3(rand(-4, 4), rand(2, 16), rand(-4, 4))), 40, i % 2 ? '#ffd54f' : '#ff8fb0', 16, .35, 1.1, .2); ringAt(B.g.position.clone().add(new V3(0, rand(1, 8), 0)), '#ffd54f', 12, .6); } });
       const prize = []; if (window.CF_EMOTES && CF_EMOTES.grantBoss) prize.push(...CF_EMOTES.grantBoss()); if (window.CF_COS && CF_COS.grantBoss) prize.push(...CF_COS.grantBoss());
       later(2.2, () => { if (prize.length) { showBanner('¡RECOMPENSAS!', '#ffd54f', prize.join(' · ')); for (const p of prize) addFeedText('🎁 ' + p, '#ffd54f'); } else addFeedText('El Kraken no soltó nada nuevo esta vez', '#9aa0b8'); });
@@ -368,7 +387,7 @@
       const N = 260, im = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xffffff }), N), M = new T.Matrix4(), Q = new T.Quaternion(), E = new T.Euler(), P = new V3(), S = new V3(), col = new T.Color();
       for (let i = 0; i < N; i++) { const a = rnd() * 6.283, d = 30 + Math.sqrt(rnd()) * (ABY.R - 30), w = .8 + rnd() * 3.2, h = .12 + rnd() * (i % 9 ? .5 : 1.8); P.set(Math.cos(a) * d, h / 2, Math.sin(a) * d); E.set(0, rnd() * 3, 0); Q.setFromEuler(E); S.set(w, h, w * (.6 + rnd() * .8)); M.compose(P, Q, S); im.setMatrixAt(i, M); im.setColorAt(i, col.set(rnd() < .15 ? '#1f5272' : rnd() < .5 ? '#16304a' : '#0f2338')); }
       im.instanceColor.needsUpdate = true; r.add(im);
-      const wall = new T.Mesh(new T.CylinderGeometry(ABY.R + 12, ABY.R + 12, 110, 56, 1, true), new T.MeshBasicMaterial({ color: 0x03101c, side: T.BackSide })); wall.position.y = 55; r.add(wall);
+      const gap = .14, wall = new T.Mesh(new T.CylinderGeometry(ABY.R + 12, ABY.R + 12, 110, 56, 1, true, -Math.PI / 2 + gap, Math.PI * 2 - gap * 2), new T.MeshBasicMaterial({ color: 0x03101c, side: T.DoubleSide })); wall.position.y = 55; r.add(wall);
       for (let i = 0; i < 70; i++) { const a = rnd() * 6.283; mkbox(r, .5, 6 + rnd() * 26, .3, bmat(rnd() < .5 ? 0x2ee6ff : 0x9d6bff, .5, true), Math.cos(a) * (ABY.R + 11.6), 4 + rnd() * 70, Math.sin(a) * (ABY.R + 11.6), 0, -a + Math.PI / 2, 0); }
       const ceil = new T.Mesh(new T.CircleGeometry(ABY.R + 12, 56), new T.MeshBasicMaterial({ color: 0x0c5a7a, transparent: true, opacity: .55, side: T.DoubleSide })); ceil.rotation.x = Math.PI / 2; ceil.position.y = 100; r.add(ceil);
       for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283; const sh = new T.Mesh(new T.CylinderGeometry(3, 9, 100, 12, 1, true), bmat(0x6fd8ff, .05, true)); sh.position.set(Math.cos(a) * 36, 50, Math.sin(a) * 36); r.add(sh); }
@@ -386,8 +405,7 @@
       const wc = document.createElement('canvas'); wc.width = 64; wc.height = 256; const w2 = wc.getContext('2d');
       for (let i = 0; i < 40; i++) { w2.fillStyle = 'rgba(190,240,255,' + (.2 + rnd() * .6).toFixed(2) + ')'; w2.fillRect(rnd() * 64, 0, 2 + rnd() * 6, 256); }
       const wt = new T.CanvasTexture(wc); wt.wrapS = wt.wrapT = T.RepeatWrapping; wt.repeat.set(3, 4); AB.fallTex = wt;
-      const e = ENTRY(), fall = new T.Mesh(new T.CylinderGeometry(6.2, 6.2, 100, 32, 1, true), new T.MeshBasicMaterial({ map: wt, transparent: true, opacity: .6, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending })); fall.position.set(e.x - ABY.x, 50, e.z - ABY.z); r.add(fall); AB.fall = fall;
-      const foam = new T.Mesh(new T.RingGeometry(4, 12, 40), bmat(0xdff6ff, .35, true)); foam.rotation.x = -Math.PI / 2; foam.position.set(e.x - ABY.x, .1, e.z - ABY.z); r.add(foam); AB.foam = foam;
+      buildCorridor(r, wt);
       const x = EXIT(), pg = new T.Group(); pg.position.set(x.x - ABY.x, 0, x.z - ABY.z); r.add(pg); AB.exit = pg;
       const ring = new T.Mesh(new T.TorusGeometry(3.8, .35, 10, 40), bmat(0xfff2a8, .95, true)); ring.position.y = 4.6; pg.add(ring); const disc = new T.Mesh(new T.CircleGeometry(3.5, 32), bmat(0xbff6ff, .3, true)); disc.position.y = 4.6; pg.add(disc); pg.userData.disc = disc;
       const beam = new T.Mesh(new T.CylinderGeometry(2.4, 2.4, 100, 16, 1, true), bmat(0xfff2a8, .12, true)); beam.position.y = 50; pg.add(beam);
@@ -396,18 +414,80 @@
       for (const [lx, ly, lz, c, it] of [[0, 22, 0, 0x39e6ff, 1.5], [-42, 12, 0, 0x2de0c0, 1.1], [44, 12, 4, 0x9d6bff, 1.2], [0, 10, 40, 0xff4fd8, .9], [0, 10, -40, 0x39e6ff, .9]]) { const pl = new T.PointLight(c, it, 95, 1.6); pl.position.set(lx, ly, lz); r.add(pl); AB.lights.push(pl); }
     }
 
+    function pathTex() {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#0a1b2a'; g.fillRect(0, 0, 512, 256);
+      for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(' + (10 + rnd() * 25 | 0) + ',' + (40 + rnd() * 40 | 0) + ',' + (60 + rnd() * 40 | 0) + ',.35)'; g.beginPath(); g.arc(rnd() * 512, rnd() * 256, 4 + rnd() * 16, 0, 7); g.fill(); }
+      g.strokeStyle = '#17405c'; g.lineWidth = 3; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 128, 0); g.lineTo(i * 128, 256); g.stroke(); } g.beginPath(); g.moveTo(0, 128); g.lineTo(512, 128); g.stroke();
+      g.strokeStyle = '#39e6ff'; g.globalAlpha = .8; g.lineWidth = 4; g.beginPath(); g.moveTo(0, 128); g.lineTo(512, 128); g.stroke();
+      for (let i = 0; i < 4; i++) { g.save(); g.translate(64 + i * 128, 64); g.strokeStyle = i % 2 ? '#ff4fd8' : '#2de0c0'; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 18, 0, 7); g.moveTo(-10, 8); g.lineTo(0, -12); g.lineTo(10, 8); g.stroke(); g.restore(); }
+      g.globalAlpha = 1; const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t;
+    }
+    function buildCorridor(r, fallTex) {
+      const x0 = ABY_COR.x0 - ABY.x, x1 = -62, L = x1 - x0, cx = (x0 + x1) / 2, hw = ABY_COR.hw;
+      const ft = pathTex(); ft.repeat.set(L / 16, 1);
+      const fl = new T.Mesh(new T.PlaneGeometry(L, hw * 2 + 2), new T.MeshBasicMaterial({ map: ft })); fl.rotation.x = -Math.PI / 2; fl.position.set(cx, .03, 0); r.add(fl);
+      const wallM = new T.MeshBasicMaterial({ color: 0x04131f }), rockM = [0x0a2233, 0x0e2d44, 0x08192a].map(c => new T.MeshBasicMaterial({ color: c })), stone = lm('#26405a'), stone2 = lm('#1b3047');
+      for (const sd of [-1, 1]) mkbox(r, L, 74, 4, wallM, cx, 37, sd * (hw + 3));
+      mkbox(r, L - 28, 2, hw * 2 + 10, wallM, cx + 14, 74, 0);
+      const cap = new T.Mesh(new T.PlaneGeometry(30, hw * 2 + 6), new T.MeshBasicMaterial({ color: 0x0c5a7a, transparent: true, opacity: .5, side: T.DoubleSide })); cap.rotation.x = Math.PI / 2; cap.position.set(x0 + 14, 100, 0); r.add(cap);
+      for (const sd of [-1, 1]) { const sh = [mkbox(r, 30, 26, 1, wallM, x0 + 14, 87, sd * (hw + 3))]; }
+      for (let i = 0; i < 70; i++) { const sd = i % 2 ? 1 : -1, w = 2 + rnd() * 6, h = 2 + rnd() * 10; mkbox(r, w, h, 2 + rnd() * 2.5, rockM[i % 3], x0 + 10 + rnd() * (L - 14), h / 2, sd * (hw + .6 - rnd() * 1.6)); }
+      for (let i = 0; i < 34; i++) { const h = 4 + rnd() * 13, c = new T.Mesh(new T.ConeGeometry(.8 + rnd() * 1.8, h, 6), stone2); c.rotation.x = Math.PI; c.position.set(x0 + 30 + rnd() * (L - 34), 74 - h / 2 + .5, (rnd() - .5) * hw * 1.6); r.add(c); }
+      for (const sd of [-1, 1]) mkbox(r, L, .25, .35, bmat(sd > 0 ? 0x39e6ff : 0xff4fd8, .85, true), cx, .3, sd * (hw - .4));   // tiras de luz a los lados del camino
+      const arcCols = [0x39e6ff, 0xff4fd8, 0x9d6bff, 0x2de0c0];
+      for (let xa = x0 + 38, i = 0; xa < x1 - 14; xa += 17, i++) {
+        for (const sd of [-1, 1]) { mkbox(r, 1.7, 15, 1.7, i % 2 ? stone : stone2, xa, 7.5, sd * (hw - 1.6)); mkbox(r, 2.4, .8, 2.4, stone, xa, 15.2, sd * (hw - 1.6)); }
+        mkbox(r, 1.6, 1.3, hw * 2 - 1, stone2, xa, 16, 0);
+        const arc = new T.Mesh(new T.TorusGeometry(hw - 2.6, .22, 8, 32, Math.PI), bmat(arcCols[i % 4], .9, true)); arc.rotation.y = Math.PI / 2; arc.position.set(xa, .6, 0); r.add(arc);
+        for (const sd of [-1, 1]) { const orb = new T.Mesh(new T.SphereGeometry(.55, 10, 8), bmat(arcCols[(i + 1) % 4], .95, true)); orb.position.set(xa + 2.2, 11.5, sd * 3.2); r.add(orb); mkbox(r, .08, 8, .08, lm('#13283a'), xa + 2.2, 15.6, sd * 3.2); AB.kelp.push([orb, rnd() * 6]); }
+      }
+      const crys = [bmat(0x39e6ff, .9, true), bmat(0xff4fd8, .9, true), bmat(0x9d6bff, .9, true), bmat(0x2de0c0, .9, true)];
+      for (let i = 0; i < 18; i++) { const sd = i % 2 ? 1 : -1, bx = x0 + 22 + rnd() * (L - 40), bz = sd * (hw - 2.4 - rnd() * 2); for (let k = 0; k < 3 + (rnd() * 3 | 0); k++) { const h = 2 + rnd() * 6, c = new T.Mesh(new T.ConeGeometry(.45 + rnd() * .8, h, 5), crys[(i + k) % 4]); c.position.set(bx + rnd() * 2.4 - 1.2, h / 2, bz + rnd() * 2 - 1); c.rotation.set((rnd() - .5) * .6, rnd() * 3, (rnd() - .5) * .6); r.add(c); } }
+      const stem = lm('#0d5a4f'); for (let i = 0; i < 26; i++) { const sd = i % 2 ? 1 : -1, h = 3 + rnd() * 6, k = mkbox(r, .35, h, .3, stem, x0 + 20 + rnd() * (L - 36), h / 2, sd * (hw - 1.4 - rnd() * 3)); AB.kelp.push([k, rnd() * 6]); const tip = new T.Mesh(new T.SphereGeometry(.4, 8, 6), crys[i % 4]); tip.position.set(0, h / 2 + .2, 0); k.add(tip); }
+      for (let i = 0; i < 7; i++) { const sd = i % 2 ? 1 : -1, bx = x0 + 44 + i * 16 + rnd() * 6, h = 2 + rnd() * 6; mkbox(r, 1.5, h, 1.5, stone, bx, h / 2, sd * (hw - 3 - rnd() * 3), (rnd() - .5) * .3, rnd() * 3, (rnd() - .5) * .3); mkbox(r, 2.2, 1, 2.2, stone2, bx + sd * 2, .5, sd * (hw - 5), 0, rnd() * 3, 0); }
+      { const bone = lm('#d8d2c0'), rib = new T.Group(); rib.position.set(x0 + 62, 0, hw - 4.5); rib.rotation.y = Math.PI / 2; r.add(rib); for (let i = 0; i < 7; i++) { const arc = new T.Mesh(new T.TorusGeometry(4.2 - Math.abs(i - 3) * .35, .38, 6, 14, Math.PI), bone); arc.position.set(0, 0, i * 1.9 - 6); arc.rotation.y = Math.PI / 2; rib.add(arc); } mkbox(rib, .9, .9, 14, bone, 0, 0, 0); }
+      { const wood = lm('#3a2a1c'), wood2 = lm('#2a1d12'), w = new T.Group(); w.position.set(x0 + 98, 0, -hw + 5); w.rotation.set(0, .5, .2); r.add(w); mkbox(w, 4, 2.4, 13, wood, 0, 1.2, 0); mkbox(w, 3.4, 1.6, 6, wood2, 0, 2.8, -2); mkbox(w, .5, 10, .5, wood2, 0, 7, 1, .35); mkbox(w, 5, .3, 2, lm('#4a4538'), 0, 9, 2.4, .35); const sail = mkbox(w, .1, 5, 3.6, new T.MeshLambertMaterial({ color: 0x8a8f9a, side: T.DoubleSide }), .1, 6, -1.2, .35); }
+      { const st = new T.Group(); st.position.set(x0 + 80, 0, 4); st.rotation.y = .6; r.add(st); mkbox(st, 3, 1.6, 6, stone, 0, .8, 0, 0, 0, .1); mkbox(st, 2.2, 3, 1.6, stone2, 0, 2.2, -2.8, .5, 0, 0); mkbox(st, 1.7, 1.7, 1.7, stone, 0, 3.2, -4.6, .2, 0, 0); for (const ex of [-.45, .45]) mkbox(st, .35, .35, .2, bmat(0x39e6ff, 1, true), ex, 3.3, -5.45); }
+      for (let i = 0; i < 9; i++) { const rn = mkbox(r, 3.2, .05, 3.2, bmat(arcCols[i % 4], .35, true), x0 + 36 + i * 11.5, .06, 0); rn.rotation.set(0, i * .7, 0); AB.kelp.push([rn, rnd() * 6]); }
+      // portón de la sala del Kraken
+      const gx = -92, gm = lm('#1a2c42');
+      for (const sd of [-1, 1]) { mkbox(r, 3.6, 30, 3.6, gm, gx, 15, sd * (hw - 1.4)); mkbox(r, 5, 1.2, 5, stone, gx, 30.4, sd * (hw - 1.4)); mkbox(r, 5, 1.6, 5, stone, gx, .8, sd * (hw - 1.4)); }
+      mkbox(r, 3.4, 3, hw * 2 + 2, gm, gx, 31.5, 0);
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, tn = new T.Mesh(new T.TorusGeometry(2.2, .3, 6, 14, Math.PI * 1.3), bmat(0xff4fd8, .9, true)); tn.position.set(gx + 1.9, 31.5 + Math.sin(a) * 1.2, Math.cos(a) * (hw - 3)); tn.rotation.set(0, Math.PI / 2, a); r.add(tn); }
+      const gb = new T.Mesh(new T.PlaneGeometry(hw * 2 - 3, 28), bmat(0xff4fd8, .08, true)); gb.rotation.y = Math.PI / 2; gb.position.set(gx, 14, 0); r.add(gb); AB.gate = gb;
+      const gc = document.createElement('canvas'); gc.width = 768; gc.height = 128; const g2 = gc.getContext('2d'); g2.font = 'bold 82px system-ui,Arial'; g2.textAlign = 'center'; g2.fillStyle = '#ffd0dc'; g2.shadowColor = '#ff2d7a'; g2.shadowBlur = 24; g2.fillText('SALA DEL KRAKEN', 384, 94);
+      const gs = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(gc), transparent: true, depthWrite: false, fog: false })); gs.scale.set(30, 5, 1); gs.position.set(gx, 38, 0); r.add(gs);
+      // la cascada por la que caes y el charco
+      const e = ENTRY(), fall = new T.Mesh(new T.CylinderGeometry(6.2, 6.2, 100, 32, 1, true), new T.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: .6, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending })); fall.position.set(e.x - ABY.x, 50, 0); r.add(fall); AB.fall = fall;
+      const pool = new T.Mesh(new T.CircleGeometry(11, 40), bmat(0x39b8d8, .5, false)); pool.rotation.x = -Math.PI / 2; pool.position.set(e.x - ABY.x, .12, 0); r.add(pool);
+      const foam = new T.Mesh(new T.RingGeometry(4, 12, 40), bmat(0xdff6ff, .35, true)); foam.rotation.x = -Math.PI / 2; foam.position.set(e.x - ABY.x, .16, 0); r.add(foam); AB.foam = foam;
+    }
+
+    // ---------------------------------------------------------------- al estar dentro, el resto del mundo (ciudad, mar, otros jugadores) se "descarga" para ahorrar rendimiento
+    function hideWorld() {
+      if (AB.hidden) return; AB.hidden = [];
+      const mine = new Set(); for (const f of G.fighters) if (f.model && f.model.root && (f.isPlayer || f.isBoss || f.abyss)) mine.add(f.model.root);
+      for (const o of scene.children) { if (!o.visible || o === AB.root || o === B.g || o.isLight || o.isPoints || o.isSprite || mine.has(o)) continue; if (o.position.z >= 560 && o.position.y < -20) continue; o.visible = false; AB.hidden.push(o); }
+      if (SEA.root) for (const o of SEA.root.children) if (o.visible) { o.visible = false; AB.hidden.push(o); }
+    }
+    function showWorld() { if (!AB.hidden) return; for (const o of AB.hidden) o.visible = true; AB.hidden = null; }
+    function respawnIn(f) {   // moriste con el Kraken vivo: vuelves a caer por la cascada, dentro del abismo
+      const e = ENTRY(); f.abyss = true; f.air = 20; f.swim = false; f.pos.set(e.x + rand(-2, 2), ABY.y + 80, e.z + rand(-2, 2)); f.vel.set(0, -28, 0); f.onGround = false; f.iframes = Math.max(f.iframes, 2.5); f.gateMsg = false;
+      if (f.isPlayer) { screenFlash(.6); showBanner('HAS CAÍDO…', '#ff8fb0', 'No puedes salir hasta vencer al Kraken'); G.shake = Math.max(G.shake, .8); sfx('rush', null, .9); }
+    }
+
     // ---------------------------------------------------------------- entrar y salir
     function enterAbyss(f) {
       if (f.abyss) return; buildAbyss(); ensureSquid();
       f.abyss = true; f.air = 20; f.swim = false; f.hp = Math.min(f.maxHp, f.hp + 10); f.vortexSink = 0; if (f.model && f.model.root) { f.model.root.rotation.x = 0; f.model.root.rotation.z = 0; f.model.root.scale.setScalar(1); }
-      const e = ENTRY(); f.pos.set(e.x + rand(-2, 2), ABY.y + 82, e.z + rand(-2, 2)); f.vel.set(0, -28, 0); f.onGround = false; f.iframes = Math.max(f.iframes, 1.6);
-      if (f.isPlayer) { screenFlash(.9); showBanner('¡EL ABISMO!', '#7df9ff', eventOn() ? 'El Kraken está despierto…' : 'Todo está en calma…'); G.shake = Math.max(G.shake, 1); sfx('rush', null, 1); }
+      const e = ENTRY(); f.pos.set(e.x + rand(-2, 2), ABY.y + 82, e.z + rand(-2, 2)); f.vel.set(0, -28, 0); f.onGround = false; f.iframes = Math.max(f.iframes, 1.6); f.gateMsg = false;
+      if (f.isPlayer) { hideWorld(); screenFlash(.9); showBanner('¡EL ABISMO!', '#7df9ff', locked() ? 'Sigue el camino hasta la sala del Kraken…' : 'Todo está en calma…'); G.shake = Math.max(G.shake, 1); sfx('rush', null, 1); }
       burst(new V3(VX, SEA_Y + .3, VZ), 60, '#dff6ff', 14, .3, .9, -.4); ringAt(new V3(VX, SEA_Y + .1, VZ), '#7df9ff', 14, .7);
-      B.g.visible = true; if (f.isPlayer && eventOn()) spawnBoss();
+      B.g.visible = true;
     }
     function leaveAbyss(f) {
       if (!f.abyss) return; f.abyss = false;
-      const a = rand(0, 6.283); f.pos.set(VX + Math.cos(a) * (VR + 10), SEA_Y + .4, VZ + Math.sin(a) * (VR + 10)); f.vel.set(Math.cos(a) * 6, 15, Math.sin(a) * 6); f.onGround = false; f.iframes = Math.max(f.iframes, 1.2);
+      const a = rand(0, 6.283); f.pos.set(VX + Math.cos(a) * (VR + 10), SEA_Y + .4, VZ + Math.sin(a) * (VR + 10)); f.vel.set(Math.cos(a) * 6, 15, Math.sin(a) * 6); f.onGround = false; f.iframes = Math.max(f.iframes, 1.2); f.gateMsg = false; if (f.isPlayer) showWorld();
       if (f.isPlayer) { screenFlash(.7); showBanner('SUPERFICIE', '#fff2a8', 'Saliste del abismo'); sfx('rush', null, .8); }
       burst(f.pos.clone(), 40, '#dff6ff', 12, .25, .8, -.3);
       if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss();
@@ -427,7 +507,8 @@
           const dd = Math.hypot(cp.x - VX, cp.z - VZ);
           if (dd < 170 && Math.random() < dt * 40) { const a = rand(0, 6.28), r = rand(6, VR); emit(VX + Math.cos(a) * r, SEA_Y + .15, VZ + Math.sin(a) * r, -Math.sin(a) * (7 + 14 * (1 - r / VR)) - Math.cos(a) * 3, .5 + rand(0, 1.2), Math.cos(a) * (7 + 14 * (1 - r / VR)) - Math.sin(a) * 3, '#e8f8ff', .16, 1.1, 0, 1); }
           if (dd < 80 && Math.random() < dt * 8) emit(VX + rand(-5, 5), SEA_Y + rand(.5, 6), VZ + rand(-5, 5), rand(-1, 1), rand(4, 9), rand(-1, 1), '#cfeeff', .3, 1.3, -.3, 1);
-          AB.sfxT -= dt; if (dd < 90 && AB.sfxT <= 0) { AB.sfxT = 2.2; sfx('rush', new V3(VX, SEA_Y, VZ), .5, { range: 120 }); }
+          AB.sfxT -= dt; if (dd < 90 && AB.sfxT <= 0) { AB.sfxT = 2.2; sfx('rush', new V3(VX, SEA_Y, VZ), .55, { range: 130 }); if (dd < 55) sfx('whoom', new V3(VX, SEA_Y, VZ), .35, { range: 90 }); }
+          AB.cntT -= dt; if (AB.cntT <= 0 && dd < 260) { AB.cntT = .5; paintCounter(); }
         }
       }
       // el torbellino absorbe a quien nada cerca: gira, se hunde y se encoge hasta caer al abismo
@@ -436,15 +517,16 @@
         if (f.remote || f.isBoss || f.abyss || !f.alive || f.cineLock) { if (!f.abyss) resetModel(f); continue; }
         const dx = f.pos.x - VX, dz = f.pos.z - VZ, d = Math.hypot(dx, dz);
         if (d > VR || f.pos.y > SEA_Y + 2.2) { resetModel(f); continue; }
-        const s = 1 - d / VR, tang = 6 * s + 1, inw = 12 * s + 2, ux = dx / (d || 1), uz = dz / (d || 1);   // en el borde se puede escapar nadando; más adentro ya no
+        const s = 1 - d / VR, tang = 6 * s + 1, inw = 12 * s + 2, ux = dx / (d || 1), uz = dz / (d || 1);
+        if (f.isPlayer && AB.sfxT < 1.2 && d < VR * .7 && Math.random() < dt * 3) sfx('rush', f.pos, .6);   // en el borde se puede escapar nadando; más adentro ya no
         f.vel.x += (-ux * inw - uz * tang) * dt * 1.3 * 1.6; f.vel.z += (-uz * inw + ux * tang) * dt * 1.3 * 1.6;
         if (f.isPlayer && !f.vortexMsg && d < VR * .8) { f.vortexMsg = true; showBanner('¡EL TORBELLINO!', '#7df9ff', 'Te arrastra hacia el abismo'); }
         if (d < 22) {   // animación de absorción: da vueltas, se inclina, se hunde y se hace chiquito
           f.vortexSink = Math.min(1, (f.vortexSink || 0) + dt * .5); const k = f.vortexSink, m = f.model.root;
-          m.rotation.x += dt * (4 + k * 10); m.rotation.z = Math.sin(t * 6) * .5 * k; m.scale.setScalar(1 - k * .55); f.pos.y -= dt * (.4 + 4.2 * k * k);
+          m.rotation.x += dt * (4 + k * 10); m.rotation.z = Math.sin(t * 6) * .5 * k; m.scale.setScalar(1 - k * .55); f.pos.y = SEA_Y + (surfY(d) + .2) * Math.min(1, k * 1.8); f.vel.y = 0;   // resbala por la pared del embudo
           if (f.isPlayer) { G.shake = Math.max(G.shake, .12 + k * .5); if (Math.random() < dt * 24) emit(f.pos.x + rand(-.6, .6), SEA_Y + .1, f.pos.z + rand(-.6, .6), -uz * 6, rand(1, 3), ux * 6, '#e8f8ff', .18, .9, 0, 1); }
         }
-        if (d < 4.6 && f.pos.y < SEA_Y + 1.6) { f.pos.y = SEA_Y - .5; enterAbyss(f); }
+        if (d < 5.5 && f.pos.y < SEA_Y + 1.6) { f.pos.y = SEA_Y - .5; enterAbyss(f); }
       }
       if (AB.root) {
         AB.root.visible = cp.z > 560; if (B.g && B.state === 'sleep') B.g.visible = AB.root.visible;
@@ -452,20 +534,26 @@
           if (AB.fallTex) AB.fallTex.offset.y += dt * 1.6;
           if (AB.foam) { AB.foam.rotation.z += dt * .6; AB.foam.material.opacity = .3 + Math.sin(t * 5) * .06; const e = ENTRY(); if (Math.random() < dt * 40) emit(e.x + rand(-6, 6), ABY.y + .4, e.z + rand(-6, 6), rand(-3, 3), rand(1, 5), rand(-3, 3), '#dff6ff', .22, 1, -.2, 1); }
           AB.kelp.forEach(([k, ph]) => { k.rotation.z = Math.sin(t * .8 + ph) * .12; });
-          if (AB.exit) { AB.exit.rotation.y += dt * .8; AB.exit.userData.disc.material.opacity = .25 + Math.sin(t * 3) * .1; }
+          AB.ambT -= dt; if (AB.ambT <= 0) { AB.ambT = rand(5, 9); sfx('whoom', null, .22); }
+          AB.fallT -= dt; if (AB.fallT <= 0 && AB.fall) { AB.fallT = 1.8; const e = ENTRY(); sfx('rush', new V3(e.x, ABY.y + 3, e.z), .6, { range: 70 }); }
+          if (AB.gate) AB.gate.material.opacity = .06 + Math.sin(t * 2) * .03 + (B.state === 'fight' ? .06 : 0);
+          if (AB.exit) { AB.exit.rotation.y += dt * .8; AB.exit.visible = !locked(); AB.exit.userData.disc.material.opacity = .25 + Math.sin(t * 3) * .1; }
           if (Math.random() < dt * 14) emit(cp.x + rand(-20, 20), cp.y + rand(-4, 12), cp.z + rand(-20, 20), rand(-.3, .3), rand(.2, 1), rand(-.3, .3), Math.random() < .5 ? '#7df9ff' : '#ff8fe8', .1, 3, 0, 1);
           for (const f of G.fighters) {
             if (!f.abyss || f.isBoss || f.remote) continue;
             const x = EXIT(), d = Math.hypot(f.pos.x - x.x, f.pos.z - x.z);
-            if (f.isPlayer && f.alive && d < 3.6 && f.pos.y < ABY.y + 7) { if (B.state === 'fight' || B.state === 'intro') { if (!f.exitMsg || G.time - f.exitMsg > 4) { f.exitMsg = G.time; popText(chestOf(f), 'No puedes subir mientras peleas con el Kraken…', '#fff2a8', 16); } } else leaveAbyss(f); }
+            if (f.isPlayer && f.alive && d < 3.6 && f.pos.y < ABY.y + 7) { if (locked()) { if (!f.exitMsg || G.time - f.exitMsg > 4) { f.exitMsg = G.time; popText(chestOf(f), 'No puedes subir hasta vencer al Kraken…', '#fff2a8', 16); } } else leaveAbyss(f); }
             if (f.onGround && f.fellIn !== 1 && f.pos.y < ABY.y + 1) { f.fellIn = 1; burst(f.pos.clone(), 40, '#dff6ff', 12, .3, .9, 1); ringAt(new V3(f.pos.x, ABY.y + .2, f.pos.z), '#7df9ff', 8, .6); if (f.isPlayer) { G.shake = Math.max(G.shake, .8); sfx('crash', f.pos, .8); } }
           }
         }
       }
       if (SEA.life && SEA.life.squid) SEA.life.squid.g.visible = false;     // el calamar del evento vive en el abismo, no pasa por la superficie
-      const inside = G.fighters.some(g => g.abyss && !g.isBoss && !g.remote && g.alive);
-      if (inside && ev && B.state === 'sleep' && G.time - AB.clearedAt > 60) spawnBoss();                     // el evento lo despierta aunque ya estés dentro
-      for (const f of G.fighters) if (f.abyss && !f.isBoss && (f.pos.z < ABY.z - 130 || (!f.alive && f.deathT > 1.2))) { f.abyss = false; f.fellIn = 0; f.exitMsg = 0; if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); }
+      if (!ev) AB.cleared = false;
+      for (const f of G.fighters) if (f.abyss && f.isPlayer && f.alive && !f.gateMsg && f.pos.x > GATE_X) { f.gateMsg = true; showBanner('SALA DEL KRAKEN', '#ff8fb0', ev && !AB.cleared ? 'No hay vuelta atrás…' : 'Todo está en calma'); G.shake = Math.max(G.shake, .5); sfx('whoom', null, .9); }
+      if (ev && !AB.cleared && B.state === 'sleep' && G.fighters.some(g => g.abyss && !g.isBoss && !g.remote && g.alive && g.pos.x > GATE_X)) spawnBoss();   // al cruzar el portón despierta
+      const meIn = !!(G.player && G.player.abyss); if (!meIn && AB.hidden) showWorld(); else if (meIn && !AB.hidden && G.state === 'play') hideWorld(); if (G.state !== 'play') showWorld();
+      if (window.CF_MUELLE) CF_MUELLE.update(dt, t, cp);
+      for (const f of G.fighters) if (f.abyss && !f.isBoss && (f.pos.z < ABY.z - 130 || (!f.alive && f.deathT > 1.2 && !locked()))) { f.abyss = false; f.fellIn = 0; f.exitMsg = 0; if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); }
       if (B.f) bossUpdate(dt, t); else if (B.g && B.g.visible && B.state === 'sleep') sleepAnim(dt, t);
     }
     function sleepAnim(dt, t) {   // el Kraken dormido: respira lento, ojos apagados, brazos caídos
@@ -477,6 +565,7 @@
 
     window.CF_ABISMO = { update, bossHit, bossDown, enter: enterAbyss, leave: leaveAbyss, get boss() { return B.f; }, get mesh() { return B.g; }, VORTEX: { x: VX, z: VZ, r: VR }, get state() { return B.state; }, get arms() { return B.arms; },
       tp(f) { buildVortex(); enterAbyss(f || G.player); },
+      locked, respawnIn, hideWorld, showWorld, get cleared() { return AB.cleared; }, get hiddenCount() { return AB.hidden ? AB.hidden.length : 0; },
       wake() { spawnBoss(); },
       force(n) { if (!B.f || B.state !== 'fight') return false; if (B.atk && B.atk.cleanup) B.atk.cleanup(); B.atk = ({ slam: atkSlam, sweep: atkSweep, ink: atkInk, suction: atkSuction, whip: atkWhip, rocks: atkRocks, beam: atkBeam }[n] || atkSlam)(); return !!B.atk; } };
   }
