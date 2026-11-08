@@ -16,9 +16,9 @@
     const lm = c => new T.MeshLambertMaterial({ color: c }), bmat = (c, op, add) => new T.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false, blending: add ? T.AdditiveBlending : T.NormalBlending, side: T.DoubleSide });
     const mkbox = (par, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const q = new T.Mesh(new T.BoxGeometry(w, h, d), m); q.position.set(x, y, z); if (rx || ry || rz) q.rotation.set(rx, ry, rz); par.add(q); return q; };
     const rnd = (() => { let q = 424242; return () => (q = (q * 1664525 + 1013904223) >>> 0) / 4294967296; })();
-    const AB = { vortex: null, root: null, built: false, uni: null, rings: [], funnel: null, pillar: null, kelp: [], fall: null, fallTex: null, exit: null, clearedAt: -999, far: false, lights: [], sfxT: 0, cleared: false, hidden: null, ambT: 3, fallT: 0, cnt: null, cntT: 0, cntTxt: '' };
+    const AB = { vortex: null, root: null, built: false, uni: null, rings: [], funnel: null, pillar: null, kelp: [], fall: null, fallTex: null, exit: null, clearedAt: -999, far: false, lights: [], sfxT: 0, cleared: false, hidden: null, ambT: 3, fallT: 0, cnt: null, cntT: 0, cntTxt: '', mobs: [], bolts: [], groups: null, pl: null, door: null, emptyT: 0, ambZ: 0 };
     const EXIT = () => ({ x: ABY.x + 58, z: ABY.z });
-    const ENTRY = () => ({ x: ABY_COR.x0 + 10, z: ABY.z });                       // la cascada del principio del pasillo
+    const ENTRY = () => ({ x: ABY_PTS[3][0], z: ABY_PTS[3][1] });                   // la cascada del principio del camino
     const GATE_X = ABY.x - 82;                                                      // al pasarlo ya estás en la sala del Kraken
     const eventOn = () => !!(SEA.ev && SEA.ev.squid > 0);
     const locked = () => eventOn() && !AB.cleared;                                  // con el evento activo no se sale hasta vencer al Kraken
@@ -308,7 +308,8 @@
       B.stagger = 2.6; B.vuln = Math.max(B.vuln, 3.8); if (B.f) B.f.hp = Math.max(1, B.f.hp - 35);
       if (!aliveArms().length) { B.exposed = 9; popText(B.g.position.clone().add(new V3(0, 19, 0)), '¡OJO AL DESCUBIERTO!', '#ffd23f', 28); }
     }
-    function bossHit(att, o) {   // cada golpe: elige el tentáculo más cercano, le baja vida y ajusta el daño al cuerpo
+    function bossHit(att, o, tg) {
+      if (tg && tg.mob) return o;   // los enemigos del pasillo reciben el daño tal cual   // cada golpe: elige el tentáculo más cercano, le baja vida y ajusta el daño al cuerpo
       if (!B.g || B.state === 'dead') return o;
       const dmg = o.dmg || 3, ang = Math.atan2(att.pos.z - ABY.z, att.pos.x - ABY.x); let best = null, bd = 9;
       for (const a of B.arms) { if (a.severed) continue; const wp = armWorld(a), d = angDiff(Math.atan2(wp.z - ABY.z, wp.x - ABY.x), ang); if (d < bd) { bd = d; best = a; } }
@@ -317,7 +318,8 @@
       const n = aliveArms().length, mult = B.vuln > 0 || B.exposed > 0 ? 2.2 : n >= 4 ? .45 : n > 0 ? .8 : 1.8;
       return Object.assign({}, o, { dmg: dmg * mult });
     }
-    function bossDown() {
+    function bossDown(v) {
+      if (v && v.mob) return;   // los enemigos pequeños los gestiona mobsUpdate
       if (B.state === 'dead') return; B.state = 'dead'; B.deadT = 0; if (B.atk && B.atk.cleanup) B.atk.cleanup(); B.atk = null;
       for (const z of B.zones) scene.remove(z.m); B.zones = []; for (const z of B.tele) scene.remove(z.m); B.tele = [];
       AB.clearedAt = G.time; AB.cleared = true; screenFlash(.9); G.slowT = Math.max(G.slowT, 1.2); G.shake = Math.max(G.shake, 2);
@@ -414,6 +416,20 @@
       for (const [lx, ly, lz, c, it] of [[0, 22, 0, 0x39e6ff, 1.5], [-42, 12, 0, 0x2de0c0, 1.1], [44, 12, 4, 0x9d6bff, 1.2], [0, 10, 40, 0xff4fd8, .9], [0, 10, -40, 0x39e6ff, .9]]) { const pl = new T.PointLight(c, it, 95, 1.6); pl.position.set(lx, ly, lz); r.add(pl); AB.lights.push(pl); }
     }
 
+    // ---------------------------------------------------------------- el camino (largo, con giros): cascada -> pasillo decorado -> enemigos -> portón enorme -> sala del Kraken
+    function pathInfo() { if (AB.pl) return AB.pl; const P = ABY_PTS, cum = [0]; for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1])); AB.pl = { cum, len: cum[cum.length - 1] }; return AB.pl; }
+    function pathAt(sd) {   // distancia desde el inicio -> punto, tangente y normal (coordenadas absolutas)
+      const { cum, len } = pathInfo(); sd = Math.max(0, Math.min(len, sd)); let i = 1; while (i < cum.length - 1 && cum[i] < sd) i++;
+      const a = ABY_PTS[i - 1], b = ABY_PTS[i], u = (sd - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1); let tx = b[0] - a[0], tz = b[1] - a[1]; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
+      return { x: a[0] + (b[0] - a[0]) * u, z: a[1] + (b[1] - a[1]) * u, tx, tz, nx: -tz, nz: tx, yaw: Math.atan2(-tz, tx) };
+    }
+    function sdOf(x, z) { const p = abyPath(x, z), { cum } = pathInfo(), i = Math.min(cum.length - 2, Math.floor(p.i)); return cum[i] + (p.i - i) * (cum[i + 1] - cum[i]); }
+    function ribbon(r, off, wid, y, mat, uvs) {
+      const { len } = pathInfo(), n = Math.floor(len / 2.2), pos = [], uv = [], idx = [];
+      for (let i = 0; i <= n; i++) { const sd = i / n * len, q = pathAt(sd), cx = q.x - ABY.x + q.nx * off, cz = q.z - ABY.z + q.nz * off; pos.push(cx - q.nx * wid / 2, y, cz - q.nz * wid / 2, cx + q.nx * wid / 2, y, cz + q.nz * wid / 2); uv.push(sd / uvs, 0, sd / uvs, 1); if (i < n) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); } }
+      const ge = new T.BufferGeometry(); ge.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); ge.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); ge.setIndex(idx);
+      const m = new T.Mesh(ge, mat); r.add(m); return m;
+    }
     function pathTex() {
       const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#0a1b2a'; g.fillRect(0, 0, 512, 256);
       for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(' + (10 + rnd() * 25 | 0) + ',' + (40 + rnd() * 40 | 0) + ',' + (60 + rnd() * 40 | 0) + ',.35)'; g.beginPath(); g.arc(rnd() * 512, rnd() * 256, 4 + rnd() * 16, 0, 7); g.fill(); }
@@ -423,44 +439,210 @@
       g.globalAlpha = 1; const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 4; return t;
     }
     function buildCorridor(r, fallTex) {
-      const x0 = ABY_COR.x0 - ABY.x, x1 = -62, L = x1 - x0, cx = (x0 + x1) / 2, hw = ABY_COR.hw;
-      const ft = pathTex(); ft.repeat.set(L / 16, 1);
-      const fl = new T.Mesh(new T.PlaneGeometry(L, hw * 2 + 2), new T.MeshBasicMaterial({ map: ft })); fl.rotation.x = -Math.PI / 2; fl.position.set(cx, .03, 0); r.add(fl);
-      const wallM = new T.MeshBasicMaterial({ color: 0x04131f }), rockM = [0x0a2233, 0x0e2d44, 0x08192a].map(c => new T.MeshBasicMaterial({ color: c })), stone = lm('#26405a'), stone2 = lm('#1b3047');
-      for (const sd of [-1, 1]) mkbox(r, L, 74, 4, wallM, cx, 37, sd * (hw + 3));
-      mkbox(r, L - 28, 2, hw * 2 + 10, wallM, cx + 14, 74, 0);
-      const cap = new T.Mesh(new T.PlaneGeometry(30, hw * 2 + 6), new T.MeshBasicMaterial({ color: 0x0c5a7a, transparent: true, opacity: .5, side: T.DoubleSide })); cap.rotation.x = Math.PI / 2; cap.position.set(x0 + 14, 100, 0); r.add(cap);
-      for (const sd of [-1, 1]) { const sh = [mkbox(r, 30, 26, 1, wallM, x0 + 14, 87, sd * (hw + 3))]; }
-      for (let i = 0; i < 70; i++) { const sd = i % 2 ? 1 : -1, w = 2 + rnd() * 6, h = 2 + rnd() * 10; mkbox(r, w, h, 2 + rnd() * 2.5, rockM[i % 3], x0 + 10 + rnd() * (L - 14), h / 2, sd * (hw + .6 - rnd() * 1.6)); }
-      for (let i = 0; i < 34; i++) { const h = 4 + rnd() * 13, c = new T.Mesh(new T.ConeGeometry(.8 + rnd() * 1.8, h, 6), stone2); c.rotation.x = Math.PI; c.position.set(x0 + 30 + rnd() * (L - 34), 74 - h / 2 + .5, (rnd() - .5) * hw * 1.6); r.add(c); }
-      for (const sd of [-1, 1]) mkbox(r, L, .25, .35, bmat(sd > 0 ? 0x39e6ff : 0xff4fd8, .85, true), cx, .3, sd * (hw - .4));   // tiras de luz a los lados del camino
-      const arcCols = [0x39e6ff, 0xff4fd8, 0x9d6bff, 0x2de0c0];
-      for (let xa = x0 + 38, i = 0; xa < x1 - 14; xa += 17, i++) {
-        for (const sd of [-1, 1]) { mkbox(r, 1.7, 15, 1.7, i % 2 ? stone : stone2, xa, 7.5, sd * (hw - 1.6)); mkbox(r, 2.4, .8, 2.4, stone, xa, 15.2, sd * (hw - 1.6)); }
-        mkbox(r, 1.6, 1.3, hw * 2 - 1, stone2, xa, 16, 0);
-        const arc = new T.Mesh(new T.TorusGeometry(hw - 2.6, .22, 8, 32, Math.PI), bmat(arcCols[i % 4], .9, true)); arc.rotation.y = Math.PI / 2; arc.position.set(xa, .6, 0); r.add(arc);
-        for (const sd of [-1, 1]) { const orb = new T.Mesh(new T.SphereGeometry(.55, 10, 8), bmat(arcCols[(i + 1) % 4], .95, true)); orb.position.set(xa + 2.2, 11.5, sd * 3.2); r.add(orb); mkbox(r, .08, 8, .08, lm('#13283a'), xa + 2.2, 15.6, sd * 3.2); AB.kelp.push([orb, rnd() * 6]); }
+      const { len } = pathInfo(), hw = ABY_COR.hw, rel = q => [q.x - ABY.x, q.z - ABY.z];
+      const ft = pathTex(); ribbon(r, 0, hw * 2 + 2.6, .03, new T.MeshBasicMaterial({ map: ft, side: T.DoubleSide }), 14);
+      for (const [sd, col] of [[-1, 0x39e6ff], [1, 0xff4fd8]]) ribbon(r, sd * (hw - .5), .5, .09, bmat(col, .9, true), 30);
+      const stone = lm('#26405a'), stone2 = lm('#1b3047'), rockCols = ['#0a2233', '#0e2d44', '#08192a', '#12384f'];
+      // paredes: rocas altas, una cada ~2.8 m a cada lado (se saltan donde otro tramo del camino pasa cerca)
+      const walls = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xffffff }), 900), Mx = new T.Matrix4(), Qn = new T.Quaternion(), Eu = new T.Euler(), Pv = new V3(), Sv = new V3(), cl = new T.Color(); let nw = 0;
+      for (let sd = 0; sd < len; sd += 2.6) for (const side of [-1, 1]) {
+        const q = pathAt(sd), v = side * (hw + 2.4 + rnd() * 1.2), x = q.x + q.nx * v, z = q.z + q.nz * v;
+        if (abyPath(x, z).d < hw + 1.2 || Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 14 || nw >= 900) continue;
+        const h = 40 + rnd() * 26; Pv.set(x - ABY.x, h / 2, z - ABY.z); Eu.set(0, q.yaw + (rnd() - .5) * .3, 0); Qn.setFromEuler(Eu); Sv.set(3.4 + rnd() * 2, h, 3.6 + rnd() * 2.4); Mx.compose(Pv, Qn, Sv); walls.setMatrixAt(nw, Mx); walls.setColorAt(nw, cl.set(rockCols[nw % 4])); nw++;
       }
-      const crys = [bmat(0x39e6ff, .9, true), bmat(0xff4fd8, .9, true), bmat(0x9d6bff, .9, true), bmat(0x2de0c0, .9, true)];
-      for (let i = 0; i < 18; i++) { const sd = i % 2 ? 1 : -1, bx = x0 + 22 + rnd() * (L - 40), bz = sd * (hw - 2.4 - rnd() * 2); for (let k = 0; k < 3 + (rnd() * 3 | 0); k++) { const h = 2 + rnd() * 6, c = new T.Mesh(new T.ConeGeometry(.45 + rnd() * .8, h, 5), crys[(i + k) % 4]); c.position.set(bx + rnd() * 2.4 - 1.2, h / 2, bz + rnd() * 2 - 1); c.rotation.set((rnd() - .5) * .6, rnd() * 3, (rnd() - .5) * .6); r.add(c); } }
-      const stem = lm('#0d5a4f'); for (let i = 0; i < 26; i++) { const sd = i % 2 ? 1 : -1, h = 3 + rnd() * 6, k = mkbox(r, .35, h, .3, stem, x0 + 20 + rnd() * (L - 36), h / 2, sd * (hw - 1.4 - rnd() * 3)); AB.kelp.push([k, rnd() * 6]); const tip = new T.Mesh(new T.SphereGeometry(.4, 8, 6), crys[i % 4]); tip.position.set(0, h / 2 + .2, 0); k.add(tip); }
-      for (let i = 0; i < 7; i++) { const sd = i % 2 ? 1 : -1, bx = x0 + 44 + i * 16 + rnd() * 6, h = 2 + rnd() * 6; mkbox(r, 1.5, h, 1.5, stone, bx, h / 2, sd * (hw - 3 - rnd() * 3), (rnd() - .5) * .3, rnd() * 3, (rnd() - .5) * .3); mkbox(r, 2.2, 1, 2.2, stone2, bx + sd * 2, .5, sd * (hw - 5), 0, rnd() * 3, 0); }
-      { const bone = lm('#d8d2c0'), rib = new T.Group(); rib.position.set(x0 + 62, 0, hw - 4.5); rib.rotation.y = Math.PI / 2; r.add(rib); for (let i = 0; i < 7; i++) { const arc = new T.Mesh(new T.TorusGeometry(4.2 - Math.abs(i - 3) * .35, .38, 6, 14, Math.PI), bone); arc.position.set(0, 0, i * 1.9 - 6); arc.rotation.y = Math.PI / 2; rib.add(arc); } mkbox(rib, .9, .9, 14, bone, 0, 0, 0); }
-      { const wood = lm('#3a2a1c'), wood2 = lm('#2a1d12'), w = new T.Group(); w.position.set(x0 + 98, 0, -hw + 5); w.rotation.set(0, .5, .2); r.add(w); mkbox(w, 4, 2.4, 13, wood, 0, 1.2, 0); mkbox(w, 3.4, 1.6, 6, wood2, 0, 2.8, -2); mkbox(w, .5, 10, .5, wood2, 0, 7, 1, .35); mkbox(w, 5, .3, 2, lm('#4a4538'), 0, 9, 2.4, .35); const sail = mkbox(w, .1, 5, 3.6, new T.MeshLambertMaterial({ color: 0x8a8f9a, side: T.DoubleSide }), .1, 6, -1.2, .35); }
-      { const st = new T.Group(); st.position.set(x0 + 80, 0, 4); st.rotation.y = .6; r.add(st); mkbox(st, 3, 1.6, 6, stone, 0, .8, 0, 0, 0, .1); mkbox(st, 2.2, 3, 1.6, stone2, 0, 2.2, -2.8, .5, 0, 0); mkbox(st, 1.7, 1.7, 1.7, stone, 0, 3.2, -4.6, .2, 0, 0); for (const ex of [-.45, .45]) mkbox(st, .35, .35, .2, bmat(0x39e6ff, 1, true), ex, 3.3, -5.45); }
-      for (let i = 0; i < 9; i++) { const rn = mkbox(r, 3.2, .05, 3.2, bmat(arcCols[i % 4], .35, true), x0 + 36 + i * 11.5, .06, 0); rn.rotation.set(0, i * .7, 0); AB.kelp.push([rn, rnd() * 6]); }
-      // portón de la sala del Kraken
-      const gx = -92, gm = lm('#1a2c42');
-      for (const sd of [-1, 1]) { mkbox(r, 3.6, 30, 3.6, gm, gx, 15, sd * (hw - 1.4)); mkbox(r, 5, 1.2, 5, stone, gx, 30.4, sd * (hw - 1.4)); mkbox(r, 5, 1.6, 5, stone, gx, .8, sd * (hw - 1.4)); }
-      mkbox(r, 3.4, 3, hw * 2 + 2, gm, gx, 31.5, 0);
-      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, tn = new T.Mesh(new T.TorusGeometry(2.2, .3, 6, 14, Math.PI * 1.3), bmat(0xff4fd8, .9, true)); tn.position.set(gx + 1.9, 31.5 + Math.sin(a) * 1.2, Math.cos(a) * (hw - 3)); tn.rotation.set(0, Math.PI / 2, a); r.add(tn); }
-      const gb = new T.Mesh(new T.PlaneGeometry(hw * 2 - 3, 28), bmat(0xff4fd8, .08, true)); gb.rotation.y = Math.PI / 2; gb.position.set(gx, 14, 0); r.add(gb); AB.gate = gb;
+      walls.count = nw; walls.instanceColor.needsUpdate = true; r.add(walls);
+      // techo (desde pasada la cascada) y estalactitas
+      const ceil = new T.InstancedMesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0x03101c }), 160); let nc = 0;
+      for (let sd = 34; sd < len; sd += 6) { const q = pathAt(sd); if (Math.hypot(q.x - ABY.x, q.z - ABY.z) < ABY.R + 6) continue; Pv.set(q.x - ABY.x, 74, q.z - ABY.z); Eu.set(0, q.yaw, 0); Qn.setFromEuler(Eu); Sv.set(8, 2, hw * 2 + 12); Mx.compose(Pv, Qn, Sv); ceil.setMatrixAt(nc++, Mx); }
+      ceil.count = nc; r.add(ceil);
+      for (let i = 0; i < 70; i++) { const q = pathAt(40 + rnd() * (len - 50)), v = (rnd() - .5) * hw * 1.8, h = 4 + rnd() * 13, c = new T.Mesh(new T.ConeGeometry(.8 + rnd() * 1.8, h, 6), stone2); c.rotation.x = Math.PI; c.position.set(q.x - ABY.x + q.nx * v, 74 - h / 2 + .5, q.z - ABY.z + q.nz * v); r.add(c); }
+      // decoración por zonas
+      const arcCols = [0x39e6ff, 0xff4fd8, 0x9d6bff, 0x2de0c0], crys = arcCols.map(c => bmat(c, .9, true)), stem = lm('#0d5a4f'), bone = lm('#d8d2c0');
+      const grp = (sd, v, ry) => { const q = pathAt(sd), g = new T.Group(); g.position.set(q.x - ABY.x + q.nx * v, 0, q.z - ABY.z + q.nz * v); g.rotation.y = ry == null ? q.yaw : ry; r.add(g); return g; };
+      let ai = 0;
+      for (let sd = 46; sd < len - 36; sd += 24, ai++) {   // arcos con orbes
+        const g = grp(sd, 0); for (const sg of [-1, 1]) { mkbox(g, 1.7, 15, 1.7, ai % 2 ? stone : stone2, 0, 7.5, sg * (hw - 1.6)); mkbox(g, 2.4, .8, 2.4, stone, 0, 15.2, sg * (hw - 1.6)); const orb = new T.Mesh(new T.SphereGeometry(.55, 10, 8), bmat(arcCols[(ai + 1) % 4], .95, true)); orb.position.set(2.2, 11.5, sg * 3.2); g.add(orb); AB.kelp.push([orb, rnd() * 6]); }
+        mkbox(g, 1.6, 1.3, hw * 2 - 1, stone2, 0, 16, 0); const arc = new T.Mesh(new T.TorusGeometry(hw - 2.6, .22, 8, 32, Math.PI), bmat(arcCols[ai % 4], .9, true)); arc.rotation.y = Math.PI / 2; arc.position.set(0, .6, 0); g.add(arc);
+      }
+      for (let sd = 18; sd < len - 24; sd += 7 + rnd() * 6) {
+        const z = sd / len, sgn = rnd() < .5 ? -1 : 1, v = sgn * (hw - 2 - rnd() * 3.5), g = grp(sd, v, rnd() * 6), k = rnd();
+        if (z < .26) {   // jardín de algas y cristales
+          if (k < .5) { for (let j = 0; j < 4; j++) { const h = 3 + rnd() * 6, s2 = mkbox(g, .35, h, .3, stem, rnd() * 2 - 1, h / 2, rnd() * 2 - 1); AB.kelp.push([s2, rnd() * 6]); const tip = new T.Mesh(new T.SphereGeometry(.4, 8, 6), crys[j % 4]); tip.position.set(0, h / 2 + .2, 0); s2.add(tip); } }
+          else for (let j = 0; j < 4; j++) { const h = 2 + rnd() * 6, c = new T.Mesh(new T.ConeGeometry(.45 + rnd() * .8, h, 5), crys[(j + (rnd() * 4 | 0)) % 4]); c.position.set(rnd() * 2.4 - 1.2, h / 2, rnd() * 2 - 1); c.rotation.set((rnd() - .5) * .6, rnd() * 3, (rnd() - .5) * .6); g.add(c); }
+        } else if (z < .52) {   // ruinas
+          if (k < .4) { const h = 3 + rnd() * 8; mkbox(g, 1.6, h, 1.6, stone, 0, h / 2, 0, (rnd() - .5) * .3, 0, (rnd() - .5) * .3); mkbox(g, 2.3, .9, 2.3, stone2, 0, h + .3, 0, .1, rnd(), .08); }
+          else if (k < .75) { for (let j = 0; j < 3; j++) mkbox(g, 2 + rnd() * 2, 1 + rnd(), 2 + rnd() * 2, j % 2 ? stone : stone2, rnd() * 3 - 1.5, .6 + j * .3, rnd() * 3 - 1.5, 0, rnd() * 3, 0); }
+          else { const t2 = new T.Mesh(new T.TorusGeometry(2.2, .35, 8, 20), bmat(arcCols[(rnd() * 4) | 0], .55, true)); t2.rotation.x = Math.PI / 2; t2.position.y = .15; g.add(t2); }
+        } else if (z < .76) {   // restos de naufragios y huesos
+          if (k < .35) { for (let j = 0; j < 7; j++) { const arc = new T.Mesh(new T.TorusGeometry(3.6 - Math.abs(j - 3) * .3, .34, 6, 14, Math.PI), bone); arc.position.set(0, 0, j * 1.7 - 5); arc.rotation.y = Math.PI / 2; g.add(arc); } mkbox(g, .8, .8, 12, bone, 0, 0, 0); }
+          else if (k < .7) { for (let j = 0; j < 3; j++) mkbox(g, .5, 1.6 + rnd() * 2, .5, lm('#3a2a1c'), rnd() * 4 - 2, .8, rnd() * 4 - 2, (rnd() - .5) * 1, rnd() * 3, (rnd() - .5) * 1); const an = new T.Mesh(new T.TorusGeometry(.9, .14, 6, 14, Math.PI * 1.4), lm('#3b3f46')); an.position.y = 1.2; g.add(an); }
+          else { const sk = new T.Mesh(new T.SphereGeometry(.5, 8, 6), bone); sk.position.y = .5; g.add(sk); mkbox(g, .8, .3, .8, bone, 0, .2, .3); }
+        } else {   // raíces del Kraken: tentáculos rosas y cristales rojos
+          if (k < .55) { const tc = new T.Group(); g.add(tc); let a = 0; for (let j = 0; j < 7; j++) { a += .22; const sg2 = mkbox(tc, .9 - j * .09, 1.5, .9 - j * .09, lm('#a8486a'), 0, 0, 0); sg2.position.set(Math.sin(a) * j * .9, j * 1.1, 0); sg2.rotation.z = -a; AB.kelp.push([sg2, rnd() * 6]); } }
+          else for (let j = 0; j < 4; j++) { const h = 2 + rnd() * 5, c = new T.Mesh(new T.ConeGeometry(.5 + rnd() * .8, h, 5), bmat(rnd() < .5 ? 0xff2d7a : 0xff8fb0, .9, true)); c.position.set(rnd() * 2 - 1, h / 2, rnd() * 2 - 1); c.rotation.set((rnd() - .5) * .5, rnd() * 3, (rnd() - .5) * .5); g.add(c); }
+        }
+      }
+      for (let sd = 30; sd < len - 20; sd += 11) { const g = grp(sd, 0), rn = mkbox(g, 3.2, .05, 3.2, bmat(arcCols[(sd / 11 | 0) % 4], .35, true), 0, .06, 0); rn.rotation.y = sd; AB.kelp.push([rn, rnd() * 6]); }
+      // barco naufragado grande (guiño al barco del muelle)
+      { const g = grp(len * .46, hw - 5, .5), wood = lm('#3a2a1c'), wood2 = lm('#2a1d12'); g.rotation.z = .2; mkbox(g, 4, 2.4, 13, wood, 0, 1.2, 0); mkbox(g, 3.4, 1.6, 6, wood2, 0, 2.8, -2); mkbox(g, .5, 10, .5, wood2, 0, 7, 1, .35); mkbox(g, 5, .3, 2, lm('#4a4538'), 0, 9, 2.4, .35); mkbox(g, .1, 5, 3.6, new T.MeshLambertMaterial({ color: 0x8a8f9a, side: T.DoubleSide }), .1, 6, -1.2, .35); }
+      { const g = grp(len * .62, -(hw - 4), 2.6); mkbox(g, 3, 1.6, 6, stone, 0, .8, 0, 0, 0, .1); mkbox(g, 2.2, 3, 1.6, stone2, 0, 2.2, -2.8, .5, 0, 0); mkbox(g, 1.7, 1.7, 1.7, stone, 0, 3.2, -4.6, .2, 0, 0); for (const ex of [-.45, .45]) mkbox(g, .35, .35, .2, bmat(0x39e6ff, 1, true), ex, 3.3, -5.45); }
+      // portón enorme
+      const DX = -88, door = new T.Group(); door.position.set(DX, 0, 0); r.add(door); AB.door = { g: door, open: false, k: 0, l: null, r: null, gem: null };
+      const dm = lm('#1a2c42'), dm2 = lm('#22405e');
+      for (const sg of [-1, 1]) { mkbox(door, 5, 52, 5, dm, 0, 26, sg * (hw + 2.6)); mkbox(door, 6.4, 2, 6.4, stone, 0, 52.5, sg * (hw + 2.6)); mkbox(door, 6.4, 2.4, 6.4, stone, 0, 1.2, sg * (hw + 2.6)); }
+      mkbox(door, 5, 6, hw * 2 + 12, dm, 0, 52, 0); mkbox(door, 3.4, 3, hw * 2 + 6, dm2, 1.4, 47.5, 0);
+      for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI, tn = new T.Mesh(new T.TorusGeometry(2.6, .34, 6, 14, Math.PI * 1.25), bmat(0xff4fd8, .9, true)); tn.position.set(2.6, 47.5, -hw + 1.5 + k * ((hw * 2 - 3) / 8)); tn.rotation.set(0, Math.PI / 2, a + k); door.add(tn); }
+      for (const sg of [-1, 1]) { const leaf = new T.Group(); door.add(leaf); mkbox(leaf, 3, 44, hw - .1, dm2, 0, 22, sg * hw / 2); mkbox(leaf, 3.4, 2, hw, dm, 0, 8, sg * hw / 2); mkbox(leaf, 3.4, 2, hw, dm, 0, 22, sg * hw / 2); mkbox(leaf, 3.4, 2, hw, dm, 0, 36, sg * hw / 2); mkbox(leaf, .6, 40, .6, bmat(0xff4fd8, .85, true), 1.7, 22, sg * (hw / 2 + 2)); AB.door[sg < 0 ? 'l' : 'r'] = leaf; }
+      const gem = new T.Mesh(new T.OctahedronGeometry(2.2), bmat(0xff2d55, .95, true)); gem.position.set(2.4, 26, 0); door.add(gem); AB.door.gem = gem;
+      const lk = new T.Mesh(new T.TorusGeometry(3.4, .35, 8, 28), bmat(0xff8fb0, .9, true)); lk.position.set(2.2, 26, 0); lk.rotation.y = Math.PI / 2; door.add(lk);
       const gc = document.createElement('canvas'); gc.width = 768; gc.height = 128; const g2 = gc.getContext('2d'); g2.font = 'bold 82px system-ui,Arial'; g2.textAlign = 'center'; g2.fillStyle = '#ffd0dc'; g2.shadowColor = '#ff2d7a'; g2.shadowBlur = 24; g2.fillText('SALA DEL KRAKEN', 384, 94);
-      const gs = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(gc), transparent: true, depthWrite: false, fog: false })); gs.scale.set(30, 5, 1); gs.position.set(gx, 38, 0); r.add(gs);
+      const gs = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(gc), transparent: true, depthWrite: false, fog: false })); gs.scale.set(34, 5.6, 1); gs.position.set(0, 60, 0); door.add(gs);
+      const kc = document.createElement('canvas'); kc.width = 512; kc.height = 96; AB.door.kc = kc; AB.door.kg = kc.getContext('2d'); AB.door.kt = new T.CanvasTexture(kc);
+      const ks = new T.Sprite(new T.SpriteMaterial({ map: AB.door.kt, transparent: true, depthWrite: false, fog: false })); ks.scale.set(20, 3.75, 1); ks.position.set(-4, 34, 0); door.add(ks); AB.door.ks = ks;
       // la cascada por la que caes y el charco
-      const e = ENTRY(), fall = new T.Mesh(new T.CylinderGeometry(6.2, 6.2, 100, 32, 1, true), new T.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: .6, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending })); fall.position.set(e.x - ABY.x, 50, 0); r.add(fall); AB.fall = fall;
-      const pool = new T.Mesh(new T.CircleGeometry(11, 40), bmat(0x39b8d8, .5, false)); pool.rotation.x = -Math.PI / 2; pool.position.set(e.x - ABY.x, .12, 0); r.add(pool);
-      const foam = new T.Mesh(new T.RingGeometry(4, 12, 40), bmat(0xdff6ff, .35, true)); foam.rotation.x = -Math.PI / 2; foam.position.set(e.x - ABY.x, .16, 0); r.add(foam); AB.foam = foam;
+      const q0 = pathAt(0), e = [q0.x - ABY.x, q0.z - ABY.z], fall = new T.Mesh(new T.CylinderGeometry(6.2, 6.2, 100, 32, 1, true), new T.MeshBasicMaterial({ map: fallTex, transparent: true, opacity: .6, depthWrite: false, side: T.DoubleSide, blending: T.AdditiveBlending })); fall.position.set(e[0], 50, e[1]); r.add(fall); AB.fall = fall;
+      const pool = new T.Mesh(new T.CircleGeometry(11, 40), bmat(0x39b8d8, .5, false)); pool.rotation.x = -Math.PI / 2; pool.position.set(e[0], .12, e[1]); r.add(pool);
+      const foam = new T.Mesh(new T.RingGeometry(4, 12, 40), bmat(0xdff6ff, .35, true)); foam.rotation.x = -Math.PI / 2; foam.position.set(e[0], .16, e[1]); r.add(foam); AB.foam = foam;
+      const cap = new T.Mesh(new T.CircleGeometry(24, 28), new T.MeshBasicMaterial({ color: 0x0c5a7a, transparent: true, opacity: .5, side: T.DoubleSide })); cap.rotation.x = Math.PI / 2; cap.position.set(e[0], 100, e[1]); r.add(cap);
+    }
+    function paintKeyLabel(txt, col) {
+      const D = AB.door; if (!D || D.kTxt === txt) return; D.kTxt = txt; const g = D.kg; g.clearRect(0, 0, 512, 96); g.fillStyle = 'rgba(8,16,28,.8)'; g.fillRect(6, 8, 500, 80); g.strokeStyle = col; g.lineWidth = 3; g.strokeRect(6, 8, 500, 80);
+      g.font = 'bold 34px system-ui,Arial'; g.textAlign = 'center'; g.fillStyle = col; g.fillText(txt, 256, 60); D.kt.needsUpdate = true;
+    }
+    const doorAbs = () => ({ x: ABY.x - 88, z: ABY.z });
+
+    // ---------------------------------------------------------------- enemigos del pasillo (cada uno con su comportamiento) y la llave
+    const mm = (c, em) => { const m = new T.MeshLambertMaterial({ color: c }); if (em) m.emissive = new T.Color(em); return m; };
+    const MOB_T = {
+      crab: { n: 'Cangrejo abisal', hp: 70, spd: 5.4, dmg: 9, r: 1.5, h: 1.8, rng: 2.8, cd: 1.7, wind: .45, aggro: 24 },
+      jelly: { n: 'Medusa eléctrica', hp: 45, spd: 3.1, dmg: 8, r: 1.6, h: 2.6, rng: 5.2, cd: 2.7, wind: .85, aggro: 20, fly: 3.2 },
+      angler: { n: 'Rape abisal', hp: 85, spd: 6.2, dmg: 13, r: 1.7, h: 2.0, rng: 4.2, cd: 2.5, wind: .55, aggro: 28, fly: 1.1 },
+      drowned: { n: 'Marinero ahogado', hp: 120, spd: 3.7, dmg: 14, r: 1.1, h: 2.2, rng: 2.6, cd: 1.9, wind: .6, aggro: 24 },
+      squidling: { n: 'Calamarín', hp: 55, spd: 4.2, dmg: 7, r: 1.2, h: 2.0, rng: 18, cd: 2.3, wind: .6, aggro: 30, ranged: 1, fly: .8 },
+      captain: { n: 'Capitán Ahogado', hp: 640, spd: 3.5, dmg: 22, r: 2.0, h: 4.0, rng: 4.2, cd: 2.1, wind: .85, aggro: 34, big: 1, key: 1 },
+    };
+    const MOB_BUILD = {
+      crab() { const g = new T.Group(), sh = mm('#b5402a'), sh2 = mm('#d2593a'), legs = [], claws = []; mkbox(g, 2.6, 1, 2, sh, 0, 1.1, 0); mkbox(g, 2.1, .5, 1.5, sh2, 0, 1.75, -.1);
+        for (const sg of [-1, 1]) { const e = mkbox(g, .12, .55, .12, sh, sg * .55, 2.25, .75); const eye = new T.Mesh(new T.SphereGeometry(.2, 8, 6), bmat(0xffee55, 1, true)); eye.position.set(0, .35, 0); e.add(eye);
+          const arm = new T.Group(); arm.position.set(sg * 1.5, 1.2, .8); g.add(arm); mkbox(arm, .5, .5, 1.3, sh, 0, 0, .6); const pa = mkbox(arm, .8, .5, .9, sh2, 0, 0, 1.5), pb = mkbox(arm, .8, .3, .9, sh2, 0, 0, 1.5); claws.push([arm, pa, pb, sg]);
+          for (let i = 0; i < 3; i++) { const lg = new T.Group(); lg.position.set(sg * 1.3, 1.0, -.6 + i * .55); g.add(lg); mkbox(lg, 1.2, .2, .2, sh, sg * .6, 0, 0, 0, 0, sg * -.3); legs.push([lg, sg, i]); } }
+        g.userData = { legs, claws }; return g; },
+      jelly() { const g = new T.Group(), tents = []; const bell = new T.Mesh(new T.SphereGeometry(1.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), bmat(0xff6fd8, .6, true)); bell.position.y = .6; g.add(bell);
+        const core = new T.Mesh(new T.SphereGeometry(.7, 10, 8), bmat(0xffffff, .4, true)); core.position.y = .7; g.add(core); const rim = new T.Mesh(new T.TorusGeometry(1.45, .1, 6, 20), bmat(0xffa8ee, .9, true)); rim.rotation.x = Math.PI / 2; rim.position.y = .6; g.add(rim);
+        for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283, tg = new T.Group(); tg.position.set(Math.cos(a) * .9, .5, Math.sin(a) * .9); g.add(tg); const b = mkbox(tg, .12, 2.6, .12, bmat(0xff8fe8, .75, true), 0, -1.3, 0); tents.push([tg, i]); }
+        g.userData = { tents, bell, core }; return g; },
+      angler() { const g = new T.Group(), dk = mm('#2b3a5a'), lt = mm('#46608a'), teeth = []; const body = new T.Mesh(new T.SphereGeometry(1.3, 12, 10), dk); body.scale.set(1.5, 1.05, 1.15); body.position.y = 1.1; g.add(body); const belly = new T.Mesh(new T.SphereGeometry(1.0, 10, 8), lt); belly.scale.set(1.5, .7, 1); belly.position.set(0, .7, 0); g.add(belly);
+        const jawU = mkbox(g, 1.9, .35, 1.6, dk, 1.7, 1.0, 0), jawL = new T.Group(); jawL.position.set(1.0, .75, 0); g.add(jawL); mkbox(jawL, 1.9, .3, 1.5, dk, .8, 0, 0); for (let i = 0; i < 6; i++) { const t2 = new T.Mesh(new T.ConeGeometry(.12, .5, 5), mm('#f2f2e6')); t2.position.set(.3 + i * .3, .3, (i % 2 ? .5 : -.5)); jawL.add(t2); t2.rotation.z = Math.PI; }
+        const st = mkbox(g, .12, 1.6, .12, mm('#162038'), 1.3, 2.2, 0, 0, 0, -.5); const orb = new T.Mesh(new T.SphereGeometry(.34, 10, 8), bmat(0x7dffb0, 1, true)); orb.position.set(2.0, 2.9, 0); g.add(orb);
+        for (const sg of [-1, 1]) { const e = new T.Mesh(new T.SphereGeometry(.28, 8, 6), mm('#ffffff')); e.position.set(1.4, 1.7, sg * .8); g.add(e); const pu = new T.Mesh(new T.SphereGeometry(.13, 6, 6), mm('#000000')); pu.position.set(1.62, 1.7, sg * .8); g.add(pu); mkbox(g, .8, .12, .9, lt, 0, 1.0, sg * 1.5, 0, sg * .3, 0); }
+        mkbox(g, 1.2, 1.3, .1, lt, -2.2, 1.2, 0, 0, 0, .3); for (let i = 0; i < 4; i++) { const c = new T.Mesh(new T.ConeGeometry(.15, .7, 5), dk); c.position.set(-.8 + i * .5, 2.2, 0); g.add(c); }
+        g.userData = { jaw: jawL, orb }; return g; },
+      drowned(big) { const g = new T.Group(), sk = mm('#9bb7a4'), cl = mm('#3b5568'), pn = mm('#2a3a4a'), glow = bmat(0x7dffb0, 1, true), parts = {}; parts.legL = mkbox(g, .5, 1.1, .5, pn, -.28, .55, 0); parts.legR = mkbox(g, .5, 1.1, .5, pn, .28, .55, 0); mkbox(g, 1.2, 1.3, .7, cl, 0, 1.75, 0);
+        parts.head = mkbox(g, .8, .8, .8, sk, 0, 2.8, 0); for (const sg of [-1, 1]) { mkbox(parts.head, .18, .14, .1, glow, sg * .2, .06, .42); parts.arm = parts.arm || []; const a = new T.Group(); a.position.set(sg * .75, 2.3, 0); g.add(a); mkbox(a, .35, 1.1, .35, sk, 0, -.5, 0); parts.arm.push(a); a.rotation.x = -1.1; }
+        for (let i = 0; i < 6; i++) mkbox(parts.head, .08, .5 + rnd() * .4, .08, mm('#1d5a3c'), -.3 + i * .12, .5, -.1, (rnd() - .5) * .6, 0, (rnd() - .5) * .6); for (let i = 0; i < 5; i++) mkbox(g, .24, .24, .24, mm('#7b8a6a'), rnd() * 1 - .5, 1.3 + rnd(), .38);
+        const hook = mkbox(parts.arm[1], .12, .5, .12, mm('#6a5a4a'), 0, -1.2, .1); g.userData = parts; return g; },
+      squidling() { const g = new T.Group(), tn = []; const mantle = new T.Mesh(new T.ConeGeometry(.9, 2.2, 8), mm('#e0788f')); mantle.position.y = 2.2; g.add(mantle); const hd = new T.Mesh(new T.SphereGeometry(.75, 10, 8), mm('#f08aa0')); hd.position.y = 1.2; g.add(hd);
+        for (const sg of [-1, 1]) { const e = new T.Mesh(new T.SphereGeometry(.22, 8, 6), bmat(0xffee55, 1, true)); e.position.set(sg * .45, 1.3, .5); g.add(e); } for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283, tg = new T.Group(); tg.position.set(Math.cos(a) * .5, 1.0, Math.sin(a) * .5); g.add(tg); mkbox(tg, .18, 1.6, .18, mm('#d46a82'), 0, -.7, 0); tn.push([tg, i]); }
+        g.userData = { tn, mantle }; return g; },
+      captain() { const g = MOB_BUILD.drowned(true), hat = new T.Group(); g.userData.big = 1; const head = g.userData.head; mkbox(g, 1.6, .22, 1.6, mm('#14161c'), 0, 3.3, 0); mkbox(g, 1.0, .5, 1.0, mm('#14161c'), 0, 3.6, 0); mkbox(g, 1.62, .1, 1.62, mm('#d4a017'), 0, 3.38, 0);
+        mkbox(g, 1.6, 1.6, .12, mm('#6a1e22'), 0, 1.7, -.45, .1, 0, 0); for (const sg of [-1, 1]) mkbox(g, .7, .3, .7, mm('#d4a017'), sg * .8, 2.7, 0);
+        const lan = new T.Mesh(new T.SphereGeometry(.3, 10, 8), bmat(0xffb347, 1, true)); lan.position.set(1.1, 1.0, .8); g.add(lan); mkbox(g, .06, .8, .06, mm('#222'), 1.1, 1.5, .8); g.scale.setScalar(1.7); return g; },
+    };
+    function goldKey() {
+      const g = new T.Group(), gm = bmat(0xffd54f, 1, false); const ring = new T.Mesh(new T.TorusGeometry(.5, .13, 8, 16), gm); ring.position.y = .9; g.add(ring); mkbox(g, .16, 1.6, .16, gm, 0, -.1, 0); mkbox(g, .5, .16, .16, gm, .3, -.7, 0); mkbox(g, .4, .16, .16, gm, .25, -.35, 0);
+      const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,230,120,.9)'); gr.addColorStop(1, 'rgba(255,200,60,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: new T.CanvasTexture(c), transparent: true, depthWrite: false, blending: T.AdditiveBlending, fog: false })); sp.scale.set(5, 5, 1); g.add(sp); g.scale.setScalar(1.3); return g;
+    }
+    const KEY = { st: 'none', holder: null, g: null, pos: new V3(), chip: null };
+    function keyChip(on) { if (!KEY.chip) { KEY.chip = document.createElement('div'); KEY.chip.style.cssText = 'position:fixed;top:112px;left:50%;transform:translateX(-50%);z-index:70;background:rgba(10,16,30,.85);border:2px solid #ffd54f;color:#ffe9a0;border-radius:12px;padding:7px 16px;font:700 15px system-ui,Arial;letter-spacing:.06em;display:none;pointer-events:none;text-shadow:0 1px 4px #000'; KEY.chip.textContent = '🗝️ LLAVE DEL KRAKEN · llévala al portón enorme'; document.body.appendChild(KEY.chip); } KEY.chip.style.display = on ? 'block' : 'none'; }
+    function dropKey(x, z, msg) {
+      if (!KEY.g) { KEY.g = goldKey(); scene.add(KEY.g); } KEY.st = 'ground'; KEY.holder = null; KEY.pos.set(x, ABY.y + 1.6, z); KEY.g.visible = true; KEY.g.position.copy(KEY.pos);
+      if (msg !== false && G.player && G.player.abyss) { showBanner('🗝️ ¡LA LLAVE!', '#ffd54f', 'Recógela y llévala al portón enorme'); addFeedText('🗝️ La llave del Kraken cayó al suelo', '#ffd54f'); }
+    }
+    function resetRun() {
+      for (const m of AB.mobs) { scene.remove(m.g); const j = G.fighters.indexOf(m.f); if (j >= 0) G.fighters.splice(j, 1); try { m.f.dispose(); } catch (e) { } } AB.mobs = []; AB.groups = null; AB.bolts.forEach(b => scene.remove(b.m)); AB.bolts = [];
+      if (KEY.g) KEY.g.visible = false; KEY.st = 'none'; KEY.holder = null; keyChip(false); if (AB.door) { AB.door.open = false; }
+    }
+    function spawnMob(kind, x, z) {
+      const T0 = MOB_T[kind]; buildAbyss(); const ch = Object.assign({}, DUMMY_CH, { name: T0.n, hp: T0.hp, color: '#7dffb0' });
+      const f = new Fighter({ name: T0.n.toUpperCase(), ch, lvlVar: 0 });
+      f.isBoss = true; f.mob = kind; f.abyss = true; f.maxHp = f.hp = T0.hp; f.hitR = T0.r; f.hitH = T0.h; f.ai = null; f.alive = true; f.iframes = 0; f.cineHide = true;
+      f.pos.set(x, ABY.y + (T0.fly || 0), z); f.home = f.pos.clone(); f.model.root.visible = false; G.fighters.push(f);
+      const g = MOB_BUILD[kind](); g.position.copy(f.pos); scene.add(g);
+      const m = { f, g, k: kind, T: T0, cd: rand(.6, 1.6), wind: 0, lastHp: T0.hp, flash: 0, dead: 0, ph: rand(0, 6), hx: x, hz: z, yaw: rand(0, 6), aggro: false, mats: [], lunge: 0, hitDone: false, step: 0 };
+      g.traverse(o => { if (o.material && o.material.emissive && o.material.color) m.mats.push(o.material); }); AB.mobs.push(m); return m;
+    }
+    function planGroups() {
+      const { len } = pathInfo(), g = [], pools = [['crab', 'crab', 'jelly'], ['jelly', 'crab', 'angler'], ['drowned', 'crab', 'jelly', 'squidling'], ['angler', 'drowned', 'squidling'], ['drowned', 'drowned', 'angler', 'squidling', 'jelly'], ['squidling', 'angler', 'drowned', 'drowned']];
+      for (let i = 0; i < 12; i++) { const z = .09 + i * .072, pool = pools[Math.min(pools.length - 1, i * pools.length / 12 | 0)], n = 2 + (i / 4 | 0), kinds = []; for (let j = 0; j < n; j++) kinds.push(pool[(rnd() * pool.length) | 0]); g.push({ sd: len * z, kinds, spawned: false }); }
+      g.push({ sd: len * .58, kinds: ['captain', 'drowned', 'drowned'], spawned: false, cap: true }); g.sort((a, b) => a.sd - b.sd); return g;
+    }
+    function mobAttack(m, tgt) {
+      const f = m.f, T0 = m.T; if (!tgt || !tgt.alive) return;
+      const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, d = Math.hypot(dx, dz) || 1, ux = dx / d, uz = dz / d;
+      if (m.k === 'jelly') { for (const p of abyssPlayers()) if (dist2d(p, f) < T0.rng + .8) hurt(p, T0.dmg, ux, uz, 3); ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#7df9ff', T0.rng * 1.2, .5); burst(f.pos.clone(), 18, '#9ef2ff', 8, .2, .5, 0); sfx('beam', f.pos, .6); }
+      else if (m.k === 'angler') { m.lunge = .4; m.lx = ux; m.lz = uz; m.hitDone = false; sfx('rush', f.pos, .7); }
+      else if (m.k === 'squidling') { const b = new T.Mesh(new T.SphereGeometry(.4, 8, 6), bmat(0x2a1030, .95, false)); b.position.copy(f.pos); b.position.y += 1.6; scene.add(b); AB.bolts.push({ m: b, vx: ux * 15, vz: uz * 15, t: 0, dmg: T0.dmg }); sfx('whoosh', f.pos, .6); }
+      else if (m.k === 'captain' && m.alt) { const R = 6.2; for (const p of abyssPlayers()) if (dist2d(p, f) < R + 1) hurt(p, T0.dmg * 1.1, ux, uz, 9); ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ffb347', R * 1.3, .6); burst(f.pos.clone(), 26, '#ffd0a0', 10, .3, .7, .4); G.shake = Math.max(G.shake, .5); sfx('crash', f.pos, .8); }
+      else { if (d < T0.rng + 1.4) hurt(tgt, T0.dmg, ux, uz, m.k === 'captain' ? 7 : 5); burst(new V3(f.pos.x + ux * 1.6, f.pos.y + 1, f.pos.z + uz * 1.6), 8, '#e8f8ff', 6, .2, .4, 0); sfx('heavy', f.pos, .5); }
+      if (m.k === 'captain') m.alt = !m.alt;
+    }
+    function mobAnimate(m, dt, t, moving) {
+      const g = m.g, u = g.userData, ph = m.ph + t;
+      if (m.k === 'crab') { u.legs.forEach(([lg, sg, i]) => { lg.rotation.y = moving ? Math.sin(t * 14 + i * 1.3 + (sg > 0 ? 0 : 1.6)) * .35 : 0; }); u.claws.forEach(([arm, pa, pb, sg]) => { const w = m.wind > 0 ? 1 : 0; arm.rotation.x = -.2 - w * .7 + Math.sin(t * 3 + sg) * .08; pb.position.y = .15 + (w ? Math.abs(Math.sin(t * 22)) * .25 : .05); }); g.position.y += Math.abs(Math.sin(t * 10)) * (moving ? .08 : 0); }
+      else if (m.k === 'jelly') { const k = 1 + Math.sin(t * 3 + m.ph) * .08 + (m.wind > 0 ? .25 : 0); u.bell.scale.set(k, 2 - k, k); u.core.material.opacity = m.wind > 0 ? .9 : .4; u.tents.forEach(([tg, i]) => { tg.rotation.x = Math.sin(t * 2.5 + i) * .3; tg.rotation.z = Math.cos(t * 2.1 + i * 1.7) * .3; }); }
+      else if (m.k === 'angler') { u.jaw.rotation.z = -(m.wind > 0 ? .75 : .1 + Math.abs(Math.sin(t * 3)) * .1); u.orb.scale.setScalar(1 + Math.sin(t * 6) * .25); }
+      else if (m.k === 'drowned' || m.k === 'captain') { u.legL.rotation.x = moving ? Math.sin(t * 6) * .6 : 0; u.legR.rotation.x = moving ? -Math.sin(t * 6) * .6 : 0; u.arm.forEach((a, i) => { a.rotation.x = m.wind > 0 ? -2.6 : -1.1 + Math.sin(t * 2 + i) * .1; }); u.head.rotation.z = Math.sin(t * 1.5 + m.ph) * .1; }
+      else if (m.k === 'squidling') { u.tn.forEach(([tg, i]) => { tg.rotation.x = Math.sin(t * 4 + i) * .4; tg.rotation.z = Math.cos(t * 3.4 + i * 1.3) * .4; }); u.mantle.scale.y = 1 + Math.sin(t * 3 + m.ph) * .1 + (m.wind > 0 ? .2 : 0); }
+    }
+    function mobsUpdate(dt, t) {
+      const ps = abyssPlayers(), lk = locked();
+      if (lk && !AB.groups && ps.length) AB.groups = planGroups();
+      if (AB.groups) for (const gr of AB.groups) { if (gr.spawned) continue; if (ps.some(p => { const q = sdOf(p.pos.x, p.pos.z); return q > gr.sd - 55 && q < gr.sd + 12 && abyPath(p.pos.x, p.pos.z).d < 40; })) { gr.spawned = true; const q = pathAt(gr.sd); gr.kinds.forEach((k, i) => { const u = (rnd() - .5) * 10, v = (rnd() - .5) * 12; const m = spawnMob(k, q.x + q.tx * u + q.nx * v, q.z + q.tz * u + q.nz * v); abyssClamp(m.f.pos); m.f.home.copy(m.f.pos); if (k === 'captain') { m.cap = true; showBanner('⚠ CAPITÁN AHOGADO', '#ffb347', 'Él tiene la llave del portón'); } }); } }
+      if (!lk && AB.mobs.length) for (const m of AB.mobs) if (!m.dead) { m.f.hp = 0; m.f.alive = false; m.dead = .001; }
+      for (let i = AB.mobs.length - 1; i >= 0; i--) {
+        const m = AB.mobs[i], f = m.f, T0 = m.T, g = m.g;
+        f.vel.set(0, 0, 0); f.stun = 0; f.ragdoll = 0; f.hurtT = 0; f.grabbed = false; f.cineLock = null; f.frozen = 0; f.blocking = false; f.iframes = 0; f.model.root.visible = false;
+        if (!f.alive && !m.dead) { m.dead = .001; if (m.cap) dropKey(f.pos.x, f.pos.z); burst(g.position.clone().add(new V3(0, 1.4, 0)), 22, '#9ef2ff', 9, .3, .8, .2); sfx('boom', f.pos, .6); }
+        if (m.dead) { m.dead += dt; g.scale.setScalar(Math.max(.01, (m.cap ? 1 : 1) * (1 - m.dead * 1.5))); g.rotation.z = m.dead * 2; g.position.y -= dt * 1.4; if (m.dead > .7) { scene.remove(g); const j = G.fighters.indexOf(f); if (j >= 0) G.fighters.splice(j, 1); try { f.dispose(); } catch (e) { } AB.mobs.splice(i, 1); } continue; }
+        if (f.hp < m.lastHp - .01) { m.flash = .16; m.aggro = true; } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt);
+        for (const mt of m.mats) mt.emissive.setRGB(m.flash > 0 ? .7 : 0, m.flash > 0 ? .7 : 0, m.flash > 0 ? .7 : 0);
+        let tgt = null, bd = 1e9; for (const p of ps) { const d = dist2d(p, f); if (d < bd) { bd = d; tgt = p; } }
+        let mx = 0, mz = 0, moving = false, sp = T0.spd;
+        if (tgt && bd < T0.aggro) m.aggro = true; else if (!tgt || bd > T0.aggro * 2.2) m.aggro = false;
+        if (m.lunge > 0) { m.lunge -= dt; mx = m.lx * 17; mz = m.lz * 17; moving = true; if (!m.hitDone && tgt && dist2d(tgt, f) < 2.6) { m.hitDone = true; hurt(tgt, T0.dmg, m.lx, m.lz, 8); } }
+        else if (m.wind > 0) { m.wind -= dt; if (tgt) m.yaw = Math.atan2(tgt.pos.x - f.pos.x, tgt.pos.z - f.pos.z); if (m.wind <= 0) mobAttack(m, tgt); }
+        else if (m.aggro && tgt) {
+          const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, dd = Math.hypot(dx, dz) || 1; m.yaw = Math.atan2(dx, dz);
+          const want = T0.ranged ? 12 : T0.rng * .75;
+          if (dd > want) { mx = dx / dd * sp; mz = dz / dd * sp; moving = true; } else if (T0.ranged && dd < 8) { mx = -dx / dd * sp * .7; mz = -dz / dd * sp * .7; moving = true; }
+          m.cd -= dt; if (m.cd <= 0 && dd < (T0.ranged ? T0.rng : T0.rng + .6)) { m.wind = T0.wind; m.cd = T0.cd * rand(.85, 1.25); if (m.k === 'jelly') ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff8fe8', T0.rng, T0.wind); if (m.k === 'captain' && m.alt) ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff9a4a', 6.2, T0.wind); }
+        } else { const a = t * .4 + m.ph; mx = (m.hx + Math.cos(a) * 3 - f.pos.x) * .5; mz = (m.hz + Math.sin(a * 1.3) * 3 - f.pos.z) * .5; moving = Math.hypot(mx, mz) > .6; m.yaw = Math.atan2(mx, mz) || m.yaw; }
+        f.pos.x += mx * dt; f.pos.z += mz * dt; abyssClamp(f.pos); f.pos.y = ABY.y + (T0.fly ? T0.fly + Math.sin(t * 2 + m.ph) * .35 : 0);
+        g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' ? Math.PI / 2 : 0) + (m.k === 'drowned' || m.k === 'captain' ? 0 : 0), 0); g.scale.setScalar(m.k === 'captain' ? 1 : 1);
+        if (m.k === 'angler') g.rotation.y = m.yaw - Math.PI / 2;
+        mobAnimate(m, dt, t, moving);
+        if (m.cap && KEY.st !== 'ground' && KEY.st !== 'held' && KEY.st !== 'used') { /* el capitán lleva la llave encima */ }
+      }
+      for (let i = AB.bolts.length - 1; i >= 0; i--) { const b = AB.bolts[i]; b.t += dt; b.m.position.x += b.vx * dt; b.m.position.z += b.vz * dt; let hit = false; for (const p of ps) if (Math.hypot(p.pos.x - b.m.position.x, p.pos.z - b.m.position.z) < 1.3 && p.pos.y < ABY.y + 3.4) { hurt(p, b.dmg, Math.sign(b.vx), Math.sign(b.vz), 3); hit = true; break; } if (hit || b.t > 2.4) { burst(b.m.position.clone(), 8, '#4a2060', 5, .2, .5, 0); scene.remove(b.m); AB.bolts.splice(i, 1); } }
+    }
+    function keyUpdate(dt, t) {
+      const D = AB.door; if (!D) return; const ps = abyssPlayers(), lk = locked();
+      if (KEY.g) {
+        if (KEY.st === 'ground') {
+          KEY.g.visible = true; KEY.g.position.set(KEY.pos.x, KEY.pos.y + Math.sin(t * 2.5) * .25, KEY.pos.z); KEY.g.rotation.y += dt * 2.2; if (Math.random() < dt * 14) emit(KEY.pos.x + rand(-.6, .6), KEY.pos.y + rand(-.5, 1.5), KEY.pos.z + rand(-.6, .6), 0, rand(.6, 1.6), 0, '#ffe58a', .12, 1, 0, 1);
+          for (const p of ps) if (Math.hypot(p.pos.x - KEY.pos.x, p.pos.z - KEY.pos.z) < 2.8) { KEY.st = 'held'; KEY.holder = p; if (p.isPlayer) { showBanner('🗝️ ¡TIENES LA LLAVE!', '#ffd54f', 'Llévala al portón enorme · solo un jugador la puede tener'); sfx('whoosh', null, .8); } break; }
+        } else if (KEY.st === 'held') {
+          const h = KEY.holder; if (!h || !h.alive || !h.abyss) { const lp = h ? h.pos : KEY.pos; dropKey(lp.x, lp.z, h && h.isPlayer ? '' : false); if (h && h.isPlayer) addFeedText('🗝️ Soltaste la llave', '#ffd54f'); }
+          else { KEY.g.position.set(h.pos.x, h.pos.y + 3.3 + Math.sin(t * 3) * .15, h.pos.z); KEY.g.rotation.y += dt * 2.5; const dd = doorAbs(); if (!D.open && Math.hypot(h.pos.x - dd.x, h.pos.z - dd.z) < 9) { D.open = true; KEY.st = 'used'; KEY.g.visible = false; showBanner('¡EL PORTÓN SE ABRE!', '#ff8fb0', 'La sala del Kraken te espera'); G.shake = Math.max(G.shake, 1.2); sfx('boom', null, 1); sfx('crash', null, .8); } }
+        }
+      }
+      keyChip(KEY.st === 'held' && KEY.holder === G.player);
+      const want = D.open || !lk; D.k += ((want ? 1 : 0) - D.k) * Math.min(1, dt * 1.1); if (want && D.k > .98) D.k = 1;
+      const hw = ABY_COR.hw; D.l.position.z = -D.k * (hw + 1); D.r.position.z = D.k * (hw + 1);
+      D.gem.rotation.y += dt * 1.4; D.gem.material.color.set(D.k > .5 ? 0x7dffb0 : 0xff2d55); D.gem.scale.setScalar(1 + Math.sin(t * 3) * .08);
+      paintKeyLabel(!lk ? 'ABIERTO' : D.open ? '¡ABIERTO!' : KEY.st === 'held' ? 'Acércate con la llave' : KEY.st === 'ground' ? 'Recoge la llave' : 'CERRADO · busca la llave', D.open || !lk ? '#7dffb0' : '#ff8fb0');
+      if (D.k < .95) for (const f of G.fighters) { if (!f.abyss || f.isBoss || f.remote) continue; const dd = doorAbs(); if (f.pos.x > dd.x - 2.2 && f.pos.x < dd.x + 6 && Math.abs(f.pos.z - dd.z) < hw + 4) { f.pos.x = dd.x - 2.2; if (f.vel.x > 0) f.vel.x = 0; } }
     }
 
     // ---------------------------------------------------------------- al estar dentro, el resto del mundo (ciudad, mar, otros jugadores) se "descarga" para ahorrar rendimiento
@@ -534,7 +716,7 @@
           if (AB.fallTex) AB.fallTex.offset.y += dt * 1.6;
           if (AB.foam) { AB.foam.rotation.z += dt * .6; AB.foam.material.opacity = .3 + Math.sin(t * 5) * .06; const e = ENTRY(); if (Math.random() < dt * 40) emit(e.x + rand(-6, 6), ABY.y + .4, e.z + rand(-6, 6), rand(-3, 3), rand(1, 5), rand(-3, 3), '#dff6ff', .22, 1, -.2, 1); }
           AB.kelp.forEach(([k, ph]) => { k.rotation.z = Math.sin(t * .8 + ph) * .12; });
-          AB.ambT -= dt; if (AB.ambT <= 0) { AB.ambT = rand(5, 9); sfx('whoom', null, .22); }
+          AB.ambT -= dt; if (AB.ambT <= 0) { const inRoom = G.player && G.player.abyss && Math.hypot(G.player.pos.x - ABY.x, G.player.pos.z - ABY.z) < ABY.R + 4; AB.ambT = inRoom ? rand(3, 5) : rand(5, 9); sfx(inRoom ? (B.state === 'fight' ? 'heavy' : 'whoom') : 'whoom', null, inRoom ? .3 : .2); if (!inRoom && Math.random() < .5) sfx('whoosh', null, .12); }
           AB.fallT -= dt; if (AB.fallT <= 0 && AB.fall) { AB.fallT = 1.8; const e = ENTRY(); sfx('rush', new V3(e.x, ABY.y + 3, e.z), .6, { range: 70 }); }
           if (AB.gate) AB.gate.material.opacity = .06 + Math.sin(t * 2) * .03 + (B.state === 'fight' ? .06 : 0);
           if (AB.exit) { AB.exit.rotation.y += dt * .8; AB.exit.visible = !locked(); AB.exit.userData.disc.material.opacity = .25 + Math.sin(t * 3) * .1; }
@@ -549,6 +731,9 @@
       }
       if (SEA.life && SEA.life.squid) SEA.life.squid.g.visible = false;     // el calamar del evento vive en el abismo, no pasa por la superficie
       if (!ev) AB.cleared = false;
+      const insideNow = G.fighters.some(g => g.abyss && !g.isBoss && !g.remote);
+      if (insideNow) { AB.emptyT = 0; mobsUpdate(dt, t); keyUpdate(dt, t); } else { AB.emptyT += dt; if (AB.emptyT > 15 && (AB.mobs.length || AB.groups || KEY.st !== 'none')) resetRun(); else if (AB.mobs.length) mobsUpdate(dt, t); }
+      if (AB.root && AB.root.visible && !AB.door.open && !locked()) { /* sin evento el portón queda abierto */ }
       for (const f of G.fighters) if (f.abyss && f.isPlayer && f.alive && !f.gateMsg && f.pos.x > GATE_X) { f.gateMsg = true; showBanner('SALA DEL KRAKEN', '#ff8fb0', ev && !AB.cleared ? 'No hay vuelta atrás…' : 'Todo está en calma'); G.shake = Math.max(G.shake, .5); sfx('whoom', null, .9); }
       if (ev && !AB.cleared && B.state === 'sleep' && G.fighters.some(g => g.abyss && !g.isBoss && !g.remote && g.alive && g.pos.x > GATE_X)) spawnBoss();   // al cruzar el portón despierta
       const meIn = !!(G.player && G.player.abyss); if (!meIn && AB.hidden) showWorld(); else if (meIn && !AB.hidden && G.state === 'play') hideWorld(); if (G.state !== 'play') showWorld();
@@ -563,7 +748,17 @@
       for (const m of B.mats) m.emissive.setRGB(.05, .02, .04);
     }
 
-    window.CF_ABISMO = { update, bossHit, bossDown, enter: enterAbyss, leave: leaveAbyss, get boss() { return B.f; }, get mesh() { return B.g; }, VORTEX: { x: VX, z: VZ, r: VR }, get state() { return B.state; }, get arms() { return B.arms; },
+    const MUSF = { src: { pasillo: 'musica/abismo_pasillo.mp3', kraken: 'musica/abismo_kraken.mp3', calma: 'musica/abismo_calma.mp3' }, failed: new Set() };
+    window.CF_MUS_SCENE = () => { const p = G.player; if (!p || !p.abyss) return null; let id = (!eventOn() || AB.cleared) ? 'calma' : (B.state === 'fight' || B.state === 'intro') ? 'kraken' : 'pasillo'; if (id === 'kraken' && MUSF.failed.has('kraken')) id = 'pasillo'; if (MUSF.failed.has(id)) return null; return { id, src: MUSF.src[id] }; };
+    window.CF_MUS_FAIL = id => MUSF.failed.add(id);
+    window.CF_ABISMO = {
+      giveKey(f) { f = f || G.player; if (!KEY.g) { KEY.g = goldKey(); scene.add(KEY.g); } KEY.st = 'held'; KEY.holder = f; KEY.g.visible = true; },
+      openDoor() { if (AB.door) AB.door.open = true; if (KEY.g) KEY.g.visible = false; KEY.st = 'used'; },
+      clearMobs() { for (const m of AB.mobs) if (!m.dead) { m.f.hp = 0; m.f.alive = false; } },
+      tpDoor(f) { buildVortex(); f = f || G.player; if (!f.abyss) enterAbyss(f); const d = doorAbs(); f.pos.set(d.x - 8, ABY.y + .2, d.z); f.vel.set(0, 0, 0); },
+      tpStart(f) { buildVortex(); f = f || G.player; if (!f.abyss) enterAbyss(f); },
+      killBoss() { if (B.f && B.state === 'fight') { B.f.hp = 0; kill(B.f, G.player); } },
+      get mobCount() { return AB.mobs.length; }, get key() { return KEY.st; }, get door() { return AB.door ? AB.door.open : null; }, mobs: () => AB.mobs, resetRun, update, bossHit, bossDown, enter: enterAbyss, leave: leaveAbyss, get boss() { return B.f; }, get mesh() { return B.g; }, VORTEX: { x: VX, z: VZ, r: VR }, get state() { return B.state; }, get arms() { return B.arms; },
       tp(f) { buildVortex(); enterAbyss(f || G.player); },
       locked, respawnIn, hideWorld, showWorld, get cleared() { return AB.cleared; }, get hiddenCount() { return AB.hidden ? AB.hidden.length : 0; },
       wake() { spawnBoss(); },

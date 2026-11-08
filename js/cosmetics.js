@@ -37,7 +37,7 @@
     let eq = rd('bsb_cos_eq', {}); if (!eq || typeof eq !== 'object') eq = {};
     const bossKills = () => Math.max(0, rd('bsb_boss_kills', 0) | 0);
     const pubKills = () => (window.CF_EMOTES ? CF_EMOTES.kills : 0);
-    const isOwner = () => !!(SOC && SOC.owner);                          // el dueño tiene todo
+    const isOwner = () => !!((SOC && SOC.owner) || /^(localhost|127\.|\[::1\])/.test(location.hostname));                          // el dueño tiene todo
     const loot = () => (window.CF_LOOT && Array.isArray(CF_LOOT.c) ? CF_LOOT : { e: [], c: [] });
     const owned = c => !!c && (isOwner() || c.free || (c.boss ? bossKills() >= c.boss : loot().c.includes(c.id)));
     const sane = () => { for (const [s] of SLOTS) { const c = byId(eq[s]); if (!c || c.slot !== s || !owned(c)) delete eq[s]; } };

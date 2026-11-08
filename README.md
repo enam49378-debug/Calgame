@@ -124,3 +124,11 @@ En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** 
 - **Muelle grande + Tablón de eventos + Barco:** al empezar el evento del Calamar llega un barco, espera ~2:30 y zarpa con quien suba; la corriente lo atrapa y cae al abismo (cinemática).
 - **Panel H → "Bloquear el evento del Kraken":** truco que impide el evento en privadas y bots (en públicas no aplica).
 - El ranking mundial ahora es un cartel pequeño al norte de la ciudad.
+
+### Kraken v4 (privado)
+- **Mouse:** con **Shift Lock apagado** el cursor queda libre (se tocan todos los botones; la cámara gira con el click derecho). Con **Shift Lock encendido** el mouse se captura. Al apagarlo se suelta de verdad.
+- **Muelle:** ahora es el muelle original agrandado (x1.6 de ancho, x1.7 de largo), con farolas y el barco atracado en la punta.
+- **Barco:** modelo nuevo (casco curvo, cabina, chimenea, vela, bandera).
+- **Abismo:** camino largo con giros (cascada → jardín de algas → ruinas → naufragios → raíces del Kraken) y **portón enorme** cerrado. Enemigos variados (cangrejo, medusa, rape abisal, marinero ahogado, calamarín) y el **Capitán Ahogado** que suelta la **llave** (solo un jugador la puede tener). Con la llave cerca del portón se abre; sin evento está abierto y sin enemigos.
+- **Música del abismo:** pon tus pistas en `musica/abismo_pasillo.mp3`, `musica/abismo_kraken.mp3` y `musica/abismo_calma.mp3`. Si no existen suena la música normal.
+- **Consola del Owner (F2):** eventos, barco, teletransportes, llave, portón, enemigos, Kraken y comandos (`/ayuda`). Funciona en todos los modos. En localhost eres owner automáticamente.

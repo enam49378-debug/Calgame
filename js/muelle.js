@@ -11,7 +11,7 @@
     const mkbox = (par, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const q = new T.Mesh(new T.BoxGeometry(w, h, d), m); q.position.set(x, y, z); if (rx || ry || rz) q.rotation.set(rx, ry, rz); par.add(q); return q; };
     const rnd = (() => { let q = 777; return () => (q = (q * 1664525 + 1013904223) >>> 0) / 4294967296; })();
     const VXC = 70, VZC = 420, VRC = 44;                       // el torbellino (igual que en abismo.js)
-    const BERTH = { x: 0, z: 158.4 }, HX = 7.4, HZ = 2.9, DECK = .35;
+    const BERTH = { x: 0, z: 150.2 }, HX = 7.4, HZ = 2.9, DECK = .35;
     const fmt = s => { s = Math.max(0, Math.ceil(s)); return (s / 60 | 0) + ':' + String(s % 60).padStart(2, '0'); };
     const M = { built: false, board: null, bg: null, bt: null, boat: null, sprite: null, state: 'off', t: 0, wait: 0, used: false, prevSquid: 0, pos: new V3(), yaw: 0, roll: 0, pitch: 0, aboard: new Map(), signT: 0, sinkT: 0, sinkAng: 0, sinkR: 0, msgAt: 99, spriteTxt: '' };
 
@@ -27,33 +27,22 @@
     }
 
     // ---------------------------------------------------------------- el muelle ampliado
-    function buildPier() {
+    function buildPier() {   // el muelle es el modelo original (agrandado en game.js): aquí solo se le ponen farolas, cajas y el letrero
       const g = new T.Group(); scene.add(g); M.pier = g;
-      const pc = woodTex(256, 256, '#8c6a42', 32), tex = new T.CanvasTexture(pc); tex.wrapS = tex.wrapT = T.RepeatWrapping;
-      const deckM = new T.MeshLambertMaterial({ map: tex }), dark = lm('#4d3622'), rope = lm('#cdb88a');
-      const deck = (x, z, w, d) => { const t2 = tex.clone(); t2.needsUpdate = true; t2.repeat.set(w / 4, d / 4); const m = new T.Mesh(new T.BoxGeometry(w, .26, d), new T.MeshLambertMaterial({ map: t2 })); m.position.set(x, -.07, z); m.receiveShadow = true; g.add(m); COL.push({ x, z, hx: w / 2, hz: d / 2, h: .06, y0: 0, ceiling: false }); };
-      deck(0, 132.8, 4.7, 29.8);                // alargue del muelle (de z=118 a z=147.7)
-      deck(0, 151, 24, 8);                      // cabecera en T
-      for (const px of [-2.2, 2.2]) for (let z = 120; z <= 146; z += 6) mkbox(g, .5, 5, .5, dark, px, -2.4, z);
-      for (const px of [-11, -4, 4, 11]) for (const pz of [148, 154]) mkbox(g, .6, 5.5, .6, dark, px, -2.6, pz);
-      for (const sd of [-1, 1]) { for (let z = 119; z <= 146; z += 3.4) mkbox(g, .16, 1.05, .16, dark, sd * 2.3, .6, z); mkbox(g, .1, .1, 28.5, rope, sd * 2.3, 1.05, 133); mkbox(g, .1, .1, 28.5, rope, sd * 2.3, .6, 133); }
-      for (const sd of [-1, 1]) { for (let x = 2.4; x <= 11.6; x += 3.1) mkbox(g, .16, 1.05, .16, dark, sd * x, .6, 147.2); mkbox(g, 9.4, .1, .1, rope, sd * 7, 1.05, 147.2); }
-      for (let x = -11.5; x <= 11.5; x += 3.8) mkbox(g, .16, 1.05, .16, dark, x, .6, 155.1);
-      mkbox(g, 23.5, .1, .1, rope, 0, 1.05, 155.1);
-      for (const [x, z] of [[-2.1, 124], [2.1, 137], [-2.1, 142], [-9, 151.4], [9, 151.4], [-4, 153.2], [4, 153.2]]) {   // farolas
+      const dark = lm('#4d3622');
+      for (const [x, z] of [[-3.9, 92], [3.9, 100], [-3.9, 108], [3.9, 116], [-3.9, 124], [3.9, 132], [-7.7, 138], [7.7, 138], [-7.7, 146.6], [7.7, 146.6], [0, 147.2]]) {
         mkbox(g, .22, 4.4, .22, dark, x, 2.1, z); const lamp = new T.Mesh(new T.SphereGeometry(.34, 10, 8), bm(0xffe8a0, .95, true)); lamp.position.set(x, 4.5, z); g.add(lamp); const hl = new T.Mesh(new T.SphereGeometry(.9, 10, 8), bm(0xffd070, .18, true)); hl.position.copy(lamp.position); g.add(hl);
       }
-      const crate = lm('#9a7a4a'), band = lm('#5c4328');
-      for (const [x, z, s, ry] of [[-9.6, 149, 1.2, .3], [-8.2, 149.4, 1, 1.1], [-9, 149.2, .9, .2], [9.4, 152.4, 1.3, .6], [10.8, 151, 1, 0]]) { const c = mkbox(g, s, s, s, crate, x, s / 2 + .06, z, 0, ry, 0); mkbox(g, s + .04, .12, s + .04, band, x, s / 2 + .06, z, 0, ry, 0); }
-      for (const [x, z] of [[8.4, 149.2], [-10.4, 152.6], [2.2, 126]]) { const b = new T.Mesh(new T.CylinderGeometry(.5, .5, 1.1, 12), lm('#5a3d24')); b.position.set(x, .62, z); g.add(b); const r2 = new T.Mesh(new T.TorusGeometry(.5, .05, 6, 14), lm('#2b2b2b')); r2.rotation.x = Math.PI / 2; r2.position.set(x, .62, z); g.add(r2); }
-      for (const x of [-10, 10]) { const bl = new T.Mesh(new T.CylinderGeometry(.22, .3, .6, 10), lm('#2d3640')); bl.position.set(x, .35, 154.2); g.add(bl); }
-      const nm = label('MUELLE DEL ABISMO', 768, 128, 'bold 74px system-ui,Arial', '#ffe9b0', '#ff9a4a'); nm.scale.set(15, 2.5, 1); nm.position.set(0, 7.2, 147.3); g.add(nm);
+      for (const [x, z] of [[-6.4, 143.4], [6.2, 144.2], [-5.4, 144.6]]) { const s2 = 1 + rnd() * .3; mkbox(g, s2, s2, s2, lm('#9a7a4a'), x, s2 / 2 + .06, z, 0, rnd() * 3, 0); }
+      for (const [x, z] of [[6.6, 142.8], [-6.8, 141.6]]) { const b2 = new T.Mesh(new T.CylinderGeometry(.5, .5, 1.1, 12), lm('#5a3d24')); b2.position.set(x, .62, z); g.add(b2); }
+      for (const x of [-7, 7]) { const bl = new T.Mesh(new T.CylinderGeometry(.22, .3, .6, 10), lm('#2d3640')); bl.position.set(x, .35, 145.4); g.add(bl); }
+      const nm = label('MUELLE DEL ABISMO', 768, 128, 'bold 74px system-ui,Arial', '#ffe9b0', '#ff9a4a'); nm.scale.set(13, 2.2, 1); nm.position.set(0, 7.4, 126); g.add(nm);
     }
 
     // ---------------------------------------------------------------- el tablón de eventos (madera + papeles)
     const EV_ROWS = [['school', '🐟', 'Cardumen gigante'], ['frenzy', '🦈', 'Frenesí de tiburones'], ['glow', '✨', 'Marea luminosa'], ['squid', '🦑', 'Calamar gigante']];
     function buildBoard() {
-      const g = new T.Group(); g.position.set(8.4, 0, 81.6); g.rotation.y = Math.PI; scene.add(g); M.board = g;   // mira hacia la ciudad
+      const g = new T.Group(); g.position.set(8.4, 0, 81.6); g.rotation.y = Math.PI; g.scale.setScalar(.6); scene.add(g); M.board = g;   // mira hacia la ciudad
       const wood = lm('#5a3d24'), c = document.createElement('canvas'); c.width = 1024; c.height = 700; M.bg = c.getContext('2d'); M.bt = new T.CanvasTexture(c); M.bt.anisotropy = 4;
       for (const px of [-3.4, 3.4]) mkbox(g, .45, 5.2, .45, wood, px, 2.6, 0);
       mkbox(g, 7.9, 5, .3, lm('#7a5a38'), 0, 3.6, 0); mkbox(g, 8.5, .35, 1.3, lm('#3d2918'), 0, 6.4, -.2, -.12, 0, 0);
@@ -86,22 +75,39 @@
     }
 
     // ---------------------------------------------------------------- el barco
+    function hullShape(len, wid, bow) {
+      const sh = new T.Shape(), l = len / 2, w = wid / 2;
+      sh.moveTo(-l, -w); sh.lineTo(l - bow, -w); sh.quadraticCurveTo(l - bow * .25, -w, l, 0); sh.quadraticCurveTo(l - bow * .25, w, l - bow, w); sh.lineTo(-l, w); sh.lineTo(-l, -w); return sh;
+    }
+    function layer(g, len, wid, bow, y0, h, col) {
+      const geo = new T.ExtrudeGeometry(hullShape(len, wid, bow), { depth: h, bevelEnabled: false, curveSegments: 10 }); geo.rotateX(-Math.PI / 2);
+      const m = new T.Mesh(geo, lm(col)); m.position.y = y0; g.add(m); return m;
+    }
     function buildBoat() {
       const g = new T.Group(); g.visible = false; scene.add(g); M.boat = g;
-      const hull = lm('#b0603a'), hull2 = lm('#6a4428'), deck = lm('#d2aa72'), white = lm('#e8e2d2'), red = lm('#b3261e');
-      mkbox(g, 15, 1.7, 5.4, hull, 0, -.5, 0); mkbox(g, 15.2, .35, 5.6, red, 0, -.05, 0); mkbox(g, 14.6, .12, 5.0, deck, 0, .29, 0);
-      const bow = new T.Mesh(new T.ConeGeometry(2.7, 4.4, 4), hull); bow.rotation.set(0, Math.PI / 4, -Math.PI / 2); bow.scale.set(1, 1, .72); bow.position.set(9.6, -.5, 0); g.add(bow);
-      const bow2 = new T.Mesh(new T.ConeGeometry(2.7, 4.4, 4), deck); bow2.rotation.set(0, Math.PI / 4, -Math.PI / 2); bow2.scale.set(.96, 1, .7); bow2.position.set(9.6, .35, 0); bow2.scale.y = .02; g.add(bow2);
-      for (const sd of [-1, 1]) { mkbox(g, 14.6, .12, .14, hull2, -.2, 1.2, sd * 2.7); mkbox(g, 14.6, .12, .14, hull2, -.2, .75, sd * 2.7); for (let x = -7; x <= 7; x += 2.3) mkbox(g, .14, 1, .14, hull2, x, .8, sd * 2.7); }
-      mkbox(g, 3.8, 2.8, 3.8, white, -4.4, 1.75, 0); mkbox(g, 4.2, .35, 4.2, red, -4.4, 3.3, 0);
-      for (const sd of [-1, 1]) mkbox(g, 1.4, .8, .1, bm(0xffe8a0, .95, true), -4.4, 1.9, sd * 1.95);
-      mkbox(g, .1, .8, 1.4, bm(0xffe8a0, .95, true), -2.52, 1.9, 0);
-      mkbox(g, .35, 10, .35, hull2, 1.6, 5.2, 0); mkbox(g, .22, .22, 5, hull2, 1.6, 8.6, 0);
-      const sail = new T.Mesh(new T.PlaneGeometry(4.4, 6.2), new T.MeshLambertMaterial({ color: 0xece4cf, side: T.DoubleSide })); sail.rotation.y = Math.PI / 2; sail.position.set(1.6, 5.4, 0); g.add(sail); M.sail = sail;
-      const lan = new T.Mesh(new T.SphereGeometry(.3, 10, 8), bm(0xff9a4a, .95, true)); lan.position.set(8.4, 1.6, 0); g.add(lan);
-      const nm = label('SS. CALAMAR', 512, 96, 'bold 56px system-ui,Arial', '#fff', '#000'); nm.scale.set(6, 1.1, 1); nm.position.set(-4.4, 4.9, 0); g.add(nm);
+      const white = lm('#f1ead8'), red = lm('#c0392b'), wood = lm('#8a5a34'), dark = lm('#2b2f38'), glass = bm(0xffe8a0, .95, true), navy = lm('#22456b');
+      layer(g, 13.4, 3.4, 4.2, -1.7, .9, '#5a2218'); layer(g, 15.2, 5.0, 4.6, -.85, .95, '#b3392a'); layer(g, 15.5, 5.3, 4.8, .06, .16, '#f1ead8'); layer(g, 14.6, 4.7, 4.3, .2, .12, '#c79a62');
+      for (let x = -6.6; x <= 4.4; x += 1.1) mkbox(g, .05, .02, 4.5, lm('#a77e48'), x, .33, 0);
+      for (const sd of [-1, 1]) { mkbox(g, 11.2, .12, .14, wood, -1.4, 1.3, sd * 2.35); mkbox(g, 11.2, .09, .09, wood, -1.4, .8, sd * 2.35); for (let x = -6.6; x <= 3.8; x += 1.7) mkbox(g, .13, 1.05, .13, wood, x, .85, sd * 2.35); }
+      mkbox(g, .12, .12, 3.2, wood, 4.0, 1.3, 1.9, 0, .5, 0); mkbox(g, .12, .12, 3.2, wood, 4.0, 1.3, -1.9, 0, -.5, 0);
+      mkbox(g, 4.2, 2.6, 3.6, white, -4.6, 1.65, 0); mkbox(g, 4.6, .3, 4.0, red, -4.6, 3.1, 0); mkbox(g, 3.2, 1.5, 2.8, white, -4.6, 3.95, 0); mkbox(g, 3.6, .25, 3.2, red, -4.6, 4.8, 0);
+      for (const sd of [-1, 1]) { mkbox(g, 1.3, .9, .08, glass, -5.5, 1.9, sd * 1.82); mkbox(g, 1.3, .9, .08, glass, -3.5, 1.9, sd * 1.82); mkbox(g, 1.9, .7, .08, glass, -4.6, 4.05, sd * 1.42); mkbox(g, 1.4, .06, .1, navy, -5.5, 1.38, sd * 1.82); }
+      mkbox(g, .08, .9, 1.4, glass, -2.46, 1.9, 0); mkbox(g, .08, .7, 2.2, glass, -3.02, 4.05, 0);
+      const stack = new T.Mesh(new T.CylinderGeometry(.55, .65, 2.4, 14), lm('#d6452f')); stack.position.set(-6.1, 5.4, 0); g.add(stack); const band = new T.Mesh(new T.CylinderGeometry(.56, .58, .4, 14), lm('#f1ead8')); band.position.set(-6.1, 5.5, 0); g.add(band); const top = new T.Mesh(new T.CylinderGeometry(.66, .6, .3, 14), dark); top.position.set(-6.1, 6.7, 0); g.add(top);
+      for (const sd of [-1, 1]) { const lb = new T.Mesh(new T.TorusGeometry(.42, .13, 8, 18), lm('#e8543c')); lb.position.set(-4.6, 2.2, sd * 1.86); g.add(lb); }
+      mkbox(g, .3, 11, .3, wood, 1.4, 5.8, 0); mkbox(g, .18, .18, 6.2, wood, 1.4, 9.4, 0); mkbox(g, .18, .18, 5.4, wood, 1.4, 3.0, 0);
+      const sail = new T.Mesh(new T.PlaneGeometry(5.4, 5.8, 8, 1), new T.MeshLambertMaterial({ color: 0xf4eedc, side: T.DoubleSide })); sail.rotation.y = Math.PI / 2; sail.position.set(1.5, 6.2, 0); g.add(sail); M.sail = sail;
+      const stripe = new T.Mesh(new T.PlaneGeometry(5.4, .7), new T.MeshLambertMaterial({ color: 0xc0392b, side: T.DoubleSide })); stripe.rotation.y = Math.PI / 2; stripe.position.set(1.52, 7.3, 0); g.add(stripe);
+      const flag = new T.Mesh(new T.PlaneGeometry(1.6, .9), new T.MeshLambertMaterial({ color: 0xffd54f, side: T.DoubleSide })); flag.position.set(1.4, 11.2, .85); flag.rotation.y = Math.PI / 2; g.add(flag); M.flag = flag;
+      for (const [x, z] of [[-1.2, 1.5], [-.2, 1.9], [-2.1, -1.8]]) mkbox(g, .9, .9, .9, lm('#9a7a4a'), x, .8, z, 0, rnd() * 2, 0);
+      for (const [x, z] of [[-1.6, -1.5], [-1.2, 1.0]]) { const b = new T.Mesh(new T.CylinderGeometry(.38, .38, .8, 10), lm('#5a3d24')); b.position.set(x, .72, z); g.add(b); }
+      const anc = new T.Mesh(new T.TorusGeometry(.35, .08, 6, 14, Math.PI * 1.4), dark); anc.position.set(6.6, 1.0, 0); anc.rotation.set(0, Math.PI / 2, 0); g.add(anc);
+      for (const sd of [-1, 1]) { const lan = new T.Mesh(new T.SphereGeometry(.26, 10, 8), bm(sd > 0 ? 0x66ff88 : 0xff5a5a, .95, true)); lan.position.set(5.0, 1.25, sd * 1.6); g.add(lan); }
+      const top2 = new T.Mesh(new T.SphereGeometry(.28, 10, 8), bm(0xffe8a0, .95, true)); top2.position.set(1.4, 11.6, 0); g.add(top2);
+      const nm = label('SS. CALAMAR', 512, 96, 'bold 56px system-ui,Arial', '#fff', '#000'); nm.scale.set(5, .95, 1); nm.position.set(0, 1.3, 2.9); g.add(nm);
+      const wake = new T.Mesh(new T.RingGeometry(2.6, 6.6, 28), bm(0xdff6ff, .3, true)); wake.rotation.x = -Math.PI / 2; wake.scale.set(2.1, 1, .8); wake.position.set(0, -.18, 0); g.add(wake); M.wake = wake;
       const lc = document.createElement('canvas'); lc.width = 640; lc.height = 110; M.lc = lc; M.lg = lc.getContext('2d'); M.lt = new T.CanvasTexture(lc);
-      const sp = new T.Sprite(new T.SpriteMaterial({ map: M.lt, transparent: true, depthWrite: false, fog: false })); sp.scale.set(12.5, 2.15, 1); sp.position.set(0, 11.5, 0); g.add(sp); M.sprite = sp;
+      const sp = new T.Sprite(new T.SpriteMaterial({ map: M.lt, transparent: true, depthWrite: false, fog: false })); sp.scale.set(12.5, 2.15, 1); sp.position.set(0, 13.2, 0); g.add(sp); M.sprite = sp;
     }
     function paintBoatLabel(txt, col) {
       if (txt === M.spriteTxt) return; M.spriteTxt = txt; const g = M.lg; g.clearRect(0, 0, 640, 110); g.fillStyle = 'rgba(8,20,34,.78)'; g.fillRect(8, 10, 624, 90); g.strokeStyle = col; g.lineWidth = 4; g.strokeRect(8, 10, 624, 90);
@@ -199,7 +205,7 @@
       }
       place();
       if (M.sprite) { const nA = M.aboard.size; const txt = st === 'dock' ? 'ZARPA EN ' + fmt(M.wait) + ' · A BORDO: ' + nA : st === 'sail' ? 'RUMBO AL MAR PROFUNDO' : st === 'sink' ? '¡LA CORRIENTE!' : st === 'arrive' ? 'LLEGANDO…' : 'SE VA…'; paintBoatLabel(txt, st === 'sink' ? '#ff8fb0' : '#ffd54f'); M.sprite.visible = st !== 'sink' || M.sinkT < 5; }
-      if (M.sail) M.sail.rotation.z = Math.sin(t * 1.3) * .03;
+      if (M.sail) M.sail.rotation.z = Math.sin(t * 1.3) * .03; if (M.flag) M.flag.rotation.z = Math.sin(t * 6) * .25; if (M.wake) M.wake.material.opacity = (st === 'sail' || st === 'arrive' || st === 'leave' ? .32 : .12) + Math.sin(t * 3) * .04;
     }
 
     function update(dt, t, cp) {

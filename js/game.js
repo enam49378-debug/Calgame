@@ -888,7 +888,7 @@ function cityGrassAt(x,z) {
     sea.side=THREE.DoubleSide;const water=new THREE.Mesh(new THREE.PlaneGeometry(1200,700),sea);water.frustumCulled=false;water.renderOrder=-4;water.rotation.x=-Math.PI/2;water.position.set(0,-.04,67+350);scene.add(water);BEACH.water=water;
   }
   // el mar ya se puede nadar: sin muro. La cubierta del muelle es suelo propio (sobre el agua)
-  solid(0,98,4.7,40.4,.06);solid(0,115,9.4,6,.06);
+  solid(0,112,7.5,68.7,.06);solid(0,140.9,15,10.2,.06);   // el muelle se agrandó (x1.6 de ancho, x1.7 de largo)
   // bosque alrededor de la ciudad
   for(let gx=-112;gx<=112;gx+=8)for(let gz=-112;gz<=60;gz+=8){
     const x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,r=Math.hypot(x,z);
@@ -908,7 +908,7 @@ function cityGrassAt(x,z) {
     PR.push(Object.assign({m,x,z,ry},o));};
   addP('muelle',0,78,0);
   // huellas de los adornos fijos [x, z, medio ancho, medio largo]: las palmeras no se plantan encima ni con la copa tapándolos
-  const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,98,5.4,22],[-46,88,2.4,3.8],[50,89,2.4,3.8],
+  const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,112,8.6,36],[-46,88,2.4,3.8],[50,89,2.4,3.8],
     [-72,74.8,1.8,1.8],[-68.4,74.8,1.8,1.8],[-64.8,74.8,1.8,1.8],[-61.2,74.8,1.8,1.8],
     [-70,80,2.4,3.8],[-58,84,2.4,3.8],[-34,86,2.4,3.8],[-10,83,2.4,3.8],[12,87,2.4,3.8],[40,85,2.4,3.8],[50,79,2.4,3.8],[78,85,2.4,3.8],
     [-52,SHORE(-52)-6,1.4,1.4],[-12,SHORE(-12)-6,1.4,1.4],[34,SHORE(34)-6,1.4,1.4],[76,SHORE(76)-6,1.4,1.4]];
@@ -931,7 +931,7 @@ function cityGrassAt(x,z) {
     pGeo.boundingBox = geo.boundingBox;
     pGeo.boundingSphere = geo.boundingSphere;
     pGeo.userData = Object.assign({}, geo.userData);
-    const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;mesh.castShadow=true;mesh.receiveShadow=true;
+    const mesh=new THREE.Mesh(pGeo,mat);mesh.position.set(pr.x,pr.y||0,pr.z);mesh.rotation.y=pr.ry;if(pr.m==='muelle')mesh.scale.set(1.6,1,1.7);mesh.castShadow=true;mesh.receiveShadow=true;
     mesh.userData.model = pr.m;
     mesh.userData.isProp = true;
     mesh.updateMatrix();
@@ -1608,14 +1608,20 @@ function seaFloor(x, z) {
 let GUIDE_Y=0;
 window.groundAt = groundAt;
 const ABY = { x: 0, z: 720, y: -90, R: 72 };   // el abismo: cueva bajo el torbellino del mar profundo (ver js/abismo.js)
-const ABY_COR = { x0: ABY.x - 205, x1: ABY.x - 60, hw: 11 };   // pasillo de entrada (a la izquierda de la sala redonda)
-const ABY_FLOOR = (x, z) => (Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 || (x > ABY_COR.x0 && x < ABY_COR.x1 + 14 && Math.abs(z - ABY.z) < ABY_COR.hw + 1)) ? ABY.y : -400;
+const ABY_COR = { hw: 11 };   // medio ancho del pasillo
+const ABY_WP = [[-300, 118], [-300, 40], [-262, -34], [-192, -52], [-152, -6], [-144, 50], [-118, 40], [-100, 0], [-78, 0]];   // puntos del camino (relativos al centro de la sala)
+const ABY_PTS = (() => { const c = new THREE.CatmullRomCurve3(ABY_WP.map(q => new THREE.Vector3(ABY.x + q[0], 0, ABY.z + q[1])), false, 'centripetal'); return c.getSpacedPoints(260).map(v => [v.x, v.z]); })();
+function abyPath(x, z) {   // punto mas cercano del camino: { d: distancia, x, z, i: indice (con decimales) }
+  let bd = 1e9, bx = 0, bz = 0, bi = 0;
+  for (let i = 0; i < ABY_PTS.length - 1; i++) { const a = ABY_PTS[i], b = ABY_PTS[i + 1], dx = b[0] - a[0], dz = b[1] - a[1]; let u = ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1); u = u < 0 ? 0 : u > 1 ? 1 : u; const px = a[0] + dx * u, pz = a[1] + dz * u, d = Math.hypot(x - px, z - pz); if (d < bd) { bd = d; bx = px; bz = pz; bi = i + u; } }
+  return { d: bd, x: bx, z: bz, i: bi };
+}
+const abyNearPath = (x, z) => x > ABY.x - 335 && x < ABY.x - 55 && z > ABY.z - 85 && z < ABY.z + 150;
+const ABY_FLOOR = (x, z) => (Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 || (abyNearPath(x, z) && abyPath(x, z).d < ABY_COR.hw + 1.5)) ? ABY.y : -400;
 function abyssClamp(v) {
-  if (v.x < ABY_COR.x1 + 4 && Math.abs(v.z - ABY.z) <= ABY_COR.hw + 20) { v.x = Math.max(ABY_COR.x0 + 1.5, v.x); if (v.x < ABY_COR.x1 - 6) v.z = clamp(v.z, ABY.z - ABY_COR.hw + 1.2, ABY.z + ABY_COR.hw - 1.2); }
-  const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz);
-  if (d > ABY.R && v.x > ABY_COR.x1 - 6) { v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; }
-  else if (d > ABY.R && Math.abs(dz) > ABY_COR.hw - 1.2) v.z = clamp(v.z, ABY.z - ABY_COR.hw + 1.2, ABY.z + ABY_COR.hw - 1.2);
-  return v;
+  const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz); if (d <= ABY.R) return v;
+  const lim = ABY_COR.hw - 1.2; if (abyNearPath(v.x, v.z)) { const p = abyPath(v.x, v.z); if (p.d <= lim) return v; if (p.d - lim < d - ABY.R) { const k = lim / p.d; v.x = p.x + (v.x - p.x) * k; v.z = p.z + (v.z - p.z) * k; return v; } }
+  v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; return v;
 }
 function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;if(z>600)return ABY_FLOOR(x,z);let g=(z>SHORE(x)+.2&&z<560&&Math.abs(x)<360)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
@@ -4841,11 +4847,13 @@ function dialogueAudible(){
   return false;
 }
 function updateMusic(dt){
-  const want=G.state==='menu'?'menu':G.state==='play'?'fight':'';
+  const xs=G.state==='play'&&window.CF_MUS_SCENE?CF_MUS_SCENE():null;   // {id, src}: pista propia de una zona (el abismo)
+  const want=xs?'x:'+xs.id:G.state==='menu'?'menu':G.state==='play'?'fight':'';
   if(want!==MUS.want){
     if(MUS.want==='menu')stopMenuVoice();
     MUS.want=want;
-    if(want==='menu')musicPlay(MUS.tracks.menu,'menu',true);
+    if(xs){musicPlay(xs.src,'x_'+xs.id,true);if(MUS.track&&MUS.track.el)MUS.track.el.addEventListener('error',()=>{if(window.CF_MUS_FAIL)CF_MUS_FAIL(xs.id);},{once:true});}
+    else if(want==='menu')musicPlay(MUS.tracks.menu,'menu',true);
     else if(want==='fight'){MUS.failed.clear();musicNextFight();}
     else {if(MUS.old)releaseHtmlAudio(MUS.old);MUS.old=MUS.track;MUS.track=null;}
   }
@@ -5110,7 +5118,7 @@ function netHit(att, t, o) {
 function applyHit(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
   if (t.isBoss) o = Object.assign({}, o, { kb: 0, up: 0, ragdoll: 0, stun: 0, guardBreak: false, noCounter: true, pull: 0 });   // el Kraken no se empuja ni se aturde
-  if (t.isBoss && att.isPlayer && window.CF_ABISMO) o = CF_ABISMO.bossHit(att, o) || o;   // el jefe decide cuanto daño recibe (tentaculos, expuesto)
+  if (t.isBoss && att.isPlayer && window.CF_ABISMO) o = CF_ABISMO.bossHit(att, o, t) || o;   // el jefe decide cuanto daño recibe (tentaculos, expuesto)
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
   // en ragdoll en el suelo no recibe dano (wake up), pero en el aire si se permite juggle combo
   if (!t.alive || t.iframes > 0) return false;
@@ -10510,7 +10518,7 @@ const canvas = renderer.domElement;
 let locked = false, lockFailed = false;
 // Captura del mouse robusta: movimiento sin aceleración del sistema y reintentos (el navegador rechaza el bloqueo si se pide justo después de soltarlo)
 function requestLock(tries = 0) {
-  if (TOUCH.enabled || roomInputBlocked()) return;
+  if (TOUCH.enabled || roomInputBlocked() || !G.shiftLock) return;   // sin Shift Lock el cursor es libre
   if (document.pointerLockElement === canvas) return;
   const retry = () => { if (tries < 8 && G.state === 'play' && !G.paused && !G.over && !roomInputBlocked()) setTimeout(() => requestLock(tries + 1), 180 + tries * 120); else lockFailed = true; };
   try {
@@ -10521,7 +10529,7 @@ function requestLock(tries = 0) {
 function unlock() { if (document.pointerLockElement) document.exitPointerLock(); }
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas; if (locked && roomInputBlocked()) { unlock(); return; } if (locked) lockFailed = false;
-  if (!locked && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked()) setPause(true);
+  if (!locked && G.shiftLock && G.state === 'play' && !G.over && !G.panelOpen && !roomInputBlocked()) setPause(true);
 });
 document.addEventListener('pointerlockerror', () => { lockFailed = true; });
 function setPause(on) {
@@ -10553,7 +10561,8 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
 });
 let slTap = false;
-function toggleShiftLock() { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { } }
+function toggleShiftLock() { G.shiftLock = !G.shiftLock; $('slchip').classList.toggle('hidden', !G.shiftLock); try { localStorage.setItem('bsb_sl', G.shiftLock ? '1' : '0'); } catch (err) { }
+  if (G.shiftLock) { lockFailed = false; requestLock(); } else unlock(); }   // encendido: captura el mouse · apagado: lo suelta y se pueden tocar los botones
 addEventListener('keyup', e => {
   keys[e.code] = false;
   if (isBindShift(e.code) && slTap) { slTap = false; if (G.state === 'play' && !G.paused && !G.over && !G.panelOpen && !G.viewer) toggleShiftLock(); }
@@ -10574,7 +10583,7 @@ body.inplay,body.inplay *{cursor:none!important}
   setInterval(() => {
     const play = G.state === 'play' && !G.paused && !G.over && !G.viewer && !roomInputBlocked() && !TOUCH.enabled;
     document.body.classList.toggle('inplay', play && locked);
-    hint.style.display = play && !locked ? 'block' : 'none';
+    hint.style.display = play && !locked && G.shiftLock ? 'block' : 'none';
   }, 200);
 }
 // Controles táctiles: cada dedo tiene su propio identificador, por lo que se puede mover, mirar y atacar a la vez.
@@ -10641,7 +10650,7 @@ canvas.addEventListener('mousedown', e => {
   if (G.viewer) { VW.drag = true; return; }
   if (TOUCH.enabled || G.state !== 'play' || G.paused || G.over || roomInputBlocked()) return;
   initAudio();
-  if (!locked) { lockFailed = false; requestLock(); }
+  if (!locked && G.shiftLock) { lockFailed = false; requestLock(); }
   slTap = false;
   if (e.button === 0) mouse.left = true; if (e.button === 2) mouse.right = true;
 });
@@ -10649,7 +10658,7 @@ addEventListener('mouseup', e => { if (e.button === 0) mouse.left = false; if (e
 addEventListener('contextmenu', e => { if (G.state === 'play') e.preventDefault(); });
 addEventListener('mousemove', e => {
   if (G.state !== 'play' || G.paused || G.cine || roomInputBlocked() || window.__emoteWheelOpen) return;   // con la rueda de emotes abierta el mouse no gira la camara
-  if (locked || (lockFailed && (mouse.left || mouse.right))) {
+  if (locked || (lockFailed && (mouse.left || mouse.right)) || (!G.shiftLock && !TOUCH.enabled && mouse.right)) {   // cursor libre: la camara gira manteniendo el click derecho
     cam.yaw -= e.movementX * .0026;
     cam.pitch = clamp(cam.pitch + e.movementY * .0022, -.35, 1.2);
   }
@@ -11279,6 +11288,12 @@ const CF_A = (() => {
     get keys() { return keys; },
     get ABY() { return ABY; },
     get ABY_COR() { return ABY_COR; },
+    get ABY_PTS() { return ABY_PTS; },
+    get ABY_WP() { return ABY_WP; },
+    abyPath,
+    get triggerSeaEvent() { return triggerSeaEvent; },
+    get SEA_EVENTS() { return SEA_EVENTS; },
+    get krakenBlocked() { return krakenBlocked; },
     get SOC() { return SOC; },
     get ACCT() { return ACCT; },
     get DEV() { return DEV; },

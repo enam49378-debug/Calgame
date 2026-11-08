@@ -76,7 +76,7 @@
     const loot = (() => { const l = rd('bsb_loot', null); return l && Array.isArray(l.e) && Array.isArray(l.c) ? l : { e: [], c: [] }; })();
     const saveLoot = () => wr('bsb_loot', loot);
     window.CF_LOOT = loot; window.CF_LOOT_SAVE = saveLoot;
-    const isOwner = () => !!(SOC && SOC.owner);                          // el dueño tiene todo desbloqueado
+    const isOwner = () => !!((SOC && SOC.owner) || /^(localhost|127\.|\[::1\])/.test(location.hostname));                          // el dueño tiene todo desbloqueado
     const unlocked = e => !!e && (isOwner() || (e.boss ? extra.includes(e.id) : (e.k === 0 || loot.e.includes(e.id))));
     const defaultSlots = () => { const s = new Array(NSLOTS).fill(null); EM.filter(unlocked).slice(0, NSLOTS).forEach((e, i) => { s[i] = e.id; }); return s; };
     if (!Array.isArray(slots) || slots.length !== NSLOTS) slots = defaultSlots();
