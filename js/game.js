@@ -32,7 +32,7 @@ const LOADER = {
   tip: null,
   tips: [
     'Presiona SHIFT durante el combate para activar Shift Lock y fijar la cámara en tu rival.',
-    'Bloquea con F o botón derecho justo al recibir el ataque para ejecutar un Bloqueo Perfecto.',
+    'Bloquea con F justo al recibir el ataque para ejecutar un Bloqueo Perfecto.',
     'Alcanzar el 100% de la barra de Ulti desata el Despertar con nuevas habilidades y velocidad.',
     'Esquiva con Dash (tecla Q o doble toque) para cancelar ataques y castigar a tu oponente.',
     'El botón H en partida abre el Panel para cambiar la hora, el clima y entrenar con Dummies.',

@@ -31,180 +31,33 @@
 <link rel="apple-touch-icon" href="assets/calfight_icon.png">
 <!-- Estilos críticos inmediatos para pantalla de carga super artística anime -->
 <style>
-#loading-screen{
-  position:fixed;inset:0;z-index:99999;
-  background:radial-gradient(ellipse at 50% 25%, #261f46 0%, #16122c 50%, #0a0817 100%);
-  display:flex;align-items:center;justify-content:center;
-  user-select:none;-webkit-user-select:none;
-  font-family:'Chakra Petch',system-ui,sans-serif;color:#fff6ea;
-  overflow:hidden;
-  transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1),filter .75s ease;
-}
-#loading-screen.loader-done{
-  opacity:0;
-  transform:scale(1.12);
-  filter:blur(8px);
-  pointer-events:none;
-}
-#loading-flash{
-  position:fixed;inset:0;z-index:100000;
-  background:#fffdfa;opacity:0;pointer-events:none;
-  transition:opacity .5s ease;
-}
-.art-bg-sky{
-  position:absolute;inset:0;
-  background:radial-gradient(circle at 50% 12%,rgba(255,215,165,.18) 0%,rgba(179,136,255,.09) 36%,transparent 72%);
-  pointer-events:none;
-}
-.art-bg-stars{
-  position:absolute;inset:0;
-  background-image:
-    radial-gradient(circle at 15% 20%, rgba(255,255,255,.75) 1px, transparent 1.6px),
-    radial-gradient(circle at 85% 15%, rgba(255,240,200,.85) 1.2px, transparent 1.8px),
-    radial-gradient(circle at 35% 65%, rgba(255,255,255,.55) 1px, transparent 1.6px),
-    radial-gradient(circle at 75% 75%, rgba(255,200,230,.65) 1.2px, transparent 1.8px),
-    radial-gradient(circle at 50% 85%, rgba(200,230,255,.55) 1px, transparent 1.6px);
-  background-size:240px 240px;
-  opacity:.65;
-  pointer-events:none;
-  animation:starsTwinkle 4s ease-in-out infinite alternate;
-}
-.art-bg-aurora{
-  position:absolute;bottom:-12%;left:-10%;right:-10%;height:45%;
-  background:radial-gradient(ellipse at 50% 100%,rgba(255,143,163,.15) 0%,rgba(179,136,255,.09) 45%,transparent 75%);
-  pointer-events:none;
-}
-.art-loader-shell{
-  position:relative;z-index:2;
-  display:flex;flex-direction:column;align-items:center;text-align:center;
-  max-width:460px;width:88%;gap:16px;
-}
-.art-logo-stage{
-  position:relative;perspective:900px;
-  display:flex;align-items:center;justify-content:center;
-  padding:14px 0;
-}
-.art-halo-ring{
-  position:absolute;
-  width:min(280px,76vw);height:min(280px,76vw);
-  border:2px solid rgba(255,218,160,.4);
-  border-radius:50%;
-  box-shadow:0 0 45px rgba(255,190,120,.28),inset 0 0 35px rgba(180,140,255,.22);
-  animation:spinHalo 14s linear infinite;
-  pointer-events:none;
-}
-.art-halo-ring.inner{
-  width:min(235px,64vw);height:min(235px,64vw);
-  border:1px dashed rgba(255,180,210,.35);
-  animation:spinHaloRev 10s linear infinite;
-}
-.art-sparkle{
-  position:absolute;color:#ffe6a3;font-size:14px;
-  text-shadow:0 0 10px #ffe6a3;
-  animation:sparkleFloat 3s ease-in-out infinite alternate;
-  pointer-events:none;
-}
-.art-sparkle.s1{top:4%;right:12%;animation-delay:0s}
-.art-sparkle.s2{bottom:10%;left:8%;animation-delay:1s;font-size:16px;color:#ffc2d1}
-.art-sparkle.s3{top:45%;left:2%;animation-delay:2s;font-size:11px}
-.art-spinning-logo{
-  width:min(290px,78vw);height:auto;
-  transform-style:preserve-3d;
-  animation:artLogoSpin 3.2s cubic-bezier(.45,.05,.25,.95) infinite;
-  filter:drop-shadow(0 15px 30px rgba(70,40,120,.45)) drop-shadow(0 0 20px rgba(255,200,140,.4));
-}
-.art-info-panel{
-  display:flex;flex-direction:column;align-items:center;
-  width:100%;gap:10px;
-}
-.art-title-wrap{
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-}
-.art-subtitle{
-  font-size:9.5px;letter-spacing:.32em;color:#bcaecb;
-  font-weight:700;text-transform:uppercase;
-}
-.art-loading-header{
-  margin:0;
-  font-family:'Anton',Impact,sans-serif;
-  font-size:clamp(28px,6vw,44px);
-  letter-spacing:.22em;color:#fff8ee;
-  text-shadow:0 2px 6px rgba(0,0,0,.7),0 0 24px rgba(255,210,150,.45);
-}
-.art-dots i{
-  font-style:normal;color:#ffd166;
-  display:inline-block;animation:dotFade 1.4s infinite;
-}
-.art-dots i:nth-child(2){animation-delay:.22s}
-.art-dots i:nth-child(3){animation-delay:.44s}
-.art-bar-shell{
-  width:100%;height:10px;
-  background:rgba(18,14,32,.85);
-  border-radius:20px;
-  border:1px solid rgba(255,225,175,.35);
-  box-shadow:inset 0 2px 6px rgba(0,0,0,.8),0 0 16px rgba(255,180,120,.2);
-  position:relative;overflow:hidden;
-  margin-top:2px;
-}
-.art-bar-fill{
-  height:100%;
-  background:linear-gradient(90deg,#a084dc,#ff8fa3,#ffd166,#fff3b0);
-  border-radius:20px;
-  transition:width .25s ease-out;
-  box-shadow:0 0 16px rgba(255,209,102,.7);
-  position:relative;
-}
-.art-bar-head{
-  position:absolute;right:-4px;top:50%;transform:translateY(-50%);
-  color:#fff;font-size:10px;text-shadow:0 0 8px #fff;
-  line-height:1;
-}
-.art-meta-row{
-  display:flex;justify-content:space-between;align-items:center;
-  width:100%;font-size:12px;font-weight:700;
-  color:#cec1dc;letter-spacing:.04em;
-}
-.art-status-text{
-  color:#ffd9a8;text-shadow:0 1px 4px rgba(0,0,0,.6);
-}
-.art-pct-text{
-  font-family:'Anton',Impact,sans-serif;
-  font-size:18px;color:#fff8ee;letter-spacing:.05em;
-  text-shadow:0 0 12px rgba(255,209,102,.6);
-}
-.art-tip-card{
-  display:flex;align-items:center;gap:12px;
-  background:rgba(25,20,44,.75);
-  border:1px solid rgba(255,215,160,.22);
-  border-radius:10px;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
-  backdrop-filter:blur(6px);
-  padding:8px 14px;width:100%;margin-top:4px;
-}
-.art-tip-tag{
-  background:linear-gradient(135deg,#ffd166,#ff8fa3);
-  color:#15102a;
-  font-family:'Anton',Impact,sans-serif;
-  font-size:11px;font-style:italic;
-  padding:2px 7px;border-radius:4px;
-  font-weight:900;letter-spacing:.06em;
-  flex-shrink:0;
-}
-.art-tip-body{
-  margin:0;font-size:12px;font-weight:600;
-  color:#dfd6ea;line-height:1.35;text-align:left;
-}
-.art-tip-body b{color:#ffe4aa}
-@keyframes artLogoSpin{
-  0%{transform:perspective(900px) rotateY(0deg) translateY(0px);filter:drop-shadow(0 12px 25px rgba(70,40,120,.4)) drop-shadow(0 0 18px rgba(255,200,140,.4))}
-  50%{transform:perspective(900px) rotateY(180deg) translateY(-6px) scale(1.03);filter:drop-shadow(0 18px 35px rgba(255,140,180,.5)) drop-shadow(0 0 32px rgba(255,220,150,.6))}
-  100%{transform:perspective(900px) rotateY(360deg) translateY(0px);filter:drop-shadow(0 12px 25px rgba(70,40,120,.4)) drop-shadow(0 0 18px rgba(255,200,140,.4))}
-}
-@keyframes spinHalo{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes spinHaloRev{from{transform:rotate(360deg)}to{transform:rotate(0deg)}}
-@keyframes sparkleFloat{0%{transform:scale(.8) translateY(0);opacity:.5}100%{transform:scale(1.2) translateY(-4px);opacity:1}}
-@keyframes starsTwinkle{from{opacity:.45}to{opacity:.85}}
-@keyframes dotFade{0%,20%{opacity:0}50%{opacity:1}100%{opacity:0}}
+#loading-screen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;font-family:'Chakra Petch',system-ui,sans-serif;color:#fff6ea;overflow:hidden;background:linear-gradient(180deg,#120a2e 0%,#3a1458 38%,#c4457a 70%,#ff9a62 100%);transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1),filter .75s ease}
+#loading-screen.loader-done{opacity:0;transform:scale(1.12);filter:blur(8px);pointer-events:none}
+#loading-flash{position:fixed;inset:0;z-index:100000;background:#fffdfa;opacity:0;pointer-events:none;transition:opacity .5s ease}
+#ld-sky{position:absolute;inset:0;width:100%;height:100%}
+.ld-sun{position:absolute;left:50%;bottom:24%;width:min(46vw,380px);aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:linear-gradient(180deg,#fff2b8,#ffb05a 55%,#ff5f7a);box-shadow:0 0 90px 30px rgba(255,150,90,.45);opacity:.95;animation:ldSun 6s ease-in-out infinite alternate}
+.ld-sun::after{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-linear-gradient(180deg,transparent 0 9px,rgba(196,69,122,.9) 9px 13px);-webkit-mask:linear-gradient(180deg,transparent 40%,#000 100%);mask:linear-gradient(180deg,transparent 40%,#000 100%)}
+.ld-cubes i{position:absolute;display:block;width:var(--s);height:var(--s);left:var(--x);top:110%;background:var(--c);box-shadow:inset -4px -4px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.3);animation:ldRise var(--d) linear infinite;animation-delay:var(--l);opacity:.85}
+.ld-shell{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;text-align:center;width:min(520px,90vw);gap:18px}
+.ld-logo{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:6px 0}
+.ld-logo img{width:min(300px,72vw);filter:drop-shadow(0 8px 0 rgba(20,8,40,.55)) drop-shadow(0 0 28px rgba(255,190,120,.6));animation:ldFloat 3.4s ease-in-out infinite}
+.ld-logo::after{content:"";position:absolute;top:0;bottom:0;width:60px;left:-80px;background:linear-gradient(100deg,transparent,rgba(255,255,255,.7),transparent);transform:skewX(-18deg);animation:ldShine 3.2s ease-in-out infinite}
+.ld-tag{letter-spacing:.42em;font-size:11px;color:#ffe3c4;opacity:.9;text-shadow:0 2px 0 rgba(40,10,50,.7)}
+.ld-title{margin:0;font-size:22px;letter-spacing:.5em;font-weight:700;text-shadow:0 3px 0 rgba(40,10,50,.75)}
+.ld-title span i{font-style:normal;animation:ldDot 1.4s infinite}.ld-title span i:nth-child(2){animation-delay:.2s}.ld-title span i:nth-child(3){animation-delay:.4s}
+.ld-bar{width:100%;height:26px;padding:4px;box-sizing:border-box;background:rgba(18,8,40,.78);border:3px solid #ffe3c4;box-shadow:0 5px 0 rgba(40,10,50,.7),0 0 24px rgba(255,170,110,.4);position:relative;overflow:hidden}
+.ld-bar #loading-bar-fill{height:100%;background:repeating-linear-gradient(90deg,#ffd166 0 14px,#ff7a59 14px 28px);box-shadow:0 0 14px #ffb066;transition:width .25s ease;position:relative}
+.ld-bar #loading-bar-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.45),transparent 55%)}
+.ld-bar::after{content:"";position:absolute;inset:4px;background:repeating-linear-gradient(90deg,transparent 0 12px,rgba(18,8,40,.55) 12px 14px);pointer-events:none}
+.ld-meta{display:flex;justify-content:space-between;width:100%;font-size:13px;letter-spacing:.06em;color:#ffe9d2;text-shadow:0 2px 0 rgba(40,10,50,.7)}
+.ld-tip{width:100%;box-sizing:border-box;padding:12px 16px;background:rgba(18,8,40,.62);border-left:5px solid #ffd166;text-align:left;backdrop-filter:blur(3px)}
+.ld-tip small{display:block;font-size:10px;letter-spacing:.32em;color:#ffd166;margin-bottom:4px}
+.ld-tip p{margin:0;font-size:13px;line-height:1.5;color:#fff6ea}.ld-tip b{color:#ffd166}
+@keyframes ldSun{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(-10px)}}
+@keyframes ldRise{from{transform:translateY(0) rotate(0)}to{transform:translateY(-130vh) rotate(180deg)}}
+@keyframes ldFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes ldShine{0%,55%{left:-80px}100%{left:110%}}
+@keyframes ldDot{0%,20%{opacity:0}50%{opacity:1}100%{opacity:0}}
 </style>
 </head>
 <body>
@@ -212,48 +65,27 @@
 <!-- PANTALLA DE CARGA SUPER ARTÍSTICA ANIME (Makoto Shinkai / Pastel Ghibli)-->
 <!-- ==================================================================== -->
 <div id="loading-screen" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="15" aria-label="Cargando CalFight">
-  <div class="art-bg-sky"></div>
-  <div class="art-bg-stars"></div>
-  <div class="art-bg-aurora"></div>
-
-  <div class="art-loader-shell">
-    <!-- Logo central con halo celestial anime girando -->
-    <div class="art-logo-stage">
-      <div class="art-halo-ring"></div>
-      <div class="art-halo-ring inner"></div>
-      <div class="art-sparkle s1">✦</div>
-      <div class="art-sparkle s2">✦</div>
-      <div class="art-sparkle s3">✦</div>
-      <img src="assets/calfight_logo.png" alt="CalFight" class="art-spinning-logo">
-    </div>
-
-    <!-- Título artístico y texto de carga -->
-    <div class="art-info-panel">
-      <div class="art-title-wrap">
-        <span class="art-subtitle">PELEAS ANIME · CIUDAD DE BLOQUES</span>
-        <h2 class="art-loading-header">C A R G A N D O<span class="art-dots"><i>.</i><i>.</i><i>.</i></span></h2>
-      </div>
-
-      <!-- Barra de energía anime celestial -->
-      <div class="art-bar-shell">
-        <div id="loading-bar-fill" class="art-bar-fill" style="width: 15%">
-          <div class="art-bar-head">✦</div>
-        </div>
-      </div>
-
-      <div class="art-meta-row">
-        <span id="loading-status" class="art-status-text">Invocando el mundo de bloques...</span>
-        <span id="loading-pct" class="art-pct-text">15%</span>
-      </div>
-
-      <!-- Tarjeta artística de consejo con pergamino anime -->
-      <div class="art-tip-card">
-        <div class="art-tip-tag">✦ CONSEJO ✦</div>
-        <p id="loading-tip" class="art-tip-body">Presiona <b>SHIFT</b> durante el combate para activar <b>Shift Lock</b> y fijar la cámara en tu rival.</p>
-      </div>
-    </div>
+  <canvas id="ld-sky"></canvas>
+  <div class="ld-sun"></div>
+  <div class="ld-cubes"><i style="--s:10px;--x:0%;--c:#ffd166;--d:9s;--l:-0s"></i><i style="--s:13px;--x:37%;--c:#ff7a59;--d:10s;--l:-2s"></i><i style="--s:16px;--x:74%;--c:#8ecae6;--d:11s;--l:-4s"></i><i style="--s:19px;--x:15%;--c:#cdb4ff;--d:12s;--l:-6s"></i><i style="--s:22px;--x:52%;--c:#ff9ec4;--d:13s;--l:-8s"></i><i style="--s:25px;--x:89%;--c:#ffd166;--d:14s;--l:-10s"></i><i style="--s:12px;--x:30%;--c:#ff7a59;--d:15s;--l:-1s"></i><i style="--s:15px;--x:67%;--c:#8ecae6;--d:9s;--l:-3s"></i><i style="--s:18px;--x:8%;--c:#cdb4ff;--d:10s;--l:-5s"></i><i style="--s:21px;--x:45%;--c:#ff9ec4;--d:11s;--l:-7s"></i><i style="--s:24px;--x:82%;--c:#ffd166;--d:12s;--l:-9s"></i><i style="--s:11px;--x:23%;--c:#ff7a59;--d:13s;--l:-0s"></i><i style="--s:14px;--x:60%;--c:#8ecae6;--d:14s;--l:-2s"></i><i style="--s:17px;--x:1%;--c:#cdb4ff;--d:15s;--l:-4s"></i><i style="--s:20px;--x:38%;--c:#ff9ec4;--d:9s;--l:-6s"></i><i style="--s:23px;--x:75%;--c:#ffd166;--d:10s;--l:-8s"></i></div>
+  <div class="ld-shell">
+    <div class="ld-logo"><img src="assets/calfight_logo.png" alt="CalFight"></div>
+    <div class="ld-tag">PELEAS ANIME · CIUDAD DE BLOQUES</div>
+    <h2 class="ld-title">CARGANDO<span><i>.</i><i>.</i><i>.</i></span></h2>
+    <div class="ld-bar"><div id="loading-bar-fill" style="width:15%"></div></div>
+    <div class="ld-meta"><span id="loading-status">Invocando el mundo de bloques...</span><span id="loading-pct">15%</span></div>
+    <div class="ld-tip"><small>CONSEJO</small><p id="loading-tip">Presiona <b>SHIFT</b> durante el combate para activar <b>Shift Lock</b> y fijar la cámara en tu rival.</p></div>
   </div>
 </div>
+<script>
+// horizonte de la ciudad en pixel art, con ventanas que parpadean y estrellas
+(function(){var c=document.getElementById('ld-sky');if(!c)return;var g=c.getContext('2d'),W,H,B=[],St=[];
+function seed(){W=c.width=innerWidth;H=c.height=innerHeight;B=[];var x=-10,r=1;while(x<W+20){r=(r*16807)%2147483647;var w=34+r%46,h=H*.16+(r%1000)/1000*H*.3;B.push({x:x,w:w,h:h,s:r});x+=w-2}St=[];for(var i=0;i<70;i++){r=(r*48271)%2147483647;St.push([r%W,(r>>5)%(H*.5),(r>>3)%3+1,r%7])}}
+function draw(t){g.clearRect(0,0,W,H);g.fillStyle='#fff';St.forEach(function(s){g.globalAlpha=.35+.5*Math.abs(Math.sin(t/900+s[3]));g.fillRect(s[0],s[1],s[2],s[2])});g.globalAlpha=1;
+for(var L=0;L<2;L++){B.forEach(function(b,i){var k=L?1:.62,bh=b.h*k,by=H-bh-(L?0:H*.04);g.fillStyle=L?'#1b0f35':'#4a1f5e';g.fillRect(b.x,by,b.w,bh+H*.1);if(L){for(var wy=by+10;wy<H-14;wy+=14)for(var wx=b.x+6;wx<b.x+b.w-8;wx+=11){var v=(b.s+wx*7+wy*13)%11;if(v<4){g.fillStyle=(v<2?'#ffd98a':'#ff9e7a');g.globalAlpha=.55+.4*Math.abs(Math.sin(t/1200+wx+wy));g.fillRect(wx,wy,5,7);g.globalAlpha=1}}}})}
+requestAnimationFrame(draw)}
+addEventListener('resize',seed);seed();requestAnimationFrame(draw)})();
+</script>
 <div id="loading-flash"></div>
 
 <script>
