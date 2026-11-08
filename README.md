@@ -105,12 +105,15 @@ Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, 
 - **Eventos del mar más difíciles de ver:** aparecen solos cada **5 a 9 minutos** (antes cada 1 minuto).
 - **Torbellino gigante** en el mar profundo (una columna de luz azul y la señal «EL ABISMO» se ven desde lejos): absorbe poco a poco a quien nada cerca. En el borde se puede escapar nadando; más adentro ya no. Al llegar al centro **caes por una cascada** a la cueva del **Abismo**, muy por debajo del mar.
 - **El Abismo:** una cueva enorme con ruinas, cristales luminosos, algas gigantes y un barco hundido. La salida (portal «SUPERFICIE») se abre cuando derrotas al jefe.
-- **Jefe final: el KRAKEN.** Un calamar gigante con 1500 de vida y 5 ataques: **Aplastamiento** (tentáculos que salen del suelo donde marca el círculo rojo), **Barrido** (hay que saltarlo), **Tinta** (charcos que queman y frenan), **Succión** (te arrastra al centro y explota) y, al enfurecerse con la mitad de la vida, **Rayos de los ojos**. Se le pega con **las habilidades de tu personaje**; las cinemáticas de agarre no funcionan con él (le hacen daño directo). Cada jugador pelea con su propio Kraken.
-- **Recompensas:** la primera vez da el emote «Furia del Kraken» y los cosméticos «Corona del Abismo» y «Aura abisal»; las siguientes victorias dan «Tentáculos», «Rey del abismo», «Alas del Kraken», «Ojos del Kraken» y «Hombreras del abismo».
+- **Jefe final: el KRAKEN (v2).** Duerme en el abismo y solo despierta con el evento «Calamar gigante» (dura 7 min). Entrar al abismo por el torbellino se puede **siempre**; sin evento el Kraken está dormido. Tiene su propio sistema de combate: 8 tentáculos con vida propia (se pueden cortar), brazo aplastante con cinemática IK, barrido, látigo, lluvia de rocas, tinta, succión y rayo ocular al enfurecerse. Se le pega con las habilidades de tu personaje.
+- **Recompensas:** al vencerlo suelta emote y cosméticos del abismo. **Cada 50 kills en salas públicas** ganas **1 objeto aleatorio** (emote o cosmético, no por orden). El dueño tiene todo desbloqueado.
 - **Evento «Calamar gigante»:** cuando ocurre, el torbellino brilla más y se avisa que el Kraken despertó.
 
 ## Cosméticos (estilo anime / cine épico)
 
 - Botón **👑** arriba, junto a Panel, Guía y Emotes: eliges un cosmético por espacio (cabeza, cara, espalda, hombros y aura). Los demás jugadores los ven.
-- Halo dorado, cuernos de Oni, capa épica, katana a la espalda, máscara Kitsune, hombreras de samurái, aura dorada, alas de ángel y ojos de energía se consiguen con **kills en salas públicas** (las mismas que los emotes). Los del abismo, derrotando al Kraken.
+- Los cosméticos tienen panel con **vista previa del modelo** al lado (se anima y cambia al tocar cada objeto). Se consiguen con el premio aleatorio de cada 50 kills públicas; los del abismo, venciendo al Kraken.
+
+### Ranking mundial
+En la plaza de la ciudad hay dos carteles: **TOP DEL MES** y **TOP HISTÓRICO** con los 10 jugadores del mundo con más kills en salas públicas (no privadas ni bots). Necesita publicar `firestore.rules` (colecciones `cf_lba` y `cf_lbm`).
 - Código: `js/cosmetics.js`, `js/abismo.js`.

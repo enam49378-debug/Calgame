@@ -5103,7 +5103,7 @@ function netHit(att, t, o) {
 function applyHit(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
   if (t.isBoss) o = Object.assign({}, o, { kb: 0, up: 0, ragdoll: 0, stun: 0, guardBreak: false, noCounter: true, pull: 0 });   // el Kraken no se empuja ni se aturde
-  if (t.isBoss && att.isPlayer && window.CF_ABISMO) CF_ABISMO.bossHit(att, o);
+  if (t.isBoss && att.isPlayer && window.CF_ABISMO) o = CF_ABISMO.bossHit(att, o) || o;   // el jefe decide cuanto daño recibe (tentaculos, expuesto)
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
   // en ragdoll en el suelo no recibe dano (wake up), pero en el aire si se permite juggle combo
   if (!t.alive || t.iframes > 0) return false;
@@ -8266,7 +8266,7 @@ const SEA_EVENTS = {
   school: { n: 'Cardumen gigante', ico: '🐟', msg: '¡Un cardumen gigante cruza el mar hacia la costa!', col: '#7ad7ff', dur: 26 },
   frenzy: { n: 'Frenesí de tiburones', ico: '🦈', msg: '¡Frenesí de tiburones! Salieron más tiburones en aguas profundas.', col: '#ff6b6b', dur: 28 },
   glow: { n: 'Marea luminosa', ico: '✨', msg: '¡Marea luminosa! Las aguas profundas brillan.', col: '#7df9ff', dur: 30 },
-  squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡El Kraken despertó! Baja por el torbellino del mar profundo y derrótalo.', col: '#ff8fb0', dur: 45 },
+  squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡El Kraken despertó en el abismo! Nada hasta el torbellino del mar profundo y derrótalo.', col: '#ff8fb0', dur: 420 },
 };
 function triggerSeaEvent(name) {
   const e = SEA_EVENTS[name]; if (!e || !SEA.life) return false;
@@ -11264,6 +11264,11 @@ const CF_A = (() => {
     miniCut,
     get keys() { return keys; },
     get ABY() { return ABY; },
+    get SOC() { return SOC; },
+    get ACCT() { return ACCT; },
+    get DEV() { return DEV; },
+    socialLoad,
+    acctLoad,
     abyssClamp,
     get BINDS() { return BINDS; },
     bindKeyLabel,

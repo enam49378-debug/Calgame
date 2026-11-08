@@ -72,7 +72,12 @@
     // ---------------------------------------------------------------- estado (kills públicas y slots)
     let kills = Math.max(0, rd(KEY_KILLS, 0) | 0), slots = rd(KEY_SLOTS, null);
     let extra = rd('bsb_emote_extra', []); if (!Array.isArray(extra)) extra = [];
-    const unlocked = e => !!e && (e.boss ? extra.includes(e.id) : kills >= e.k);
+    // premios por kills: cada 50 kills públicas llega UN premio AL AZAR (emote o cosmético, no por orden). Se guardan en bsb_loot.
+    const loot = (() => { const l = rd('bsb_loot', null); return l && Array.isArray(l.e) && Array.isArray(l.c) ? l : { e: [], c: [] }; })();
+    const saveLoot = () => wr('bsb_loot', loot);
+    window.CF_LOOT = loot; window.CF_LOOT_SAVE = saveLoot;
+    const isOwner = () => !!(SOC && SOC.owner);                          // el dueño tiene todo desbloqueado
+    const unlocked = e => !!e && (isOwner() || (e.boss ? extra.includes(e.id) : (e.k === 0 || loot.e.includes(e.id))));
     const defaultSlots = () => { const s = new Array(NSLOTS).fill(null); EM.filter(unlocked).slice(0, NSLOTS).forEach((e, i) => { s[i] = e.id; }); return s; };
     if (!Array.isArray(slots) || slots.length !== NSLOTS) slots = defaultSlots();
     slots = slots.map(v => (typeof v === 'number' && byId(v) ? v : null));
@@ -82,7 +87,7 @@
     // ---------------------------------------------------------------- reproducir un emote
     function play(f, id, fromNet) {
       const e = byId(id); if (!e || !f || !f.alive || f.ragdoll > 0) return false;
-      if (!fromNet && !unlocked(e)) { popText(chestOf(f), e.boss ? '🔒 Derrota al jefe ' + e.boss : '🔒 ' + e.k + ' kills públicas', '#ff8a80', 18); return false; }
+      if (!fromNet && !unlocked(e)) { popText(chestOf(f), e.boss ? '🔒 Derrota al jefe ' + e.boss : '🔒 Aún no lo tienes (premio al azar cada 50 kills)', '#ff8a80', 18); return false; }
       if (f.action && !f.action.isEmote) return false;            // no corta un ataque
       if (e.clip && !window.CF_EMOTE_CLIPS) { loadClips(() => play(f, id, fromNet)); return true; }
       startAction(f, {
@@ -124,16 +129,22 @@
       f.anim.apply(); return true;
     }
 
+    // ---------------------------------------------------------------- premios al azar cada 50 kills públicas
+    function rollReward() {
+      const pool = EM.filter(e => !e.boss && e.k > 0 && !loot.e.includes(e.id)).map(e => ({ t: 'e', id: e.id })).concat(window.CF_COS && CF_COS.lockedPool ? CF_COS.lockedPool() : []);
+      if (!pool.length) { addFeedText('🎁 50 kills públicas, pero ya tienes todo lo que se gana por kills', '#ffd54f'); return; }
+      const w = pool[Math.random() * pool.length | 0];
+      if (w.t === 'e') { const e = byId(w.id); loot.e.push(e.id); saveLoot(); const free = slots.indexOf(null); if (free >= 0 && !slots.includes(e.id)) { slots[free] = e.id; saveSlots(); } showBanner('🎁 ¡PREMIO POR KILLS!', '#ffd54f', 'Emote «' + e.n + '»'); addFeedText('🎁 Premio por 50 kills públicas: emote «' + e.n + '»', '#ffd54f'); }
+      else if (window.CF_COS) { const n = CF_COS.unlock(w.id); showBanner('🎁 ¡PREMIO POR KILLS!', '#ffd54f', 'Cosmético «' + n + '»'); addFeedText('🎁 Premio por 50 kills públicas: cosmético «' + n + '»', '#ffd54f'); }
+    }
+    function checkRolls() { let rolls = Math.max(0, rd('bsb_loot_rolls', 0) | 0); const due = Math.floor(kills / 50); while (rolls < due) { rolls++; rollReward(); } wr('bsb_loot_rolls', rolls); }
+    setTimeout(() => { try { checkRolls(); } catch (e) { } }, 2500);
+
     // ---------------------------------------------------------------- kills públicas
     function onPublicKill(victim) {
       if (!victim || victim.dummy || victim.ai || !victim.remote) return;        // solo contra otros jugadores reales
-      const before = kills; kills++; wr(KEY_KILLS, kills);
-      for (const e of EM) if (before < e.k && kills >= e.k) {
-        const free = slots.indexOf(null); if (!slots.includes(e.id) && free >= 0) { slots[free] = e.id; saveSlots(); }
-        showBanner('¡EMOTE DESBLOQUEADO!', '#ffd54f', e.ico + ' ' + e.n);
-        addFeedText('🎉 Desbloqueaste el emote «' + e.n + '» (' + e.k + ' kills públicas)', '#ffd54f');
-      }
-      paintWheel();
+      kills++; wr(KEY_KILLS, kills); checkRolls(); paintWheel();
+      if (window.CF_RANK) CF_RANK.kill();
     }
 
     // ---------------------------------------------------------------- interfaz (estilos propios, sin tocar style.css)
@@ -261,12 +272,12 @@
       if (!open || i < 0) return;
       selSlot = i; tapMode = true; hintText();
       if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { } }   // aparece el cursor para elegir
-      const cur = slots[i], sorted = EM.slice().sort((a, b) => (a.boss ? 1e8 : a.k) - (b.boss ? 1e8 : b.k) || a.id - b.id);
+      const cur = slots[i], sorted = EM.slice().sort((a, b) => (unlocked(b) ? 1 : 0) - (unlocked(a) ? 1 : 0) || (a.boss ? 1e8 : a.k) - (b.boss ? 1e8 : b.k) || a.id - b.id);
       list.innerHTML = '<h4><span>Slot ' + (i + 1) + ': elegí un emote</span><span style="opacity:.7">' + kills + ' kills</span></h4><div class="gr"></div>';
       const gr = list.querySelector('.gr');
       const mk = (e) => {
         const ok = unlocked(e), b = document.createElement('button'); b.type = 'button'; b.className = (ok ? '' : 'lock ') + (e.id === cur ? 'cur' : '');
-        b.innerHTML = '<i>' + (ok ? e.ico : '🔒') + '</i><span>' + e.n + '<small>' + (ok ? (slots.includes(e.id) ? 'en la rueda' : 'desbloqueado') : e.boss ? 'jefe: ' + e.boss : e.k + ' kills públicas') + '</small></span>';
+        b.innerHTML = '<i>' + (ok ? e.ico : '🔒') + '</i><span>' + e.n + '<small>' + (ok ? (slots.includes(e.id) ? 'en la rueda' : 'desbloqueado') : e.boss ? 'jefe: ' + e.boss : 'premio al azar cada 50 kills') + '</small></span>';
         b.addEventListener('click', ev => {
           ev.stopPropagation(); if (!ok) return;
           const old = slots.indexOf(e.id); if (old >= 0 && old !== i) slots[old] = slots[i];     // si ya estaba en otro slot, se intercambian
