@@ -98,3 +98,19 @@ Más vida (100 → 112), más velocidad (1.04 → 1.09), más daño (×0.72 → 
 ## Seguridad de las cuentas
 
 Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, cambio de contraseña y reglas de Firestore más estrictas. Ver [SEGURIDAD.md](SEGURIDAD.md) (incluye lo que hay que activar en la consola de Firebase).
+
+## El mar grande, el torbellino y el Kraken
+
+- **Mar mucho más grande:** ahora llega a ~540 m de la costa y ±350 m de ancho, con rocas, corales luminosos y fondo cada vez más oscuro.
+- **Eventos del mar más difíciles de ver:** aparecen solos cada **5 a 9 minutos** (antes cada 1 minuto).
+- **Torbellino gigante** en el mar profundo (una columna de luz azul y la señal «EL ABISMO» se ven desde lejos): absorbe poco a poco a quien nada cerca. En el borde se puede escapar nadando; más adentro ya no. Al llegar al centro **caes por una cascada** a la cueva del **Abismo**, muy por debajo del mar.
+- **El Abismo:** una cueva enorme con ruinas, cristales luminosos, algas gigantes y un barco hundido. La salida (portal «SUPERFICIE») se abre cuando derrotas al jefe.
+- **Jefe final: el KRAKEN.** Un calamar gigante con 1500 de vida y 5 ataques: **Aplastamiento** (tentáculos que salen del suelo donde marca el círculo rojo), **Barrido** (hay que saltarlo), **Tinta** (charcos que queman y frenan), **Succión** (te arrastra al centro y explota) y, al enfurecerse con la mitad de la vida, **Rayos de los ojos**. Se le pega con **las habilidades de tu personaje**; las cinemáticas de agarre no funcionan con él (le hacen daño directo). Cada jugador pelea con su propio Kraken.
+- **Recompensas:** la primera vez da el emote «Furia del Kraken» y los cosméticos «Corona del Abismo» y «Aura abisal»; las siguientes victorias dan «Tentáculos», «Rey del abismo», «Alas del Kraken», «Ojos del Kraken» y «Hombreras del abismo».
+- **Evento «Calamar gigante»:** cuando ocurre, el torbellino brilla más y se avisa que el Kraken despertó.
+
+## Cosméticos (estilo anime / cine épico)
+
+- Botón **👑** arriba, junto a Panel, Guía y Emotes: eliges un cosmético por espacio (cabeza, cara, espalda, hombros y aura). Los demás jugadores los ven.
+- Halo dorado, cuernos de Oni, capa épica, katana a la espalda, máscara Kitsune, hombreras de samurái, aura dorada, alas de ángel y ojos de energía se consiguen con **kills en salas públicas** (las mismas que los emotes). Los del abismo, derrotando al Kraken.
+- Código: `js/cosmetics.js`, `js/abismo.js`.

@@ -37,6 +37,12 @@
       { id: 13, n: 'Pose final', ico: '🔥', k: 80, dur: 3.4, seq: [[.3, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.0, { ix: -.12, tx: -.25, hx: -.3, ty: .5, hy: -.5, by: -2.4, alx: -2.9, alz: .1, arx: .4, arz: -.9, llx: -.4, lrx: .3, llz: .3, lrz: -.1 }], [3.4, REST]], fx: 'fire' },
       { id: 14, n: 'Leyenda', ico: '👑', k: 120, dur: 3.6, seq: [[.4, { ix: -.05, tx: -.1, hx: -.28, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.2, { ix: -.05, tx: -.1, hx: -.28, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.1, lrx: .15 }], [3.6, REST]], fx: 'gold' },
     ];
+    // emotes del JEFE (Kraken del abismo): solo se consiguen derrotándolo (ver grantBoss)
+    EM.push(
+      { id: 200, n: 'Furia del Kraken', ico: '🦑', k: 1e9, boss: 'Kraken', dur: 3.4, fx: 'abyss', seq: [[.3, { ix: -.15, tx: -.3, hx: -.5, alx: -2.9, alz: .9, arx: -2.9, arz: -.9, llx: -.5, lrx: .3, by: -3 }], ...kf(3.0, .18, i => ({ ix: -.15, tx: -.3, hx: -.5 + (i % 2) * .12, alx: -2.9, alz: .9 + (i % 2) * .15, arx: -2.9, arz: -.9 - (i % 2) * .15, llx: -.5, lrx: .3, by: -3 - (i % 2) * .6 })), [3.4, REST]] },
+      { id: 201, n: 'Tentáculos', ico: '🐙', k: 1e9, boss: 'Kraken', dur: 3.6, fx: 'abyss', seq: kf(3.4, .22, i => ({ ix: .05, tx: .1 * Math.sin(i), ty: .5 * Math.sin(i * 1.3), hy: -.3 * Math.sin(i), by: -1.5, alx: -1.6 + Math.sin(i * 1.1) * 1.1, alz: .5 + Math.cos(i) * .4, arx: -1.6 - Math.sin(i * 1.1) * 1.1, arz: -.5 - Math.cos(i) * .4, llx: Math.sin(i) * .25, lrx: -Math.sin(i) * .25 })).concat([[3.6, REST]]) },
+      { id: 202, n: 'Rey del abismo', ico: '🔱', k: 1e9, boss: 'Kraken', dur: 3.8, fx: 'abyss', seq: [[.5, { ix: -.08, tx: -.15, hx: -.3, by: -1, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.2, lrx: .25 }], [3.4, { ix: -.08, tx: -.15, hx: -.3, by: -1.4, alx: -1.4, alz: -.8, arx: -1.4, arz: .8, llx: -.2, lrx: .25 }], [3.8, REST]] },
+    );
     // emotes de animación (Blockbench): nombre, icono, kills y duración salen de js/emote_list.js
     for (const e of (window.CF_EMOTE_LIST || [])) EM.push({ id: e.id, n: e.n, ico: e.ico, k: e.k, clip: e.clip, len: e.len, loop: e.loop, dur: e.loop ? e.len * Math.max(1, Math.ceil(6 / e.len)) : e.len + .25 });
     delete window.CF_EMOTE_LIST;
@@ -65,7 +71,8 @@
 
     // ---------------------------------------------------------------- estado (kills públicas y slots)
     let kills = Math.max(0, rd(KEY_KILLS, 0) | 0), slots = rd(KEY_SLOTS, null);
-    const unlocked = e => !!e && kills >= e.k;
+    let extra = rd('bsb_emote_extra', []); if (!Array.isArray(extra)) extra = [];
+    const unlocked = e => !!e && (e.boss ? extra.includes(e.id) : kills >= e.k);
     const defaultSlots = () => { const s = new Array(NSLOTS).fill(null); EM.filter(unlocked).slice(0, NSLOTS).forEach((e, i) => { s[i] = e.id; }); return s; };
     if (!Array.isArray(slots) || slots.length !== NSLOTS) slots = defaultSlots();
     slots = slots.map(v => (typeof v === 'number' && byId(v) ? v : null));
@@ -75,7 +82,7 @@
     // ---------------------------------------------------------------- reproducir un emote
     function play(f, id, fromNet) {
       const e = byId(id); if (!e || !f || !f.alive || f.ragdoll > 0) return false;
-      if (!fromNet && !unlocked(e)) { popText(chestOf(f), '🔒 ' + e.k + ' kills públicas', '#ff8a80', 18); return false; }
+      if (!fromNet && !unlocked(e)) { popText(chestOf(f), e.boss ? '🔒 Derrota al jefe ' + e.boss : '🔒 ' + e.k + ' kills públicas', '#ff8a80', 18); return false; }
       if (f.action && !f.action.isEmote) return false;            // no corta un ataque
       if (e.clip && !window.CF_EMOTE_CLIPS) { loadClips(() => play(f, id, fromNet)); return true; }
       startAction(f, {
@@ -93,6 +100,7 @@
             const P = chestOf(f);
             if (fx === 'gold') { burst(P, 6, '#ffd54f', 4, .1, .8, -.2); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd54f', 1.8, .7); }
             else if (fx === 'fire') { burst(P, 8, '#ff6a3c', 5, .14, .7, -.3); burst(P, 4, '#ffd23f', 4, .1, .6, -.3); }
+            else if (fx === 'abyss') { burst(P, 7, '#39e6ff', 5, .12, .8, -.2); burst(P, 3, '#ff4fd8', 4, .1, .7, -.2); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#39e6ff', 2.2, .8); }
             else if (fx === 'aura') { ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#9be8ff', 1.5, .9); }
             else if (fx === 'confetti') { for (const c of ['#ff5f8a', '#ffd23f', '#4fd0c9', '#c46bff']) burst(new V3(P.x, P.y + .8, P.z), 5, c, 4, .1, 1.1, .6); }
           }
@@ -253,12 +261,12 @@
       if (!open || i < 0) return;
       selSlot = i; tapMode = true; hintText();
       if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) { } }   // aparece el cursor para elegir
-      const cur = slots[i], sorted = EM.slice().sort((a, b) => a.k - b.k || a.id - b.id);
+      const cur = slots[i], sorted = EM.slice().sort((a, b) => (a.boss ? 1e8 : a.k) - (b.boss ? 1e8 : b.k) || a.id - b.id);
       list.innerHTML = '<h4><span>Slot ' + (i + 1) + ': elegí un emote</span><span style="opacity:.7">' + kills + ' kills</span></h4><div class="gr"></div>';
       const gr = list.querySelector('.gr');
       const mk = (e) => {
         const ok = unlocked(e), b = document.createElement('button'); b.type = 'button'; b.className = (ok ? '' : 'lock ') + (e.id === cur ? 'cur' : '');
-        b.innerHTML = '<i>' + (ok ? e.ico : '🔒') + '</i><span>' + e.n + '<small>' + (ok ? (slots.includes(e.id) ? 'en la rueda' : 'desbloqueado') : e.k + ' kills públicas') + '</small></span>';
+        b.innerHTML = '<i>' + (ok ? e.ico : '🔒') + '</i><span>' + e.n + '<small>' + (ok ? (slots.includes(e.id) ? 'en la rueda' : 'desbloqueado') : e.boss ? 'jefe: ' + e.boss : e.k + ' kills públicas') + '</small></span>';
         b.addEventListener('click', ev => {
           ev.stopPropagation(); if (!ok) return;
           const old = slots.indexOf(e.id); if (old >= 0 && old !== i) slots[old] = slots[i];     // si ya estaba en otro slot, se intercambian
@@ -314,6 +322,12 @@
     setInterval(() => { tb.classList.toggle('show', !!(touchActive && touchActive()) && G.state === 'play' && !G.paused && !G.over); }, 700);
     setTimeout(() => { if (G.state === 'play') loadClips(); }, 6000);              // ya jugando: se bajan los clips sin molestar
 
-    window.CF_EMOTES = { play: (f, i, net) => play(f, i, !!net), playClip, onPublicKill, get kills() { return kills; }, list: () => EM.map(e => ({ id: e.id, n: e.n, k: e.k })) };
+    // premios al derrotar al Kraken (se llama desde js/abismo.js): 1ª vez = Furia, 2ª = Tentáculos, 3ª = Rey del abismo
+    function grantBoss() {
+      const n = Math.max(0, rd('bsb_boss_kills', 0) | 0), id = [200, 201, 202][n % 3], got = [];
+      if (n < 3 && !extra.includes(id)) { extra.push(id); wr('bsb_emote_extra', extra); const free = slots.indexOf(null); if (free >= 0) { slots[free] = id; saveSlots(); } got.push('😀 Emote «' + byId(id).n + '»'); }
+      return got;
+    }
+    window.CF_EMOTES = { grantBoss, play: (f, i, net) => play(f, i, !!net), playClip, onPublicKill, get kills() { return kills; }, list: () => EM.map(e => ({ id: e.id, n: e.n, k: e.k })) };
   }
 });
