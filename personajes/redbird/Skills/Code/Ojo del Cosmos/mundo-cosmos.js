@@ -77,7 +77,7 @@ const rbCosmosMundo = function () {
     hideFoam() { if (foam) foam.visible = false; },
     dispose() {
       scene.remove(g); mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose());
-      const back = () => { G.apoc = (G.apoc || 0) * .965; if (G.apoc > .01) requestAnimationFrame(back); else G.apoc = 0; }; back();   // el cielo rojo se apaga poco a poco
+      let lt = performance.now(); const back = (now) => { now = now || performance.now(); const dt = Math.min(.25, (now - lt) / 1000); lt = now; G.apoc = (G.apoc || 0) * Math.pow(.965, dt * 60); if (G.apoc > .01) requestAnimationFrame(back); else G.apoc = 0; }; back();   // el cielo rojo se apaga poco a poco
     },
   };
 };

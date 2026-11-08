@@ -15410,17 +15410,17 @@ function renderRoster() {
 #roster .rc .re{right:6px;bottom:6px;width:19px;height:19px}
 #roster .rc{animation:rcIn .55s cubic-bezier(.2,.9,.3,1) backwards;animation-delay:calc(var(--i,0) * 55ms + .1s)}
 @keyframes rcIn{from{opacity:0;transform:translateX(80px) skewX(-8deg) scale(.9)}}
-#roster .rc.sel{animation:selGlow 1.8s ease-in-out infinite}
+#roster .rc.sel{animation:selGlow 3s ease-in-out infinite}
 @keyframes selGlow{0%,100%{box-shadow:0 0 0 2px #000,0 0 16px rgba(255,212,0,.45)}50%{box-shadow:0 0 0 2px #000,0 0 30px rgba(255,212,0,.9)}}
-#roster .rc.sel::before{content:'';position:absolute;top:-10%;bottom:-10%;width:34%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.42),transparent);transform:skewX(-14deg);animation:rcShine 2.6s ease-in-out infinite;z-index:3;pointer-events:none}
+#roster .rc.sel::before{content:'';position:absolute;top:-10%;bottom:-10%;width:34%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.42),transparent);transform:skewX(-14deg);animation:rcShine 4.2s ease-in-out infinite;z-index:3;pointer-events:none}
 @keyframes rcShine{0%,55%{left:-60%}100%{left:130%}}
 #roster .rc:active{transform:skewX(-8deg) scale(.96)}
 .selmodes button{animation:pillIn .5s cubic-bezier(.2,.9,.3,1) backwards}
 .selmodes button:nth-child(2){animation-delay:.08s}.selmodes button:nth-child(3){animation-delay:.16s}
 @keyframes pillIn{from{opacity:0;transform:skewX(-8deg) translateX(-70px)}}
-.selmodes button.on{animation:pillIn .5s cubic-bezier(.2,.9,.3,1) backwards,pillPulse 2.2s ease-in-out infinite .6s}
+.selmodes button.on{animation:pillIn .5s cubic-bezier(.2,.9,.3,1) backwards,pillPulse 3.4s ease-in-out infinite .6s}
 @keyframes pillPulse{0%,100%{box-shadow:0 0 0 2px #000,0 0 0 rgba(255,212,0,0)}50%{box-shadow:0 0 0 2px #000,0 0 18px rgba(255,212,0,.6)}}
-#play{animation:playIn .6s cubic-bezier(.2,.9,.3,1) .35s backwards,playPulse 2s ease-in-out infinite 1s}
+#play{animation:playIn .6s cubic-bezier(.2,.9,.3,1) .35s backwards,playPulse 3.2s ease-in-out infinite 1s}
 @keyframes playIn{from{opacity:0;transform:translateX(90px)}}
 @keyframes playPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18) drop-shadow(0 0 10px rgba(255,255,255,.35))}}
 #play:hover{animation:none;background:#ffd400;transform:translateX(-6px)}

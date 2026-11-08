@@ -1169,7 +1169,7 @@ const rbCosmosMundo = function () {
     hideFoam() { if (foam) foam.visible = false; },
     dispose() {
       scene.remove(g); mats.forEach(m => m.dispose()); geos.forEach(x => x.dispose());
-      const back = () => { G.apoc = (G.apoc || 0) * .965; if (G.apoc > .01) requestAnimationFrame(back); else G.apoc = 0; }; back();   // el cielo rojo se apaga poco a poco
+      let lt = performance.now(); const back = (now) => { now = now || performance.now(); const dt = Math.min(.25, (now - lt) / 1000); lt = now; G.apoc = (G.apoc || 0) * Math.pow(.965, dt * 60); if (G.apoc > .01) requestAnimationFrame(back); else G.apoc = 0; }; back();   // el cielo rojo se apaga poco a poco
     },
   };
 };
@@ -1231,7 +1231,7 @@ CF.mover('rbCosmos', function (f, o) {
     fx.style.backgroundImage = 'url(' + cv.toDataURL() + ')'; fx.style.backgroundColor = 'rgba(190,220,255,0)'; document.body.appendChild(fx);
   }
   const setFx = (clouds, white, sc) => { fx.style.opacity = clouds; fx.style.transform = 'scale(' + sc + ')'; fx.style.backgroundColor = 'rgba(' + Math.round(190 + 65 * white) + ',' + Math.round(220 + 35 * white) + ',255,' + white + ')'; };
-  const fadeFx = (from) => { let k = 0; const back = () => { k += .04; setFx(clamp(from - k, 0, 1), clamp(from - k * 1.3, 0, 1), 2.6 + k * 1.2); if (k < from) requestAnimationFrame(back); else setFx(0, 0, 1); }; setFx(from, from, 2.6); requestAnimationFrame(back); };
+  const fadeFx = (from) => { let k = 0, lt = performance.now(); const back = (now) => { k += .04 * Math.min(15, (now - lt) / (1000 / 60)); lt = now; setFx(clamp(from - k, 0, 1), clamp(from - k * 1.3, 0, 1), 2.6 + k * 1.2); if (k < from) requestAnimationFrame(back); else setFx(0, 0, 1); }; setFx(from, from, 2.6); requestAnimationFrame(back); };
 
   // ---- barras de cine animadas: entran al empezar, cambian de grosor con cada plano y salen al terminar
   const bars = document.querySelectorAll('#lb i'); let barT = 0, barC = 0;
