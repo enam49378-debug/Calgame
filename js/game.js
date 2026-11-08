@@ -1607,7 +1607,10 @@ function seaFloor(x, z) {
 }
 let GUIDE_Y=0;
 window.groundAt = groundAt;
-function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;let g=(z>SHORE(x)+.2&&z<290&&Math.abs(x)<190)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
+const ABY = { x: 0, z: 720, y: -90, R: 72 };   // el abismo: cueva bajo el torbellino del mar profundo (ver js/abismo.js)
+const ABY_FLOOR = (x, z) => Math.hypot(x - ABY.x, z - ABY.z) < ABY.R + 8 ? ABY.y : -400;
+function abyssClamp(v) { const dx = v.x - ABY.x, dz = v.z - ABY.z, d = Math.hypot(dx, dz); if (d > ABY.R) { v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; } return v; }
+function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;if(z>600)return ABY_FLOOR(x,z);let g=(z>SHORE(x)+.2&&z<560&&Math.abs(x)<360)?seaFloor(x,z):0;for(const c of COL)if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);return g;}
 
 // ================= Partículas (bloquecitos) =================
 class Parts {
@@ -4076,7 +4079,7 @@ class Fighter {
   }
   dispose() { stopCharacterVoice(this); releaseOwnerSpear(this); disposeMount(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
-const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive);
+const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive && (g.isBoss ? !!f.abyss : f.isBoss ? !!g.abyss : !!f.abyss === !!g.abyss));   // el abismo y el mar son mundos aparte
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
 function front(f, d, h = 1) { const F = fwd(f.yaw); return new V3(f.pos.x + F.x * d, f.pos.y + h, f.pos.z + F.z * d); }
 const involvesPlayerNear = f => G.player && G.player.alive && f.pos.distanceTo(G.player.pos) < 25;
@@ -5099,6 +5102,8 @@ function netHit(att, t, o) {
 }
 function applyHit(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
+  if (t.isBoss) o = Object.assign({}, o, { kb: 0, up: 0, ragdoll: 0, stun: 0, guardBreak: false, noCounter: true, pull: 0 });   // el Kraken no se empuja ni se aturde
+  if (t.isBoss && att.isPlayer && window.CF_ABISMO) CF_ABISMO.bossHit(att, o);
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
   // en ragdoll en el suelo no recibe dano (wake up), pero en el aire si se permite juggle combo
   if (!t.alive || t.iframes > 0) return false;
@@ -5261,7 +5266,7 @@ function hitArea(att, c, r, o) {
   for (const g of enemiesOf(att)) {
     if (o.set && o.set.has(g)) continue;
     const dx = g.pos.x - c.x, dz = g.pos.z - c.z, dy = g.pos.y + 1 - c.y;
-    if (dx * dx + dz * dz < (r + .55) ** 2 && Math.abs(dy) < r + 1.4) { if (applyHit(att, g, o)) { n++; if (o.set) o.set.add(g); } }
+    if (dx * dx + dz * dz < (r + .55 + (g.hitR || 0)) ** 2 && Math.abs(dy) < r + 1.4 + (g.hitH || 0)) { if (applyHit(att, g, o)) { n++; if (o.set) o.set.add(g); } }
   }
   if (o.dmg >= 2.5 || o.dest || o.ragdoll) {
     const atDir = o.dir ? o.dir : (att.yaw != null ? fwd(att.yaw) : null);
@@ -5291,6 +5296,7 @@ function segDist(p, a, b) {
 function freeze(g, dur) { g.frozen = dur; iceBlock(g, dur); }
 function kill(v, k) {
   if (!v.alive) return;
+  if (v.isBoss) { v.alive = false; v.hp = 0; if (window.CF_ABISMO) CF_ABISMO.bossDown(v, k); return; }
   if (v.capRandi) { capEnd(v); return; }   // Capitán Perú cae y ElRandi con él
   if (k && k !== v && k.ch && (k.ch.id === 'randi' || k.capRandi) && G.time - (k.voiceT || -9) > 3) { k.voiceT = G.time; playSnd('randi_voz2', 1.5, k.pos); }   // mató a alguien
   if (k && k !== v && k.capRandi) k.capT = Math.min(45, k.capT + 10);   // matar le suma tiempo a Capitán Perú
@@ -6043,6 +6049,11 @@ function choreCam(st, dt) {
   cam.fov = cut ? want : cam.fov + (want - cam.fov) * Math.min(1, dt * 16); camera.fov = cam.fov; camera.updateProjectionMatrix();
 }
 function runChore(f, tg, D) {
+  if (tg && tg.isBoss) {   // las cinematicas de agarre no sirven contra el Kraken: la habilidad le pega fuerte
+    if (f.action) endAction(f);
+    applyHit(f, tg, { dmg: 16, kb: 0, noCounter: true, color: f.ch.color, hitstop: .08 }); impactStar(chestOf(tg).add(new V3(rand(-3, 3), 3, rand(-3, 3))), f.ch.color, 2.4, .25); camPunch(.7, 1);
+    return;
+  }
   if (f.action) endAction(f);
   // multijugador: se avisa a los demás clientes qué escena es y a quién se agarró, así la ven todos sin depender de que su juego "atrape" por su cuenta
   if (f.isPlayer && G.mp && !G.viewer) {
@@ -7353,9 +7364,10 @@ function updateProj(dt) {
     p.pos.addScaledVector(p.vel, dt); p.mesh.position.copy(p.pos);
     if (o.long) p.mesh.lookAt(p.pos.clone().add(p.vel)); else { p.mesh.rotation.x += dt * 10; p.mesh.rotation.z += dt * 7; }
     emit(p.pos.x, p.pos.y, p.pos.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), o.color, p.size * .5, .25, 0, 2);
-    let boom = p.life <= 0 || p.pos.y < .1 || groundAt(p.pos.x, p.pos.z) > p.pos.y || Math.hypot(p.pos.x, p.pos.z) > ARENA + 1;
+    const abP = !!(p.owner && p.owner.abyss);
+    let boom = p.life <= 0 || p.pos.y < (abP ? ABY.y + .1 : .1) || groundAt(p.pos.x, p.pos.z) > p.pos.y || (!abP && Math.hypot(p.pos.x, p.pos.z) > ARENA + 1);
     if (!boom) for (const g of enemiesOf(p.owner)) {
-      if (chestOf(g).distanceTo(p.pos) < .9 + p.size / 2) {
+      if (chestOf(g).distanceTo(p.pos) < .9 + p.size / 2 + (g.hitR || 0)) {
         if (o.onHit) o.onHit(g);
         else if (!o.explode) applyHit(p.owner, g, { dmg: o.dmg || 5, stun: o.stun != null ? o.stun : .5, kb: o.kb || 4, up: o.up || 0, dir: p.vel.clone(), color: o.color });
         boom = true; break;
@@ -7379,7 +7391,7 @@ function updLoyal(p, i, dt) {
   }
   if(p.phase==='out'){
     p.pos.addScaledVector(p.vel,dt);
-    for(const g of enemiesOf(f))if(!p.set.has(g)&&chestOf(g).distanceTo(p.pos)<1.1){
+    for(const g of enemiesOf(f))if(!p.set.has(g)&&chestOf(g).distanceTo(p.pos)<1.1+(g.hitR||0)){
       p.set.add(g);
       if(loyalSpearHit(p,g,{dmg:o.dmg||8,kb:9,up:5,ragdoll:.7,dir:p.vel.clone(),color:o.color,hitstop:.05}))return;
       if(p.phase==='finish-wait')break;
@@ -7389,7 +7401,7 @@ function updLoyal(p, i, dt) {
     }
   }else{
     const to=chestOf(f).sub(p.pos),d=to.length();p.vel.copy(to.normalize().multiplyScalar(40));p.pos.addScaledVector(p.vel,dt);
-    for(const g of enemiesOf(f))if(!p.set.has(g)&&chestOf(g).distanceTo(p.pos)<1.1){
+    for(const g of enemiesOf(f))if(!p.set.has(g)&&chestOf(g).distanceTo(p.pos)<1.1+(g.hitR||0)){
       p.set.add(g);
       if(loyalSpearHit(p,g,{dmg:(o.dmg||8)*.6,kb:6,up:3,stun:.5,dir:p.vel.clone(),color:o.color}))return;
       if(p.phase==='finish-wait')break;
@@ -7885,7 +7897,7 @@ function laserLeg(a, b, col, w = .2, dur = .25) {
   grp.add(o1, c1); grp.position.copy(a).lerp(b, .5); grp.lookAt(b);
   addFx(grp, dur, (g, k) => { const q = 1 - k * .8; g.scale.set(q, q, 1); o1.material.opacity = .6 * (1 - k); c1.material.opacity = 1 - k; }, () => { o1.geometry.dispose(); o1.material.dispose(); c1.geometry.dispose(); c1.material.dispose(); });
 }
-function clampArena(v, m = 2) { const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
+function clampArena(v, m = 2) { if (v.z > 560) return v; const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
 function applyCtl(f, c, dt) {
   f.ctlJump = !!c.jump; f.ctlDown = !!c.down;
   if (f.mount) { mountUpdate(f, c, dt); return; }
@@ -7949,10 +7961,11 @@ function updateUnderwater(dt) {
   $('uw').style.opacity = UW.k.toFixed(3);
   if (UW.k > .01) {
     const depth = clamp((SEA_Y - cp.y) / 9, 0, 1), deepOut = clamp((cp.z - SHORE(cp.x) - 60) / 55, 0, 1);   // mar profundo: oscuro de verdad
-    const c = new THREE.Color(0x22808c).lerp(new THREE.Color(0x061f36), depth).lerp(new THREE.Color(0x01040b), deepOut * 0.97);
+    const ab = !!(p && p.abyss);   // en el abismo: agua oscura pero con luz suficiente para ver al jefe
+    const c = ab ? new THREE.Color(0x06263a) : new THREE.Color(0x22808c).lerp(new THREE.Color(0x061f36), depth).lerp(new THREE.Color(0x01040b), deepOut * 0.97);
     scene.fog.color.lerp(c, UW.k); scene.background.lerp(c, UW.k);
     scene.fog.near = scene.fog.near * (1 - UW.k) + .6 * UW.k;
-    scene.fog.far = scene.fog.far * (1 - UW.k) + Math.max(9, (46 - depth * 18) * (1 - deepOut * 0.72)) * UW.k;
+    scene.fog.far = scene.fog.far * (1 - UW.k) + (ab ? 120 : Math.max(9, (46 - depth * 18) * (1 - deepOut * 0.72))) * UW.k;
     if (deepOut > .3 && Math.random() < dt * (10 + (SEA.ev && SEA.ev.glow > 0 ? 30 : 0))) emit(cp.x + rand(-7, 7), cp.y + rand(-4, 3), cp.z + rand(-7, 7), rand(-.2, .2), rand(.05, .3), rand(-.2, .2), '#7df9ff', .09, 2.2, 0, 1);   // plancton luminoso
     UW.bub -= dt; if (UW.bub <= 0 && under) { UW.bub = .12; emit(cp.x + rand(-5, 5), cp.y + rand(-3, 2), cp.z + rand(-5, 5), 0, rand(.6, 1.4), 0, '#cfeeff', .07, 3, -.3, 1); }
   }
@@ -8081,10 +8094,10 @@ function buildSeaWorld() {
   const rnd = (() => { let q = 77031; return () => (q = (q * 1664525 + 1013904223) >>> 0) / 4294967296; })();
   const root = new THREE.Group(); SEA.root = root; scene.add(root);
   // fondo con vértices de color según la profundidad
-  const seg = [96, 56], geo = new THREE.PlaneGeometry(380, 190, seg[0], seg[1]); geo.rotateX(-Math.PI / 2);
+  const seg = [150, 130], geo = new THREE.PlaneGeometry(700, 470, seg[0], seg[1]); geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, col = new Float32Array(pos.count * 3), c0 = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = 80 + pos.getZ(i) + 95; pos.setZ(i, z);
+    const x = pos.getX(i), z = 80 + pos.getZ(i) + 235; pos.setZ(i, z);
     const d = Math.max(0, z - SHORE(x)), under = z > SHORE(x) - 2; pos.setY(i, under ? seaFloor(x, Math.max(z, SHORE(x))) : -.5);
     const k = clamp(d / 70, 0, 1);
     c0.set('#e6d6a4').lerp(new THREE.Color('#8fb0a4'), clamp(d / 30, 0, 1)).lerp(new THREE.Color('#224457'), k * k);
@@ -8247,13 +8260,13 @@ function buildSeaWorld() {
 }
 
 // ====== Vida marina nueva: mantarrayas, tortugas, medusas luminosas, peces abisales, calamar gigante y cardumen; y los eventos del mar ======
-SEA.ev = { school: 0, frenzy: 0, glow: 0, squid: 0 }; SEA.evTimer = 40; SEA.eventsAuto = true;
+SEA.ev = { school: 0, frenzy: 0, glow: 0, squid: 0 }; SEA.evTimer = 240; SEA.eventsAuto = true;   // aparecen cada varios minutos
 try { SEA.eventsAuto = localStorage.getItem('bsb_sea_events') !== '0'; } catch (e) { }
 const SEA_EVENTS = {
   school: { n: 'Cardumen gigante', ico: '🐟', msg: '¡Un cardumen gigante cruza el mar hacia la costa!', col: '#7ad7ff', dur: 26 },
   frenzy: { n: 'Frenesí de tiburones', ico: '🦈', msg: '¡Frenesí de tiburones! Salieron más tiburones en aguas profundas.', col: '#ff6b6b', dur: 28 },
   glow: { n: 'Marea luminosa', ico: '✨', msg: '¡Marea luminosa! Las aguas profundas brillan.', col: '#7df9ff', dur: 30 },
-  squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡Un calamar gigante pasa por el mar profundo!', col: '#ff8fb0', dur: 30 },
+  squid: { n: 'Calamar gigante', ico: '🦑', msg: '¡El Kraken despertó! Baja por el torbellino del mar profundo y derrótalo.', col: '#ff8fb0', dur: 45 },
 };
 function triggerSeaEvent(name) {
   const e = SEA_EVENTS[name]; if (!e || !SEA.life) return false;
@@ -8323,7 +8336,7 @@ function updateSeaLife(dt, t, cp) {
   const L = SEA.life; if (!L) return;
   // temporizador de eventos y cuenta atras de los activos
   for (const k in SEA.ev) if (SEA.ev[k] > 0) SEA.ev[k] = Math.max(0, SEA.ev[k] - dt);
-  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(55, 95); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0)); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
+  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0)); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
   const glow = SEA.ev.glow > 0 ? 1 + .8 * Math.min(1, SEA.ev.glow / 4, (SEA_EVENTS.glow.dur - SEA.ev.glow) / 3 + .2) : 1;
   const near = (x, z, R) => (x - cp.x) * (x - cp.x) + (z - cp.z) * (z - cp.z) < R * R;
   for (const a of L.mantas) {
@@ -8394,6 +8407,7 @@ function updateSea(dt) {
     b.mesh.rotation.x = Math.cos(t * 1.4 + b.ph) * 0.04;
   }
   updateSeaLife(dt, t, cp);
+  if (window.CF_ABISMO) CF_ABISMO.update(dt, t, cp);
   // Delfines saltando
   for (const d of SEA.dolphins) {
     const cyc = (t * 0.55 + d.ph) % 4.5;
@@ -8954,8 +8968,8 @@ function updateMallBillboard(dt) {
   }
 }
 function seaBounds(v) {   // el mar y la costa: caja ancha en vez del círculo de la ciudad
-  if (v.z <= 66 || Math.abs(v.x) > 175) return false;
-  v.x = clamp(v.x, -168, 168); v.z = Math.min(v.z, 262); return true;
+  if (v.z <= 66 || Math.abs(v.x) > 355) return false;
+  v.x = clamp(v.x, -348, 348); v.z = Math.min(v.z, 545); return true;   // el mar es mucho mas grande
 }
 function physics(f, dt) {
   if (f.mount && (f.mount.phase === 'climb' || f.mount.phase === 'ride')) { f.vel.set(0, 0, 0); f.onGround = true; return; }
@@ -8965,8 +8979,8 @@ function physics(f, dt) {
   if (f.frozen > 0) { f.vel.x = f.vel.z = 0; }
   { // ¿está en aguas hondas? (no sobre el muelle ni en la orilla)
     const gz = groundAt(f.pos.x, f.pos.z, f.pos.y), was = !!f.swim;
-    f.swim = f.alive && f.pos.z > SHORE(f.pos.x) + .2 && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
-    f.wade = !f.swim && f.pos.z > SHORE(f.pos.x) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
+    f.swim = !f.abyss && f.alive && f.pos.z > SHORE(f.pos.x) + .2 && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
+    f.wade = !f.swim && !f.abyss && f.pos.z > SHORE(f.pos.x) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
     if (f.swim !== was && f.alive) { splashFx(f); if (f.isPlayer && f.swim && !G.swimHint) { G.swimHint = true; showBanner('NADANDO', '#7ad7ff', 'Mira abajo y avanza para bucear · Espacio sube · C baja'); } }
     if (f.swim) {
       const surf = SEA_Y - 1.2, up = f.ctlJump, dn = f.ctlDown;
@@ -8978,7 +8992,7 @@ function physics(f, dt) {
     }
     // aire: 20 s bajo el agua; sin aire, daño
     f.air = f.air == null ? 20 : f.air;
-    if (f.alive && f.pos.y + 1.7 < SEA_Y - .05 && f.pos.z > SHORE(f.pos.x)) {
+    if (!f.abyss && f.alive && f.pos.y + 1.7 < SEA_Y - .05 && f.pos.z > SHORE(f.pos.x)) {
       f.air -= dt;
       if (f.air <= 0) { f.air = 0; f.airT = (f.airT || 0) + dt; if (f.airT > 1) { f.airT = 0; f.hp -= 4; popText(chestOf(f), '¡SIN AIRE!', '#7ad7ff', 18); if (f.hp <= 0 && f.alive) kill(f, f); } }
     } else f.air = Math.min(20, f.air + dt * 9);
@@ -9059,7 +9073,8 @@ function physics(f, dt) {
     }
   }
   const r = Math.hypot(f.pos.x, f.pos.z);
-  if (seaBounds(f.pos)) { /* zona del mar */ }
+  if (f.abyss) abyssClamp(f.pos);
+  else if (seaBounds(f.pos)) { /* zona del mar */ }
   else if (r > ARENA - .5) {
     const nx = f.pos.x / r, nz = f.pos.z / r; f.pos.x = nx * (ARENA - .5); f.pos.z = nz * (ARENA - .5);
     const vn = f.vel.x * nx + f.vel.z * nz;
@@ -9243,7 +9258,7 @@ function tickTimers(f, dt) {
   if (!f.alive) {
     f.deathT += dt;
     if (f.deathT > 1.1 && f.model.root.visible) { f.model.root.visible = false; burst(chestOf(f), 30, '#dddddd', 5, .3, .8, -.2); burst(chestOf(f), 14, f.ch.color, 5, .25, .6, -.2); }
-    f.respawnT -= dt; if (f.respawnT <= 0 && !G.over) respawn(f);
+    f.respawnT -= dt; if (f.respawnT <= 0 && !G.over && !f.isBoss) respawn(f);
   }
 }
 function animate(f, dt) {
@@ -10235,7 +10250,7 @@ function updateCamera(dt) {
   cam.roomDist=(cam.roomDist||cam.dist)+((inside?Math.min(4.3,cam.dist):cam.dist)-(cam.roomDist||cam.dist))*Math.min(1,dt*9);
   cam.shoulder += ((inside?.55:G.shiftLock?1.35:.85)-(cam.shoulder||.85))*Math.min(1,dt*8);
   const pos = cam.focus.clone().addScaledVector(dir, -cam.roomDist).addScaledVector(R, cam.shoulder);
-  pos.y = Math.max(p.swim ? -8.5 : .4, pos.y);
+  pos.y = Math.max(p.abyss ? ABY.y + .5 : p.swim ? -8.5 : .4, pos.y);   // en el abismo la camara baja hasta el suelo de la cueva
   const wallT=citySegment(cam.focus,pos,.23,true);
   if(wallT<1)pos.copy(cam.focus).lerp(pos,Math.max(0,wallT-.04));
   camera.position.copy(pos);
@@ -11248,6 +11263,8 @@ const CF_A = (() => {
     javiCineFx,
     miniCut,
     get keys() { return keys; },
+    get ABY() { return ABY; },
+    abyssClamp,
     get BINDS() { return BINDS; },
     bindKeyLabel,
     get pressed() { return pressed; },
@@ -14349,7 +14366,7 @@ function netSendPlay() {
 }
 function presenceOf(f, ch) {
   return {
-    v: 1, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
+    v: 1, cos: f.isPlayer && window.CF_COS ? CF_COS.equippedIds() : undefined, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
     dx: f.isPlayer && NET.destOut ? NET.destOut.filter(e => G.time - e.t < 2.5) : undefined, vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
@@ -14453,6 +14470,7 @@ function proxyUpdate(px, dt) {
   const was = px.alive;
   px.alive = !!pr.al; px.hp = +pr.hp || 0; px.maxHp = +pr.mh || 100; px.kills = +pr.k || 0; px.deaths = +pr.d || 0; px.awak = pr.aw ? 1 : 0;
   px.ragdoll = pr.rg ? 1 : 0; px.blocking = !!pr.bl;
+  if (window.CF_COS) CF_COS.remote(px, pr.cos);
   if (was && !px.alive) burst(chestOf(px), 30, '#dddddd', 5, .3, .8, -.2);
   // interpolación de instantáneas, como en un servidor normal: se guardan los últimos paquetes y cada jugador remoto se dibuja
   // ~100 ms en el pasado, entre dos paquetes reales, así los tirones de la red no se ven como saltos
@@ -16112,7 +16130,7 @@ function step(dt) {
   for(let i=TIMERS.length-1;i>=0;i--){const tm=TIMERS[i];if(!tm)continue;tm.t-=dt;if(tm.t<=0){TIMERS.splice(i,1);frameTask('evento',()=>tm.fn());}}
   for (const f of G.fighters) {
     if (f.remote) continue;
-    if(f.alive)frameTask('accion:'+f.ch.id,()=>{const c=f.guideCtl?f.guideCtl(f,dt):f.isPlayer?(VB.on?vbPlayerCtl(f,playerCtl()):playerCtl()):f.vbBot?vbBotCtl(f,dt):f.dummy?dummyCtl(f,dt):VB.on?VB_NEUTRAL():aiCtl(f,dt);applyCtl(f,c,dt);updateAction(f,dt);},()=>cancelFailedAction(f));
+    if(f.alive)frameTask('accion:'+f.ch.id,()=>{const c=f.guideCtl?f.guideCtl(f,dt):f.isPlayer?(VB.on?vbPlayerCtl(f,playerCtl()):playerCtl()):f.vbBot?vbBotCtl(f,dt):f.isBoss?VB_NEUTRAL():f.dummy?dummyCtl(f,dt):VB.on?VB_NEUTRAL():aiCtl(f,dt);applyCtl(f,c,dt);updateAction(f,dt);},()=>cancelFailedAction(f));
     if (G.cine) break;
   }
   for(const f of G.fighters){
