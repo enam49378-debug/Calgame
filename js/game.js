@@ -9007,7 +9007,7 @@ function physics(f, dt) {
   const a = f.action;
   if (f.frozen > 0) { f.vel.x = f.vel.z = 0; }
   { // ¿está en aguas hondas? (no sobre el muelle ni en la orilla)
-    const gz = groundAt(f.pos.x, f.pos.z, f.pos.y), was = !!f.swim;
+    const gz = f.onBoat != null ? f.onBoat : groundAt(f.pos.x, f.pos.z, f.pos.y), was = !!f.swim;   // a bordo del barco: la cubierta cuenta como suelo (no se nada)
     f.swim = !f.abyss && f.alive && f.pos.z > SHORE(f.pos.x) + .2 && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
     f.wade = !f.swim && !f.abyss && f.pos.z > SHORE(f.pos.x) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
     if (f.swim !== was && f.alive) { splashFx(f); if (f.isPlayer && f.swim && !G.swimHint) { G.swimHint = true; showBanner('NADANDO', '#7ad7ff', 'Mira abajo y avanza para bucear · Espacio sube · C baja'); } }
@@ -9125,7 +9125,7 @@ function physics(f, dt) {
       }
     }
   }
-  const gy = groundAt(f.pos.x, f.pos.z,f.pos.y+Math.max(0,-f.vel.y*dt)+.15);
+  let gy = groundAt(f.pos.x, f.pos.z,f.pos.y+Math.max(0,-f.vel.y*dt)+.15); if (f.onBoat != null && f.pos.y <= f.onBoat + .6) gy = Math.max(gy, f.onBoat);
   if (f.pos.y <= gy) {
     const vy = f.vel.y;
     f.pos.y = gy;

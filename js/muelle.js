@@ -222,7 +222,7 @@
         screenFlash(1); G.slowT = Math.max(G.slowT, .6);
         const list = [...M.aboard.keys()]; M.aboard.clear(); M.boat.visible = false; M.state = 'off';
         if (G.camScript) { const s = G.camScript; G.camScript = null; if (s.cleanup) s.cleanup(); }
-        for (const f of list) { f.boatSink = false; f.pos.y = SEA_Y - .5; if (window.CF_ABISMO) CF_ABISMO.enter(f); }
+        for (const f of list) { f.boatSink = false; f.onBoat = null; f.pos.y = SEA_Y - .5; if (window.CF_ABISMO) CF_ABISMO.enter(f); }
       }
     }
     function boatUpdate(dt, t) {
@@ -230,6 +230,7 @@
       if (ev && !M.prevSquid && !M.used && M.state === 'off') arrive();
       if (!ev && M.prevSquid) M.used = false;
       M.prevSquid = ev ? 1 : 0;
+      for (const f of G.fighters) if (f.onBoat != null && !M.aboard.has(f)) f.onBoat = null;
       if (!M.boat || M.state === 'off') return;
       const prev = { x: M.pos.x, z: M.pos.z, yaw: M.yaw };
       M.t += dt; M.snT = (M.snT || 0) - dt; if (M.snT <= 0 && M.boat.visible && window.CF_SND) { M.snT = 4 + Math.random() * 4; CF_SND.play(Math.random() < .6 ? 'creak' : 'drip', M.pos, .5, 90); }
@@ -255,18 +256,18 @@
       // pasajeros
       const st = M.state, carry = st === 'dock' || st === 'sail' || st === 'sink' || st === 'arrive';
       if (carry) for (const f of new Set([...humans(), ...M.aboard.keys()])) {
-        if (!f.alive || f.abyss) { M.aboard.delete(f); f.boatSink = false; continue; }
+        if (!f.alive || f.abyss) { M.aboard.delete(f); f.boatSink = false; f.onBoat = null; continue; }
         const o = M.aboard.get(f);
         if (o) {   // ya está a bordo: lo llevamos con el barco
           let { lx, lz } = st === 'sink' ? { lx: o.lx0, lz: o.lz0 } : toLocal(f.pos.x, f.pos.z, prev);
           if (st !== 'dock') { lx = clamp(lx, -HX + .6, HX - .6); lz = clamp(lz, -HZ + .5, HZ - .5); }
           else { lx = clamp(lx, -HX + .5, HX - .5); const gap = Math.abs(lx) < 1.7; lz = clamp(lz, gap ? -HZ - 1.4 : -2.2, 2.2); }
-          if (st === 'dock' && lz < -HZ - .2) { M.aboard.delete(f); continue; }
+          if (st === 'dock' && lz < -HZ - .2) { M.aboard.delete(f); f.onBoat = null; continue; }
           { const CB = M.bb ? [-7.3, -3.3, 1.95, .5, [[-2.3, 1.4, .6], [-1.3, -1.6, .6], [-.3, 1.4, .6], [-4.3, -1.8, .6], [2.1, 1.6, .6], [-1.1, 1.0, .5], [-2.3, -.8, .5]]] : [-6.9, -2.4, 2.0, 1.4, [[-1.7, -1.5, .6], [-1.2, 1.0, .6], [.4, -1.8, .6], [-1.2, 1.5, .7], [-.1, 1.9, .7], [-2.4, -1.9, .75]]];
             if (lx > CB[0] && lx < CB[1] && Math.abs(lz) < CB[2]) { const dl = lx - CB[0], dr = CB[1] - lx, dz = CB[2] - Math.abs(lz), mn = Math.min(dl, dr, dz); if (mn === dr) lx = CB[1]; else if (mn === dl) lx = CB[0]; else lz = (lz < 0 ? -1 : 1) * CB[2]; }
             const mdx = lx - CB[3], md = Math.hypot(mdx, lz); if (md < .6) { const k = .6 / (md || 1); lx = CB[3] + (md ? mdx * k : .6); lz = md ? lz * k : 0; }
             for (const [cx, cz, r] of CB[4]) { const dx = lx - cx, dz2 = lz - cz, d = Math.hypot(dx, dz2); if (d < r && d > .001) { lx = cx + dx / d * r; lz = cz + dz2 / d * r; } } }
-          o.lx = lx; o.lz = lz; const w = toWorld(lx, lz); f.pos.x = w.x; f.pos.z = w.z;
+          o.lx = lx; o.lz = lz; const w = toWorld(lx, lz); f.pos.x = w.x; f.pos.z = w.z; f.onBoat = M.pos.y + DECK;
           if (st === 'sink') { const c = M.boat; const p = c.localToWorld(new V3(lx, DECK, lz)); f.pos.set(p.x, p.y, p.z); f.vel.set(0, 0, 0); f.onGround = true; }
           else { const dy = M.pos.y + DECK; if (f.vel.y <= .2 && f.pos.y <= dy + .12) { f.pos.y = dy; f.vel.y = Math.min(0, f.vel.y); f.onGround = true; } }
         } else if (st === 'dock' || st === 'arrive') {   // ¿se acaba de subir?

@@ -162,3 +162,8 @@ Los enemigos (cangrejo, medusa, rape, marinero, capitán, calamarín) y el barco
 - Regeneracion pasiva de vida para todos: tras 5 s sin recibir dano recuperas 2,2 de vida por segundo, hasta un maximo de 45.
 - Al morir en el abismo con el Kraken vivo reapareces dentro; el evento ya no termina mientras sigues dentro.
 - Abrir la rueda de emotes / la lista / el panel ya no abre el menu de pausa.
+
+### Sunn y Mini (rama mejoras-abismo2)
+- **Sunn** (tematica Iron Man): armadura escarlata y dorada. Repulsor, salva de misiles, impacto orbital y propulsores; ulti Rayo del Reactor; al despertar Sobrecarga del Reactor, Drones Reflectores, Satelite Stark y Explosion del Reactor. Vive en `personajes/sunn/`.
+- **Mini**: su companera pequena y cabezona (el modelo del jugador, mas chico y con cabeza grande). Sigue a Sunn y le dispara a los rivales (mas rapido con el despertar). Skin en `personajes/mini/skin.png`, logica en `js/mini.js`.
+- Barco: a bordo la cubierta cuenta como suelo, ya no se "nada" ni te hundes.
