@@ -3,7 +3,7 @@
    estilos de nombre, insignias, "miembro desde" y la tarjeta de su main. Va despues de style.css y cuentas.css. */
 
 /* ---------- la tarjeta ---------- */
-#playerdlg .public-card.profile-showcase,#acctdlg .profile-editor .pe-preview.profile-showcase{
+#playerdlg .public-card.profile-showcase,#acctdlg .profile-editor .pe-preview.profile-showcase,#acctdlg .acct-card.profile-showcase{
   --showcase-pad:20px;--pf-c2:var(--profile-bg);
   border:3px solid #050608!important;border-radius:14px!important;overflow:hidden;
   background:
@@ -156,3 +156,29 @@
 
 @media (prefers-reduced-motion:reduce){.pf-fx i,.pf-deco,.pf-deco::before,.pf-deco::after,.pf-deco i,.profile-showcase .public-head h2{animation:none!important}}
 body.lite-profiles .pf-fx{display:none}
+
+/* ---------- tu ficha (ventana de cuenta): la misma ficha publica + herramientas de la cuenta ---------- */
+#acctdlg .box:has(.acct-own){width:min(480px,100%);padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:auto;scrollbar-width:thin;animation:fichaIn .5s cubic-bezier(.2,1.2,.4,1) backwards}
+#acctdlg .box:has(.acct-own) .x{z-index:8;right:10px;top:10px;background:#0b0c12d9;border:2px solid #000}
+.acct-own{display:grid;gap:0}
+#acctdlg .acct-card.profile-showcase{position:relative;width:100%;border-radius:14px 14px 0 0!important;box-shadow:none!important;border-bottom:0!important}
+.acct-bn-edit{position:absolute;right:54px;top:10px;z-index:7;border:2px solid #000;background:#0b0c12d9;color:#fff;padding:7px 12px;font:700 12px var(--body,system-ui);cursor:pointer;box-shadow:2px 2px 0 var(--profile-accent,#d7ff2f);transition:transform .15s,box-shadow .15s}
+.acct-bn-edit:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--profile-accent,#d7ff2f)}
+.acct-tools{display:grid;gap:12px;padding:16px 20px 20px;background:#0d0f16;border:3px solid #050608;border-top:2px dashed #ffffff26;border-radius:0 0 14px 14px;box-shadow:8px 8px 0 #000}
+.acct-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.acct-tape{display:inline-block;background:#d7ff2f;color:#0c0d0a;font:italic 700 11px var(--display);letter-spacing:.14em;padding:5px 12px;transform:rotate(-1.5deg);box-shadow:3px 3px 0 #000}
+.acct-meta small{color:#8f96ad;font-size:12px}
+#acctdlg .acct-tools .badges{padding:0}
+#acctdlg .acct-tools .profile-customize{display:grid;gap:2px;width:100%;text-align:left;padding:12px 16px;background:linear-gradient(100deg,#2a2f3e,#1d2130);border:2px solid #000;border-left:6px solid var(--profile-accent,#d7ff2f);border-radius:0;box-shadow:4px 4px 0 #000;cursor:pointer;transition:transform .18s,box-shadow .18s;color:#fff}
+#acctdlg .acct-tools .profile-customize b{font:italic 900 18px var(--display);letter-spacing:.04em;text-transform:uppercase}
+#acctdlg .acct-tools .profile-customize small{font:600 12px var(--body,system-ui);color:#9aa2b8}
+#acctdlg .acct-tools .profile-customize:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #000}
+#acctdlg .acct-tools label{margin:0;color:#9aa2b8}
+#acctdlg .acct-tools input{border-radius:0;background:#06070b;border:1px solid #ffffff38;min-height:44px;margin-top:6px}
+#acctdlg .acct-tools input:focus{outline:0;border-color:#d7ff2f;box-shadow:0 0 0 3px #d7ff2f33}
+.acct-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#acctdlg .acct-tools .go{margin:0;min-height:44px;border:0;border-radius:0;background:#d7ff2f;color:#101109;font:italic 900 16px var(--display);transform:skewX(-8deg);box-shadow:4px 4px 0 #000;transition:transform .15s,box-shadow .15s}
+#acctdlg .acct-tools .go:hover{transform:skewX(-8deg) translate(-2px,-2px);box-shadow:6px 6px 0 #000}
+#acctdlg .acct-tools .sec{margin:0;min-height:44px;border-radius:0;background:#1a1d29;border:1px solid #ffffff2e;color:#fff;font:700 13px var(--body,system-ui)}
+#acctdlg .acct-tools #acct-out{background:none;border:2px dashed #ff8a8a55;color:#ff9a9a}
+#acctdlg .acct-tools #acct-out:hover{background:#ff8a8a18}

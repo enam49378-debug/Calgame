@@ -13799,14 +13799,27 @@ function acctRender() {
     const av = avatarGet() || (u.photoURL && /^https:\/\/lh3\.googleusercontent\.com\//.test(u.photoURL) ? u.photoURL : 'assets/calfight_icon.png');
     let games = 0, mins = 0, fav = '', favCol = '', fv = 0; try { for (const id in ST.d.c) { const c = ST.d.c[id]; games += c[0] || 0; if (CHARS[id] && c[0] > fv) { fv = c[0]; fav = CHARS[id].name; favCol = CHARS[id].color || ''; } } for (const k in ST.d.dy) mins += (ST.d.dy[k][2] || 0); } catch (e) { }
     let ficha = 0; for (const ch of (u.uid || 'x')) ficha = (ficha * 31 + ch.charCodeAt(0)) % 9973;
-    b.innerHTML = `<div class="cardp"><div class="bn" data-ficha="FICHA DE PELEADOR · Nº ${String(ficha).padStart(4, '0')}" style="background-image:url('${bannerURL(bannerGet())}')"><button type="button" class="edit" id="acct-bn">Cambiar banner</button></div>
-      <div class="head"><img alt="" src="${av}"><div><div class="nm"></div><small class="em"></small></div></div>
-      <div class="badges"><span class="${u.emailVerified ? 'b-ok' : 'b-warn'}">${u.emailVerified ? 'Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span class="b-owner">Owner</span>' : DEV.on ? '<span class="b-owner">Editor local</span>' : ''}<span class="b-acc">${(u.providerData[0] && u.providerData[0].providerId === 'google.com') ? 'Cuenta Google' : 'Correo y contraseña'}</span></div>
-      <div class="stats"><div><small>Peleas</small><b>${games || 0}</b></div><div><small>Horas en la ciudad</small><b>${mins ? (mins / 60).toFixed(1) : '0'}</b></div><div class="fav"${favCol ? ` style="--fav:${favCol}"` : ''}><small>Su main</small><b>${fav || 'Sin elegir'}</b></div></div>
-      <div class="pad"><button type="button" class="profile-customize" id="acct-customize"><b>Arreglar mi ficha</b><small>Foto, banner, colores, marco y pegatinas</small></button><label>Nombre de peleador<input id="acct-name" maxlength="16" autocomplete="nickname"></label><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button>
-      ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}${(u.providerData[0] && u.providerData[0].providerId === 'password') ? '<button type="button" class="sec" id="acct-chpw">Cambiar contraseña (te mando un correo)</button>' : ''}<button type="button" class="sec" id="acct-out">Cerrar sesión</button></div></div>`;
-    b.querySelector('.nm').textContent = u.displayName || 'Jugador'; b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
-    decorateProfile(b.querySelector('.cardp'),localPublicProfile());decorateProfile($('acctdlg').querySelector('.box'),localPublicProfile());$('acct-customize').onclick=acctCustomize;
+    const google = u.providerData[0] && u.providerData[0].providerId === 'google.com';
+    // Tu ficha es la misma ficha publica que ven los demas (efectos, decoracion, nombre, insignias); debajo van las cosas de la cuenta
+    b.innerHTML = `<div class="acct-own"><article class="public-card profile-showcase acct-card" aria-label="Tu ficha">${profileCardContent()}</article>
+      <div class="acct-tools">
+        <div class="acct-meta"><span class="acct-tape">FICHA DE PELEADOR · Nº ${String(ficha).padStart(4, '0')}</span><small class="em"></small></div>
+        <div class="badges"><span class="${u.emailVerified ? 'b-ok' : 'b-warn'}">${u.emailVerified ? 'Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span class="b-owner">Owner</span>' : DEV.on ? '<span class="b-owner">Editor local</span>' : ''}<span class="b-acc">${google ? 'Cuenta Google' : 'Correo y contraseña'}</span></div>
+        <button type="button" class="profile-customize" id="acct-customize"><b>Arreglar mi ficha</b><small>Avatar, efectos, nombre, colores, marco y pegatinas</small></button>
+        <label>Nombre de peleador<input id="acct-name" maxlength="16" autocomplete="nickname"></label>
+        <div class="acct-row"><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button><button type="button" class="sec" id="acct-out">Cerrar sesión</button></div>
+        ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}${google ? '' : '<button type="button" class="sec" id="acct-chpw">Cambiar contraseña (te mando un correo)</button>'}
+      </div></div>`;
+    const card = b.querySelector('.acct-card'), pub = localPublicProfile();
+    const bn = card.querySelector('.public-banner'); bn.style.backgroundImage = `url("${bannerURL(bannerGet())}")`;
+    const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'acct-bn-edit'; eb.id = 'acct-bn'; eb.textContent = 'Cambiar banner'; bn.appendChild(eb);
+    card.querySelector('.public-head img').src = av; card.querySelector('.public-head img').alt = '';
+    card.querySelector('h2').textContent = u.displayName || 'Jugador';
+    card.querySelector('.public-identity p').textContent = '';
+    { const role = SOC.owner ? 'owner' : SOC.roles.get(u.uid); if (role) card.querySelector('.public-role').appendChild(roleBadge(role)); }
+    profileCardStats(card, profileCareerStats(pub));
+    b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
+    decorateProfile(card, pub); $('acct-customize').onclick = acctCustomize;
     $('acct-bn').addEventListener('click', acctBannerPick);
     $('acct-savename').addEventListener('click', async () => { const n = $('acct-name').value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); } catch (e) { acctMsg(acctErr(e)); } });
     if ($('acct-verify')) $('acct-verify').addEventListener('click', async () => { try { await u.sendEmailVerification(); acctMsg('Te mandé el correo: abrilo y tocá el enlace.', true); } catch (e) { acctMsg(acctErr(e)); } });
