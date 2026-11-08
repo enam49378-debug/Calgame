@@ -4815,7 +4815,7 @@ function sfx(k, pos, mul = 1, { range = 45, title = false } = {}) {
 
 // ================= Música: menú y peleas (archivos en musica/) =================
 const MUS = {
-  tracks: {menu:musFile('menu','musica/green_room.mp3'),fight:[musFile('fight1','musica/pelea1.mp3'),musFile('fight2','musica/pelea2.mp3'),musFile('fight3','musica/pelea3.mp3')]},
+  tracks: {menu:musFile('menu','musica/menu.mp3'),fight:[musFile('fight1','musica/pelea1.mp3'),musFile('fight2','musica/pelea2.mp3'),musFile('fight3','musica/pelea3.mp3')]},
   track:null,old:null,want:'',idx:-1,vol:.32,on:true,duck:1,failed:new Set()
 };
 try { MUS.on = localStorage.getItem('bsb_music') !== '0'; const v = parseFloat(localStorage.getItem('bsb_music_vol')); if (v >= 0 && v <= 1) MUS.vol = v; } catch (e) { }
@@ -4864,7 +4864,7 @@ function dialogueAudible(){
 }
 function updateMusic(dt){
   const xs=G.state==='play'&&window.CF_MUS_SCENE?CF_MUS_SCENE():null;   // {id, src}: pista propia de una zona (el abismo)
-  const want=xs?'x:'+xs.id:(G.state==='menu'||G.state==='title')?'menu':G.state==='play'?'fight':'';
+  const want=xs?'x:'+xs.id:G.state==='menu'?'menu':G.state==='play'?'fight':'';
   if(want!==MUS.want){
     if(MUS.want==='menu')stopMenuVoice();
     MUS.want=want;
@@ -4889,6 +4889,9 @@ function updateMusic(dt){
   const sceneGain=scoring?.16:(G.cine||STAGE.on)?.47:1;
   if(MUS.track)fadeAudioTrack(MUS.track,MUS.vol*MUS.track.trim*pause*sceneGain*MUS.duck,dt);
   if(MUS.old){fadeAudioTrack(MUS.old,0,dt,.25,.20);if(MUS.old.base<.003){releaseHtmlAudio(MUS.old);MUS.old=null;}}
+  // red de seguridad: nunca debe sonar más de una música a la vez (se apaga cualquier pista suelta que no sea la actual, la anterior en fundido, la de ulti o la del título)
+  if((MUS.sweepT=(MUS.sweepT||0)-dt)<=0){MUS.sweepT=.5;const keep=new Set([MUS.track,MUS.old,ULT_MUS.track,TITLE.mus]);for(const r of [...HTML_AUDIO_LEVELS])if(r.category==='music'&&!keep.has(r))releaseHtmlAudio(r);
+    if(G.state==='play'&&TITLE.mus&&!TITLE.on)releaseHtmlAudio(TITLE.mus),TITLE.mus=null;}
 }
 const ULT_MUS = {track:null,pre:null,fade:false};
 function ultMusicPreload(id){
@@ -4910,6 +4913,11 @@ function musicKick(){
   if(AMB.ready)for(const layer of AMB.L)if(layer.record?.el.paused)playTrackedAudio(layer.record,true);
 }
 addEventListener('pointerdown',musicKick,true);addEventListener('keydown',musicKick,true);
+document.addEventListener('visibilitychange',()=>{   // pestaña oculta: todo en pausa; al volver se reanuda una sola vez
+  const recs=[...HTML_AUDIO_LEVELS];
+  if(document.hidden){for(const r of recs)if(!r.el.paused){r.hid=true;r.el.pause();}if(AC&&AC.state==='running')AC.suspend().catch(()=>{});}
+  else{if(AC&&AC.state==='suspended')AC.resume().catch(()=>{});for(const r of recs)if(r.hid){r.hid=false;playTrackedAudio(r,true);}}
+});
 function toggleMusic(){
   MUS.on=!MUS.on;
   try{localStorage.setItem('bsb_music',MUS.on?'1':'0');}catch(e){}
@@ -11316,6 +11324,7 @@ const CF_A = (() => {
     javiCineFx,
     miniCut,
     get keys() { return keys; },
+    get TITLE() { return TITLE; },
     get ABY() { return ABY; },
     get ABY_COR() { return ABY_COR; },
     get ABY_PTS() { return ABY_PTS; },
@@ -15649,7 +15658,7 @@ if (matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').ma
 const TITLE = { on: false, t: 0, idx: 0, fig: null, lt: null, prev: null, base: null, baseIdx: -1, mus: null, amb: [], gullT: 4, wreck: null };
 function titleAudio(on){
   if(on){
-    TITLE.mus=makeMusicTrack(musFile('intro','musica/calfight_intro.mp3'),'intro',true);
+    TITLE.mus=makeMusicTrack(musFile('intro','musica/green_room.mp3'),'intro',true);
     for(const [name,volume] of [['waves',.24],['breeze',.12]]){
       const el=new Audio(sndUrl(name));el.loop=true;
       const record=trackHtmlAudio(el,volume*(AUDIO_CFG.amb[name]?.vol??1),'ambient','title');
