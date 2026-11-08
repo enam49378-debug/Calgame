@@ -1,59 +1,50 @@
-/* ===== DISEÑOS DE LA PANTALLA DE INICIO =====
-   Tres distribuciones de los botones de la pantalla de inicio (se cambian con el botón DISEÑO, se recuerda la elegida):
-     clasico  · cuenta arriba a la izquierda, botones secundarios en fila arriba a la derecha, logo abajo a la izquierda, JUGAR abajo a la derecha,
-                disco abajo al centro.
-     centro   · logo arriba al centro, JUGAR grande abajo al centro con AJUSTES y ESCENA a los lados, cuenta arriba a la izquierda, disco a la derecha.
-     lateral  · panel vertical a la izquierda con logo, JUGAR, AJUSTES, ESCENA y Discord; el personaje queda libre a la derecha; disco abajo a la derecha.
-   En pantallas chicas (móvil) se respeta el diseño de siempre. Este archivo se ejecuta dentro de game.js. */
+/* ===== DISEÑO DE LA PANTALLA DE INICIO (LATERAL) =====
+   Panel vertical a la izquierda con la cuenta, el logo, JUGAR, AJUSTES, ESCENA y Discord; el personaje queda libre a la derecha
+   y el disco de la musica abajo a la derecha. Todo entra con animaciones escalonadas y sale deslizandose al pulsar JUGAR.
+   En pantallas chicas (movil) se respeta el diseño de siempre. Este archivo se ejecuta dentro de game.js. */
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
-    const LAYS = [['clasico', 'Clásico'], ['centro', 'Centrado'], ['lateral', 'Lateral']];
-    let cur = 'clasico'; try { const v = localStorage.getItem('bsb_title_lay'); if (LAYS.some(l => l[0] === v)) cur = v; } catch (e) { }
     const css = document.createElement('style');
-    const W = '@media (min-width:821px){';
-    const sec = 'background:rgba(10,12,24,.72)!important;color:#fff!important;border:2px solid rgba(255,255,255,.35)!important;padding:10px 16px!important;font:700 12px/1 var(--display,"Chakra Petch",sans-serif)!important;letter-spacing:.14em!important;backdrop-filter:blur(4px);transform:none!important';
-    css.textContent = W
-      // comunes
-      + 'body.tl #tset,body.tl #tscene,body.tl #tlay{' + sec + '}body.tl #tset:hover,body.tl #tscene:hover,body.tl #tlay:hover{background:#ffd400!important;color:#000!important;border-color:#000!important}'
-      + '#tlay{position:absolute;z-index:3;cursor:pointer;display:none}body.tl #tlay{display:block}'
-      // ---------------- clásico
-      + 'body.tl-clasico #acctbtn{left:3vw!important;top:6vh!important}'
-      + 'body.tl-clasico #tscene{top:6vh!important;right:3vw!important;bottom:auto!important}'
-      + 'body.tl-clasico #tset{top:6vh!important;right:calc(3vw + 190px)!important;bottom:auto!important}'
-      + 'body.tl-clasico #tlay{top:6vh;right:calc(3vw + 320px)}'
-      + 'body.tl-clasico #dclink{left:auto!important;right:3vw!important;top:calc(6vh + 52px)!important;transform:none!important}'
-      + 'body.tl-clasico #title .tlogo{left:4vw!important;bottom:9vh!important}'
-      + 'body.tl-clasico #tplay{right:4vw!important;bottom:10vh!important}'
-      + 'body.tl-clasico #disco{left:50%!important;top:auto!important;bottom:7vh;transform:translateX(-44px)}'
-      // ---------------- centrado
-      + 'body.tl-centro #acctbtn{left:3vw!important;top:6vh!important}'
-      + 'body.tl-centro #dclink{left:auto!important;right:3vw!important;top:6vh!important;transform:none!important}'
-      + 'body.tl-centro #title .tlogo{left:50%!important;bottom:auto!important;top:5vh!important;transform:translateX(-50%);text-align:center}body.tl-centro #title .tlogo img{height:min(20vh,200px)!important;margin:0 auto}'
-      + 'body.tl-centro #tplay{left:50%!important;right:auto!important;bottom:9vh!important;transform:translateX(-50%)!important}'
-      + 'body.tl-centro #tset{left:auto!important;right:calc(50% + 116px)!important;top:auto!important;bottom:calc(9vh + 20px)!important}'
-      + 'body.tl-centro #tscene{right:auto!important;left:calc(50% + 116px)!important;top:auto!important;bottom:calc(9vh + 20px)!important}'
-      + 'body.tl-centro #tlay{left:3vw;bottom:4vh}'
-      + 'body.tl-centro #disco{left:auto!important;right:3vw;top:auto!important;bottom:26vh;flex-direction:row-reverse}body.tl-centro #disco .pp{margin-left:0;margin-right:-14px;border-radius:6px 0 0 6px}body.tl-centro #disco .pp div{padding:0 28px 0 16px}'
-      // ---------------- lateral
-      + 'body.tl-lateral #title::before{content:"";position:absolute;left:0;top:0;bottom:0;width:min(420px,34vw);z-index:2;background:linear-gradient(90deg,rgba(8,10,22,.88),rgba(8,10,22,.55) 80%,transparent);pointer-events:none}'
-      + 'body.tl-lateral #acctbtn{left:2.4vw!important;top:5vh!important;width:min(340px,30vw)!important}'
-      + 'body.tl-lateral #title .tlogo{left:2.4vw!important;top:calc(5vh + 118px)!important;bottom:auto!important}body.tl-lateral #title .tlogo img{height:min(18vh,170px)!important}'
-      + 'body.tl-lateral #tplay{left:2.4vw!important;right:auto!important;top:calc(5vh + 118px + min(18vh,170px) + 64px)!important;bottom:auto!important;width:min(340px,30vw);text-align:center}'
-      + 'body.tl-lateral #tset{left:2.4vw!important;right:auto!important;top:calc(5vh + 118px + min(18vh,170px) + 150px)!important;bottom:auto!important;width:min(166px,14.6vw)}'
-      + 'body.tl-lateral #tscene{left:calc(2.4vw + min(174px,15.4vw))!important;right:auto!important;top:calc(5vh + 118px + min(18vh,170px) + 150px)!important;bottom:auto!important;width:min(166px,14.6vw)}'
-      + 'body.tl-lateral #tlay{left:2.4vw;top:calc(5vh + 118px + min(18vh,170px) + 200px);width:min(340px,30vw)}'
-      + 'body.tl-lateral #dclink{left:2.4vw!important;top:auto!important;bottom:5vh!important;transform:none!important}'
-      + 'body.tl-lateral #disco{left:auto!important;right:3vw;top:auto!important;bottom:6vh;flex-direction:row-reverse}body.tl-lateral #disco .pp{margin-left:0;margin-right:-14px;border-radius:6px 0 0 6px}body.tl-lateral #disco .pp div{padding:0 28px 0 16px}'
+    const E = 'cubic-bezier(.2,.95,.3,1)', B = 'cubic-bezier(.2,1.35,.4,1)';
+    const TOP = 'calc(5vh + 118px + min(18vh,170px)', W = 'min(340px,30vw)';
+    css.textContent = '@media (min-width:821px){'
+      // panel oscuro de fondo
+      + 'body.tl #title::before{content:"";position:absolute;left:0;top:0;bottom:0;width:min(440px,36vw);z-index:2;background:linear-gradient(90deg,rgba(8,10,22,.9),rgba(8,10,22,.6) 75%,transparent);pointer-events:none;animation:tlPanel 1s ' + E + ' both}'
+      + '@keyframes tlPanel{from{transform:translateX(-100%);opacity:0}}'
+      // cuenta
+      + 'body.tl #acctbtn{left:2.4vw;top:5vh;width:' + W + ';animation:tlSlide .75s .25s ' + E + ' backwards;transition:transform .25s ' + E + ',box-shadow .25s,opacity .3s}'
+      + '@keyframes tlSlide{from{opacity:0;transform:translateX(-70px) skewX(-4deg)}}'
+      // logo con flotado suave
+      + 'body.tl #title .tlogo{left:2.4vw;top:calc(5vh + 118px);bottom:auto;animation:tlLogo .9s .4s ' + B + ' backwards}'
+      + '@keyframes tlLogo{from{opacity:0;transform:translateX(-50px) scale(.8) rotate(-5deg)}}'
+      + 'body.tl #title .tlogo img{height:min(18vh,170px);animation:tlFloat 4.5s 1.3s ease-in-out infinite;transform-origin:50% 60%}'
+      + '@keyframes tlFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(-1deg)}}'
+      + 'body.tl #title .tlogo p{animation:tlFade .8s .9s ease backwards}@keyframes tlFade{from{opacity:0;letter-spacing:.4em}}'
+      // JUGAR: entrada con rebote, brillo que cruza y halo suave
+      + 'body.tl #tplay{left:2.4vw;right:auto;top:' + TOP + ' + 64px);bottom:auto;width:' + W + ';text-align:center;overflow:hidden;'
+      + 'animation:tlPlay .8s .7s ' + B + ' backwards,tlGlow 2.6s 1.6s ease-in-out infinite;transition:transform .22s ' + E + ',box-shadow .22s,background .2s}'
+      + '@keyframes tlPlay{from{opacity:0;transform:translateX(-90px) skewX(-8deg) scale(.9)}}'
+      + '@keyframes tlGlow{0%,100%{box-shadow:6px 6px 0 #000}50%{box-shadow:6px 6px 0 #000,0 0 28px rgba(255,212,0,.65)}}'
+      + 'body.tl #tplay::after{content:"";position:absolute;top:-20%;bottom:-20%;left:-40%;width:28%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg);animation:tlShine 3.4s 2s ease-in-out infinite;pointer-events:none}'
+      + '@keyframes tlShine{0%{left:-40%}35%,100%{left:120%}}'
+      + 'body.tl #tplay:hover{transform:skewX(-8deg) translate(4px,-3px);box-shadow:10px 9px 0 #000;animation:none}'
+      + 'body.tl #tplay:active{transform:skewX(-8deg) translate(2px,2px);box-shadow:3px 3px 0 #000}'
+      // AJUSTES / ESCENA
+      + 'body.tl #tset,body.tl #tscene{background:rgba(10,12,24,.72);color:#fff;border:2px solid rgba(255,255,255,.35);padding:10px 16px;font:700 12px/1 var(--display,"Chakra Petch",sans-serif);letter-spacing:.14em;backdrop-filter:blur(4px);transform:none;'
+      + 'top:' + TOP + ' + 150px);bottom:auto;right:auto;width:min(166px,14.6vw);transition:background .2s,color .2s,border-color .2s,transform .25s ' + E + ',box-shadow .25s}'
+      + 'body.tl #tset{left:2.4vw;animation:tlBtn .6s .9s ' + E + ' backwards}body.tl #tscene{left:calc(2.4vw + min(174px,15.4vw));animation:tlBtn .6s 1s ' + E + ' backwards}'
+      + '@keyframes tlBtn{from{opacity:0;transform:translateY(16px)}}'
+      + 'body.tl #tset:hover,body.tl #tscene:hover{background:#ffd400;color:#000;border-color:#000;transform:translateY(-3px);box-shadow:0 5px 0 #000}'
+      + 'body.tl #tset:active,body.tl #tscene:active{transform:translateY(0);box-shadow:0 1px 0 #000}'
+      // Discord y disco
+      + 'body.tl #dclink{left:2.4vw;top:auto;bottom:5vh;transform:none;animation:tlBtn .6s 1.15s ' + E + ' backwards;transition:background .2s,transform .25s ' + B + '}body.tl #dclink:hover{transform:scale(1.08)}'
+      + 'body.tl #disco{left:auto;right:3vw;top:auto;bottom:6vh;flex-direction:row-reverse}body.tl #disco .pp{margin-left:0;margin-right:-14px;border-radius:6px 0 0 6px}body.tl #disco .pp div{padding:0 28px 0 16px;transform:translateX(12px)}body.tl #disco.open .pp div{transform:none}'
+      // salida al pulsar JUGAR: todo se desliza a la izquierda
+      + 'body.tl #title.leaving::before{transform:translateX(-100%);opacity:0;transition:transform .5s ease-in,opacity .5s}'
+      + 'body.tl #title.leaving #acctbtn,body.tl #title.leaving .tlogo,body.tl #title.leaving #tplay,body.tl #title.leaving #tset,body.tl #title.leaving #tscene{opacity:0;transform:translateX(-80px);transition:opacity .35s,transform .4s ease-in;animation:none}'
       + '}';
     document.head.appendChild(css);
-    const b = document.createElement('button'); b.type = 'button'; b.id = 'tlay'; b.setAttribute('aria-label', 'Cambiar diseño de la pantalla de inicio');
-    function apply() {
-      for (const [k] of LAYS) document.body.classList.toggle('tl-' + k, k === cur); document.body.classList.add('tl');
-      b.textContent = 'DISEÑO: ' + LAYS.find(l => l[0] === cur)[1].toUpperCase();
-    }
-    b.addEventListener('click', e => { e.stopPropagation(); const i = LAYS.findIndex(l => l[0] === cur); cur = LAYS[(i + 1) % LAYS.length][0]; try { localStorage.setItem('bsb_title_lay', cur); } catch (x) { } apply(); });
-    const mount = () => { const t = document.getElementById('title'); if (t && !b.parentNode) t.appendChild(b); };
-    mount(); setTimeout(mount, 1500); apply();
-    window.CF_TITULO = { set(k) { if (LAYS.some(l => l[0] === k)) { cur = k; apply(); } }, get layout() { return cur; } };
+    document.body.classList.add('tl');
+    try { localStorage.removeItem('bsb_title_lay'); } catch (e) { }
   }
 });
