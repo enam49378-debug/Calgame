@@ -13375,11 +13375,11 @@ async function acctChanged() {
 const PROFILE_THEMES = [['midnight','Medianoche'],['glass','Cristal'],['sakura','Sakura'],['ocean','Océano'],['ember','Ascua'],['mono','Monocromo']];
 const PROFILE_AURAS = [['none','Sin aura'],['gold','Dorada'],['aurora','Aurora'],['flame','Llama'],['electric','Eléctrica'],['sakura','Sakura'],['frost','Escarcha'],['void','Vacío']];
 const PROFILE_STICKERS = {cal:['','CAL'],star:['⭐','Estrella'],heart:['💜','Corazón'],bolt:['⚡','Rayo'],moon:['🌙','Luna'],crown:['👑','Corona'],sword:['⚔️','Espadas'],diamond:['💎','Diamante'],flower:['🌸','Flor'],ghost:['👻','Fantasma'],fire:['🔥','Fuego'],ice:['❄️','Hielo'],wave:['🌊','Ola'],clippy:['📎','Clippy'],javi:['🔱','Lanza'],gull:['🕊️','Gaviota'],onion:['🧅','Sebolla'],pixel:['👾','Píxel']};
-const PROFILE_FRAMES = [['none','Ninguno'],['ember','Forja'],['frost','Escarcha'],['neon','Circuito']];
-const PROFILE_EFFECTS = [['none','Ninguno'],['embers','Brasas'],['scan','Pulso digital'],['aurora','Aurora']];
+const PROFILE_FRAMES = [['none','Ninguno'],['comic','Cómic Pop'],['garabatos','Garabatos'],['graffiti','Graffiti'],['ember','Forja'],['frost','Escarcha'],['neon','Circuito']];
+const PROFILE_EFFECTS = [['none','Ninguno'],['comic','Líneas Cómic'],['garabatos','Garabatos'],['graffiti','Spray Graffiti'],['embers','Brasas'],['scan','Pulso digital'],['aurora','Aurora']];
 // Extras tipo Discord (van en p.fx): decoracion del avatar, efecto sobre toda la ficha, estilo del nombre, segundo color y fecha de alta
-const PROFILE_DECOS = [['none','Ninguna'],['orbita','Órbita'],['fuego','Anillo de fuego'],['neon','Neón'],['corona','Corona'],['orejas','Orejas de gato'],['halo','Halo'],['petalos','Pétalos'],['pixel','Marco pixel']];
-const PROFILE_CARDFX = [['none','Ninguno'],['estrellas','Estrellas'],['nieve','Nieve'],['petalos','Pétalos'],['burbujas','Burbujas'],['confeti','Confeti'],['pixeles','Píxeles'],['luciernagas','Luciérnagas'],['corazones','Corazones']];
+const PROFILE_DECOS = [['none','Ninguna'],['comic','Comic Pop'],['garabatos','Garabatos'],['graffiti','Graffiti'],['cyber','Cyber Glitch'],['sparkles','Estrellitas'],['orbita','Órbita'],['fuego','Anillo de fuego'],['neon','Neón'],['corona','Corona'],['orejas','Orejas de gato'],['halo','Halo'],['petalos','Pétalos'],['pixel','Marco pixel']];
+const PROFILE_CARDFX = [['none','Ninguno'],['comic','Comic Action'],['garabatos','Garabatos'],['graffiti','Graffiti Spray'],['estrellas','Estrellas'],['nieve','Nieve'],['petalos','Pétalos'],['burbujas','Burbujas'],['confeti','Confeti'],['pixeles','Píxeles'],['luciernagas','Luciérnagas'],['corazones','Corazones']];
 const PROFILE_NAMEFX = [['normal','Normal'],['neon','Neón'],['arcoiris','Arcoíris'],['dorado','Dorado'],['glitch','Glitch']];
 function cleanProfileFx(x) {
   if (!x || typeof x !== 'object') return undefined;
@@ -13508,7 +13508,7 @@ function decorateProfile(container,p,editDecal){
   if(c.bio){const label=document.createElement('h4');label.textContent='SOBRE MÍ';const bio=document.createElement('p');bio.className='profile-bio';bio.textContent=c.bio;area.append(label,bio);}
   if(container.classList.contains('profile-showcase'))profileShowcase(container,c,p);
 }
-const PF_FX_COUNT = { estrellas: 16, nieve: 26, petalos: 16, burbujas: 14, confeti: 26, pixeles: 18, luciernagas: 14, corazones: 12 };
+const PF_FX_COUNT = { estrellas: 16, nieve: 26, petalos: 16, burbujas: 14, confeti: 26, pixeles: 18, luciernagas: 14, corazones: 12, comic: 22, garabatos: 20, graffiti: 24 };
 function profileShowcase(card, c, raw) {
   const fx = c.fx || { deco: 'none', fx: 'none', nf: 'normal', c2: '', since: '' };
   const since = fx.since || raw?.fx?.since || '';
@@ -13517,7 +13517,7 @@ function profileShowcase(card, c, raw) {
   card.dataset.nf = fx.nf;
   // decoracion del avatar: va en la misma celda que la foto
   const head = card.querySelector('.public-head');
-  if (head) { let d = head.querySelector('.pf-deco'); if (!d) { d = document.createElement('span'); d.className = 'pf-deco'; d.setAttribute('aria-hidden', 'true'); d.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i>'; head.appendChild(d); } d.dataset.deco = fx.deco; }
+  if (head) { let d = head.querySelector('.pf-deco'); if (!d) { d = document.createElement('span'); d.className = 'pf-deco'; d.setAttribute('aria-hidden', 'true'); d.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>'; head.appendChild(d); } d.dataset.deco = fx.deco; }
   // efecto sobre toda la ficha
   let layer = card.querySelector(':scope > .pf-fx');
   if (!layer) { layer = document.createElement('div'); layer.className = 'pf-fx'; layer.setAttribute('aria-hidden', 'true'); card.prepend(layer); }
@@ -13800,28 +13800,51 @@ function acctRender() {
     let games = 0, mins = 0, fav = '', favCol = '', fv = 0; try { for (const id in ST.d.c) { const c = ST.d.c[id]; games += c[0] || 0; if (CHARS[id] && c[0] > fv) { fv = c[0]; fav = CHARS[id].name; favCol = CHARS[id].color || ''; } } for (const k in ST.d.dy) mins += (ST.d.dy[k][2] || 0); } catch (e) { }
     let ficha = 0; for (const ch of (u.uid || 'x')) ficha = (ficha * 31 + ch.charCodeAt(0)) % 9973;
     const google = u.providerData[0] && u.providerData[0].providerId === 'google.com';
-    // Tu ficha es la misma ficha publica que ven los demas (efectos, decoracion, nombre, insignias); debajo van las cosas de la cuenta
-    b.innerHTML = `<div class="acct-own"><article class="public-card profile-showcase acct-card" aria-label="Tu ficha">${profileCardContent()}</article>
-      <div class="acct-tools">
-        <div class="acct-meta"><span class="acct-tape">FICHA DE PELEADOR · Nº ${String(ficha).padStart(4, '0')}</span><small class="em"></small></div>
-        <div class="badges"><span class="${u.emailVerified ? 'b-ok' : 'b-warn'}">${u.emailVerified ? 'Correo verificado' : 'Correo sin verificar'}</span>${SOC.owner ? '<span class="b-owner">Owner</span>' : DEV.on ? '<span class="b-owner">Editor local</span>' : ''}<span class="b-acc">${google ? 'Cuenta Google' : 'Correo y contraseña'}</span></div>
-        <button type="button" class="profile-customize" id="acct-customize"><b>Arreglar mi ficha</b><small>Avatar, efectos, nombre, colores, marco y pegatinas</small></button>
-        <label>Nombre de peleador<input id="acct-name" maxlength="16" autocomplete="nickname"></label>
-        <div class="acct-row"><button type="button" class="go" id="acct-savename">GUARDAR NOMBRE</button><button type="button" class="sec" id="acct-out">Cerrar sesión</button></div>
-        ${u.emailVerified ? '' : '<button type="button" class="sec" id="acct-verify">Enviarme el correo de verificación</button><button type="button" class="sec" id="acct-verified">Ya lo verifiqué · actualizar</button>'}${google ? '' : '<button type="button" class="sec" id="acct-chpw">Cambiar contraseña (te mando un correo)</button>'}
-      </div></div>`;
+    // Ficha de usuario estilo Discord: unificada, compacta y sin cortes toscos
+    b.innerHTML = `<div class="acct-discord-wrap"><article class="public-card profile-showcase acct-card acct-discord-card" aria-label="Tu perfil">${profileCardContent('acct-user-name')}
+      <div class="acct-discord-actions">
+        <button type="button" class="acct-btn-primary" id="acct-customize"><span class="btn-icon">✏️</span><span>Editar perfil</span></button>
+        <button type="button" class="acct-btn-secondary" id="acct-editname-btn"><span class="btn-icon">🏷️</span><span>Cambiar nombre</span></button>
+        <button type="button" class="acct-btn-danger" id="acct-out" title="Cerrar sesión"><span class="btn-icon">🚪</span><span>Salir</span></button>
+      </div>
+      <div class="acct-name-editor hidden" id="acct-name-box">
+        <input id="acct-name" maxlength="16" autocomplete="nickname" placeholder="Tu nombre de peleador...">
+        <button type="button" class="acct-btn-primary sm" id="acct-savename">Guardar</button>
+        <button type="button" class="acct-btn-secondary sm" id="acct-cancelname">✕</button>
+      </div>
+      ${u.emailVerified ? '' : '<div class="acct-discord-notice"><span>⚠️ Correo sin verificar</span><div class="notice-btns"><button type="button" class="acct-btn-link" id="acct-verify">Reenviar enlace</button><button type="button" class="acct-btn-link" id="acct-verified">Actualizar</button></div></div>'}
+      <div class="acct-discord-footer">
+        <div><span class="user-id">#${String(ficha).padStart(4, '0')}</span> · <span class="user-mail">${u.email || 'Sin correo'}</span></div>
+        ${google ? '' : '<button type="button" class="acct-btn-link-subtle" id="acct-chpw">Cambiar contraseña</button>'}
+      </div>
+    </article></div>`;
     const card = b.querySelector('.acct-card'), pub = localPublicProfile();
     const bn = card.querySelector('.public-banner'); bn.style.backgroundImage = `url("${bannerURL(bannerGet())}")`;
-    const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'acct-bn-edit'; eb.id = 'acct-bn'; eb.textContent = 'Cambiar banner'; bn.appendChild(eb);
-    card.querySelector('.public-head img').src = av; card.querySelector('.public-head img').alt = '';
+    const eb = document.createElement('button'); eb.type = 'button'; eb.className = 'acct-bn-edit'; eb.id = 'acct-bn'; eb.innerHTML = '📷 Cambiar banner'; bn.appendChild(eb);
+    const headImg = card.querySelector('.public-head img'); headImg.src = av; headImg.alt = ''; headImg.title = 'Hacé clic para cambiar foto de perfil'; headImg.style.cursor = 'pointer'; headImg.onclick = uploadProfileAvatar;
     card.querySelector('h2').textContent = u.displayName || 'Jugador';
-    card.querySelector('.public-identity p').textContent = '';
-    { const role = SOC.owner ? 'owner' : SOC.roles.get(u.uid); if (role) card.querySelector('.public-role').appendChild(roleBadge(role)); }
+    card.querySelector('.public-identity p').textContent = '@' + (u.displayName || 'jugador').toLowerCase().replace(/\s+/g, '');
+    const roleArea = card.querySelector('.public-role'); roleArea.replaceChildren();
+    const rolesRow = document.createElement('div'); rolesRow.className = 'discord-roles-row';
+    const addRole = (name, color) => { const pill = document.createElement('span'); pill.className = 'discord-role-pill'; pill.style.setProperty('--pill-color', color); const dot = document.createElement('span'); dot.className = 'pill-dot'; pill.append(dot, document.createTextNode(name)); rolesRow.appendChild(pill); };
+    if (SOC.owner) addRole('Owner', '#ff4655');
+    else if (SOC.roles.get(u.uid) === 'calsito') addRole('Calsito', '#ffd700');
+    else if (DEV.on) addRole('Editor Local', '#00f5d4');
+    if (u.emailVerified) addRole('Verificado', '#00e5ff');
+    else addRole('Sin Verificar', '#faa61a');
+    if (google) addRole('Google', '#4285f4');
+    else addRole('Correo', '#b9bbbe');
+    roleArea.appendChild(rolesRow);
     profileCardStats(card, profileCareerStats(pub));
-    b.querySelector('.em').textContent = u.email || ''; $('acct-name').value = (u.displayName || '').slice(0, 16);
-    decorateProfile(card, pub); $('acct-customize').onclick = acctCustomize;
+    decorateProfile(card, pub);
+    $('acct-customize').onclick = acctCustomize;
     $('acct-bn').addEventListener('click', acctBannerPick);
-    $('acct-savename').addEventListener('click', async () => { const n = $('acct-name').value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); } catch (e) { acctMsg(acctErr(e)); } });
+    const nameBox = $('acct-name-box'), nameIn = $('acct-name'); nameIn.value = (u.displayName || '').slice(0, 16);
+    $('acct-editname-btn').onclick = () => { nameBox.classList.toggle('hidden'); if (!nameBox.classList.contains('hidden')) { nameIn.focus(); nameIn.select(); } };
+    $('acct-cancelname').onclick = () => nameBox.classList.add('hidden');
+    const saveName = async () => { const n = nameIn.value.trim().slice(0, 16); if (!n) return acctMsg('Escribí un nombre.'); try { await u.updateProfile({ displayName: n }); const inp = $('pname-in'); if (inp) inp.value = n; try { localStorage.setItem('bsb_name', n); netMenuPresence(); } catch (e) { } acctChanged(); acctMsg('Nombre guardado.', true); nameBox.classList.add('hidden'); } catch (e) { acctMsg(acctErr(e)); } };
+    $('acct-savename').onclick = saveName;
+    nameIn.onkeydown = e => { if (e.key === 'Enter') saveName(); else if (e.key === 'Escape') nameBox.classList.add('hidden'); };
     if ($('acct-verify')) $('acct-verify').addEventListener('click', async () => { try { await u.sendEmailVerification(); acctMsg('Te mandé el correo: abrilo y tocá el enlace.', true); } catch (e) { acctMsg(acctErr(e)); } });
     if ($('acct-verified')) $('acct-verified').addEventListener('click', () => acctRefreshVerified(true));
     if ($('acct-chpw')) $('acct-chpw').addEventListener('click', async () => { try { await ACCT.auth.sendPasswordResetEmail(u.email); acctMsg('Te mandé un correo a tu dirección para cambiar la contraseña.', true); } catch (e) { acctMsg(acctErr(e)); } });

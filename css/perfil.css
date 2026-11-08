@@ -5,10 +5,10 @@
 /* ---------- la tarjeta ---------- */
 #playerdlg .public-card.profile-showcase,#acctdlg .profile-editor .pe-preview.profile-showcase,#acctdlg .acct-card.profile-showcase{
   --showcase-pad:20px;--pf-c2:var(--profile-bg);
-  border:3px solid #050608!important;border-radius:14px!important;overflow:hidden;
+  border:3px solid #050608!important;border-radius:16px!important;overflow:hidden;
   background:
     linear-gradient(180deg,color-mix(in srgb,var(--profile-accent) 26%,#0b0c12) 0%,color-mix(in srgb,var(--profile-accent) 10%,var(--profile-bg)) 42%,var(--profile-bg) 100%)!important;
-  box-shadow:8px 8px 0 #000!important}
+  box-shadow:0 18px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)!important}
 .profile-showcase[data-grad]{
   background:linear-gradient(180deg,color-mix(in srgb,var(--profile-accent) 62%,#0b0c12) 0%,color-mix(in srgb,var(--pf-c2) 58%,#0b0c12) 100%)!important}
 #playerdlg .public-card.profile-showcase{overflow:auto}
@@ -38,8 +38,8 @@
 
 /* bloques de informacion en paneles translucidos (como Discord) */
 .profile-showcase .profile-extras,.profile-showcase .pf-more,.profile-showcase .public-stats{position:relative;z-index:3}
-.profile-showcase .profile-extras:not(:empty),.profile-showcase .pf-more{margin:12px var(--showcase-pad) 0;padding:12px 14px!important;background:#0b0c1299;border-radius:10px;backdrop-filter:blur(6px)}
-.profile-showcase .profile-extras h4,.profile-showcase .pf-more h4{margin:12px 0 6px!important;font:800 11px var(--body)!important;letter-spacing:.06em;text-transform:none;color:#fff!important;opacity:.85}
+.profile-showcase .profile-extras:not(:empty),.profile-showcase .pf-more{margin:12px var(--showcase-pad) 0;padding:12px 14px!important;background:#0b0c1299;border-radius:10px;backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.06)}
+.profile-showcase .profile-extras h4,.profile-showcase .pf-more h4{margin:12px 0 6px!important;font:800 11px var(--body)!important;letter-spacing:.06em;text-transform:uppercase;color:#fff!important;opacity:.85}
 .profile-showcase .profile-extras h4:first-child,.profile-showcase .pf-more h4:first-child{margin-top:0!important}
 .profile-showcase .profile-bio{white-space:pre-wrap;font:500 13px/1.5 var(--body);color:#eef0f8;margin:0}
 .pf-chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -51,7 +51,7 @@
 .pf-main b{display:block;font:italic 900 18px var(--display);color:#fff}
 .pf-main small{display:block;font:600 11px var(--body);color:#c4c8d8;margin-top:2px}
 .profile-showcase .public-stats{gap:6px!important;padding:12px var(--showcase-pad) 16px!important}
-.profile-showcase .public-stats>div{background:#0b0c1299!important;border:0!important;border-radius:8px;box-shadow:none!important;backdrop-filter:blur(6px)}
+.profile-showcase .public-stats>div{background:#0b0c1299!important;border:0!important;border-radius:8px;box-shadow:none!important;backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.06)}
 .profile-showcase .public-stats b{color:#fff!important;font:italic 900 20px var(--display)!important}
 
 /* ---------- decoracion del avatar ---------- */
@@ -59,13 +59,65 @@
 .pf-deco{grid-column:1;grid-row:1;justify-self:center;align-self:center;position:relative;width:124px;height:124px;margin:-12px;pointer-events:none;z-index:4}
 .pf-deco i{position:absolute;display:none}
 .pf-deco::before,.pf-deco::after{content:"";position:absolute;display:none}
-/* orbita: anillo punteado que gira con dos chispas */
+
+/* 1. COMIC POP: Estallido de comic, semitonos y chispas de accion */
+.pf-deco[data-deco=comic]::before{display:block;inset:-7px;background:conic-gradient(from 0deg,#ffd700,#ff2d55,#ffd700,#00f5d4,#ffd700,#ff2d55,#ffd700);clip-path:polygon(50% 0%,63% 22%,85% 6%,80% 32%,100% 40%,82% 60%,94% 82%,68% 78%,56% 100%,40% 82%,16% 94%,24% 68%,0% 56%,22% 40%,8% 18%,32% 24%);filter:drop-shadow(0 0 0 3px #050608) drop-shadow(4px 4px 0 #000);animation:pfComicBurst 2.4s cubic-bezier(.34,1.56,.64,1) infinite alternate}
+.pf-deco[data-deco=comic]::after{display:block;inset:6px;border-radius:50%;border:3px dashed #000;box-shadow:inset 0 0 0 2px #fff,0 0 12px #ffd700bb;animation:pfSpin 10s linear infinite}
+.pf-deco[data-deco=comic] i:nth-child(1){display:block;left:8px;top:8px;width:15px;height:15px;background:#ff2d55;clip-path:polygon(50% 0%,100% 100%,0% 100%);filter:drop-shadow(2px 2px 0 #000);animation:pfComicSpark 1.6s ease-in-out infinite alternate}
+.pf-deco[data-deco=comic] i:nth-child(2){display:block;right:10px;top:10px;width:17px;height:17px;background:#ffd700;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);filter:drop-shadow(2px 2px 0 #000);animation:pfComicSpark 1.8s ease-in-out infinite alternate .4s}
+.pf-deco[data-deco=comic] i:nth-child(3){display:block;right:6px;bottom:12px;width:13px;height:13px;background:#00f5d4;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);filter:drop-shadow(2px 2px 0 #000);animation:pfComicSpark 2s ease-in-out infinite alternate .8s}
+.pf-deco[data-deco=comic] i:nth-child(4){display:block;left:10px;bottom:10px;width:15px;height:15px;background:#fff;border-radius:50%;border:2px solid #000;box-shadow:2px 2px 0 #000;animation:pfBob 2s ease-in-out infinite}
+.pf-deco[data-deco=comic] i:nth-child(5){display:block;left:50%;top:-9px;width:22px;height:20px;margin-left:-11px;background:#ffe600;border:2.5px solid #000;border-radius:8px 8px 8px 0;filter:drop-shadow(2px 2px 0 #000);animation:pfBob 1.8s ease-in-out infinite .3s}
+.pf-deco[data-deco=comic] i:nth-child(5)::after{content:"!";position:absolute;inset:0;text-align:center;font:900 14px/17px var(--display,sans-serif);color:#000}
+@keyframes pfComicBurst{0%{transform:scale(.92) rotate(-5deg)}100%{transform:scale(1.06) rotate(5deg)}}
+@keyframes pfComicSpark{0%{transform:scale(.8) rotate(0)}100%{transform:scale(1.3) rotate(45deg)}}
+
+/* 2. GARABATOS: Doodles tiernos animados a mano, estrellas, corazones y espirales */
+.pf-deco[data-deco=garabatos]::before{display:block;inset:1px;border-radius:48% 52% 54% 46%/52% 47% 53% 48%;border:3.5px dashed #ff9ec4;filter:drop-shadow(0 0 8px #ff9ec4bb);animation:pfDoodleWobble 4s ease-in-out infinite,pfSpin 24s linear infinite}
+.pf-deco[data-deco=garabatos]::after{display:block;left:50%;top:-10px;width:40px;height:28px;margin-left:-20px;background:#ffe680;clip-path:polygon(0% 100%,0% 40%,25% 70%,50% 15%,75% 70%,100% 40%,100% 100%);filter:drop-shadow(2px 2px 0 #3a2e0a);animation:pfDoodleBounce 2.6s ease-in-out infinite}
+.pf-deco[data-deco=garabatos] i:nth-child(1){display:block;left:6px;top:10px;width:15px;height:15px;background:#ffd166;clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);filter:drop-shadow(1px 2px 0 #0004);animation:pfDoodleFloat 3.2s ease-in-out infinite alternate}
+.pf-deco[data-deco=garabatos] i:nth-child(2){display:block;right:6px;top:8px;width:16px;height:16px;background:#ff6b9d;clip-path:path('M8 14.4 L1.6 8 A3.7 3.7 0 0 1 8 3.2 A3.7 3.7 0 0 1 14.4 8 Z');filter:drop-shadow(1px 2px 0 #0004);animation:pfDoodleFloat 2.8s ease-in-out infinite alternate .6s}
+.pf-deco[data-deco=garabatos] i:nth-child(3){display:block;left:4px;bottom:14px;width:14px;height:14px;border-radius:50%;border:3px dotted #8ef0ba;animation:pfSpin 6s linear infinite}
+.pf-deco[data-deco=garabatos] i:nth-child(4){display:block;right:8px;bottom:12px;width:13px;height:13px;background:#7ee0ff;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%);filter:drop-shadow(1px 2px 0 #0004);animation:pfDoodleBounce 3s ease-in-out infinite .4s}
+.pf-deco[data-deco=garabatos] i:nth-child(5){display:block;left:24px;bottom:2px;width:9px;height:9px;border-radius:50%;background:#ffd166;animation:pfPulse 1.6s ease-in-out infinite alternate}
+.pf-deco[data-deco=garabatos] i:nth-child(6){display:block;right:24px;top:0px;width:10px;height:10px;border-radius:50%;background:#ff9ec4;animation:pfPulse 1.8s ease-in-out infinite alternate .3s}
+@keyframes pfDoodleWobble{0%,100%{border-radius:48% 52% 54% 46%/52% 47% 53% 48%}33%{border-radius:53% 47% 46% 54%/46% 54% 47% 53%}66%{border-radius:46% 54% 52% 48%/54% 46% 53% 47%}}
+@keyframes pfDoodleBounce{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
+@keyframes pfDoodleFloat{0%{transform:translate(0,0) rotate(0deg)}100%{transform:translate(-4px,-7px) rotate(20deg)}}
+
+/* 3. GRAFFITI: Arte urbano con gotas de pintura, corona callejera y salpicaduras neon */
+.pf-deco[data-deco=graffiti]::before{display:block;inset:4px;border-radius:50%;background:conic-gradient(from 45deg,#00f5d4,#ff007f,#ffe600,#9d4edd,#00f5d4);-webkit-mask:radial-gradient(circle,transparent 51px,#000 52px);mask:radial-gradient(circle,transparent 51px,#000 52px);filter:drop-shadow(0 0 10px #ff007f) drop-shadow(0 0 6px #00f5d4);animation:pfSpin 8s linear infinite}
+.pf-deco[data-deco=graffiti]::after{display:block;left:26px;bottom:-14px;width:15px;height:28px;background:#ff007f;border-radius:0 0 12px 12px;box-shadow:28px 5px 0 -2px #00f5d4,50px -2px 0 -3px #ffe600;filter:drop-shadow(0 3px 5px #000);animation:pfGraffitiDrip 3s ease-in-out infinite alternate}
+.pf-deco[data-deco=graffiti] i:nth-child(1){display:block;left:14px;top:-16px;width:46px;height:30px;background:linear-gradient(135deg,#ffe600,#ffb300);clip-path:polygon(0 100%,0 25%,25% 65%,50% 0,75% 65%,100% 25%,100% 100%);transform:rotate(-16deg);filter:drop-shadow(3px 3px 0 #000);animation:pfBob 2.2s ease-in-out infinite}
+.pf-deco[data-deco=graffiti] i:nth-child(2){display:block;right:4px;top:10px;width:14px;height:14px;border-radius:50%;background:#00f5d4;box-shadow:6px -4px 0 -3px #00f5d4,-4px 8px 0 -4px #00f5d4;animation:pfPulse 1.8s ease-in-out infinite alternate}
+.pf-deco[data-deco=graffiti] i:nth-child(3){display:block;left:4px;bottom:16px;width:13px;height:13px;border-radius:50%;background:#ff007f;box-shadow:-5px -4px 0 -3px #ff007f,4px 6px 0 -3px #ff007f;animation:pfPulse 2s ease-in-out infinite alternate .4s}
+.pf-deco[data-deco=graffiti] i:nth-child(4){display:block;right:10px;bottom:6px;width:19px;height:9px;background:#ffe600;clip-path:polygon(0 50%,65% 0,50% 40%,100% 50%,50% 60%,65% 100%);transform:rotate(24deg);filter:drop-shadow(1px 1px 0 #000);animation:pfBob 2s ease-in-out infinite .6s}
+@keyframes pfGraffitiDrip{0%{transform:scaleY(.85)}100%{transform:scaleY(1.3) translateY(3px)}}
+
+/* 4. CYBER: Holograma cyberpunk */
+.pf-deco[data-deco=cyber]::before{display:block;inset:6px;border-radius:50%;border:2px solid #00f5d4;box-shadow:0 0 12px #00f5d4,inset 0 0 10px #00f5d488;animation:pfNeonRing 2.4s ease-in-out infinite}
+.pf-deco[data-deco=cyber]::after{display:block;inset:0px;border-radius:50%;border:3px dashed #ff007f;animation:pfSpin 14s linear infinite reverse}
+.pf-deco[data-deco=cyber] i:nth-child(-n+4){display:block;width:16px;height:16px;border:3px solid #d7ff2f;animation:pfPulse 1.5s ease-in-out infinite alternate}
+.pf-deco[data-deco=cyber] i:nth-child(1){left:8px;top:8px;border-right:0;border-bottom:0}
+.pf-deco[data-deco=cyber] i:nth-child(2){right:8px;top:8px;border-left:0;border-bottom:0}
+.pf-deco[data-deco=cyber] i:nth-child(3){left:8px;bottom:8px;border-right:0;border-top:0}
+.pf-deco[data-deco=cyber] i:nth-child(4){right:8px;bottom:8px;border-left:0;border-top:0}
+
+/* 5. SPARKLES: Estrellitas kawaii */
+.pf-deco[data-deco=sparkles]::before{display:block;inset:8px;border-radius:50%;box-shadow:0 0 18px 4px #ff9ec488,inset 0 0 12px #ffe68066;animation:pfPulse 2s ease-in-out infinite alternate}
+.pf-deco[data-deco=sparkles] i:nth-child(-n+4){display:block;width:16px;height:16px;background:#ffe680;clip-path:polygon(50% 0%,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0% 50%,38% 38%);filter:drop-shadow(0 0 6px #ffe680);animation:pfTwinkle 2.4s ease-in-out infinite}
+.pf-deco[data-deco=sparkles] i:nth-child(1){left:8px;top:12px}
+.pf-deco[data-deco=sparkles] i:nth-child(2){right:8px;top:16px;animation-delay:.6s;background:#ff9ec4;filter:drop-shadow(0 0 6px #ff9ec4)}
+.pf-deco[data-deco=sparkles] i:nth-child(3){left:14px;bottom:12px;animation-delay:1.2s;background:#8ef0ba;filter:drop-shadow(0 0 6px #8ef0ba)}
+.pf-deco[data-deco=sparkles] i:nth-child(4){right:12px;bottom:14px;animation-delay:1.8s;background:#7ee0ff;filter:drop-shadow(0 0 6px #7ee0ff)}
+
+/* orbita */
 .pf-deco[data-deco=orbita]::before{display:block;inset:4px;border-radius:50%;border:2px dashed color-mix(in srgb,var(--profile-accent) 80%,#fff);animation:pfSpin 14s linear infinite}
 .pf-deco[data-deco=orbita] i:nth-child(-n+2){display:block;left:50%;top:50%;width:10px;height:10px;margin:-5px;background:#fff;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);filter:drop-shadow(0 0 4px var(--profile-accent));animation:pfOrbit 6s linear infinite}
 .pf-deco[data-deco=orbita] i:nth-child(2){animation-delay:-3s;width:7px;height:7px;margin:-3.5px}
 @keyframes pfSpin{to{transform:rotate(360deg)}}
 @keyframes pfOrbit{from{transform:rotate(0) translateX(60px) rotate(0)}to{transform:rotate(360deg) translateX(60px) rotate(-360deg)}}
-/* anillo de fuego */
+/* fuego */
 .pf-deco[data-deco=fuego]::before{display:block;inset:6px;border-radius:50%;background:conic-gradient(from 0deg,#ff3d00,#ffb300,#ff6d00,#ffea00,#ff3d00,#ff9100,#ff3d00);-webkit-mask:radial-gradient(circle,transparent 52px,#000 53px);mask:radial-gradient(circle,transparent 52px,#000 53px);filter:blur(1px) drop-shadow(0 0 8px #ff6d00);animation:pfSpin 3s linear infinite}
 .pf-deco[data-deco=fuego]::after{display:block;inset:0;border-radius:50%;box-shadow:0 0 22px 4px #ff6d0066;animation:pfPulse 1.4s ease-in-out infinite alternate}
 @keyframes pfPulse{to{box-shadow:0 0 30px 8px #ffb30055}}
@@ -91,10 +143,8 @@
 .pf-deco[data-deco=petalos] i:nth-child(1){transform:rotate(0) translateY(-60px)}.pf-deco[data-deco=petalos] i:nth-child(2){transform:rotate(60deg) translateY(-60px)}
 .pf-deco[data-deco=petalos] i:nth-child(3){transform:rotate(120deg) translateY(-60px)}.pf-deco[data-deco=petalos] i:nth-child(4){transform:rotate(180deg) translateY(-60px)}
 .pf-deco[data-deco=petalos] i:nth-child(5){transform:rotate(240deg) translateY(-60px)}.pf-deco[data-deco=petalos] i:nth-child(6){transform:rotate(300deg) translateY(-60px)}
-/* marco pixel: esquinas en escalera */
-.pf-deco[data-deco=pixel] i:nth-child(-n+4){display:block;width:30px;height:30px;
-  background:linear-gradient(var(--profile-accent),var(--profile-accent)) 0 0/30px 6px no-repeat,linear-gradient(var(--profile-accent),var(--profile-accent)) 0 0/6px 30px no-repeat,linear-gradient(#fff,#fff) 6px 6px/6px 6px no-repeat;
-  filter:drop-shadow(2px 2px 0 #000);animation:pfPix 1.6s steps(2) infinite}
+/* marco pixel */
+.pf-deco[data-deco=pixel] i:nth-child(-n+4){display:block;width:30px;height:30px;background:linear-gradient(var(--profile-accent),var(--profile-accent)) 0 0/30px 6px no-repeat,linear-gradient(var(--profile-accent),var(--profile-accent)) 0 0/6px 30px no-repeat,linear-gradient(#fff,#fff) 6px 6px/6px 6px no-repeat;filter:drop-shadow(2px 2px 0 #000);animation:pfPix 1.6s steps(2) infinite}
 .pf-deco[data-deco=pixel] i:nth-child(1){left:6px;top:6px}.pf-deco[data-deco=pixel] i:nth-child(2){right:6px;top:6px;transform:scaleX(-1)}
 .pf-deco[data-deco=pixel] i:nth-child(3){left:6px;bottom:6px;transform:scaleY(-1)}.pf-deco[data-deco=pixel] i:nth-child(4){right:6px;bottom:6px;transform:scale(-1)}
 @keyframes pfPix{50%{opacity:.55}}
@@ -102,6 +152,14 @@
 /* ---------- efectos sobre toda la ficha ---------- */
 .pf-fx{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
 .pf-fx i{position:absolute;left:var(--x);top:var(--y);width:10px;height:10px;scale:var(--s);will-change:transform,opacity}
+
+/* comic fx: estrellas de choque y semitonos pop */
+.pf-fx[data-fx=comic] i{width:16px;height:16px;background:var(--c);clip-path:polygon(50% 0%,65% 25%,100% 40%,75% 65%,85% 100%,50% 80%,15% 100%,25% 65%,0% 40%,35% 25%);filter:drop-shadow(1px 1px 0 #000);animation:pfTwinkle var(--d) ease-in-out var(--l) infinite}
+/* garabatos fx: garabatos tiernos y destellos flotando */
+.pf-fx[data-fx=garabatos] i{width:14px;height:14px;background:var(--c);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);animation:pfPetal var(--d) linear var(--l) infinite}
+/* graffiti fx: salpicaduras y gotas de spray */
+.pf-fx[data-fx=graffiti] i{width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);animation:pfConf var(--d) linear var(--l) infinite}
+
 /* estrellas que titilan */
 .pf-fx[data-fx=estrellas] i{width:14px;height:14px;background:var(--c);clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);filter:drop-shadow(0 0 4px var(--c));animation:pfTwinkle var(--d) ease-in-out var(--l) infinite}
 @keyframes pfTwinkle{0%,100%{opacity:0;transform:scale(.3) rotate(0)}50%{opacity:1;transform:scale(1) rotate(90deg)}}
@@ -126,10 +184,15 @@
 .pf-fx[data-fx=corazones] i{top:auto;bottom:-16px;width:14px;height:14px;background:transparent;animation:pfRise var(--d) ease-out var(--l) infinite}
 .pf-fx[data-fx=corazones] i::before{content:"";position:absolute;inset:0;background:#ff5c93;clip-path:path('M7 13 L1.2 7.2 A3.4 3.4 0 0 1 7 2.6 A3.4 3.4 0 0 1 12.8 7.2 Z');filter:drop-shadow(0 0 4px #ff5c93)}
 
-/* ---------- vestidor: mismas opciones, ahora con muestra ---------- */
+/* ---------- vestidor: opciones con muestra ---------- */
 .pe-colors{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .pe-options [data-choice]::before{content:"";height:27px}
 .pe-decos [data-choice]::before{border-radius:50%!important;width:27px;justify-self:center;background:#151924!important;box-shadow:0 0 0 3px #3a4256}
+.pe-decos [data-choice=comic]::before{box-shadow:0 0 0 3px #ffd700,0 0 10px #ff2d55;background:#ff2d55!important}
+.pe-decos [data-choice=garabatos]::before{border:2px dashed #ff9ec4;box-shadow:0 0 0 2px #151924,0 0 8px #ff9ec4;background:#ffe680!important}
+.pe-decos [data-choice=graffiti]::before{box-shadow:0 0 0 3px #00f5d4,0 0 10px #ff007f;background:#ff007f!important}
+.pe-decos [data-choice=cyber]::before{box-shadow:0 0 0 2px #00f5d4,0 0 8px #d7ff2f;background:#060810!important}
+.pe-decos [data-choice=sparkles]::before{box-shadow:0 0 0 3px #ffe680,0 0 10px #ff9ec4;background:#ffe680!important}
 .pe-decos [data-choice=orbita]::before{box-shadow:0 0 0 2px #151924,0 0 0 4px #b39dff}
 .pe-decos [data-choice=fuego]::before{box-shadow:0 0 0 3px #ff6d00,0 0 10px #ffb300}
 .pe-decos [data-choice=neon]::before{box-shadow:0 0 0 3px #d7ff2f,0 0 10px #d7ff2f}
@@ -138,7 +201,11 @@
 .pe-decos [data-choice=halo]::before{box-shadow:0 -9px 0 -5px #ffe680}
 .pe-decos [data-choice=petalos]::before{box-shadow:0 0 0 3px #ff9ec4}
 .pe-decos [data-choice=pixel]::before{border-radius:0!important;box-shadow:0 0 0 3px #d7ff2f}
+
 .pe-cardfx [data-choice]::before{background:#151924!important}
+.pe-cardfx [data-choice=comic]::before{background:conic-gradient(from 0deg,#ffd700,#ff2d55,#ffd700,#00f5d4,#ffd700)!important}
+.pe-cardfx [data-choice=garabatos]::before{background:radial-gradient(circle,#ff9ec4 0 2px,transparent 3px) 0 0/8px 8px,#241a2e!important}
+.pe-cardfx [data-choice=graffiti]::before{background:radial-gradient(circle,#00f5d4 0 2px,#ff007f 3px,transparent 4px) 0 0/10px 10px,#101626!important}
 .pe-cardfx [data-choice=estrellas]::before{background:radial-gradient(circle,#ffd166 0 1.5px,transparent 2.5px) 0 0/9px 9px,#151924!important}
 .pe-cardfx [data-choice=nieve]::before{background:radial-gradient(circle,#fff 0 1.5px,transparent 2.5px) 0 0/7px 8px,#1a2a3a!important}
 .pe-cardfx [data-choice=petalos]::before{background:radial-gradient(ellipse,#ff9ec4 0 2px,transparent 3px) 0 0/8px 7px,#2a1a26!important}
@@ -147,6 +214,7 @@
 .pe-cardfx [data-choice=pixeles]::before{background:linear-gradient(#d7ff2f,#d7ff2f) 0 0/4px 4px,#151924!important;background-size:8px 8px!important}
 .pe-cardfx [data-choice=luciernagas]::before{background:radial-gradient(circle,#fff6a0 0 1.5px,#ffe75844 3px,transparent 4px) 0 0/11px 10px,#121a14!important}
 .pe-cardfx [data-choice=corazones]::before{background:radial-gradient(circle,#ff5c93 0 2px,transparent 3px) 0 0/9px 9px,#2a141e!important}
+
 .pe-names [data-choice]::before{display:none}
 .pe-names button{grid-template-rows:auto!important;min-height:38px;font:italic 900 13px var(--display)!important}
 .pe-names [data-choice=neon]{text-shadow:0 0 6px #d7ff2f}
@@ -157,28 +225,246 @@
 @media (prefers-reduced-motion:reduce){.pf-fx i,.pf-deco,.pf-deco::before,.pf-deco::after,.pf-deco i,.profile-showcase .public-head h2{animation:none!important}}
 body.lite-profiles .pf-fx{display:none}
 
-/* ---------- tu ficha (ventana de cuenta): la misma ficha publica + herramientas de la cuenta ---------- */
-#acctdlg .box:has(.acct-own){width:min(480px,100%);padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:auto;scrollbar-width:thin;animation:fichaIn .5s cubic-bezier(.2,1.2,.4,1) backwards}
-#acctdlg .box:has(.acct-own) .x{z-index:8;right:10px;top:10px;background:#0b0c12d9;border:2px solid #000}
-.acct-own{display:grid;gap:0}
-#acctdlg .acct-card.profile-showcase{position:relative;width:100%;border-radius:14px 14px 0 0!important;box-shadow:none!important;border-bottom:0!important}
-.acct-bn-edit{position:absolute;right:54px;top:10px;z-index:7;border:2px solid #000;background:#0b0c12d9;color:#fff;padding:7px 12px;font:700 12px var(--body,system-ui);cursor:pointer;box-shadow:2px 2px 0 var(--profile-accent,#d7ff2f);transition:transform .15s,box-shadow .15s}
-.acct-bn-edit:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--profile-accent,#d7ff2f)}
-.acct-tools{display:grid;gap:12px;padding:16px 20px 20px;background:#0d0f16;border:3px solid #050608;border-top:2px dashed #ffffff26;border-radius:0 0 14px 14px;box-shadow:8px 8px 0 #000}
-.acct-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
-.acct-tape{display:inline-block;background:#d7ff2f;color:#0c0d0a;font:italic 700 11px var(--display);letter-spacing:.14em;padding:5px 12px;transform:rotate(-1.5deg);box-shadow:3px 3px 0 #000}
-.acct-meta small{color:#8f96ad;font-size:12px}
-#acctdlg .acct-tools .badges{padding:0}
-#acctdlg .acct-tools .profile-customize{display:grid;gap:2px;width:100%;text-align:left;padding:12px 16px;background:linear-gradient(100deg,#2a2f3e,#1d2130);border:2px solid #000;border-left:6px solid var(--profile-accent,#d7ff2f);border-radius:0;box-shadow:4px 4px 0 #000;cursor:pointer;transition:transform .18s,box-shadow .18s;color:#fff}
-#acctdlg .acct-tools .profile-customize b{font:italic 900 18px var(--display);letter-spacing:.04em;text-transform:uppercase}
-#acctdlg .acct-tools .profile-customize small{font:600 12px var(--body,system-ui);color:#9aa2b8}
-#acctdlg .acct-tools .profile-customize:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #000}
-#acctdlg .acct-tools label{margin:0;color:#9aa2b8}
-#acctdlg .acct-tools input{border-radius:0;background:#06070b;border:1px solid #ffffff38;min-height:44px;margin-top:6px}
-#acctdlg .acct-tools input:focus{outline:0;border-color:#d7ff2f;box-shadow:0 0 0 3px #d7ff2f33}
-.acct-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-#acctdlg .acct-tools .go{margin:0;min-height:44px;border:0;border-radius:0;background:#d7ff2f;color:#101109;font:italic 900 16px var(--display);transform:skewX(-8deg);box-shadow:4px 4px 0 #000;transition:transform .15s,box-shadow .15s}
-#acctdlg .acct-tools .go:hover{transform:skewX(-8deg) translate(-2px,-2px);box-shadow:6px 6px 0 #000}
-#acctdlg .acct-tools .sec{margin:0;min-height:44px;border-radius:0;background:#1a1d29;border:1px solid #ffffff2e;color:#fff;font:700 13px var(--body,system-ui)}
-#acctdlg .acct-tools #acct-out{background:none;border:2px dashed #ff8a8a55;color:#ff9a9a}
-#acctdlg .acct-tools #acct-out:hover{background:#ff8a8a18}
+/* ===== VENTANA DE CUENTA: PERFIL UNIFICADO ESTILO DISCORD ===== */
+#acctdlg .box:has(.acct-discord-wrap),
+#acctdlg .box:has(.acct-own){
+  width:min(440px,100%);
+  padding:0!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  overflow:visible;
+  animation:fichaIn .45s cubic-bezier(.2,1.2,.4,1) backwards;
+}
+#acctdlg .box:has(.acct-discord-wrap) .x,
+#acctdlg .box:has(.acct-own) .x{
+  z-index:10;
+  right:12px;
+  top:12px;
+  width:32px;
+  height:32px;
+  background:rgba(11,12,18,0.85);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:50%!important;
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:14px;
+  transition:transform .15s,background .15s;
+}
+#acctdlg .box:has(.acct-discord-wrap) .x:hover,
+#acctdlg .box:has(.acct-own) .x:hover{
+  background:#ed4245;
+  transform:scale(1.1);
+}
+
+.acct-discord-card{
+  position:relative;
+  width:100%;
+  border-radius:16px!important;
+  box-shadow:0 16px 48px rgba(0,0,0,0.75),0 0 0 1px rgba(255,255,255,0.12)!important;
+  border:0!important;
+  overflow:hidden;
+  max-height:calc(100dvh - 36px);
+  overflow-y:auto;
+  scrollbar-width:thin;
+}
+
+.acct-bn-edit{
+  position:absolute;
+  right:52px;
+  top:12px;
+  z-index:7;
+  border:1px solid rgba(255,255,255,0.22);
+  border-radius:8px;
+  background:rgba(11,12,18,0.75);
+  backdrop-filter:blur(8px);
+  color:#fff;
+  padding:6px 12px;
+  font:700 12px var(--body,system-ui);
+  cursor:pointer;
+  transition:transform .15s,background .15s,border-color .15s;
+}
+.acct-bn-edit:hover{
+  background:rgba(255,255,255,0.18);
+  border-color:rgba(255,255,255,0.45);
+  transform:translateY(-1px);
+}
+
+/* Roles tipo Discord con puntos de color */
+.discord-roles-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
+}
+.discord-role-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:6px;
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.12);
+  font:700 11px var(--body,sans-serif);
+  color:#fff;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+}
+.discord-role-pill .pill-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--pill-color,#7289da);
+  box-shadow:0 0 6px var(--pill-color,#7289da);
+}
+
+/* Barra de acciones al estilo Discord */
+.acct-discord-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:12px var(--showcase-pad);
+  border-top:1px solid rgba(255,255,255,0.08);
+  background:rgba(0,0,0,0.22);
+}
+.acct-btn-primary{
+  flex:1 1 auto;
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:8px 16px;
+  border-radius:8px;
+  border:0;
+  background:#5865f2;
+  color:#fff;
+  font:700 13px var(--body,system-ui);
+  cursor:pointer;
+  transition:background .15s,transform .12s;
+}
+.acct-btn-primary:hover{
+  background:#4752c4;
+  transform:translateY(-1px);
+}
+.acct-btn-secondary{
+  flex:0 0 auto;
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 14px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.16);
+  background:rgba(255,255,255,0.08);
+  color:#eef0f8;
+  font:700 13px var(--body,system-ui);
+  cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.acct-btn-secondary:hover{
+  background:rgba(255,255,255,0.16);
+  border-color:rgba(255,255,255,0.35);
+}
+.acct-btn-danger{
+  flex:0 0 auto;
+  min-height:38px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid rgba(237,66,69,0.35);
+  background:rgba(237,66,69,0.12);
+  color:#ff787b;
+  font:700 12px var(--body,system-ui);
+  cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.acct-btn-danger:hover{
+  background:#ed4245;
+  color:#fff;
+}
+
+/* Editor inline de nombre */
+.acct-name-editor{
+  display:flex;
+  gap:8px;
+  padding:8px var(--showcase-pad) 12px;
+  background:rgba(0,0,0,0.28);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.acct-name-editor.hidden{display:none}
+.acct-name-editor input{
+  flex:1;
+  min-height:36px;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.25);
+  border-radius:6px;
+  padding:4px 12px;
+  color:#fff;
+  font:600 13px var(--body,system-ui);
+}
+.acct-name-editor input:focus{
+  outline:0;
+  border-color:#5865f2;
+  box-shadow:0 0 0 2px rgba(88,101,242,0.4);
+}
+.acct-name-editor .sm{
+  min-height:36px;
+  padding:4px 12px;
+  font-size:12px;
+}
+
+/* Pie y alertas */
+.acct-discord-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px var(--showcase-pad) 14px;
+  background:rgba(0,0,0,0.32);
+  border-top:1px solid rgba(255,255,255,0.06);
+  font:500 11px var(--body,system-ui);
+  color:#8f96ad;
+}
+.acct-discord-footer .user-id{
+  color:#b9bbbe;
+  font-weight:600;
+}
+.acct-discord-notice{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:8px var(--showcase-pad);
+  padding:8px 12px;
+  border-radius:8px;
+  background:rgba(250,166,26,0.12);
+  border:1px solid rgba(250,166,26,0.3);
+  font:600 12px var(--body,system-ui);
+  color:#faa61a;
+}
+.acct-btn-link{
+  background:none;
+  border:0;
+  color:#5865f2;
+  cursor:pointer;
+  font:700 11px var(--body,system-ui);
+  padding:2px 6px;
+  text-decoration:underline;
+}
+.acct-btn-link:hover{color:#828df5}
+.acct-btn-link-subtle{
+  background:none;
+  border:0;
+  color:#8f96ad;
+  cursor:pointer;
+  font:500 11px var(--body,system-ui);
+  padding:2px 4px;
+  text-decoration:underline;
+}
+.acct-btn-link-subtle:hover{color:#c4c9d8}
