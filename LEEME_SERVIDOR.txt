@@ -78,3 +78,17 @@ En esa partida no se usan canales directos entre jugadores (todo pasa por el ser
 detectadas, por ejemplo: "[arbitro:sala] u123 intento curarse +88" o "silenciado 15s (muchos golpes imposibles)".
 Si juegas sin servidor (salas publicas por internet sin Iniciar_Servidor), no hay arbitro: cada jugador se cree a si mismo.
 Pruebas: node tests/arbitro.test.cjs
+
+
+SALAS PUBLICAS Y PRIVADAS (como en Among Us)
+--------------------------------------------
+Cada sala nace publica o privada y no cambia. Lo decide el servidor, no el jugador:
+  - PRIVADA: manda quien entro primero (reglas, dummies, clima). Si se va, pasa al siguiente.
+  - PUBLICA: nadie manda, ni quien la creo: solo la abrio. Sus reglas, dummies y clima no los puede cambiar nadie; el servidor las lleva.
+    Sigue abierta aunque el creador se vaya, y aparece en "Salas publicas" (la lista la da el servidor: /bs-rooms).
+  - Por la puerta de las publicas no se puede entrar a una privada.
+  - Limites: 40 salas publicas, 3 por direccion, 24 jugadores por sala (variables MAX_PUBLIC / MAX_PLAYERS).
+Para que las publicas sean de verdad "de nadie" el servidor tiene que estar encendido en una direccion fija (tu PC con tunel, o un VPS).
+El juego detecta el servidor desde cualquier direccion que responda /bs-server (ya no solo localhost o la red local).
+Sin servidor, el juego usa las salas publicas antiguas por internet (MQTT): ahi el creador no puede cambiar reglas porque el juego se lo
+impide, pero nada lo hace cumplir.

@@ -12153,11 +12153,11 @@ async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
   // si el juego se abrió desde el servidor local (server/server.js) se juega por él: más rápido y sin depender de internet
-  if (!window.claude && /^https?:$/.test(location.protocol) && /^(localhost|127\.|\[::1\]|192\.168\.)/.test(location.hostname) && (location.port === '3000' || location.port === '8080')) {
+  if (!window.claude && /^https?:$/.test(location.protocol)) {   // si esta dirección responde /bs-server es un servidor del juego (local o público)
     try {
-      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1200), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
-      const j = r.ok ? await r.json() : null;
-      if (j && j.ok) { NET.local = true; NET.environmentServer=+j.atmosphere>=3; NET.room = 'relay'; NET.publicUrl = j.publicUrl || ''; NET.lanBase = j.ips && j.ips.length ? 'http://' + j.ips[0] + ':' + j.port : ''; }
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1500), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
+      const j = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
+      if (j && j.ok && j.name === 'blockstrike-server') { NET.local = true; NET.environmentServer=+j.atmosphere>=3; NET.room = 'relay'; NET.publicUrl = j.publicUrl || ''; NET.lanBase = j.ips && j.ips.length ? 'http://' + j.ips[0] + ':' + j.port : ''; }
     } catch (e) { }
   }
   if (!NET.room && !window.claude && window.mqtt) NET.room = 'relay';
@@ -14330,7 +14330,7 @@ function localRoom(code, onStatus = () => { }) {
     R.leave = () => { R.closed = true; clearInterval(R.timer); mesh.closeAll(); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     function connect() {
-      const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}`);
+      const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}${NET.public ? '&pub=1' : ''}`);
       const failTo = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { } } }, 5000);
       ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.mySkin) R.setSkin(R.mySkin); if (R.myProfile) R.setProfile(R.myProfile); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
       ws.onerror = () => { };
@@ -14354,8 +14354,12 @@ function localRoom(code, onStatus = () => { }) {
         else if (m.t === 'au') netAuth(m);
       };
     }
-    onStatus('Conectando al servidor de tu PC…');
-    connect();
+    onStatus('Conectando al servidor…');
+    // el servidor decide si se puede entrar (sala llena, o una privada por la puerta de las públicas) y dice el motivo
+    fetch(`/bs-join?room=${encodeURIComponent(code)}&pub=${NET.public ? 1 : 0}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null).then(j => {
+      if (j && j.ok === false) { done(false, { code: j.why || 'server' }); return; }
+      connect();
+    });
     R.timer = setInterval(() => {
       if (R.closed) return;
       const now = Date.now();
@@ -14493,12 +14497,16 @@ function joinRoom() {
 }
 const NET_ERR = {
   server: 'No se pudo llegar al servidor de conexión. Revisá tu internet y tocá Entrar de nuevo.',
+  mode_private: 'Esa sala es privada: para entrar necesitas su código o su link.',
+  full: 'La sala está llena. Prueba con otra.',
+  too_many_public: 'Hay demasiadas salas públicas abiertas ahora mismo (o ya tienes varias). Prueba más tarde.',
   no_host: 'No se pudo conectar con el anfitrión de la sala. Puede que su red bloquee la conexión (wifi de colegio o trabajo). Tocá Entrar de nuevo o que otro abra la sala.',
 };
 async function doJoin(code) {
   const st = t => { if (joinCode === code) { const s = $('netstat'); s.classList.remove('ok'); s.textContent = t; } };
   try {
     if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
+    NET.authOn = false; NET.srvHost = null; NET.authLog = '';
     st('Conectando al servidor…');
     const room = NET.room === 'relay' ? (NET.local ? await localRoom(code.slice(3), st) : await relayRoom(code.slice(3), st)) : await NET.room.join(code);
     if (joinCode !== code) { try { room.leave(); } catch (e) { } return false; }
@@ -14588,7 +14596,11 @@ function cheatStrike(px, why) {
 // El servidor es el árbitro de la sala (js/arbitro.js): decide qué golpes valen, la vida real, las muertes y las bajas.
 // Aquí el juego acepta sus correcciones. Una vida más baja que la tuya se aplica siempre; la tuya nunca se sube desde fuera.
 function netAuth(m) {
-  if (m.hello) { NET.authOn = true; NET.authLog = 'activo'; return; }
+  if (m.hello || m.host !== undefined) {
+    NET.authOn = true; if (m.hello) { NET.authLog = 'activo'; if (typeof m.pub === 'boolean') NET.public = m.pub; }
+    if (m.host !== undefined) { NET.srvHost = !!m.host; if (m.hello === undefined && m.host) addFeedText('Ahora eres el anfitrión de la sala', '#d7ff2f'); }
+    if (m.hello) return;
+  }
   NET.authOn = true; NET.authAt = performance.now();
   const p = G.player; if (!p || G.state !== 'play' || G.over) return;
   if (Number.isFinite(+m.k)) p.kills = +m.k;
@@ -14866,6 +14878,7 @@ const DUMMY_NAMES = { idle: 'Dummy quieto', attack: 'Dummy que pega', block: 'Du
 const dummies = () => G.fighters.filter(f => f.dummy);
 function amHost() {
   if (!G.mp) return true;
+  if (NET.authOn && NET.srvHost != null) return NET.srvHost && !NET.public;   // con servidor él decide: en las públicas nadie es anfitrión
   if (!NET.named || NET.room !== 'relay') return false;
   let min = NET.joinT;
   for (const pe of NET.named.peers()) { const jt = pe.presence && +pe.presence.jt; if (jt && jt < min) min = jt; }
@@ -15621,7 +15634,12 @@ $('copylink').addEventListener('click', () => {
 const PUB = { base: 'calfight/pub1/', rooms: new Map(), watch: [], host: [], topic: '', pt: 0, rt: 0 };
 const NETPUB = () => !!(NET.public && NET.named);
 function pubWatch(on) {
-  if (!on) { PUB.watch.forEach(c => { try { c.end(true); } catch (e) { } }); PUB.watch = []; clearInterval(PUB.rt); return; }
+  if (!on) { PUB.watch.forEach(c => { try { c.end(true); } catch (e) { } }); PUB.watch = []; clearInterval(PUB.rt); PUB.srvOn = false; return; }
+  if (NET.local) {   // con servidor: él lleva la lista de salas públicas (siguen aunque quien las abrió se vaya)
+    if (PUB.srvOn) return; PUB.srvOn = true; clearInterval(PUB.rt);
+    const tick = async () => { try { const a = await (await fetch('/bs-rooms', { cache: 'no-store' })).json(); PUB.rooms.clear(); for (const o of a) if (/^[a-z0-9][a-z0-9_.-]{0,39}$/.test(o.code)) PUB.rooms.set(o.code, { code: o.code, host: String(o.host || 'Jugador').replace(/[<>&]/g, '').slice(0, 16), n: clamp(+o.n || 1, 1, 99), at: Date.now() }); pubRender(); } catch (e) { } };
+    tick(); PUB.rt = setInterval(tick, 2000); return;
+  }
   if (PUB.watch.length || !window.mqtt) return; PUB.rooms.clear();
   RELAYS.forEach((url, i) => {
     try {
@@ -15643,7 +15661,7 @@ function pubRender() {
   const ul = $('tm-list'); if (!ul || $('tm-public-v').classList.contains('hidden')) return;
   const now = Date.now(), rows = [...PUB.rooms.values()].filter(r => now - r.at < 25000).sort((a, b) => b.n - a.n);
   ul.innerHTML = '';
-  if (!rows.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = window.mqtt ? 'No hay salas públicas ahora mismo. ¡Creá una!' : 'No se pudo conectar para buscar salas.'; ul.appendChild(li); return; }
+  if (!rows.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = window.mqtt || NET.local ? 'No hay salas públicas ahora mismo. ¡Creá una!' : 'No se pudo conectar para buscar salas.'; ul.appendChild(li); return; }
   for (const r of rows) {
     const li = document.createElement('li'), d = document.createElement('div'), b = document.createElement('b'), sm = document.createElement('small'), n = document.createElement('span'), go = document.createElement('button');
     b.textContent = 'Sala de ' + r.host; sm.textContent = r.code; d.append(b, sm); n.className = 'n'; n.textContent = r.n + (r.n === 1 ? ' jugador' : ' jugadores');
@@ -15657,7 +15675,8 @@ function pubStop() {
   PUB.host = [];
 }
 function pubStart() {
-  pubStop(); const code = NET.code && NET.code.slice(3); if (!code || !window.mqtt) return;
+  pubStop(); if (NET.local) return;   // con servidor no hace falta: el servidor ya la lista
+  const code = NET.code && NET.code.slice(3); if (!code || !window.mqtt) return;
   const topic = PUB.base + code; PUB.topic = topic;
   const put = () => {
     if (!NET.named || NET.code !== 'bs-' + code || !NET.public) { pubStop(); return; }
