@@ -7,6 +7,8 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 const atmosphere = require('./ambiente.js');
 // el árbitro del combate (js/arbitro.js): valida golpes, vida, muertes y reglas; el servidor deja de ser un simple repetidor
 const Arbitro = require('../js/arbitro.js');
+// los monstruos, la llave y el evento del Kraken del abismo los lleva el servidor (server/abismo-sim.js)
+const AbismoSim = require('./abismo-sim.js');
 const ROOT = path.resolve(process.env.BLOCKSTRIKE_ROOT || path.join(__dirname, '..')), PORT = +process.env.PORT || 8080, STALE_MS = 20000, MAX_MSG = 1 << 20;
 const MAX_ROOMS = +process.env.MAX_ROOMS || 64, MAX_PLAYERS = +process.env.MAX_PLAYERS || 24, MAX_PUBLIC = +process.env.MAX_PUBLIC || 40, PUBLIC_PER_IP = 3;   // límites para que no se sature el servidor
 const RATE = { perSec: 160, burst: 320, floodKick: 1500 };                                       // mensajes por segundo de un cliente (el juego manda ~30)
@@ -19,7 +21,9 @@ const rooms = new Map();
 // el servidor es el único que la lleva (como en Among Us: el creador solo la abre). La lista de públicas la da el servidor (/bs-rooms).
 function getRoom(name, mode, ip) {
   let r = rooms.get(name);
-  if (!r) { r = { mode: mode === 'public' ? 'public' : 'private', creatorIp: ip || '', creatorName: '', creatorId: '', clients: new Map(), states: new Map(), skins: new Map(), profiles: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now(), arb: Arbitro.create({ log: m => console.log(`[árbitro:${name}] ${m}`) }) }; rooms.set(name, r); }
+  if (!r) { r = { mode: mode === 'public' ? 'public' : 'private', creatorIp: ip || '', creatorName: '', creatorId: '', clients: new Map(), states: new Map(), skins: new Map(), profiles: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now(), arb: Arbitro.create({ log: m => console.log(`[árbitro:${name}] ${m}`) }), abAt: Date.now(), abT: 0, abEv: '' };
+    r.ab = AbismoSim.create({ log: m => console.log(`[abismo:${name}] ${m}`), damage: (id, d) => { sendTo(r.clients.get(id), Object.assign({ t: 'abd' }, d)); r.arb.authorize(id, d.dm, Date.now()); } });
+    rooms.set(name, r); }
   return r;
 }
 function lanIps() {
@@ -139,6 +143,10 @@ function onMessage(c, text) {
     case 'sk': if (typeof m.d === 'string' && m.d.length < 24000) { room.skins.set(c.id, m.d); broadcast(room, { t: 'sk', id: c.id, d: m.d }, c.id); } else { room.skins.delete(c.id); broadcast(room, { t: 'sk', id: c.id, d: '' }, c.id); } break;
     case 'pf': if (m.d && typeof m.d === 'object' && m.d.v === 1 && JSON.stringify(m.d).length <= 80000) { room.profiles.set(c.id, m.d); broadcast(room, { t: 'pf', id: c.id, d: m.d }, c.id); } break;
     case 'pi': sendTo(c, { t: 'po', ts: m.ts }); break;
+    // abismo: golpe a un monstruo (lo valida y lo aplica el servidor), el Kraken vencido y el evento pedido por el anfitrión de una sala privada
+    case 'abh': room.ab.hit(room.arb.get(c.id), m, now); break;
+    case 'abclear': room.ab.cleared(room.arb.get(c.id)); break;
+    case 'abev': if (isHostId(room, c.id)) room.ab.startEvent(now); break;
     // señales para que dos jugadores abran un canal directo (WebRTC): se reenvían tal cual al destinatario
     case 'sig': if (typeof m.to === 'string' && m.d && typeof m.d === 'object') sendTo(room.clients.get(m.to), { t: 'sig', from: c.id, d: m.d }); break;
   }
@@ -188,7 +196,8 @@ server.on('upgrade', (req, socket) => {
   for (const [sid, d] of room.profiles) if (sid !== id) sendTo(c, { t: 'pf', id: sid, d });
   for (const [sid, d] of room.skins) if (sid !== id) sendTo(c, { t: 'sk', id: sid, d });
   sendTo(c,{t:'wx',d:atmosphere.snapshot(room.environment),host:hostOf(room)});
-  sendTo(c, { t: 'au', hello: 1, pub: room.mode === 'public', host: isHostId(room, id) ? 1 : 0 });   // avisa al juego de que este servidor es el árbitro de la sala
+  sendTo(c, { t: 'au', hello: 1, pub: room.mode === 'public', host: isHostId(room, id) ? 1 : 0, sim: 1 });
+  sendTo(c, room.ab.eventState(Date.now()));   // avisa al juego de que este servidor es el árbitro de la sala
   console.log(`[+] ${id} entró a "${roomName}" (${getRoom(roomName).clients.size} en la sala)`);
   socket.on('data', d => { c.buf = c.buf.length ? Buffer.concat([c.buf, d]) : d; readFrames(c); });
   socket.on('close', () => drop(c));
@@ -206,6 +215,19 @@ setInterval(()=>{
     atmosphere.advance(room.environment,dt,players,true);sendEnvironment(room);
   }
 },100);
+
+// el abismo: 20 veces por segundo se mueven los monstruos; 10 veces por segundo se manda lo que ven los que están dentro; el evento, cada segundo
+setInterval(() => {
+  const now = Date.now();
+  for (const room of rooms.values()) {
+    const dt = Math.min(.2, Math.max(0, (now - room.abAt) / 1000)); room.abAt = now;
+    const all = room.arb.list().filter(p => room.clients.has(p.id)).map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z, alive: p.alive, ab: p.ab, st: p.st }));
+    try { room.ab.tick(dt, now, all); } catch (e) { console.error('[abismo] error', e); continue; }
+    room.abT++;
+    if (room.abT % 2 === 0) { const snap = JSON.stringify(room.ab.snapshot()); for (const p of all) if (p.ab) sendTo(room.clients.get(p.id), snap); }
+    const ev = room.ab.eventState(now), es = JSON.stringify(ev); if (es !== room.abEv || room.abT % 20 === 0) { room.abEv = es; broadcast(room, ev); }
+  }
+}, 50);
 
 // el árbitro revisa cada 250 ms los golpes válidos que alguien no reflejó (daño ignorado) y manda las correcciones
 setInterval(() => { const now = Date.now(); for (const room of rooms.values()) dispatch(room, room.arb.tick(now)); }, 250);

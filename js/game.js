@@ -8322,7 +8322,8 @@ const krakenBlocked = () => SEA.noKraken && !(typeof NETPUB === 'function' && NE
 function triggerSeaEvent(name) {
   const e = SEA_EVENTS[name]; if (!e || !SEA.life) return false;
   if (SEA.ev[name] > 0) return false;
-  if (name === 'squid' && krakenBlocked()) { if (G.state === 'play') addFeedText('🦑 El evento del Kraken está desactivado (Panel H)', '#9aa0b8'); return false; }
+  if (name === 'squid' && window.CF_ABISMO && CF_ABISMO.sim && !SEA.srvAnnounce) { CF_ABISMO.requestEvent(); return false; }   // con servidor, el evento lo pide y lo lleva el servidor
+  if (name === 'squid' && krakenBlocked() && !SEA.srvAnnounce) { if (G.state === 'play') addFeedText('🦑 El evento del Kraken está desactivado (Panel H)', '#9aa0b8'); return false; }
   SEA.ev[name] = e.dur;
   if (name === 'school') SEA.life.school.t = 0;
   if (name === 'squid') SEA.life.squid.t = 0;
@@ -8388,7 +8389,7 @@ function updateSeaLife(dt, t, cp) {
   const L = SEA.life; if (!L) return;
   // temporizador de eventos y cuenta atras de los activos
   for (const k in SEA.ev) if (SEA.ev[k] > 0) SEA.ev[k] = Math.max(0, SEA.ev[k] - dt);
-  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && krakenBlocked())); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
+  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && (krakenBlocked() || (window.CF_ABISMO && CF_ABISMO.sim)))); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
   const glow = SEA.ev.glow > 0 ? 1 + .8 * Math.min(1, SEA.ev.glow / 4, (SEA_EVENTS.glow.dur - SEA.ev.glow) / 3 + .2) : 1;
   const near = (x, z, R) => (x - cp.x) * (x - cp.x) + (z - cp.z) * (z - cp.z) < R * R;
   for (const a of L.mantas) {
@@ -14323,6 +14324,7 @@ function localRoom(code, onStatus = () => { }) {
     };
     R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (!R.myProfile) return; R.profiles.set(myId, R.myProfile); send({ t: 'pf', d: R.myProfile }); R.profileAt = Date.now(); notify(); };
     R.weatherCommand = d => send({t:'wx',d});
+    R.sendRaw = send;   // mensajes sueltos para el servidor (golpes a monstruos del abismo, etc.)
     R.setSkin = d => { R.mySkin = d; send({ t: 'sk', d: d || '' }); };
     R.pubAs = (id, obj) => send({ t: 'pa', id, d: obj });
     R.dropAs = id => send({ t: 'xa', id });
@@ -14352,6 +14354,7 @@ function localRoom(code, onStatus = () => { }) {
         else if (m.t === 'pf' && id) receivePublicProfile(R, id, m.d, notify);
         else if (m.t === 'po') R.ping = Math.max(0, Date.now() - (+m.ts || 0));
         else if (m.t === 'au') netAuth(m);
+        else if ((m.t === 'ab' || m.t === 'abd' || m.t === 'abe') && window.CF_ABISMO && CF_ABISMO.srvMsg) CF_ABISMO.srvMsg(m);
       };
     }
     onStatus('Conectando al servidor…');
@@ -14506,7 +14509,7 @@ async function doJoin(code) {
   const st = t => { if (joinCode === code) { const s = $('netstat'); s.classList.remove('ok'); s.textContent = t; } };
   try {
     if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
-    NET.authOn = false; NET.srvHost = null; NET.authLog = '';
+    NET.authOn = false; NET.srvHost = null; NET.authLog = ''; if (window.CF_ABISMO && CF_ABISMO.setSim) CF_ABISMO.setSim(false);
     st('Conectando al servidor…');
     const room = NET.room === 'relay' ? (NET.local ? await localRoom(code.slice(3), st) : await relayRoom(code.slice(3), st)) : await NET.room.join(code);
     if (joinCode !== code) { try { room.leave(); } catch (e) { } return false; }
@@ -14597,7 +14600,7 @@ function cheatStrike(px, why) {
 // Aquí el juego acepta sus correcciones. Una vida más baja que la tuya se aplica siempre; la tuya nunca se sube desde fuera.
 function netAuth(m) {
   if (m.hello || m.host !== undefined) {
-    NET.authOn = true; if (m.hello) { NET.authLog = 'activo'; if (typeof m.pub === 'boolean') NET.public = m.pub; }
+    NET.authOn = true; if (m.hello) { NET.authLog = 'activo'; if (typeof m.pub === 'boolean') NET.public = m.pub; if (window.CF_ABISMO && CF_ABISMO.setSim) CF_ABISMO.setSim(!!m.sim); }
     if (m.host !== undefined) { NET.srvHost = !!m.host; if (m.hello === undefined && m.host) addFeedText('Ahora eres el anfitrión de la sala', '#d7ff2f'); }
     if (m.hello) return;
   }

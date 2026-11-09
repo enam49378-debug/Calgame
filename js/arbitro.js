@@ -171,6 +171,9 @@
       return out;
     }
 
+    // daño que decide el servidor (monstruos del abismo): se anota como golpe válido para que la vida de la víctima baje con permiso
+    function authorize(id, dm, now) { const p = P.get(id); if (p && p.hp !== null) p.pend.push({ t: now, by: 'monstruo', dm: Math.min(L.MAX_DMG, +dm || 0), used: 0 }); }
+    const list = () => [...P.values()];
     function dummy(owner, id, d, now) {
       const f = cleanState(d, false); if (!f) return null;
       D.set(id, { id, owner, x: f.x || 0, y: f.y || 0, z: f.z || 0, alive: f.al === undefined ? true : !!f.al, ab: 0, st: 'play', t: now });
@@ -178,7 +181,7 @@
     }
     function leave(id) { P.delete(id); for (const [k, v] of [...D]) if (v.owner === id || k === id) D.delete(k); }
     function stats() { return { players: [...P.values()].map(p => ({ id: p.id, hp: p.hp, alive: p.alive, k: p.k, d: p.d, hits: p.hits, rejected: p.rejected, flags: p.flags })) }; }
-    return { presence, tick, dummy, leave, stats, get: id => P.get(id), limits: L };
+    return { presence, tick, dummy, leave, stats, authorize, list, get: id => P.get(id), limits: L };
   }
   return { create, LIMITS: L };
 });

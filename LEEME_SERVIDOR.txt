@@ -92,3 +92,15 @@ Para que las publicas sean de verdad "de nadie" el servidor tiene que estar ence
 El juego detecta el servidor desde cualquier direccion que responda /bs-server (ya no solo localhost o la red local).
 Sin servidor, el juego usa las salas publicas antiguas por internet (MQTT): ahi el creador no puede cambiar reglas porque el juego se lo
 impide, pero nada lo hace cumplir.
+
+
+EL ABISMO EN EL SERVIDOR
+------------------------
+Con servidor, los monstruos del abismo (cangrejos, medusas, ranas pescadoras, ahogados, calamarines y el capitan), la llave, el porton y el
+evento del Kraken los lleva el servidor (server/abismo-sim.js), no un jugador:
+  - todos los jugadores ven los mismos monstruos, en el mismo sitio y con la misma vida (con barra de vida sobre cada uno)
+  - si un monstruo le pega a Pepito, el servidor se lo dice a Pepito, y el resto ve bajar su vida; si tu defiendes a Pepito, el monstruo
+    pierde vida para todos y se ven los ataques y los golpes de todos
+  - el evento del Kraken empieza solo cada varios minutos; en una sala privada lo puede pedir el anfitrion; en una publica nadie
+  - el Kraken (jefe) en si todavia lo calcula el jugador que esta dentro desde hace mas tiempo; el servidor solo sabe si lo vencieron
+Pruebas: node tests/abismo-sim.test.cjs
