@@ -60,3 +60,21 @@ Otras opciones para internet
 Notas
   - El servidor no guarda nada: solo reenvía lo que mandan los jugadores. Al cerrarlo se acaba la sala.
   - El juego decide los golpes en cada navegador (igual que antes); el servidor solo hace de repetidor.
+
+
+ARBITRO DE LA PARTIDA (servidor)
+--------------------------------
+Cuando se juega a traves de este servidor (Iniciar_Servidor.bat / Iniciar_Todo.bat), el servidor NO es un simple repetidor: es el arbitro
+(js/arbitro.js). Cada navegador sigue moviendo a su personaje y haciendo las animaciones, pero el servidor decide:
+  - que golpes valen: el atacante debe estar vivo, la victima viva y a menos de 100 de distancia, con un ritmo y un dano posibles;
+    no hay golpes entre jugadores dentro del abismo ni entre mundos distintos
+  - la vida que ven todos: bajar vida siempre se acepta; subirla solo dentro de lo que dan las curaciones del juego; si alguien ignora el
+    dano que se le dio, el servidor se lo aplica
+  - las muertes y las bajas (K.O.): solo cuenta la baja si ese jugador te pego en los ultimos segundos
+  - las reglas de la sala: solo las cambia el anfitrion
+  - todo lo que llega se sanea (numeros en rango, textos limpios, tamanos maximos); hay limite de mensajes por segundo, de salas (64)
+    y de jugadores por sala (24), y nadie puede echar a otro conectandose con su mismo id
+En esa partida no se usan canales directos entre jugadores (todo pasa por el servidor). En la consola del servidor aparecen las trampas
+detectadas, por ejemplo: "[arbitro:sala] u123 intento curarse +88" o "silenciado 15s (muchos golpes imposibles)".
+Si juegas sin servidor (salas publicas por internet sin Iniciar_Servidor), no hay arbitro: cada jugador se cree a si mismo.
+Pruebas: node tests/arbitro.test.cjs

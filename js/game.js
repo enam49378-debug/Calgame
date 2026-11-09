@@ -14118,7 +14118,7 @@ const HUMAN_ID = /^u[a-z0-9]{3,}$/;
 const RTC_CFG = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
 function rtcMesh(R, myId, sigSend, onData) {
   const M = new Map(), cool = new Map(), early = new Map(); let closed = false;   // early: candidatos que llegan antes que la oferta (los relays no garantizan el orden entre sí)
-  const noRTC = typeof RTCPeerConnection === 'undefined' || /[?&]rtc=off/.test(location.search);
+  const noRTC = !!R.noMesh || typeof RTCPeerConnection === 'undefined' || /[?&]rtc=off/.test(location.search);   // con servidor árbitro no hay canales directos: todo pasa por él
   function kill(e, fail) {
     if (M.get(e.id) === e) M.delete(e.id);
     try { e.pc.close(); } catch (x) { }
@@ -14301,7 +14301,7 @@ function relayRoom(code, onStatus = () => { }) {
 function localRoom(code, onStatus = () => { }) {
   return new Promise((resolve, reject) => {
     const myId = 'u' + Math.random().toString(36).slice(2, 10), STALE = 8000;
-    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), profiles: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, ws: null, local: true };
+    const R = { name: 'bs-' + code, my: {}, myId, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), profiles: new Map(), cbs: [], ping: 0, mySkin: null, closed: false, lastSend: 0, timer: 0, ws: null, local: true, noMesh: true };
     let settled = false, opened = false;
     const done = (ok, v) => { if (settled) return; settled = true; ok ? resolve(v) : reject(v); };
     const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
@@ -14351,6 +14351,7 @@ function localRoom(code, onStatus = () => { }) {
         else if (m.t === 'sk' && id) { const d = m.d && m.d.length < 24000 ? m.d : null; R.skins.set(id, d); if (R.onSkin) R.onSkin(id, d); }
         else if (m.t === 'pf' && id) receivePublicProfile(R, id, m.d, notify);
         else if (m.t === 'po') R.ping = Math.max(0, Date.now() - (+m.ts || 0));
+        else if (m.t === 'au') netAuth(m);
       };
     }
     onStatus('Conectando al servidor de tu PC…');
@@ -14584,6 +14585,21 @@ function cheatStrike(px, why) {
   const ck = cheatOf(px), now = performance.now(); ck.tp = ck.tp.filter(t => now - t < 15000); ck.tp.push(now);
   if (ck.tp.length >= 4 && ck.mute < now) { ck.mute = now + 20000; ck.tp.length = 0; try { addFeedText(`⚠ ${px.name}: ${why} (ignorado 20 s)`, '#ffb020'); } catch (e) { } }
 }
+// El servidor es el árbitro de la sala (js/arbitro.js): decide qué golpes valen, la vida real, las muertes y las bajas.
+// Aquí el juego acepta sus correcciones. Una vida más baja que la tuya se aplica siempre; la tuya nunca se sube desde fuera.
+function netAuth(m) {
+  if (m.hello) { NET.authOn = true; NET.authLog = 'activo'; return; }
+  NET.authOn = true; NET.authAt = performance.now();
+  const p = G.player; if (!p || G.state !== 'play' || G.over) return;
+  if (Number.isFinite(+m.k)) p.kills = +m.k;
+  if (Number.isFinite(+m.d)) p.deaths = +m.d;
+  if (m.al === 0 && p.alive && Number.isFinite(+m.hp)) { p.hp = 0; kill(p, null); NET.authLog = 'el servidor te dio por vencido'; return; }
+  if (Number.isFinite(+m.hp) && p.alive && +m.hp < p.hp - .4) {
+    p.hp = Math.max(0, +m.hp); p.flashT = Math.max(p.flashT || 0, .12); NET.authLog = m.why || 'vida corregida';
+    if (m.why) addFeedText('Servidor: ' + m.why, '#ffb020');
+    if (p.hp <= 0) kill(p, null);
+  }
+}
 function applyNetHit(px, h, p = G.player) {
   if (!p || !p.alive || VB.on) return;
   { const ck = cheatOf(px), now = performance.now();
@@ -14715,7 +14731,8 @@ function netDebug(dt) {
     const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
     L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  ${NET.named && NET.named.rtcOpen && NET.named.rtcOpen(px.peer) ? 'DIRECTO' : 'relay (' + (NET.named && NET.named.rtcInfo ? NET.named.rtcInfo(px.peer) : '?') + ')'}  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
   }
-  if (L.length === 1) L.push('(sin otros jugadores)');
+  L.push(`árbitro: ${NET.authOn ? 'SERVIDOR (valida golpes, vida, muertes y bajas)' + (NET.authLog ? ' · último aviso: ' + NET.authLog : '') : 'ninguno (sin servidor: cada jugador se cree a sí mismo)'}`);
+  if (L.length === 2) L.push('(sin otros jugadores)');
   el.textContent = L.join('\n');
 }
 function netTick(dt) {
@@ -14763,7 +14780,7 @@ function netTick(dt) {
       NET.lastKo[pe.peer] = pr.ko.n;
       const killer = pr.ko.by && pr.ko.by === NET.myPeer ? G.player : NET.proxies.get(pr.ko.by) || null;
       addFeed(killer, px);
-      if (killer && killer === G.player) { javiSpeak(killer,'kill'); if (NETPUB() && window.CF_EMOTES) CF_EMOTES.onPublicKill(px); G.player.kills++;   // solo kills a jugadores reales en salas PUBLICAS desbloquean emotes
+      if (killer && killer === G.player) { javiSpeak(killer,'kill'); if (NETPUB() && window.CF_EMOTES) CF_EMOTES.onPublicKill(px); if (!NET.authOn) G.player.kills++;   // con servidor árbitro la cuenta de bajas la manda él (netAuth)   // solo kills a jugadores reales en salas PUBLICAS desbloquean emotes
  G.player.ult = Math.min(100, G.player.ult + 20 * ULT_GAIN); showBanner('K.O.', '#d7ff2f', `${px.name} fuera`); G.slowT = .3; sfx('ko', px.pos); }
     }
   }

@@ -5,7 +5,11 @@
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto'), os = require('os');
 
 const atmosphere = require('./ambiente.js');
+// el árbitro del combate (js/arbitro.js): valida golpes, vida, muertes y reglas; el servidor deja de ser un simple repetidor
+const Arbitro = require('../js/arbitro.js');
 const ROOT = path.resolve(process.env.BLOCKSTRIKE_ROOT || path.join(__dirname, '..')), PORT = +process.env.PORT || 8080, STALE_MS = 20000, MAX_MSG = 1 << 20;
+const MAX_ROOMS = +process.env.MAX_ROOMS || 64, MAX_PLAYERS = +process.env.MAX_PLAYERS || 24;   // límites para que no se sature el servidor
+const RATE = { perSec: 160, burst: 320, floodKick: 1500 };                                       // mensajes por segundo de un cliente (el juego manda ~30)
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.ico': 'image/x-icon', '.svg': 'image/svg+xml', '.bbmodel': 'application/json', '.txt': 'text/plain; charset=utf-8' };
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
@@ -13,7 +17,7 @@ const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const rooms = new Map();
 function getRoom(name) {
   let r = rooms.get(name);
-  if (!r) { r = { clients: new Map(), states: new Map(), skins: new Map(), profiles: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now() }; rooms.set(name, r); }
+  if (!r) { r = { clients: new Map(), states: new Map(), skins: new Map(), profiles: new Map(), environment: atmosphere.create(atmosphere.hash(name+Date.now())), envAt: Date.now(), arb: Arbitro.create({ log: m => console.log(`[árbitro:${name}] ${m}`) }) }; rooms.set(name, r); }
   return r;
 }
 function lanIps() {
@@ -68,6 +72,9 @@ function sendTo(c, obj) {
   if (!c || c.dead) return;
   try { c.socket.write(frame(1, Buffer.from(typeof obj === 'string' ? obj : JSON.stringify(obj)))); } catch (e) { drop(c); }
 }
+// mensajes del árbitro para clientes concretos: [{ to, msg }]
+function dispatch(room, outs) { if (outs) for (const o of outs) sendTo(room.clients.get(o.to), o.msg); }
+const isHostId = (room, id) => room.clients.keys().next().value === id;
 function broadcast(room, obj, exceptId) {
   const s = JSON.stringify(obj);
   for (const [id, c] of room.clients) if (id !== exceptId) sendTo(c, s);
@@ -79,7 +86,7 @@ function drop(c) {
   if (room.clients.get(c.id) === c) room.clients.delete(c.id);
   // se borran el jugador y las entidades que publicó (dummies del anfitrión)
   for (const [id, st] of [...room.states]) if (id === c.id || st.owner === c.id) { room.states.delete(id); broadcast(room, { t: 'x', id }); }
-  room.profiles.delete(c.id);
+  room.profiles.delete(c.id); room.arb.leave(c.id);
   if (room.skins.has(c.id)) { room.skins.delete(c.id); }
   if (!room.clients.size) rooms.delete(c.roomName);
   console.log(`[-] ${c.id} salió de "${c.roomName}" (${room.clients.size} en la sala)`);
@@ -89,15 +96,23 @@ function onMessage(c, text) {
   let m; try { m = JSON.parse(text); } catch (e) { return; }
   if (!m || typeof m !== 'object') return;
   const room = rooms.get(c.roomName); if (!room) return;
-  c.last = Date.now();
+  const now = Date.now(); c.last = now;
+  // límite de mensajes por segundo (cubo con fichas): el que inunda el servidor pierde mensajes y, si insiste, la conexión
+  c.tok = Math.min(RATE.burst, (c.tok == null ? RATE.burst : c.tok) + (now - (c.tokT || now)) / 1000 * RATE.perSec); c.tokT = now;
+  if (c.tok < 1) { if (++c.over > RATE.floodKick) { console.log(`[!] ${c.id} inundaba el servidor`); drop(c); } return; } c.tok--; if (c.over > 0 && c.tok > RATE.burst / 2) c.over = 0;
   switch (m.t) {
     case 'wx':
       // Solo el anfitrión configura el ambiente; la hora, los rayos y sus víctimas los calcula este servidor.
       if(room.clients.keys().next().value===c.id && atmosphere.command(room.environment,m.d))sendEnvironment(room);
       break;
-    case 'p': if (m.d && typeof m.d === 'object') { room.states.set(c.id, { d: m.d, owner: c.id }); broadcast(room, { t: 'p', id: c.id, d: m.d }, c.id); } break;
-    case 'pa': if (typeof m.id === 'string' && m.id.length < 80 && m.d && typeof m.d === 'object') { room.states.set(m.id, { d: m.d, owner: c.id }); broadcast(room, { t: 'p', id: m.id, d: m.d }, c.id); } break;
-    case 'xa': if (typeof m.id === 'string' && room.states.get(m.id) && room.states.get(m.id).owner === c.id) { room.states.delete(m.id); broadcast(room, { t: 'x', id: m.id }); } break;
+    case 'p': {   // el estado del jugador pasa por el árbitro: lo que se reenvía ya está validado, y vida/muertes/bajas son las del servidor
+      const r = m.d && typeof m.d === 'object' ? room.arb.presence(c.id, m.d, now, isHostId(room, c.id)) : null; if (!r) break;
+      room.states.set(c.id, { d: r.d, owner: c.id }); broadcast(room, { t: 'p', id: c.id, d: r.d }, c.id); dispatch(room, r.out); break; }
+    case 'pa': if (typeof m.id === 'string' && m.id.length < 80 && /^[A-Za-z0-9_:.-]+$/.test(m.id) && m.d && typeof m.d === 'object') {   // dummies del anfitrión
+      if ([...room.states.values()].filter(q => q.owner === c.id).length > 12 && !room.states.has(m.id)) break;
+      const d = room.arb.dummy(c.id, m.id, m.d, now); if (!d) break;
+      room.states.set(m.id, { d, owner: c.id }); broadcast(room, { t: 'p', id: m.id, d }, c.id); } break;
+    case 'xa': if (typeof m.id === 'string' && room.states.get(m.id) && room.states.get(m.id).owner === c.id) { room.states.delete(m.id); room.arb.leave(m.id); broadcast(room, { t: 'x', id: m.id }); } break;
     case 'sk': if (typeof m.d === 'string' && m.d.length < 24000) { room.skins.set(c.id, m.d); broadcast(room, { t: 'sk', id: c.id, d: m.d }, c.id); } else { room.skins.delete(c.id); broadcast(room, { t: 'sk', id: c.id, d: '' }, c.id); } break;
     case 'pf': if (m.d && typeof m.d === 'object' && m.d.v === 1 && JSON.stringify(m.d).length <= 80000) { room.profiles.set(c.id, m.d); broadcast(room, { t: 'pf', id: c.id, d: m.d }, c.id); } break;
     case 'pi': sendTo(c, { t: 'po', ts: m.ts }); break;
@@ -131,18 +146,25 @@ server.on('upgrade', (req, socket) => {
   const url = new URL(req.url, 'http://x');
   const key = req.headers['sec-websocket-key'];
   if (url.pathname !== '/ws' || !key) { socket.destroy(); return; }
-  const roomName = (url.searchParams.get('room') || 'amigos').slice(0, 40), id = (url.searchParams.get('id') || '').slice(0, 40) || 'u' + crypto.randomBytes(4).toString('hex');
+  const roomName = (url.searchParams.get('room') || 'amigos').replace(/[\u0000-\u001f<>]/g, '').slice(0, 40) || 'amigos', ask = (url.searchParams.get('id') || '').slice(0, 40);
+  const id = /^[A-Za-z0-9_-]{1,40}$/.test(ask) ? ask : 'u' + crypto.randomBytes(4).toString('hex');
+  const ip = socket.remoteAddress || '';
+  // salas y jugadores limitados; y nadie puede echar a otro jugador conectándose con su id (solo se reemplaza una conexión de la misma dirección)
+  const existing = rooms.get(roomName);
+  if ((!existing && rooms.size >= MAX_ROOMS) || (existing && existing.clients.size >= MAX_PLAYERS && !existing.clients.has(id))) { socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n'); socket.destroy(); return; }
+  { const o = existing && existing.clients.get(id); if (o && !o.dead && o.ip !== ip && Date.now() - o.last < 6000) { socket.write('HTTP/1.1 409 Conflict\r\n\r\n'); socket.destroy(); return; } }
   socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' + crypto.createHash('sha1').update(key + GUID).digest('base64') + '\r\n\r\n');
   socket.setNoDelay(true);
   const room = getRoom(roomName), old = room.clients.get(id);
   if (old) drop(old);
-  const c = { id, roomName, socket, buf: Buffer.alloc(0), last: Date.now(), dead: false, frag: null };
+  const c = { id, roomName, ip, socket, buf: Buffer.alloc(0), last: Date.now(), dead: false, frag: null, tok: RATE.burst, tokT: Date.now(), over: 0 };
   getRoom(roomName).clients.set(id, c);
   // al entrar recibe el estado y la skin de todos los que ya están
   for (const [sid, st] of room.states) if (sid !== id) sendTo(c, { t: 'p', id: sid, d: st.d });
   for (const [sid, d] of room.profiles) if (sid !== id) sendTo(c, { t: 'pf', id: sid, d });
   for (const [sid, d] of room.skins) if (sid !== id) sendTo(c, { t: 'sk', id: sid, d });
   sendTo(c,{t:'wx',d:atmosphere.snapshot(room.environment),host:room.clients.keys().next().value});
+  sendTo(c, { t: 'au', hello: 1 });   // avisa al juego de que este servidor es el árbitro de la sala
   console.log(`[+] ${id} entró a "${roomName}" (${getRoom(roomName).clients.size} en la sala)`);
   socket.on('data', d => { c.buf = c.buf.length ? Buffer.concat([c.buf, d]) : d; readFrames(c); });
   socket.on('close', () => drop(c));
@@ -160,6 +182,9 @@ setInterval(()=>{
     atmosphere.advance(room.environment,dt,players,true);sendEnvironment(room);
   }
 },100);
+
+// el árbitro revisa cada 250 ms los golpes válidos que alguien no reflejó (daño ignorado) y manda las correcciones
+setInterval(() => { const now = Date.now(); for (const room of rooms.values()) dispatch(room, room.arb.tick(now)); }, 250);
 
 // quita a quien dejó de responder (cierre de pestaña sin avisar, corte de wifi)
 setInterval(() => {
