@@ -14553,7 +14553,7 @@ function netSendPlay() {
   if (!NET.named || !G.player) return;
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
-  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit() })).catch(() => { });
+  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit(), abx: window.CF_ABISMO && CF_ABISMO.netOut ? CF_ABISMO.netOut() : undefined })).catch(() => { });
   if (NET.named.pubAs) for (const d of dummies()) if (d.netId) NET.named.pubAs(d.netId, Object.assign(presenceOf(d, 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: [] }));
 }
 function presenceOf(f, ch) {
@@ -14605,6 +14605,7 @@ function applyNetHit(px, h, p = G.player) {
 
 function replayAct(px, a) {
   if (!px.alive || !a) return;
+  if (a.k === 'abh') { if (window.CF_ABISMO && CF_ABISMO.netHit) CF_ABISMO.netHit(px, a); return; }
   if(a.k==='r'){
     if(px.ch!==CHARS.sekza)return;
     if(a.mode==='flight')startSekzaFlight(px,true);
@@ -14742,6 +14743,7 @@ function netTick(dt) {
       if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
+    if (pr.abx && window.CF_ABISMO && CF_ABISMO.netIn) { px.abyss = !!pr.ab; CF_ABISMO.netIn(px, pr.abx); }
     receiveCharacterVoice(px,pr);
     synchronizeSpearDrops(px,pr);
     if (Array.isArray(pr.hits)) {

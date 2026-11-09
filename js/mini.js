@@ -9,7 +9,7 @@
     const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; c.getContext('2d').drawImage(im, 0, 0); SK.cv = c; SK.ready = true; }; im.src = 'personajes/mini/skin.png';
     const SC = .56, HEAD = 1.7, LINES = ['Yo ayudo.', 'Toma esto.', 'Sunn, cuidado.', 'Lo tengo.', 'Disparo.', 'Misión cumplida.'];
     function make(owner) {
-      const m = buildModel(SK.cv, false, scene); m.root.scale.setScalar(SC); m.head.scale.setScalar(HEAD);
+      const m = buildModel(SK.cv, false, scene); m.root.scale.setScalar(SC); m.head.scale.setScalar(HEAD); m.root.userData.keepAbyss = true;   // en el abismo no se esconde con el resto del mundo
       return { owner, m, pos: new V3(owner.pos.x - 1.1, owner.pos.y, owner.pos.z - .6), yaw: owner.yaw || 0, cd: 1.5, shoot: 0, walk: 0, cmd: null, flameT: 0 };
     }
     function drop(o) { if (o.mini) { try { disposeModel(o.mini.m); } catch (e) { } o.mini = null; } }

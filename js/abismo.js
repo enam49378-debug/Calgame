@@ -180,8 +180,19 @@
     document.head.appendChild(css);
     function mkBar() { if (!B.bar) { B.bar = document.createElement('div'); B.bar.id = 'bossbar'; B.bar.innerHTML = '<b>KRAKEN DEL ABISMO</b><div class="bb"><i></i></div><div class="ar"></div><small></small>'; document.body.appendChild(B.bar); } B.bar.classList.add('on'); }
     const abyssPlayers = () => G.fighters.filter(f => f.abyss && f.alive && !f.remote && !f.isBoss);
+    const abyssTargets = () => G.fighters.filter(f => f.abyss && f.alive && !f.isBoss && (!f.remote || NETMP()));   // a quién persiguen los monstruos (también jugadores de otras PCs)
+    // ---------------------------------------------------------------- MULTIJUGADOR: un solo abismo para todos
+    // El primer jugador (por id) que está dentro es el DUEÑO: decide dónde están los monstruos, su vida, la llave, el portón y la vida del Kraken,
+    // y lo manda a los demás. Los golpes de cualquiera bajan esa misma vida. Cada uno recibe los ataques en su propia pantalla (se esquivan bien).
+    const NETMP = () => !!(G.mp && NET.named);
+    const NETAB = { mobSeq: 0, ev: [], evSeq: 0, rx: null, rxT: 0, rxFrom: '', lastEv: 0, groupsMask: 0, wasMirror: false, hitT: [] };
+    const MOB_KINDS = ['crab', 'jelly', 'angler', 'drowned', 'squidling', 'captain'], B_ST = ['sleep', 'intro', 'fight', 'dead'], K_ST = ['none', 'ground', 'held', 'used'];
+    function abyssPeers() { const a = []; if (G.player && G.player.abyss && NET.myPeer) a.push(NET.myPeer); for (const px of NET.proxies.values()) if (px.abyss && px.peer) a.push(px.peer); return a.sort(); }
+    function amOwner() { if (!NETMP()) return true; const a = abyssPeers(); return !a.length || a[0] === NET.myPeer; }
+    const isMirror = () => NETMP() && !!(G.player && G.player.abyss) && !amOwner();
     let HS = null;   // quién está atacando ahora (un enemigo o el jefe)
     function hurt(f, dmg, dx, dz, kb, src) {
+      if (f.remote) return;   // a un jugador de otra PC le pega su propio juego (recibe el ataque como evento)
       src = src || HS || B.f; if (!f.alive) return;
       if (src && src.alive && src !== f && window.CF_ABISMO) { const dd = Math.hypot(dx, dz) || 1; applyHit(src, f, { dmg, dir: dx || dz ? new V3(dx / dd, 0, dz / dd) : null, kb: kb || 3, up: (kb || 0) * .3, stun: kb > 8 ? .4 : 0, color: '#ff5577' }); return; }
       if (!f.alive || f.iframes > 0 || f.cineLock) return;
@@ -369,7 +380,15 @@
       B.stagger = 2.6; B.vuln = Math.max(B.vuln, 3.8); if (B.f) B.f.hp = Math.max(1, B.f.hp - 35);
       if (!aliveArms().length) { B.exposed = 9; popText(B.g.position.clone().add(new V3(0, 19, 0)), '¡OJO AL DESCUBIERTO!', '#ffd23f', 28); }
     }
+    const capDmg = (att, hp, dmg) => Math.min(dmg, Math.max(0, hp - 1) / Math.max(.01, (att.ch.dmgMul || 1) * 1.15 * (typeof DMG_GLOBAL === 'number' ? DMG_GLOBAL : 1) * ((G.rules && G.rules.dmg) || 1)));
     function bossHit(att, o, tg) {
+      if (isMirror() && att === G.player) {   // copia: el dueño decide; aquí solo se ve el golpe (la vida real llega en el próximo paquete)
+        if (tg && tg.mob) { const m = AB.mobs.find(q => q.f === tg); const r = mobHit(att, o, tg); if (m && m.nid) netAct({ k: 'abh', i: m.nid, dm: Math.round((r.dmg || 0) * 10) / 10 }); return Object.assign({}, r, { dmg: capDmg(att, tg.hp, r.dmg || 0) }); }
+        if (!B.f || B.state === 'dead') return o;
+        const n = aliveArms().length, mult = B.vuln > 0 || B.exposed > 0 ? 2.2 : n >= 4 ? .45 : n > 0 ? .8 : 1.8;
+        netAct({ k: 'abh', i: 0, dm: Math.round((o.dmg || 3) * 10) / 10 }); B.hitT = .12;
+        return Object.assign({}, o, { dmg: capDmg(att, B.f.hp, (o.dmg || 3) * mult) });
+      }
       if (tg && tg.mob) return mobHit(att, o, tg);   // enemigos del pasillo: efectos según el personaje   // cada golpe: elige el tentáculo más cercano, le baja vida y ajusta el daño al cuerpo
       if (!B.g || B.state === 'dead') return o;
       const dmg = o.dmg || 3, ang = Math.atan2(att.pos.z - ABY.z, att.pos.x - ABY.x); let best = null, bd = 9;
@@ -403,7 +422,7 @@
       if (tgt && !dead) { const hy = Math.max(-.5, Math.min(.5, (Math.atan2(tgt.pos.x - g.position.x, tgt.pos.z - g.position.z) - g.rotation.y) * .35)); B.head.rotation.y += (hy - B.head.rotation.y) * Math.min(1, dt * 4); }
       B.fins.forEach(([fin, s]) => { fin.rotation.z = s * (.5 + Math.sin(t * 2.4 * rage) * .22); });
       B.arms.forEach(a => {
-        if (a.severed) { a.regrow -= dt; if (a.regrow <= 0) { a.severed = false; a.hp = a.max; a.root.visible = true; a.root.scale.setScalar(.2); burst(armWorld(a).add(new V3(0, 1, 0)), 14, '#ffd0dc', 6, .2, .6, -.2); } return; }
+        if (a.severed) { a.regrow -= dt; if (a.regrow <= 0 && !isMirror()) { a.severed = false; a.hp = a.max; a.root.visible = true; a.root.scale.setScalar(.2); burst(armWorld(a).add(new V3(0, 1, 0)), 14, '#ffd0dc', 6, .2, .6, -.2); } return; }
         a.root.scale.setScalar(Math.min(1, a.root.scale.x + dt * .8)); a.flash = Math.max(0, a.flash - dt);
         if (a.busy) return;
         { const tAng = tgt ? Math.atan2(tgt.pos.x - g.position.x, tgt.pos.z - g.position.z) - g.rotation.y : 0; let dy = tAng - (Math.PI / 2 - a.ang); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const lean = dead ? 0 : Math.max(-.7, Math.min(.7, dy)) * .3 * (1 - Math.abs(dy) / Math.PI); a.root.rotation.y += ((Math.PI / 2 - a.ang + lean) - a.root.rotation.y) * Math.min(1, dt * 3); }
@@ -636,7 +655,7 @@
       if (bbi) { g = new T.Group(); g.add(bbi.root); g.userData = { bb: bbi }; const au = glowSprite(BB_MOB[kind][2], BB_MOB[kind][3], BB_MOB[kind][4]); g.add(au); g.userData.aura = au; } else { g = MOB_BUILD[kind](); detailMob(kind, g); }
       g.position.copy(f.pos); scene.add(g); snd(SND_SPAWN[kind], f.pos, .9);
       const m = { f, g, k: kind, bs: g.scale.x * (kind === 'captain' ? 1 : 1), spawnT: 0, kx: 0, kz: 0, dot: null, slow: 0, slowK: 1, stun: 0, conf: 0, marks: 0, fxT: 0, squash: 0, T: T0, cd: rand(.6, 1.6), wind: 0, lastHp: T0.hp, flash: 0, dead: 0, ph: rand(0, 6), hx: x, hz: z, yaw: rand(0, 6), aggro: false, mats: [], lunge: 0, hitDone: false, step: 0 };
-      g.traverse(o => { if (o.material && o.material.emissive && o.material.color) m.mats.push(o.material); }); AB.mobs.push(m); return m;
+      m.id = ++NETAB.mobSeq; g.traverse(o => { if (o.material && o.material.emissive && o.material.color) m.mats.push(o.material); }); AB.mobs.push(m); return m;
     }
     // ---------------------------------------------------------------- v2 de los enemigos: más detalle, aparición, reacciones al golpe, muertes propias, interacciones por personaje y cinemáticas
     let glowTex = null;
@@ -753,14 +772,16 @@
       else if (m.k === 'squidling') { u.tn.forEach(([tg, i]) => { tg.rotation.x = Math.sin(t * 4 + i) * .4; tg.rotation.z = Math.cos(t * 3.4 + i * 1.3) * .4; }); u.mantle.scale.y = 1 + Math.sin(t * 3 + m.ph) * .1 + (m.wind > 0 ? .2 : 0); }
     }
     function mobsUpdate(dt, t) {
-      const ps = abyssPlayers(), lk = locked(); if (AB.cineT > 0) AB.cineT -= dt;
-      if (lk && !AB.groups && ps.length) AB.groups = planGroups();
-      if (AB.groups) for (const gr of AB.groups) { if (gr.spawned) continue; if (ps.some(p => { const q = sdOf(p.pos.x, p.pos.z); return q > gr.sd - 55 && q < gr.sd + 12 && abyPath(p.pos.x, p.pos.z).d < 40; })) { gr.spawned = true; const q = pathAt(gr.sd); gr.kinds.forEach((k, i) => { const u = (rnd() - .5) * 10, v = (rnd() - .5) * 12; const m = spawnMob(k, q.x + q.tx * u + q.nx * v, q.z + q.tz * u + q.nz * v); abyssClamp(m.f.pos); m.f.home.copy(m.f.pos); if (k === 'captain') { m.cap = true; showBanner('CAPITÁN AHOGADO', '#ffb347', 'Guardián de la llave del portón'); AB.cineT = 3.6; for (const q of ps) q.iframes = Math.max(q.iframes, 3.8); if (G.player && G.player.abyss) cinCam(() => new V3(m.f.pos.x, m.f.pos.y + 1, m.f.pos.z), 3.4, 15, 6, .35); sfx('boom', m.f.pos, .9); } }); } }
-      if (!lk && AB.mobs.length) for (const m of AB.mobs) if (!m.dead) { m.f.hp = 0; m.f.alive = false; m.dead = .001; }
+      const MIR = isMirror(), ps = MIR ? abyssPlayers() : abyssTargets(), loc = abyssPlayers(), lk = locked(); if (AB.cineT > 0) AB.cineT -= dt;
+      if (MIR) mirrorMobs(); else if (NETAB.wasMirror) becomeOwner();
+      NETAB.wasMirror = MIR;
+      if (!MIR && lk && !AB.groups && ps.length) AB.groups = planGroups();
+      if (!MIR && AB.groups) for (const gr of AB.groups) { if (gr.spawned) continue; if (ps.some(p => { const q = sdOf(p.pos.x, p.pos.z); return q > gr.sd - 55 && q < gr.sd + 12 && abyPath(p.pos.x, p.pos.z).d < 40; })) { gr.spawned = true; const q = pathAt(gr.sd); gr.kinds.forEach((k, i) => { const u = (rnd() - .5) * 10, v = (rnd() - .5) * 12; const m = spawnMob(k, q.x + q.tx * u + q.nx * v, q.z + q.tz * u + q.nz * v); abyssClamp(m.f.pos); m.f.home.copy(m.f.pos); if (k === 'captain') { m.cap = true; showBanner('CAPITÁN AHOGADO', '#ffb347', 'Guardián de la llave del portón'); AB.cineT = 3.6; for (const q of ps) q.iframes = Math.max(q.iframes, 3.8); if (G.player && G.player.abyss) cinCam(() => new V3(m.f.pos.x, m.f.pos.y + 1, m.f.pos.z), 3.4, 15, 6, .35); sfx('boom', m.f.pos, .9); } }); } }
+      if (!MIR && !lk && AB.mobs.length) for (const m of AB.mobs) if (!m.dead) { m.f.hp = 0; m.f.alive = false; m.dead = .001; }
       for (let i = AB.mobs.length - 1; i >= 0; i--) {
         const m = AB.mobs[i], f = m.f, T0 = m.T, g = m.g;
         f.vel.set(0, 0, 0); f.stun = 0; f.ragdoll = 0; f.hurtT = 0; f.grabbed = false; f.cineLock = null; f.frozen = 0; f.blocking = false; f.iframes = 0; f.model.root.visible = false;
-        if (!f.alive && !m.dead) { m.dead = .001; if (m.cap) dropKey(f.pos.x, f.pos.z); mobDeath(m); }
+        if (!f.alive && !m.dead) { m.dead = .001; if (m.cap && !m.mirror) dropKey(f.pos.x, f.pos.z); mobDeath(m); }
         if (m.dead) { m.dead += dt; const d = m.dead, sc = m.bs;
           if (m.k === 'jelly' || m.k === 'squidling') { g.scale.setScalar(Math.max(.01, sc * (1 - d * 2.4))); g.position.y += dt * 2; }
           else if (m.k === 'crab') { g.rotation.z = Math.min(Math.PI, d * 9); g.position.y = f.pos.y + Math.sin(Math.min(1, d * 3) * Math.PI) * 1.2; g.scale.setScalar(Math.max(.01, sc * (1 - Math.max(0, d - .35) * 2.6))); }
@@ -768,26 +789,34 @@
           else { g.scale.y = Math.max(.05, sc * (1 - d * 1.2)); g.scale.x = g.scale.z = sc * (1 + d * .25); g.rotation.x = Math.min(.7, d * 1.4) * (m.k === 'captain' ? 1 : .8); if (m.k === 'captain' && Math.random() < dt * 30) emit(g.position.x + rand(-1.5, 1.5), g.position.y + rand(1, 5), g.position.z + rand(-1.5, 1.5), 0, rand(2, 5), 0, '#ffd54f', .18, .9, -.2, 1); }
           if (d > (m.cap ? 1.4 : .75)) { scene.remove(g); const j = G.fighters.indexOf(f); if (j >= 0) G.fighters.splice(j, 1); try { f.dispose(); } catch (e) { } AB.mobs.splice(i, 1); } continue; }
         if (m.spawnT < 1) { m.spawnT += dt / (m.cap ? 1.6 : .9); const e = 1 - Math.pow(1 - Math.min(1, m.spawnT), 3), bs = m.bs; g.scale.setScalar(Math.max(.05, bs * (.2 + .8 * e))); g.position.set(f.pos.x, f.pos.y - (1 - e) * 4.5, f.pos.z); if (Math.random() < dt * 45) emit(f.pos.x + rand(-1.4, 1.4), ABY.y + .3, f.pos.z + rand(-1.4, 1.4), rand(-2, 2), rand(1.5, 4), rand(-2, 2), '#8aa4b8', .3, .8, 1, 2); if (m.spawnT >= 1) { g.scale.setScalar(bs); ringAt(new V3(f.pos.x, ABY.y + .2, f.pos.z), '#9ef2ff', 5, .5); } mobDetailAnim(m, t); continue; }
+        if (m.mirror && m.thp != null) { if (m.thp < f.hp - .01 || m.thp > f.hp + 8) f.hp = Math.max(1, m.thp); m.thp = null; }
         m.fxT = Math.max(0, m.fxT - dt); const hit0 = f.hp < m.lastHp - .01;
         if (hit0) { m.flash = .16; m.aggro = true; m.squash = .22; snd('thud', f.pos, .6); const pn = ps.length ? ps.reduce((a2, b2) => dist2d(a2, f) < dist2d(b2, f) ? a2 : b2) : null; if (pn && !m.kx && !m.kz && !m.cap) { const kx = f.pos.x - pn.pos.x, kz = f.pos.z - pn.pos.z, kd = Math.hypot(kx, kz) || 1; m.kx = kx / kd * 4; m.kz = kz / kd * 4; } burst(chestOf(f), 5, '#e8f8ff', 6, .15, .35, .2); } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt); m.squash = Math.max(0, m.squash - dt);
-        if (m.dot) { m.dot.t -= dt; f.hp -= m.dot.dps * dt; m.lastHp = f.hp; if (Math.random() < dt * 14) emit(f.pos.x + rand(-.8, .8), f.pos.y + rand(.5, (f.hitH || 2)), f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, m.dot.col, .16, .6, -.3, 1); if (f.hp <= 0 && f.alive) kill(f, m.dot.by || null); if (m.dot && m.dot.t <= 0) m.dot = null; }
+        if (m.dot) { m.dot.t -= dt; f.hp -= m.dot.dps * dt; m.lastHp = f.hp; if (Math.random() < dt * 14) emit(f.pos.x + rand(-.8, .8), f.pos.y + rand(.5, (f.hitH || 2)), f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, m.dot.col, .16, .6, -.3, 1); if (f.hp <= 0 && f.alive) { if (m.mirror) f.hp = 1; else kill(f, m.dot.by || null); } if (m.dot && m.dot.t <= 0) m.dot = null; }
         if (m.slow > 0) m.slow -= dt; if (m.conf > 0) m.conf -= dt; if (AB.cineT > 0) m.aggro = false;
         for (const mt of m.mats) { if (m.flash > 0) mt.emissive.setRGB(.7, .7, .7); else if (mt.userData && mt.userData.em) mt.emissive.copy(mt.userData.em); else mt.emissive.copy(mt.color).multiplyScalar(.4); }
         if (m.aggro && Math.random() < dt * .22) snd(SND_WIND[m.k], f.pos, .45);
         let tgt = null, bd = 1e9; for (const p of ps) { const d = dist2d(p, f); if (d < bd) { bd = d; tgt = p; } }
         let mx = 0, mz = 0, moving = false, sp = T0.spd * (m.slow > 0 ? m.slowK : 1) * (m.dot && m.k === 'crab' ? 1.5 : 1);
         if (tgt && bd < T0.aggro) m.aggro = true; else if (!tgt || bd > T0.aggro * 2.2) m.aggro = false;
-        if (m.stun > 0) { m.stun -= dt; m.wind = 0; m.lunge = 0; }
+        if (m.mirror) {   // copia: se mueve hacia donde dice el dueño; la embestida del rape sí pega aquí (si me apuntaba a mí)
+          const k = 1 - Math.exp(-dt * 10), ox = f.pos.x, oz = f.pos.z; if (m.tx != null) { f.pos.x += (m.tx - f.pos.x) * k; f.pos.z += (m.tz - f.pos.z) * k; }
+          moving = Math.hypot(f.pos.x - ox, f.pos.z - oz) > dt * 1.2; if (m.tyaw != null) m.yaw = angLerp(m.yaw, m.tyaw, Math.min(1, dt * 10));
+          if (m.lunge > 0) { m.lunge -= dt; if (!m.hitDone && G.player && G.player.alive && dist2d(G.player, f) < 2.6) { m.hitDone = true; hurt(G.player, T0.dmg, m.lx, m.lz, 8, f); } }
+          if (m.wind > 0) m.wind -= dt; if (m.stunN > 0) { m.stunN -= dt; g.rotation.z = Math.sin(t * 40) * .06; }
+          m.kx = m.kz = 0;
+        }
+        else if (m.stun > 0) { m.stun -= dt; m.wind = 0; m.lunge = 0; }
         else if (m.conf > 0) { const a = t * 3 + m.ph; mx = Math.cos(a) * sp; mz = Math.sin(a * 1.3) * sp; moving = true; m.yaw = Math.atan2(mx, mz); }
         else if (m.lunge > 0) { m.lunge -= dt; mx = m.lx * 17; mz = m.lz * 17; moving = true; if (!m.hitDone && tgt && dist2d(tgt, f) < 2.6) { m.hitDone = true; hurt(tgt, T0.dmg, m.lx, m.lz, 8, f); } }
-        else if (m.wind > 0) { m.wind -= dt; if (tgt) m.yaw = Math.atan2(tgt.pos.x - f.pos.x, tgt.pos.z - f.pos.z); if (m.wind <= 0) mobAttack(m, tgt); }
+        else if (m.wind > 0) { m.wind -= dt; if (tgt) m.yaw = Math.atan2(tgt.pos.x - f.pos.x, tgt.pos.z - f.pos.z); if (m.wind <= 0) { if (tgt && tgt.remote) netEvent(m, tgt); mobAttack(m, tgt); } }
         else if (m.aggro && tgt) {
           const dx = tgt.pos.x - f.pos.x, dz = tgt.pos.z - f.pos.z, dd = Math.hypot(dx, dz) || 1; m.yaw = Math.atan2(dx, dz);
           const want = T0.ranged ? 12 : T0.rng * .75;
           if (dd > want) { mx = dx / dd * sp; mz = dz / dd * sp; moving = true; } else if (T0.ranged && dd < 8) { mx = -dx / dd * sp * .7; mz = -dz / dd * sp * .7; moving = true; }
           m.cd -= dt; if (m.cd <= 0 && dd < (T0.ranged ? T0.rng : T0.rng + .6)) { m.wind = T0.wind; m.cd = T0.cd * rand(.85, 1.25); snd(SND_WIND[m.k], f.pos, .8); if (m.k === 'jelly') ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff8fe8', T0.rng, T0.wind); if (m.k === 'captain' && m.alt) ringAt(new V3(f.pos.x, ABY.y + .3, f.pos.z), '#ff9a4a', 6.2, T0.wind); }
         } else { const a = t * .4 + m.ph; mx = (m.hx + Math.cos(a) * 3 - f.pos.x) * .5; mz = (m.hz + Math.sin(a * 1.3) * 3 - f.pos.z) * .5; moving = Math.hypot(mx, mz) > .6; m.yaw = Math.atan2(mx, mz) || m.yaw; }
-        f.pos.x += (mx + m.kx) * dt; f.pos.z += (mz + m.kz) * dt; m.kx *= Math.exp(-6 * dt); m.kz *= Math.exp(-6 * dt); abyssClamp(f.pos); f.pos.y = ABY.y + (T0.fly ? T0.fly + Math.sin(t * 2 + m.ph) * .35 : 0);
+        if (!m.mirror) { f.pos.x += (mx + m.kx) * dt; f.pos.z += (mz + m.kz) * dt; } m.kx *= Math.exp(-6 * dt); m.kz *= Math.exp(-6 * dt); abyssClamp(f.pos); f.pos.y = ABY.y + (T0.fly ? T0.fly + Math.sin(t * 2 + m.ph) * .35 : 0);
         g.position.copy(f.pos); g.rotation.set(0, m.yaw - (m.k === 'angler' && !g.userData.bb ? Math.PI / 2 : 0), 0);
         if (m.k === 'angler' && !g.userData.bb) g.rotation.y = m.yaw - Math.PI / 2;
         { const sq = m.squash > 0 ? 1 + Math.sin(m.squash / .22 * Math.PI) * .18 : 1, bs = m.bs; g.scale.set(bs / sq, bs * sq, bs / sq); if (m.stun > 0) g.rotation.z = Math.sin(t * 40) * .06; }
@@ -795,14 +824,86 @@
         if (m.dot) for (const mt of m.mats) mt.emissive.setRGB(.5, .2, .02);
         if (m.cap && KEY.st !== 'ground' && KEY.st !== 'held' && KEY.st !== 'used') { /* el capitán lleva la llave encima */ }
       }
-      for (let i = AB.bolts.length - 1; i >= 0; i--) { const b = AB.bolts[i]; b.t += dt; b.m.position.x += b.vx * dt; b.m.position.z += b.vz * dt; let hit = false; for (const p of ps) if (Math.hypot(p.pos.x - b.m.position.x, p.pos.z - b.m.position.z) < 1.3 && p.pos.y < ABY.y + 3.4) { hurt(p, b.dmg, Math.sign(b.vx), Math.sign(b.vz), 3, b.src); hit = true; break; } if (hit || b.t > 2.4) { burst(b.m.position.clone(), 8, '#4a2060', 5, .2, .5, 0); scene.remove(b.m); AB.bolts.splice(i, 1); } }
+      for (let i = AB.bolts.length - 1; i >= 0; i--) { const b = AB.bolts[i]; b.t += dt; b.m.position.x += b.vx * dt; b.m.position.z += b.vz * dt; let hit = false; for (const p of loc) if (Math.hypot(p.pos.x - b.m.position.x, p.pos.z - b.m.position.z) < 1.3 && p.pos.y < ABY.y + 3.4) { hurt(p, b.dmg, Math.sign(b.vx), Math.sign(b.vz), 3, b.src); hit = true; break; } if (hit || b.t > 2.4) { burst(b.m.position.clone(), 8, '#4a2060', 5, .2, .5, 0); scene.remove(b.m); AB.bolts.splice(i, 1); } }
+    }
+    function netEvent(m, tgt) { const now = performance.now(); NETAB.ev = NETAB.ev.filter(e => now - e.t < 1800); NETAB.ev.push({ s: ++NETAB.evSeq, i: m.id, p: tgt.peer, t: now }); if (NETAB.ev.length > 16) NETAB.ev.shift(); }
+    const r1 = v => Math.round(v * 10) / 10;
+    function netOut() {   // lo que el dueño manda a los demás (va en el paquete normal del jugador)
+      if (!NETMP() || !G.player || !G.player.abyss || !amOwner() || abyssPeers().length < 2) return undefined;
+      const now = performance.now(); NETAB.ev = NETAB.ev.filter(e => now - e.t < 1800);
+      let gm = 0; if (AB.groups) AB.groups.forEach((g, i) => { if (g.spawned && i < 30) gm |= 1 << i; });
+      let sev = 0; B.arms.forEach((a, i) => { if (a.severed) sev |= 1 << i; });
+      const h = KEY.holder, hp = !h ? '' : h.isPlayer ? NET.myPeer : (h.peer || '');
+      return { v: 1, m: AB.mobs.filter(m => !m.dead && m.f.alive).slice(0, 40).map(m => [m.id, MOB_KINDS.indexOf(m.k), r1(m.f.pos.x), r1(m.f.pos.z), r1(m.yaw), Math.round(m.f.hp), (m.wind > 0 ? 1 : 0) | (m.stun > 0 ? 2 : 0) | (m.cap ? 4 : 0)]),
+        b: [B_ST.indexOf(B.state), B.f ? Math.round(B.f.hp) : 0, sev, B.phase2 ? 1 : 0, B.vuln > 0 || B.exposed > 0 ? 1 : 0], g: gm,
+        k: [K_ST.indexOf(KEY.st), hp, r1(KEY.pos.x), r1(KEY.pos.z)], d: AB.door && AB.door.open ? 1 : 0, c: AB.cleared ? 1 : 0, e: NETAB.ev.map(({ t, ...e }) => e) };
+    }
+    function netIn(px, x) {   // paquete del dueño (solo se acepta del dueño actual)
+      if (!x || typeof x !== 'object' || x.v !== 1 || !px || !px.abyss) return;
+      const own = abyssPeers()[0]; if (px.peer !== own) return;
+      if (NETAB.rxFrom !== px.peer) { NETAB.rxFrom = px.peer; NETAB.lastEv = 0; }
+      NETAB.rx = x; NETAB.rxT = performance.now(); NETAB.groupsMask = +x.g || 0;
+    }
+    function netHit(px, a) {   // golpe de otro jugador a un monstruo o al Kraken: lo aplica el dueño
+      if (!px || !px.abyss || !G.player || !G.player.abyss || !amOwner()) return;
+      const now = performance.now(); NETAB.hitT = NETAB.hitT.filter(t => now - t < 1000); if (NETAB.hitT.length > 30) return; NETAB.hitT.push(now);
+      const dm = Math.max(0, Math.min(60, +a.dm || 0)); if (!dm) return;
+      if (+a.i === 0) { if (!B.f || B.state !== 'fight' || dist2d(px, B.f) > 70) return; const o = bossHit(px, { dmg: dm }); applyHit(px, B.f, { dmg: o.dmg, fromNet: true, noCounter: true, color: px.ch.color }); return; }
+      const m = AB.mobs.find(q => q.id === +a.i && !q.dead); if (!m || dist2d(px, m.f) > 40) return;
+      applyHit(px, m.f, { dmg: dm, fromNet: true, noCounter: true, color: px.ch.color });
+    }
+    function mirrorMobs() {   // copia: crea, mueve y quita los monstruos según el dueño; ejecuta los ataques que me apuntan
+      const R = NETAB.rx; if (!R || performance.now() - NETAB.rxT > 5000 || !Array.isArray(R.m)) return;
+      const want = new Map(); for (const a of R.m) if (Array.isArray(a) && a.length >= 7 && MOB_KINDS[a[1]]) want.set(+a[0], a);
+      for (const m of AB.mobs) { if (m.dead) continue; if (!m.mirror) { m.f.hp = 0; m.f.alive = false; continue; } if (!want.has(m.nid)) { m.f.hp = 0; m.f.alive = false; } }
+      for (const [id, a] of want) {
+        let m = AB.mobs.find(q => q.mirror && q.nid === id && !q.dead);
+        if (!m) { m = spawnMob(MOB_KINDS[a[1]], +a[2], +a[3]); m.mirror = true; m.nid = id; m.cap = !!(a[6] & 4); if (m.cap) showBanner('CAPITÁN AHOGADO', '#ffb347', 'Guardián de la llave del portón'); }
+        m.tx = +a[2]; m.tz = +a[3]; m.tyaw = +a[4]; m.thp = +a[5]; if (m.thp > m.f.maxHp) m.f.maxHp = m.thp; if ((a[6] & 1) && !(m.wind > 0)) m.wind = .3; if (a[6] & 2) m.stunN = .25;
+      }
+      if (Array.isArray(R.e)) for (const e of R.e) { if (!e || +e.s <= NETAB.lastEv) continue; NETAB.lastEv = +e.s; if (e.p !== NET.myPeer) continue; const m = AB.mobs.find(q => q.mirror && q.nid === +e.i && !q.dead); if (m && G.player && G.player.alive) mobAttack(m, G.player); }
+    }
+    function becomeOwner() {   // el dueño se fue: yo sigo con los mismos monstruos
+      for (const m of AB.mobs) if (m.mirror) { m.mirror = false; m.id = m.nid; m.aggro = true; NETAB.mobSeq = Math.max(NETAB.mobSeq, m.nid || 0); }
+      if (!AB.groups && locked()) { AB.groups = planGroups(); AB.groups.forEach((g, i) => { if (NETAB.groupsMask & (1 << i)) g.spawned = true; }); }
+      NETAB.rx = null;
+    }
+    function mirrorKey(t) {   // copia: la llave y el portón como los tiene el dueño
+      const R = NETAB.rx, D = AB.door; if (!R || !Array.isArray(R.k) || !D) return;
+      const st = K_ST[R.k[0]] || 'none', hpeer = R.k[1], holder = !hpeer ? null : hpeer === NET.myPeer ? G.player : NET.proxies.get(hpeer) || null;
+      if (st !== 'none' && !KEY.g) { KEY.g = goldKey(); scene.add(KEY.g); }
+      if (st === 'ground' && KEY.st !== 'ground') { KEY.pos.set(+R.k[2] || 0, ABY.y + 1.6, +R.k[3] || 0); if (KEY.st === 'none') { showBanner('¡LA LLAVE!', '#ffd54f', 'Recógela y llévala al portón enorme'); } }
+      if (st === 'ground') KEY.pos.set(+R.k[2] || KEY.pos.x, ABY.y + 1.6, +R.k[3] || KEY.pos.z);
+      if (st === 'held' && holder === G.player && KEY.holder !== G.player) { snd('key', null, .9); showBanner('¡TIENES LA LLAVE!', '#ffd54f', 'Llévala al portón enorme · solo un jugador la puede tener'); }
+      KEY.st = st; KEY.holder = holder;
+      if (KEY.g) {
+        if (st === 'ground') { KEY.g.visible = true; KEY.g.position.set(KEY.pos.x, KEY.pos.y + Math.sin(t * 2.5) * .25, KEY.pos.z); KEY.g.rotation.y += .03; }
+        else if (st === 'held' && holder) { KEY.g.visible = true; KEY.g.position.set(holder.pos.x, holder.pos.y + 3.3 + Math.sin(t * 3) * .15, holder.pos.z); KEY.g.rotation.y += .04; }
+        else KEY.g.visible = false;
+      }
+      if (R.d && !D.open) { D.open = true; snd('door', null, 1); showBanner('¡EL PORTÓN SE ABRE!', '#ff8fb0', 'La sala del Kraken te espera'); G.shake = Math.max(G.shake, 1.2); sfx('boom', null, 1); }
+    }
+    function mirrorBoss() {   // copia: el Kraken tiene la misma vida, tentáculos, furia y muerte que en el dueño (sus ataques se juegan aquí)
+      const R = NETAB.rx; if (!R || !Array.isArray(R.b) || performance.now() - NETAB.rxT > 5000) return;
+      const st = B_ST[R.b[0]] || 'sleep';
+      if ((st === 'intro' || st === 'fight') && B.state === 'sleep' && !AB.cleared && G.player && G.player.abyss && G.player.pos.x > GATE_X) spawnBoss();
+      if ((st === 'dead' || R.c) && !AB.cleared && B.state !== 'dead') { if (B.f && B.f.alive) { B.f.hp = 0; kill(B.f, null); } else bossDown(); return; }   // lo vencieron (aunque yo no estuviera en la sala)
+      if (!B.f) return;
+      if (st === 'fight' || st === 'intro') {
+        const hp = +R.b[1]; if (isFinite(hp) && hp > 0) B.f.hp = Math.min(B.f.maxHp, hp);
+        const sev = +R.b[2] || 0; B.arms.forEach((a, i) => { const s2 = !!(sev & (1 << i)); if (s2 && !a.severed) severArm(a); else if (!s2 && a.severed) { a.severed = false; a.hp = a.max; a.root.visible = true; a.root.scale.setScalar(.2); } });
+        if (R.b[3] && !B.phase2 && B.state === 'fight') { B.phase2 = true; showBanner('¡EL KRAKEN SE ENFURECE!', '#ff3b30', 'Más rápido · rayos de los ojos'); }
+        if (R.b[4]) B.exposed = Math.max(B.exposed, .4);
+      }
+      if ((st === 'dead' || R.c) && B.f.alive && B.state !== 'dead') { B.f.hp = 0; kill(B.f, null); }
     }
     function keyUpdate(dt, t) {
-      const D = AB.door; if (!D) return; const ps = abyssPlayers(), lk = locked();
-      if (KEY.g) {
+      const D = AB.door; if (!D) return; const MIR = isMirror(), ps = abyssTargets(), lk = locked();
+      if (MIR) mirrorKey(t);
+      else if (KEY.g) {
         if (KEY.st === 'ground') {
           KEY.g.visible = true; KEY.g.position.set(KEY.pos.x, KEY.pos.y + Math.sin(t * 2.5) * .25, KEY.pos.z); KEY.g.rotation.y += dt * 2.2; if (Math.random() < dt * 14) emit(KEY.pos.x + rand(-.6, .6), KEY.pos.y + rand(-.5, 1.5), KEY.pos.z + rand(-.6, .6), 0, rand(.6, 1.6), 0, '#ffe58a', .12, 1, 0, 1);
-          for (const p of ps) if (Math.hypot(p.pos.x - KEY.pos.x, p.pos.z - KEY.pos.z) < 2.8) { KEY.st = 'held'; KEY.holder = p; snd('key', null, .9); if (p.isPlayer) { showBanner('¡TIENES LA LLAVE!', '#ffd54f', 'Llévala al portón enorme · solo un jugador la puede tener'); sfx('whoosh', null, .8); } break; }
+          for (const p of ps) if (p.alive && Math.hypot(p.pos.x - KEY.pos.x, p.pos.z - KEY.pos.z) < 2.8) { KEY.st = 'held'; KEY.holder = p; snd('key', null, .9); if (p.isPlayer) { showBanner('¡TIENES LA LLAVE!', '#ffd54f', 'Llévala al portón enorme · solo un jugador la puede tener'); sfx('whoosh', null, .8); } break; }
         } else if (KEY.st === 'held') {
           const h = KEY.holder; if (!h || !h.alive || !h.abyss) { const lp = h ? h.pos : KEY.pos; dropKey(lp.x, lp.z, h && h.isPlayer ? '' : false); if (h && h.isPlayer) addFeedText('Soltaste la llave', '#ffd54f'); }
           else { KEY.g.position.set(h.pos.x, h.pos.y + 3.3 + Math.sin(t * 3) * .15, h.pos.z); KEY.g.rotation.y += dt * 2.5; const dd = doorAbs(); if (!D.open && Math.hypot(h.pos.x - dd.x, h.pos.z - dd.z) < 9) { D.open = true; snd('door', null, 1); KEY.st = 'used'; KEY.g.visible = false; showBanner('¡EL PORTÓN SE ABRE!', '#ff8fb0', 'La sala del Kraken te espera'); G.shake = Math.max(G.shake, 1.2); sfx('boom', null, 1); sfx('crash', null, .8); } }
@@ -820,7 +921,7 @@
     function hideWorld() {
       if (AB.hidden) return; AB.hidden = [];
       const mine = new Set(); for (const f of G.fighters) if (f.model && f.model.root && (f.isPlayer || f.isBoss || f.abyss)) mine.add(f.model.root);
-      for (const o of scene.children) { if (!o.visible || o === AB.root || o === B.g || o.isLight || o.isPoints || o.isSprite || mine.has(o)) continue; if (o.position.z >= 560 && o.position.y < -20) continue; o.visible = false; AB.hidden.push(o); }
+      for (const o of scene.children) { if (!o.visible || o === AB.root || o === B.g || o.isLight || o.isPoints || o.isSprite || mine.has(o) || (o.userData && o.userData.keepAbyss)) continue; if (o.position.z >= 560 && o.position.y < -20) continue; o.visible = false; AB.hidden.push(o); }
       if (SEA.root) for (const o of SEA.root.children) if (o.visible) { o.visible = false; AB.hidden.push(o); }
     }
     function showWorld() { if (!AB.hidden) return; for (const o of AB.hidden) o.visible = true; AB.hidden = null; }
@@ -964,6 +1065,7 @@
       abyssAtmosphere(meIn); if (insideNow) collide(); ascUpdate(dt);
       if (window.CF_MUELLE) CF_MUELLE.update(dt, t, cp);
       for (const f of G.fighters) if (f.abyss && !f.isBoss && !f.remote && (f.pos.z < ABY.z - 130 || (!f.alive && f.deathT > 1.2 && !locked()))) { f.abyss = false; f.fellIn = 0; f.exitMsg = 0; if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); }
+      if (isMirror()) mirrorBoss();
       if (B.f) bossUpdate(dt, t); else if (B.g && B.g.visible && B.state === 'sleep') sleepAnim(dt, t);
     }
     function sleepAnim(dt, t) {   // el Kraken dormido: respira lento, ojos apagados, brazos caídos
@@ -1118,6 +1220,7 @@
     window.CF_MUS_SCENE = () => { const p = G.player; if (!p || !p.abyss) return null; let id = (!eventOn() || AB.cleared) ? 'calma' : (B.state === 'fight' || B.state === 'intro') ? 'kraken' : 'pasillo'; if (id === 'kraken' && MUSF.failed.has('kraken')) id = 'pasillo'; if (MUSF.failed.has(id)) return null; return { id, src: MUSF.src[id] }; };
     window.CF_MUS_FAIL = id => MUSF.failed.add(id);
     window.CF_ABISMO = {
+      netOut, netIn, netHit, get owner() { return amOwner(); }, get mirror() { return isMirror(); },
       giveKey(f) { f = f || G.player; if (!KEY.g) { KEY.g = goldKey(); scene.add(KEY.g); } KEY.st = 'held'; KEY.holder = f; KEY.g.visible = true; },
       openDoor() { if (AB.door) AB.door.open = true; if (KEY.g) KEY.g.visible = false; KEY.st = 'used'; },
       spawn(kind, x, z) { return spawnMob(kind, x, z); },
