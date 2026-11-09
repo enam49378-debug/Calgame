@@ -135,7 +135,7 @@
           if (i < 8) for (const sx of [-1, 1]) { const su = new T.Mesh(new T.SphereGeometry(Math.max(.1, r0 * .22), 7, 5), suck); su.position.set(sx * r0 * .45, -r0 * .82, L * .5); s.add(su); }
           segs.push(s); par = s;
         }
-        B.arms.push({ root, segs, hp: 110, max: 110, severed: false, regrow: 0, ang: a, flash: 0, busy: false, rest: [-.25, .12, .2, .24, .22, .18, .14, .1, .06] });
+        B.arms.push({ root, segs, hp: 60, max: 60, severed: false, regrow: 0, ang: a, flash: 0, busy: false, rest: [-.25, .12, .2, .24, .22, .18, .14, .1, .06] });
       }
       B.longs = [];
       for (const s of [-1, 1]) { const root = new T.Group(); root.position.set(s * 2.2, 3.8, 2.4); g.add(root); root.visible = false; let par = root; const segs = []; for (let i = 0; i < 12; i++) { const sg = new T.Group(); sg.position.z = i ? 2.6 : 0; par.add(sg); sg.add(new T.Mesh(cyl(.62 - i * .035, .62 - (i + 1) * .035, 2.6, 8), skin)); segs.push(sg); par = sg; } const club = new T.Mesh(new T.SphereGeometry(1, 12, 8), belly); club.scale.set(1.1, .35, 1.9); club.position.z = 1.4; segs[11].add(club); B.longs.push({ root, segs, s }); }
@@ -163,14 +163,15 @@
       f.pos.set(ABY.x, ABY.y, ABY.z); f.home = f.pos.clone(); f.model.root.visible = false;
       if (f.plate) { f.plate.remove(); f.plate = null; }
       G.fighters.push(f); B.f = f;
-      B.g.visible = true; B.state = 'intro'; B.t = 0; B.cd = 3.2; B.atk = null; B.phase2 = false; B.last = ''; B.vuln = B.stagger = B.exposed = 0;
+      B.g.visible = true; B.state = 'intro'; B.t = 0; B.cd = 3.2; B.atk = null; B.wind = null; B.tiredT = 0; B.count = 0; B.phase2 = false; B.last = ''; B.vuln = B.stagger = B.exposed = 0;
       B.arms.forEach(a => { a.hp = a.max; a.severed = false; a.root.visible = true; a.root.scale.setScalar(1); a.flash = 0; a.busy = false; });
-      snd('roar', null, 1); mkBar(); const me = G.player; showBanner('¡EL KRAKEN DESPIERTA!', '#ff5577', (me && me.ch && QUIPS[me.ch.id]) || 'Jefe final del abismo');
+      snd('roar', null, 1); mkBar(); const me = G.player;
+      later(4.2, () => { if (B.state === 'fight' && G.player && G.player.abyss) showBanner('¡CORTA LOS TENTÁCULOS!', '#7df9ff', 'Pégales de cerca · tras el GRAN GOLPE el Kraken se cansa: ¡ataca su cuerpo!'); }); showBanner('¡EL KRAKEN DESPIERTA!', '#ff5577', (me && me.ch && QUIPS[me.ch.id]) || 'Jefe final del abismo');
       for (const q of abyssPlayers()) q.iframes = Math.max(q.iframes, 4.4); if (me && me.abyss) cinCam(() => new V3(B.g.position.x, B.g.position.y + 4, B.g.position.z), 4.2, 62, 26, .3); screenFlash(.3); G.shake = Math.max(G.shake, 1.4); sfx('boom', B.g.position, 1); snd('roar', null, 1);
     }
     function sleepBoss(msg) {   // vuelve a dormir (se acabó el evento o nadie queda)
       if (B.f) { const i = G.fighters.indexOf(B.f); if (i >= 0) G.fighters.splice(i, 1); try { B.f.dispose(); } catch (e) { } B.f = null; }
-      for (const z of B.zones) scene.remove(z.m); for (const z of B.tele) scene.remove(z.m); B.zones = []; B.tele = []; if (B.atk && B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.state = 'sleep';
+      for (const z of B.zones) scene.remove(z.m); for (const z of B.tele) scene.remove(z.m); B.zones = []; B.tele = []; if (B.atk && B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.wind = null; B.tiredT = 0; B.count = 0; B.state = 'sleep';
       if (B.g) { B.g.position.set(ABY.x, ABY.y - 1.5, ABY.z); B.g.rotation.z = 0; B.g.visible = AB.root ? AB.root.visible : false; }
       if (B.bar) B.bar.classList.remove('on');
       if (msg && G.player && G.player.abyss) addFeedText(msg, '#9aa0b8');
@@ -212,7 +213,7 @@
     // --- ataques
     function atkSlam() {   // un tentáculo se levanta y golpea donde marca el círculo rojo
       const arms = aliveArms(); if (!arms.length) return null;
-      const targets = abyssPlayers(), n = Math.min(arms.length, 1 + Math.floor(arms.length / 3) + (B.phase2 ? 2 : 0)), hits = [];
+      const targets = abyssPlayers(), n = Math.min(arms.length, 1 + Math.floor(arms.length / 3) + (B.phase2 ? 2 : 0) + (B.sigNow ? 2 : 0)), hits = [];
       for (let i = 0; i < n; i++) {
         const p = targets.length ? targets[i % targets.length] : null; let x = p ? p.pos.x + rand(-3, 3) : ABY.x + rand(-14, 14), z = p ? p.pos.z + rand(-3, 3) : ABY.z + rand(-14, 14);
         const dx = x - ABY.x, dz = z - ABY.z, d = Math.hypot(dx, dz); if (d > 34) { x = ABY.x + dx / d * 34; z = ABY.z + dz / d * 34; }
@@ -363,12 +364,26 @@
         },
         cleanup() { this.arm.busy = false; scene.remove(this.tele.m); } };
     }
-    function pickAttack() {
-      const arms = aliveArms().length, pool = ['slam', 'ink', 'suction', 'whip', 'rocks', 'shock', 'grab'].concat(arms >= 3 ? ['sweep'] : []).concat(arms >= 4 ? ['spin'] : []).concat(B.phase2 ? ['beam', 'slam', 'rocks', 'spin', 'shock', 'grab'] : []).filter(n => n !== B.last);
-      const name = pool[Math.random() * pool.length | 0]; B.last = name;
-      const a = { slam: atkSlam, sweep: atkSweep, ink: atkInk, suction: atkSuction, whip: atkWhip, rocks: atkRocks, beam: atkBeam, shock: atkShock, spin: atkSpin, grab: atkGrab }[name]();
-      if (a) snd(a.name === 'slam' || a.name === 'shock' ? 'slam' : 'roarShort', null, a.name === 'ink' ? .6 : .9);
-      if (a) popText(B.g.position.clone().add(new V3(0, 16 * KS, 0)), { slam: '¡APLASTAMIENTO!', sweep: '¡SALTA!', ink: '¡TINTA!', suction: '¡SUCCIÓN!', beam: '¡RAYOS!', whip: '¡LATIGAZO!', rocks: '¡DERRUMBE!', shock: '¡SALTA LA ONDA!', spin: '¡TORMENTA!', grab: '¡AGARRE!' }[a.name], '#ff8fb0', 26);
+    const ATK_LABEL = { slam: '¡APLASTAMIENTO!', sweep: '¡SALTA!', ink: '¡TINTA!', suction: '¡SUCCIÓN!', beam: '¡RAYOS!', whip: '¡LATIGAZO!', rocks: '¡DERRUMBE!', shock: '¡SALTA LA ONDA!', spin: '¡TORMENTA!', grab: '¡AGARRE!' };
+    // Patrón: cada ataque empieza con una PRE-ANIMACIÓN (se encoge y ruge, ojos rojos parpadean, anillo en el suelo). Cada 4.º ataque es siempre el mismo
+    // GRAN GOLPE (aplastamiento múltiple con aviso largo); al terminarlo el Kraken queda CANSADO unos segundos y ahí es cuando hay que atacarlo.
+    function attackPool() {
+      const arms = aliveArms().length;
+      return ['slam', 'ink', 'suction', 'whip', 'rocks', 'shock', 'grab'].concat(arms >= 3 ? ['sweep'] : []).concat(arms >= 4 ? ['spin'] : []).concat(B.phase2 ? ['beam', 'slam', 'rocks', 'spin', 'shock', 'grab'] : []).filter(n => n !== B.last);
+    }
+    function beginAttack() {
+      B.count = (B.count || 0) + 1;
+      const sig = B.count % 4 === 0 && aliveArms().length > 0; let name = 'slam';
+      if (!sig) { const pool = attackPool(); name = pool[Math.random() * pool.length | 0]; }
+      B.last = name; const dur = sig ? 1.7 : B.phase2 ? .65 : .95;
+      B.wind = { t: 0, dur, sig, name };
+      snd(sig ? 'roar' : 'roarShort', null, sig ? 1 : .6);
+      popText(B.g.position.clone().add(new V3(0, 16 * KS, 0)), sig ? '¡PREPARA EL GRAN GOLPE!' : ATK_LABEL[name], sig ? '#ffd23f' : '#ff8fb0', sig ? 30 : 26);
+      ringAt(new V3(ABY.x, ABY.y + .3, ABY.z), sig ? '#ffd23f' : '#ff5577', sig ? 18 : 12, dur * .9);
+    }
+    function pickAttack(name, sig) {
+      B.sigNow = !!sig; let a = null; try { a = { slam: atkSlam, sweep: atkSweep, ink: atkInk, suction: atkSuction, whip: atkWhip, rocks: atkRocks, beam: atkBeam, shock: atkShock, spin: atkSpin, grab: atkGrab }[name](); } finally { B.sigNow = false; }
+      if (a) { a.sig = !!sig; snd(a.name === 'slam' || a.name === 'shock' ? 'slam' : 'roarShort', null, a.name === 'ink' ? .6 : .9); }
       return a;
     }
     // --- combate propio: tentáculos con vida, expuesto, etc.
@@ -376,7 +391,7 @@
       snd('squelch', B.g.position, 1, 90); snd('roarShort', null, .6); a.severed = true; a.regrow = 25; a.busy = false; const tip = new V3(); a.segs[a.segs.length - 1].getWorldPosition(tip); a.root.visible = false;
       burst(tip, 40, '#c2566e', 12, .35, 1, .6); burst(tip, 24, '#1a0a20', 9, .4, 1.2, .3); ringAt(new V3(tip.x, ABY.y + .2, tip.z), '#ff8fb0', 6, .5); sfx('crash', tip, .8); G.shake = Math.max(G.shake, 1);
       popText(B.g.position.clone().add(new V3(0, 17, 0)), '¡TENTÁCULO CORTADO!', '#ffd23f', 26);
-      if (B.atk) { if (B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.cd = 2.4; }
+      B.wind = null; if (B.atk) { if (B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.cd = 2.4; }
       B.stagger = 2.6; B.vuln = Math.max(B.vuln, 3.8); if (B.f) B.f.hp = Math.max(1, B.f.hp - 35);
       if (!aliveArms().length) { B.exposed = 9; popText(B.g.position.clone().add(new V3(0, 19, 0)), '¡OJO AL DESCUBIERTO!', '#ffd23f', 28); }
     }
@@ -386,15 +401,18 @@
         if (tg && tg.mob) { const m = AB.mobs.find(q => q.f === tg); const r = mobHit(att, o, tg); if (m && m.nid) netAct({ k: 'abh', i: m.nid, dm: Math.round((r.dmg || 0) * 10) / 10 }); return Object.assign({}, r, { dmg: capDmg(att, tg.hp, r.dmg || 0) }); }
         if (!B.f || B.state === 'dead') return o;
         const n = aliveArms().length, mult = B.vuln > 0 || B.exposed > 0 ? 2.2 : n >= 4 ? .45 : n > 0 ? .8 : 1.8;
-        netAct({ k: 'abh', i: 0, dm: Math.round((o.dmg || 3) * 10) / 10 }); B.hitT = .12;
+        netAct({ k: 'abh', i: 0, dm: Math.round((o.dmg || 3) * 10) / 10 }); B.hitT = .22;
         return Object.assign({}, o, { dmg: capDmg(att, B.f.hp, (o.dmg || 3) * mult) });
       }
       if (tg && tg.mob) return mobHit(att, o, tg);   // enemigos del pasillo: efectos según el personaje   // cada golpe: elige el tentáculo más cercano, le baja vida y ajusta el daño al cuerpo
       if (!B.g || B.state === 'dead') return o;
       const dmg = o.dmg || 3, ang = Math.atan2(att.pos.z - ABY.z, att.pos.x - ABY.x); let best = null, bd = 9;
       for (const a of B.arms) { if (a.severed) continue; const wp = armWorld(a), d = angDiff(Math.atan2(wp.z - ABY.z, wp.x - ABY.x), ang); if (d < bd) { bd = d; best = a; } }
-      B.hitT = .12; if (Math.random() < .5) burst(new V3(att.pos.x, att.pos.y + 1.5, att.pos.z).lerp(B.g.position, .15), 6, '#ffd0dc', 6, .16, .4, .5);
-      if (best && bd < .9) { best.hp -= dmg * 1.25; best.flash = .15; if (best.hp <= 0) severArm(best); }
+      B.hitT = .22; if (Math.random() < .5) burst(new V3(att.pos.x, att.pos.y + 1.5, att.pos.z).lerp(B.g.position, .15), 6, '#ffd0dc', 6, .16, .4, .5);
+      if (best && bd < 1.5) {   // siempre pega al tentáculo más cercano a ti (aunque el Kraken te siga con la mirada)
+        best.hp -= dmg * (bd < .9 ? 1.6 : .8); best.flash = .25;
+        if (best.hp > 0 && !((best.tipT || 0) > 0)) { best.tipT = .45; const tp = new V3(); best.segs[best.segs.length - 1].getWorldPosition(tp); popText(tp, 'TENTÁCULO ' + Math.round(Math.max(0, best.hp) / best.max * 100) + '%', '#7df9ff', 17); }
+        if (best.hp <= 0) severArm(best); }
       const n = aliveArms().length, mult = B.vuln > 0 || B.exposed > 0 ? 2.2 : n >= 4 ? .45 : n > 0 ? .8 : 1.8;
       const cfx = CH_FX[att.ch && att.ch.id]; if (cfx && cfx.mult) mult *= cfx.mult; if (cfx && Math.random() < .12) popText(new V3(att.pos.x, att.pos.y + 3, att.pos.z), cfx.tag, cfx.col, 16);
       return Object.assign({}, o, { dmg: dmg * mult });
@@ -415,32 +433,38 @@
       const f = B.f; if (!f || !B.g) return; const g = B.g;
       f.pos.set(ABY.x, ABY.y, ABY.z); f.vel.set(0, 0, 0); f.stun = 0; f.ragdoll = 0; f.hurtT = 0; f.grabbed = false; f.cineLock = null; f.frozen = 0; f.blocking = false; f.iframes = 0; f.model.root.visible = false;
       const ps = abyssPlayers(), tgt = ps.sort((a, b) => dist2d(a, f) - dist2d(b, f))[0];
-      if (tgt && B.state !== 'dead') { const ya = Math.atan2(tgt.pos.x - ABY.x, tgt.pos.z - ABY.z); let d = ((ya - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; g.rotation.y += d * Math.min(1, dt * (B.stagger > 0 ? .4 : 1.5)); }
+      if (tgt && B.state !== 'dead') { const ya = Math.atan2(tgt.pos.x - ABY.x, tgt.pos.z - ABY.z); let d = ((ya - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI; g.rotation.y += d * Math.min(1, dt * (B.stagger > 0 ? .3 : B.wind ? .5 : .9)); }
       const rage = B.phase2 ? 1.7 : 1, dead = B.state === 'dead';
       B.jet = Math.max(0, B.jet - dt * 1.6); const pulse = Math.sin(t * 1.5 * rage) * .035 + B.jet * .12;
       B.mantle.scale.set(1 + pulse, 1 - pulse * .8, 1 + pulse); B.head.scale.set(1 + pulse * .3, .86 - pulse * .2, 1.05);
       if (tgt && !dead) { const hy = Math.max(-.5, Math.min(.5, (Math.atan2(tgt.pos.x - g.position.x, tgt.pos.z - g.position.z) - g.rotation.y) * .35)); B.head.rotation.y += (hy - B.head.rotation.y) * Math.min(1, dt * 4); }
       B.fins.forEach(([fin, s]) => { fin.rotation.z = s * (.5 + Math.sin(t * 2.4 * rage) * .22); });
+      const raise = B.wind ? Math.min(1, B.wind.t / B.wind.dur) * (B.wind.sig ? .7 : .35) : 0, droop = (B.tiredT || 0) > 0 ? .5 : 0;
       B.arms.forEach(a => {
         if (a.severed) { a.regrow -= dt; if (a.regrow <= 0 && !isMirror()) { a.severed = false; a.hp = a.max; a.root.visible = true; a.root.scale.setScalar(.2); burst(armWorld(a).add(new V3(0, 1, 0)), 14, '#ffd0dc', 6, .2, .6, -.2); } return; }
-        a.root.scale.setScalar(Math.min(1, a.root.scale.x + dt * .8)); a.flash = Math.max(0, a.flash - dt);
+        a.root.scale.setScalar(Math.min(1, a.root.scale.x + dt * .8)); a.flash = Math.max(0, a.flash - dt); a.tipT = Math.max(0, (a.tipT || 0) - dt);
         if (a.busy) return;
         { const tAng = tgt ? Math.atan2(tgt.pos.x - g.position.x, tgt.pos.z - g.position.z) - g.rotation.y : 0; let dy = tAng - (Math.PI / 2 - a.ang); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); const lean = dead ? 0 : Math.max(-.7, Math.min(.7, dy)) * .3 * (1 - Math.abs(dy) / Math.PI); a.root.rotation.y += ((Math.PI / 2 - a.ang + lean) - a.root.rotation.y) * Math.min(1, dt * 3); }
         const ph = a.ang * 1.7;
-        a.segs.forEach((s, i) => { const w = dead ? 0 : 1, base = dead ? .45 + i * .03 : a.rest[i]; s.rotation.x += ((base + Math.sin(t * 1.5 * rage - i * .55 + ph) * (.04 + .022 * i) * w) - s.rotation.x) * Math.min(1, dt * (dead ? 1.5 : 6)); s.rotation.y = Math.sin(t * 1.1 * rage - i * .4 + ph * 1.3) * .07 * w; });
+        a.segs.forEach((s, i) => { const w = dead ? 0 : 1, base = dead ? .45 + i * .03 : a.rest[i] - raise + droop; s.rotation.x += ((base + Math.sin(t * 1.5 * rage - i * .55 + ph) * (.04 + .022 * i) * w) - s.rotation.x) * Math.min(1, dt * (dead ? 1.5 : 6)); s.rotation.y = Math.sin(t * 1.1 * rage - i * .4 + ph * 1.3) * .07 * w; });
       });
       const ex = B.vuln > 0 || B.exposed > 0;
-      B.eyes.forEach(e => { e.material.color.set(B.phase2 ? 0xff3b30 : (ex ? 0x7df9ff : 0xffd23f)); });
+      B.eyes.forEach(e => { e.material.color.set(B.wind ? (Math.floor(B.wind.t * 10) % 2 ? 0xffffff : 0xff3b30) : B.phase2 ? 0xff3b30 : (ex ? 0x7df9ff : 0xffd23f)); });
       B.spots.forEach((s, i) => { s.visible = !dead || Math.random() < .3; s.scale.setScalar(.7 + Math.sin(t * 2.5 + i) * .3); });
       B.spotM.color.set(B.phase2 ? 0xff5a2a : (ex ? 0xfff2a8 : 0x39e6ff));
-      B.hitT = Math.max(0, B.hitT - dt); for (const m of B.mats) m.emissive.setRGB(B.hitT > 0 ? .6 : ex ? .1 : .14, B.hitT > 0 ? .35 : ex ? .3 : .04, B.hitT > 0 ? .35 : ex ? .4 : .08);
-      B.vuln = Math.max(0, B.vuln - dt); B.exposed = Math.max(0, B.exposed - dt); B.stagger = Math.max(0, B.stagger - dt);
+      B.hitT = Math.max(0, B.hitT - dt); for (const m of B.mats) m.emissive.setRGB(B.hitT > 0 ? .95 : ex ? .1 : .14, B.hitT > 0 ? .06 : ex ? .3 : .04, B.hitT > 0 ? .06 : ex ? .4 : .08);
+      B.vuln = Math.max(0, B.vuln - dt); B.exposed = Math.max(0, B.exposed - dt); B.stagger = Math.max(0, B.stagger - dt); B.tiredT = Math.max(0, (B.tiredT || 0) - dt);
       if (B.stagger > 0) { g.rotation.z = Math.sin(t * 30) * .03 * Math.min(1, B.stagger); } else if (!dead) { g.rotation.z *= .9; }
       if (B.state === 'intro') { B.t += dt; g.position.y = ABY.y - 1.5; B.body.position.y = 7 - 9 + Math.min(1, B.t / 3.2) * 9; if (Math.random() < dt * 22) emit(ABY.x + rand(-9, 9), ABY.y + .5, ABY.z + rand(-9, 9), rand(-3, 3), rand(2, 6), rand(-3, 3), '#8aa4b8', .3, .9, 1, 2); if (B.t > 3.4) { B.state = 'fight'; B.body.position.y = 7; } }
       else if (B.state === 'fight') {
         if (!B.phase2 && f.hp < f.maxHp * .5) { B.phase2 = true; snd('roar', null, 1); showBanner('¡EL KRAKEN SE ENFURECE!', '#ff3b30', 'Más rápido · rayos de los ojos'); camPunch(1, 1); G.shake = Math.max(G.shake, 1.6); screenFlash(.5); sfx('boom', g.position, 1); }
-        if (B.atk) { B.atk.t += dt; B.atk.upd(dt); if (B.atk.t >= B.atk.dur) { if (B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.cd = B.phase2 ? rand(.9, 1.7) : rand(1.7, 2.6); } }
-        else if (ps.length && B.stagger <= 0) { B.cd -= dt; if (B.cd <= 0) B.atk = pickAttack(); }
+        if (B.atk) { B.atk.t += dt; B.atk.upd(dt); if (B.atk.t >= B.atk.dur) { const sig = B.atk.sig; if (B.atk.cleanup) B.atk.cleanup(); B.atk = null; B.cd = B.phase2 ? rand(.9, 1.7) : rand(1.7, 2.6);
+            if (sig) { B.stagger = 6.5; B.vuln = Math.max(B.vuln, 6.5); B.tiredT = 6.5; B.cd = 1.5; showBanner('¡EL KRAKEN ESTÁ CANSADO!', '#7df9ff', '¡Atácalo ahora! Recibe el doble de daño'); snd('roarShort', null, .7); screenFlash(.25); } } }
+        else if (B.wind) {
+          const w = B.wind; w.t += dt; B.jet = Math.max(B.jet, Math.min(1, w.t / w.dur) * (w.sig ? 1.5 : .8));
+          if (w.t >= w.dur) { B.wind = null; B.atk = pickAttack(w.name, w.sig); if (!B.atk) B.cd = 1; }
+        }
+        else if (ps.length && B.stagger <= 0) { B.cd -= dt; if (B.cd <= 0) beginAttack(); }
       }
       const inked = new Set();
       for (let i = B.zones.length - 1; i >= 0; i--) { const z = B.zones[i]; z.t += dt; z.m.material.opacity = Math.min(.8, z.t * 1.2) * (z.t > z.life - 1 ? Math.max(0, z.life - z.t) : 1);
@@ -451,7 +475,7 @@
       if (B.bar) {
         B.bar.querySelector('i').style.width = Math.max(0, f.hp / f.maxHp * 100).toFixed(1) + '%'; B.bar.classList.toggle('ex', ex);
         const ar = B.bar.querySelector('.ar'); if (ar.children.length !== 8) ar.innerHTML = '<u></u>'.repeat(8); [...ar.children].forEach((u, i) => { const a = B.arms[i]; u.style.opacity = a.severed ? .15 : (.35 + .65 * a.hp / a.max); u.style.background = a.severed ? '#555' : (a.flash > 0 ? '#fff' : '#39e6ff'); });
-        B.bar.querySelector('small').textContent = B.state === 'intro' ? 'Despertando…' : ex ? '¡EXPUESTO! daño aumentado' : B.phase2 ? 'ENFURECIDO · corta tentáculos para dañar el cuerpo' : 'Corta los tentáculos (' + aliveArms().length + '/8) · salta los barridos';
+        B.bar.querySelector('small').textContent = B.state === 'intro' ? 'Despertando…' : (B.tiredT || 0) > 0 ? '¡CANSADO! ¡ATÁCALO AHORA! (doble de daño)' : B.wind && B.wind.sig ? '¡PREPARA EL GRAN GOLPE! Esquiva los círculos rojos' : ex ? '¡EXPUESTO! daño aumentado' : B.phase2 ? 'ENFURECIDO · corta tentáculos para dañar el cuerpo' : 'Golpea los tentáculos para cortarlos (' + aliveArms().length + '/8) · tras el gran golpe se cansa: ¡ataca!';
       }
       if (dead) { B.deadT += dt; g.position.y -= dt * 1.6; g.rotation.z = Math.sin(B.deadT * 20) * .015 * Math.max(0, 1 - B.deadT / 4); B.body.rotation.x = Math.min(.5, B.deadT * .2); }
       if (!ps.length && !dead) { B.idle += dt; if (B.idle > 4) { B.idle = 0; sleepBoss('El Kraken vuelve a dormir'); } } else B.idle = 0;
@@ -597,12 +621,12 @@
     // ---------------------------------------------------------------- enemigos del pasillo (cada uno con su comportamiento) y la llave
     const mm = (c, em) => { const m = new T.MeshLambertMaterial({ color: c }); m.emissive = new T.Color(em || c).multiplyScalar(em ? 1 : .4); return m; };
     const MOB_T = {
-      crab: { n: 'Cangrejo abisal', hp: 70, spd: 5.4, dmg: 9, r: 1.5, h: 1.8, rng: 2.8, cd: 1.7, wind: .45, aggro: 24 },
-      jelly: { n: 'Medusa eléctrica', hp: 45, spd: 3.1, dmg: 8, r: 1.6, h: 2.6, rng: 5.2, cd: 2.7, wind: .85, aggro: 20, fly: 3.2 },
-      angler: { n: 'Rape abisal', hp: 85, spd: 6.2, dmg: 13, r: 1.7, h: 2.0, rng: 4.2, cd: 2.5, wind: .55, aggro: 28, fly: 1.1 },
-      drowned: { n: 'Marinero ahogado', hp: 120, spd: 3.7, dmg: 14, r: 1.1, h: 2.2, rng: 2.6, cd: 1.9, wind: .6, aggro: 24 },
-      squidling: { n: 'Calamarín', hp: 55, spd: 4.2, dmg: 7, r: 1.2, h: 2.0, rng: 18, cd: 2.3, wind: .6, aggro: 30, ranged: 1, fly: .8 },
-      captain: { n: 'Capitán Ahogado', hp: 640, spd: 3.5, dmg: 22, r: 2.0, h: 4.0, rng: 4.2, cd: 2.1, wind: .85, aggro: 34, big: 1, key: 1 },
+      crab: { n: 'Cangrejo abisal', hp: 40, spd: 5.4, dmg: 9, r: 1.5, h: 1.8, rng: 2.8, cd: 1.7, wind: .45, aggro: 24 },
+      jelly: { n: 'Medusa eléctrica', hp: 26, spd: 3.1, dmg: 8, r: 1.6, h: 2.6, rng: 5.2, cd: 2.7, wind: .85, aggro: 20, fly: 3.2 },
+      angler: { n: 'Rape abisal', hp: 48, spd: 6.2, dmg: 13, r: 1.7, h: 2.0, rng: 4.2, cd: 2.5, wind: .55, aggro: 28, fly: 1.1 },
+      drowned: { n: 'Marinero ahogado', hp: 66, spd: 3.7, dmg: 14, r: 1.1, h: 2.2, rng: 2.6, cd: 1.9, wind: .6, aggro: 24 },
+      squidling: { n: 'Calamarín', hp: 32, spd: 4.2, dmg: 7, r: 1.2, h: 2.0, rng: 18, cd: 2.3, wind: .6, aggro: 30, ranged: 1, fly: .8 },
+      captain: { n: 'Capitán Ahogado', hp: 380, spd: 3.5, dmg: 22, r: 2.0, h: 4.0, rng: 4.2, cd: 2.1, wind: .85, aggro: 34, big: 1, key: 1 },
     };
     const MOB_BUILD = {
       crab() { const g = new T.Group(), sh = mm('#b5402a'), sh2 = mm('#d2593a'), legs = [], claws = []; mkbox(g, 2.6, 1, 2, sh, 0, 1.1, 0); mkbox(g, 2.1, .5, 1.5, sh2, 0, 1.75, -.1);
@@ -649,7 +673,8 @@
     function spawnMob(kind, x, z) {
       const T0 = MOB_T[kind]; buildAbyss(); const ch = Object.assign({}, DUMMY_CH, { name: T0.n, hp: T0.hp, color: '#7dffb0' });
       const f = new Fighter({ name: T0.n.toUpperCase(), ch, lvlVar: 0 });
-      f.isBoss = true; f.mob = kind; f.abyss = true; f.maxHp = f.hp = T0.hp; f.hitR = T0.r; f.hitH = T0.h; f.ai = null; f.alive = true; f.iframes = 0; f.cineHide = true;
+      f.isBoss = true; f.mob = kind; f.abyss = true; f.maxHp = f.hp = T0.hp; f.hitR = T0.r + .7; f.hitH = T0.h + 1.2;   // zona de golpe generosa: las habilidades llegan aunque el bicho vuele o esté pegado al suelo
+      f.ai = null; f.alive = true; f.iframes = 0; f.cineHide = true;
       f.pos.set(x, ABY.y + (T0.fly || 0), z); f.home = f.pos.clone(); f.model.root.visible = false; G.fighters.push(f);
       let g; const bbi = window.CF_BBM && CF_BBM.make(BB_MOB[kind][0], BB_MOB[kind][1]);   // modelo de Blockbench (si no cargó, el de respaldo hecho por código)
       if (bbi) { g = new T.Group(); g.add(bbi.root); g.userData = { bb: bbi }; const au = glowSprite(BB_MOB[kind][2], BB_MOB[kind][3], BB_MOB[kind][4]); g.add(au); g.userData.aura = au; } else { g = MOB_BUILD[kind](); detailMob(kind, g); }
@@ -791,10 +816,12 @@
         if (m.spawnT < 1) { m.spawnT += dt / (m.cap ? 1.6 : .9); const e = 1 - Math.pow(1 - Math.min(1, m.spawnT), 3), bs = m.bs; g.scale.setScalar(Math.max(.05, bs * (.2 + .8 * e))); g.position.set(f.pos.x, f.pos.y - (1 - e) * 4.5, f.pos.z); if (Math.random() < dt * 45) emit(f.pos.x + rand(-1.4, 1.4), ABY.y + .3, f.pos.z + rand(-1.4, 1.4), rand(-2, 2), rand(1.5, 4), rand(-2, 2), '#8aa4b8', .3, .8, 1, 2); if (m.spawnT >= 1) { g.scale.setScalar(bs); ringAt(new V3(f.pos.x, ABY.y + .2, f.pos.z), '#9ef2ff', 5, .5); } mobDetailAnim(m, t); continue; }
         if (m.mirror && m.thp != null) { if (m.thp < f.hp - .01 || m.thp > f.hp + 8) f.hp = Math.max(1, m.thp); m.thp = null; }
         m.fxT = Math.max(0, m.fxT - dt); const hit0 = f.hp < m.lastHp - .01;
-        if (hit0) { m.flash = .16; m.aggro = true; m.squash = .22; snd('thud', f.pos, .6); const pn = ps.length ? ps.reduce((a2, b2) => dist2d(a2, f) < dist2d(b2, f) ? a2 : b2) : null; if (pn && !m.kx && !m.kz && !m.cap) { const kx = f.pos.x - pn.pos.x, kz = f.pos.z - pn.pos.z, kd = Math.hypot(kx, kz) || 1; m.kx = kx / kd * 4; m.kz = kz / kd * 4; } burst(chestOf(f), 5, '#e8f8ff', 6, .15, .35, .2); } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt); m.squash = Math.max(0, m.squash - dt);
+        if (m.stunImm > 0) m.stunImm -= dt;
+        if (hit0 && !m.mirror && !(m.stunImm > 0)) { const big = (m.lastHp - f.hp) > T0.hp * .06; if (!m.cap || big) { if (m.wind > 0 || m.lunge > 0) popAt(f, '¡INTERRUMPIDO!', '#ffd23f'); m.stun = Math.max(m.stun || 0, m.cap ? .3 : .5); m.wind = 0; m.lunge = 0; m.stunImm = m.cap ? 1.6 : 1.0; } }
+        if (hit0) { m.flash = .22; m.aggro = true; m.squash = .22; snd('thud', f.pos, .6); const pn = ps.length ? ps.reduce((a2, b2) => dist2d(a2, f) < dist2d(b2, f) ? a2 : b2) : null; if (pn && !m.kx && !m.kz && !m.cap) { const kx = f.pos.x - pn.pos.x, kz = f.pos.z - pn.pos.z, kd = Math.hypot(kx, kz) || 1; m.kx = kx / kd * 4; m.kz = kz / kd * 4; } burst(chestOf(f), 5, '#e8f8ff', 6, .15, .35, .2); } m.lastHp = f.hp; m.flash = Math.max(0, m.flash - dt); m.squash = Math.max(0, m.squash - dt);
         if (m.dot) { m.dot.t -= dt; f.hp -= m.dot.dps * dt; m.lastHp = f.hp; if (Math.random() < dt * 14) emit(f.pos.x + rand(-.8, .8), f.pos.y + rand(.5, (f.hitH || 2)), f.pos.z + rand(-.8, .8), 0, rand(1, 3), 0, m.dot.col, .16, .6, -.3, 1); if (f.hp <= 0 && f.alive) { if (m.mirror) f.hp = 1; else kill(f, m.dot.by || null); } if (m.dot && m.dot.t <= 0) m.dot = null; }
         if (m.slow > 0) m.slow -= dt; if (m.conf > 0) m.conf -= dt; if (AB.cineT > 0) m.aggro = false;
-        for (const mt of m.mats) { if (m.flash > 0) mt.emissive.setRGB(.7, .7, .7); else if (mt.userData && mt.userData.em) mt.emissive.copy(mt.userData.em); else mt.emissive.copy(mt.color).multiplyScalar(.4); }
+        for (const mt of m.mats) { if (m.flash > 0) mt.emissive.setRGB(.95, .07, .07); else if (mt.userData && mt.userData.em) mt.emissive.copy(mt.userData.em); else mt.emissive.copy(mt.color).multiplyScalar(.4); }
         if (m.aggro && Math.random() < dt * .22) snd(SND_WIND[m.k], f.pos, .45);
         let tgt = null, bd = 1e9; for (const p of ps) { const d = dist2d(p, f); if (d < bd) { bd = d; tgt = p; } }
         let mx = 0, mz = 0, moving = false, sp = T0.spd * (m.slow > 0 ? m.slowK : 1) * (m.dot && m.k === 'crab' ? 1.5 : 1);

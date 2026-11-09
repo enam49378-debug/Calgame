@@ -4107,7 +4107,7 @@ class Fighter {
   }
   dispose() { stopCharacterVoice(this); releaseOwnerSpear(this); disposeMount(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
-const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive && (g.isBoss ? !!f.abyss : f.isBoss ? !!g.abyss : !!f.abyss === !!g.abyss));   // el abismo y el mar son mundos aparte
+const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive && (g.isBoss ? !!f.abyss : f.isBoss ? !!g.abyss : (!!f.abyss === !!g.abyss) && !(f.abyss && g.abyss)));   // en el abismo los jugadores son aliados: sin PVP   // el abismo y el mar son mundos aparte
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
 function front(f, d, h = 1) { const F = fwd(f.yaw); return new V3(f.pos.x + F.x * d, f.pos.y + h, f.pos.z + F.z * d); }
 const involvesPlayerNear = f => G.player && G.player.alive && f.pos.distanceTo(G.player.pos) < 25;
@@ -5148,6 +5148,7 @@ function applyHit(att, t, o) {   // si el golpe ocurre en OTRO mundo (abismo vs 
 }
 function applyHit0(att, t, o) {
   if (t === att || (att.remote && !o.fromNet)) return false;
+  if (att.abyss && t.abyss && !att.isBoss && !t.isBoss) return false;   // sin PVP dentro del abismo
   if (t.isBoss) o = Object.assign({}, o, { kb: 0, up: 0, ragdoll: 0, stun: 0, guardBreak: false, noCounter: true, pull: 0 });   // el Kraken no se empuja ni se aturde
   if (t.isBoss && att.isPlayer && window.CF_ABISMO) o = CF_ABISMO.bossHit(att, o, t) || o;   // el jefe decide cuanto daño recibe (tentaculos, expuesto)
   if (t.remote) { if (!t.alive || t.ragdoll > 0) return false; netHit(att, t, o); return true; }
