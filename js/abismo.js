@@ -963,7 +963,7 @@
       const meIn = !!(G.player && G.player.abyss); if (!meIn && AB.hidden) showWorld(); else if (meIn && !AB.hidden && G.state === 'play') hideWorld(); if (G.state !== 'play') showWorld();
       abyssAtmosphere(meIn); if (insideNow) collide(); ascUpdate(dt);
       if (window.CF_MUELLE) CF_MUELLE.update(dt, t, cp);
-      for (const f of G.fighters) if (f.abyss && !f.isBoss && (f.pos.z < ABY.z - 130 || (!f.alive && f.deathT > 1.2 && !locked()))) { f.abyss = false; f.fellIn = 0; f.exitMsg = 0; if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); }
+      for (const f of G.fighters) if (f.abyss && !f.isBoss && !f.remote && (f.pos.z < ABY.z - 130 || (!f.alive && f.deathT > 1.2 && !locked()))) { f.abyss = false; f.fellIn = 0; f.exitMsg = 0; if (!G.fighters.some(g => g.abyss && !g.isBoss && !g.remote)) sleepBoss(); }
       if (B.f) bossUpdate(dt, t); else if (B.g && B.g.visible && B.state === 'sleep') sleepAnim(dt, t);
     }
     function sleepAnim(dt, t) {   // el Kraken dormido: respira lento, ojos apagados, brazos caídos

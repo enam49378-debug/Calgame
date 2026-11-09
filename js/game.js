@@ -14561,14 +14561,17 @@ function presenceOf(f, ch) {
     v: 1, cos: f.isPlayer && window.CF_COS ? CF_COS.equippedIds() : undefined, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
     dx: f.isPlayer && NET.destOut ? NET.destOut.filter(e => G.time - e.t < 2.5) : undefined, vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
-    wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
+    wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, ab: f.abyss ? 1 : 0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
   };
 }
 // antitrampas: sin servidor no se puede impedir que alguien mande datos falsos, pero cada cliente se defiende de lo imposible:
 // golpes desde muy lejos, ráfagas de golpes o daño que ninguna habilidad puede hacer y teletransportes. Quien insiste queda ignorado un rato.
+// el abismo esta lejos del mapa (cueva bajo el mar): sus coordenadas tambien son validas
+const NET_ZMAX = Math.max(420, ...ABY_PTS.map(q => q[1]), ABY.z + ABY.R) + 60, NET_YMIN = Math.min(-60, ABY.y - 40);
 function sanePr(pr) {   // lo que manda otro jugador nunca se usa tal cual: números dentro de rango y nombres limpios
   const c = (v, a, b, d = 0) => { v = +v; return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d; };
-  if (pr.x != null) { pr.x = c(pr.x, -420, 420); pr.z = c(pr.z, -420, 420); pr.y = c(pr.y, -60, 500); }
+  if (pr.x != null) { pr.x = c(pr.x, -420, 420); pr.z = c(pr.z, -420, NET_ZMAX); pr.y = c(pr.y, NET_YMIN, 500); }
+  pr.ab = pr.ab ? 1 : 0;
   pr.hp = c(pr.hp, 0, 600); pr.mh = c(pr.mh, 1, 600, 100); pr.k = c(pr.k, 0, 9999); pr.d = c(pr.d, 0, 9999);
   if (typeof pr.nm === 'string') pr.nm = pr.nm.replace(/[<>&\u0000-\u001f]/g, '').slice(0, 16);
   if (pr.uid != null && !validAccountId(pr.uid)) delete pr.uid;
@@ -14666,10 +14669,12 @@ function proxyUpdate(px, dt) {
   if (was && !px.alive) burst(chestOf(px), 30, '#dddddd', 5, .3, .8, -.2);
   // interpolación de instantáneas, como en un servidor normal: se guardan los últimos paquetes y cada jugador remoto se dibuja
   // ~100 ms en el pasado, entre dos paquetes reales, así los tirones de la red no se ven como saltos
+  const ab = !!pr.ab, abChanged = ab !== !!px.abyss; px.abyss = ab;
+  if (abChanged) { px.netBuf = null; px.netOff = null; px.swim = false; }   // entra o sale del abismo: sin mezclar posiciones de los dos mundos
   const nowMs = performance.now(), st = NET_OLD ? null : netInterp(px, pr, nowMs);
   { const ck = cheatOf(px), nx = +pr.x || 0, nz = +pr.z || 0;
-    if (ck.lx != null && px.alive && !px.sceneLock && nowMs - ck.lt < 600 && Math.hypot(nx - ck.lx, nz - ck.lz) > 46) cheatStrike(px, 'teletransporte');
-    ck.lx = nx; ck.lz = nz; ck.lt = nowMs; }
+    if (!abChanged && ck.ab === ab && ck.lx != null && px.alive && !px.sceneLock && nowMs - ck.lt < 600 && Math.hypot(nx - ck.lx, nz - ck.lz) > 46) cheatStrike(px, 'teletransporte');
+    ck.lx = nx; ck.lz = nz; ck.lt = nowMs; ck.ab = ab; }
   if (px.sceneLock) { px.flashT -= dt; return; }   // una escena lo está moviendo
   if (NET_OLD) {
     _tp.set(+pr.x || 0, +pr.y || 0, +pr.z || 0);
