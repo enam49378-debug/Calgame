@@ -20,3 +20,5 @@ Edificios con interior: `cafe`, `arcade`, `mercado`, `biblioteca`, `ramen`, `tal
 
 
 **Notas técnicas:** Blockbench reciente guarda el nombre, origen y rotación de los grupos en la lista `groups` (el juego ya lo entiende, así que `colision` sigue sin dibujarse). Las texturas se ven sin suavizado, igual que en Blockbench. Cada modelo conserva su propio atlas (las copias `.js` guardan las distintas en `atlas.js`).
+
+**Resolución de las texturas:** los atlas están al doble (1024 px de ancho = 32 px por metro) con `python tools/ampliar_atlas.py`: cada píxel original es 2×2, así que nada cambia de sitio y puedes repintar encima con más detalle en Blockbench. Las coordenadas UV se calculan sobre el tamaño del proyecto (`resolution`), no sobre el de la imagen. Si regeneras la ciudad con `gen_ciudad.py` vuelve a 512 y hay que ejecutar `ampliar_atlas.py` otra vez.
