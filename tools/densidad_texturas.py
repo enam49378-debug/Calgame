@@ -1,9 +1,11 @@
 """Mide cuántos píxeles de textura le tocan a cada metro de superficie de un modelo de la ciudad (ideal: 16 px/m; menos de 8 se ve borroso o en bloques grandes).
 Uso:  python tools/densidad_texturas.py              (todos los modelos, resumen)
       python tools/densidad_texturas.py museo        (un modelo: los grupos y cubos peores, para arreglarlos en Blockbench)
-Las caras pequeñas (< 0.5 m) no cuentan. Los modelos con textura propia de 256 px usan 'resolution' 64: se multiplica por 4 solo."""
-import json, sys, glob, os
+Solo cuentan las zonas con DIBUJO (una zona lisa estirada no pierde nada). Las caras pequeñas (< 0.5 m) no cuentan. Los modelos con textura propia de 256 px usan 'resolution' 64: se multiplica por 4 solo."""
+import json, sys, glob, os, io, base64
 from pathlib import Path
+from PIL import Image
+import numpy as np
 OUT = Path(__file__).resolve().parent.parent / 'ciudad'
 FACES = {'north': (0, 1), 'south': (0, 1), 'east': (2, 1), 'west': (2, 1), 'up': (0, 2), 'down': (0, 2)}
 def analizar(path):
@@ -15,6 +17,7 @@ def analizar(path):
             else: walk(n.get('children', []), n.get('name') or gname.get(n.get('uuid'), '') or name)
     walk(d.get('outliner', []), '(sin grupo)')
     rw = (d.get('resolution') or {}).get('width', 512); tw = (d.get('textures') or [{}])[0].get('uv_width') or rw
+    im = np.asarray(Image.open(io.BytesIO(base64.b64decode(d['textures'][0]['source'].split(',', 1)[1]))).convert('RGB')).astype(float)
     esc = 4 if rw <= 64 and (d.get('textures') or [{}])[0].get('width', 0) >= 256 else 1
     caras = []
     for e in d['elements']:
@@ -28,6 +31,10 @@ def analizar(path):
             u1, v1, u2, v2 = fc['uv']; sw, sh = sz[wa], sz[ha]
             if sw < 8 or sh < 8: continue
             dens = (16 * abs(u2 - u1) / sw + 16 * abs(v2 - v1) / sh) / 2 * esc
+            k = d['textures'][0].get('width', rw) / tw  # píxeles reales por unidad de uv
+            x0, x1 = sorted((int(u1 * k), int(u2 * k))); y0, y1 = sorted((int(v1 * k), int(v2 * k)))
+            reg = im[y0:max(y1, y0 + 1), x0:max(x1, x0 + 1)].reshape(-1, 3)
+            if reg.size == 0 or float(reg.std(0).mean()) < 14: continue          # zona lisa: no cuenta
             caras.append((dens, sw * sh / 256.0, nm, e.get('name', ''), cara))
     return caras
 def resumen(caras):
