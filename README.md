@@ -11,6 +11,12 @@ Arena 3D de peleas anime con jugadores de bloques estilo Minecraft.
 
 Controles: WASD moverse · Mouse cámara · Clic combo · Espacio saltar · F bloquear · Q esquivar · 1-4 habilidades · G ulti
 
+## Texturas de los modelos
+
+Cada entrada de `textures` de un `.bbmodel` puede incluir `cf_quality` con `pixel` (píxeles duros), `nitida` (píxeles nítidos de cerca, filtrado a distancia) o `suave` (interpolación también de cerca). `cf_anisotropy` admite valores de 1 a 8, con el límite de la tarjeta gráfica. La ciudad usa `nitida` por defecto y los modelos animados usan `pixel`.
+
+Los PNG se clasifican por su alfa. Un hueco transparente se recorta y el alfa intermedio se mezcla con lo que hay detrás. Si un material necesita un modo fijo, se puede indicar `cf_alpha` con `opaque`, `cutout` o `blend`. En los modelos de la ciudad publicados, estas propiedades también se conservan al exportar la copia `.js` del modelo.
+
 ## Eliminatoria de Javi: Lanza Leal
 
 Si la **Lanza Leal (2)** normal elimina al rival, queda clavada en su cuerpo con sangre estilizada. El daño no aumenta. Javi debe acercarse a la marca **Tu lanza** para recogerla automáticamente; mientras tanto pelea con los puños y sus habilidades de lanza quedan bloqueadas sin consumir recarga.

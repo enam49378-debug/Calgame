@@ -687,8 +687,9 @@ function cityGrassAt(x,z) {
     east:[[1,0,1],[1,0,0],[1,1,0],[1,1,1]], west:[[0,0,0],[0,0,1],[0,1,1],[0,1,0]],
     up:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]], down:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]
   };
-  function bbGeometry(data){
+  function bbGeometry(data, textures){
     const RW=data.resolution.width,RH=data.resolution.height,pos=[],uvs=[],idx=[],cubes=[],els=new Map(data.elements.map(e=>[e.uuid,e]));
+    const groups=[], materials=[], slots=new Map();
     const T=(o)=>new THREE.Matrix4().makeTranslation(o[0],o[1],o[2]),R=(r)=>new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(r[0]*Math.PI/180,r[1]*Math.PI/180,r[2]*Math.PI/180,'ZYX'));
     const xf=(node)=>{const o=node.origin||[0,0,0],r=node.rotation||[0,0,0];return T(o).multiply(R(r)).multiply(T([-o[0],-o[1],-o[2]]));};
     const v=new V3();
@@ -699,12 +700,20 @@ function cityGrassAt(x,z) {
       for(const cx of [f[0],t[0]])for(const cy of [f[1],t[1]])for(const cz of [f[2],t[2]]){v.set(cx,cy,cz).applyMatrix4(m).multiplyScalar(1/16);mnx=Math.min(mnx,v.x);mny=Math.min(mny,v.y);mnz=Math.min(mnz,v.z);mxx=Math.max(mxx,v.x);mxy=Math.max(mxy,v.y);mxz=Math.max(mxz,v.z);}
       for(const [name,face] of Object.entries(el.faces||{})){
         if(!face.uv||face.texture==null||!BB_FACES[name])continue;
+        const texId=CF_TEXTURES.textureIndex(data.textures,face.texture), tex=textures[texId];
+        if(!tex)continue;
+        const [w,h]=CF_TEXTURES.uvSize(data,tex.spec);
+        const alpha=CF_TEXTURES.mode(tex.map.image,tex.spec,face.uv,w,h), slot=texId+':'+alpha;
+        if(!slots.has(slot)){slots.set(slot,materials.length);materials.push(tex.material(alpha));}
+        const mi=slots.get(slot), group=groups[groups.length-1];
+        if(group?.materialIndex===mi)group.count+=6;else groups.push({start:idx.length,count:6,materialIndex:mi});
         const base=pos.length/3,[u1,v1,u2,v2]=face.uv,uv4=[[u1,v2],[u2,v2],[u2,v1],[u1,v1]];
         BB_FACES[name].forEach((c,i)=>{
           v.set(c[0]?t[0]:f[0],c[1]?t[1]:f[1],c[2]?t[2]:f[2]).applyMatrix4(m).multiplyScalar(1/16);
-          pos.push(v.x,v.y,v.z);uvs.push(uv4[i][0]/RW,1-uv4[i][1]/RH);
+          const [u,vt]=uv4[i];
+          pos.push(v.x,v.y,v.z);uvs.push(u/w,1-vt/h);
         });
-        idx.push(base,base+1,base+2,base,base+2,base+3);if(!uvr)uvr=[u1,v1,u2,v2];fcs.push([name,u1,v1,u2,v2]);
+        idx.push(base,base+1,base+2,base,base+2,base+3);if(!uvr)uvr=[u1,v1,u2,v2];fcs.push([name,u1,v1,u2,v2,mi,w,h]);
       }
       if(idx.length>i0)cubes.push({a:[mnx,mny,mnz,mxx,mxy,mxz],i0,n:idx.length-i0,uv:uvr,fc:fcs});
     };
@@ -723,39 +732,53 @@ function cityGrassAt(x,z) {
     walk(data.outliner||[],new THREE.Matrix4(),false);
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
-    g.setIndex(idx);g.computeVertexNormals();g.userData.cols=cols;g.userData.cubes=cubes;g.userData.RW=RW;g.userData.RH=RH;return g;
+    g.setIndex(idx);g.computeVertexNormals();g.userData.cols=cols;g.userData.cubes=cubes;g.userData.RW=RW;g.userData.RH=RH;
+    if(materials.length>1)g.groups=groups;
+    return {geo:g,mat:materials.length===1?materials[0]:materials};
   }
   const bbCache=new Map(),bbMats=new Map();
+  const bbSource=(spec,i)=>spec?.source||(spec?.atlas&&window.BB_ATLASES?.[spec.atlas])||(i===0?window.BB_ATLAS:null);
+  function bbMaterial(src,spec,emSrc,atlas){
+    if(!bbMats.has(src))bbMats.set(src,new Map());
+    const cache=bbMats.get(src),key=JSON.stringify([spec.cf_quality,spec.cf_anisotropy,emSrc,atlas]);
+    if(!cache.has(key))cache.set(key,Promise.all([CF_TEXTURES.load(src),emSrc?CF_TEXTURES.load(emSrc).catch(()=>null):null]).then(([img,emImg])=>{
+      const map=CF_TEXTURES.configure(new THREE.Texture(img),spec,renderer.capabilities,'nitida');
+      let emission=null;
+      if(emImg||(atlas&&img.height>img.width*2.5)){
+        const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const ctx=cv.getContext('2d');
+        ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+        if(emImg)ctx.drawImage(emImg,0,0,cv.width,cv.height);
+        else {const ey=img.width/8*20;ctx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);}
+        emission=CF_TEXTURES.configure(new THREE.CanvasTexture(cv),spec,renderer.capabilities,'nitida');
+      }
+      const variants=new Map();
+      return {map, material(alpha){
+        if(!variants.has(alpha))variants.set(alpha,cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:emission?0xffffff:0,emissiveMap:emission,...CF_TEXTURES.alphaOptions(alpha)}),{cut:true}));
+        return variants.get(alpha);
+      }};
+    }));
+    return cache.get(key);
+  }
+  async function bbTexturedGeometry(data){
+    const used=new Set();
+    for(const e of data.elements)for(const f of Object.values(e.faces||{}))if(f.texture!=null)used.add(CF_TEXTURES.textureIndex(data.textures,f.texture));
+    const textures=await Promise.all(data.textures.map(async (spec,i)=>{
+      const src=used.has(i)&&bbSource(spec,i);
+      if(!src)return null;
+      const emSrc=i===0&&!used.has(1)?bbSource(data.textures[1],1):null;
+      const shared=await bbMaterial(src,spec,emSrc,i===0);
+      return {...shared,spec};
+    }));
+    return bbGeometry(data,textures);
+  }
   function loadBBModel(name){
     // Con servidor se lee el .bbmodel directo (los cambios hechos en Blockbench se ven al recargar); sin servidor (file://) se usa la copia ciudad/<nombre>.js
     const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
-    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];const t=d.textures[0];if(t&&(!t.source||t.source===''))t.source=(t.atlas&&window.BB_ATLASES&&window.BB_ATLASES[t.atlas])||window.BB_ATLAS;return d;});
-    // Una sola textura y un solo material para todos los modelos (comparten el atlas): arranca más rápido y usa menos memoria.
-    const mat=(src,emSrc)=>{
-      const key=src.length+':'+src.slice(-48)+(emSrc?'+'+emSrc.slice(-24):'');
-      if(!bbMats.has(key))bbMats.set(key,new Promise((ok,fail)=>{
-        const img=new Image();
-        img.onload=()=>{
-          const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestFilter;map.generateMipmaps=false;map.anisotropy=1;   // nítido, como en Blockbench
-          
-          const finish=emImg=>{
-            // Los tiles del atlas desde la fila 20 (índice 160) o la segunda textura PBR son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
-            const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
-            if(emImg)cx.drawImage(emImg,0,0,cv.width,cv.height);
-            else{const ey=img.width/8*20;if(img.height>ey)cx.drawImage(img,0,ey,img.width,img.height-ey,0,ey,img.width,img.height-ey);}
-            const em=new THREE.CanvasTexture(cv);em.magFilter=em.minFilter=THREE.NearestFilter;
-            ok(cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:0xffffff,emissiveMap:em}),{cut:true}));
-          };
-          if(emSrc){const ei=new Image();ei.onload=()=>finish(ei);ei.onerror=()=>finish(null);ei.src=emSrc;}else finish(null);
-        };
-        img.onerror=fail;img.src=src;
-      }));
-      return bbMats.get(key);
-    };
+    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),window.BB_MODELS?.[name]?0:script('ciudad/'+name+'.js')]).then(()=>window.BB_MODELS[name]);
     // En tu equipo (servidor local) se lee el .bbmodel directo para ver al recargar lo que cambies en Blockbench; en internet se usan las copias .js (mucho más ligeras)
     const dev=/^(localhost|127\.|192\.168\.|10\.|\[::1\])/.test(location.hostname);
     if(!bbCache.has(name))bbCache.set(name,(dev?fetch('ciudad/'+name+'.bbmodel',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}):Promise.reject()).catch(viaScript)
-      .then(data=>mat(data.textures[0].source,data.textures[1]&&data.textures[1].source).then(m=>({geo:bbGeometry(data),mat:m}))));
+      .then(bbTexturedGeometry));
     return bbCache.get(name);
   }
   // Los modelos entran al cargarse; si faltan (por ejemplo al abrir el archivo sin servidor) queda una caja de color.
@@ -772,7 +795,7 @@ function cityGrassAt(x,z) {
       const mesh=new THREE.Mesh(new THREE.BoxGeometry(b.w,b.h,b.d),new THREE.MeshLambertMaterial({color:b.color}));mesh.position.set(b.x,b.h/2,b.z);scene.add(mesh);
     }));
   }
-  Promise.all(bbLoads).then(()=>{sharpenTextures();CITY.modelsReady=true;if(typeof rebuildCityNav==='function')rebuildCityNav();});
+  Promise.all(bbLoads).then(()=>{CITY.modelsReady=true;if(typeof rebuildCityNav==='function')rebuildCityNav();});
   // Torre Aurora: el edificio más alto, con ascensor en el vestíbulo que lleva a la azotea y un pararrayos
   {
     const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA'),face=T.z<0?1:-1,rx=T.x,rz=T.z;
@@ -943,6 +966,7 @@ function cityGrassAt(x,z) {
   for(const pr of PR)bbLoads.push(loadBBModel(pr.m).then(({geo,mat})=>{
     const pGeo = new THREE.BufferGeometry();
     pGeo.attributes = geo.attributes;
+    pGeo.groups = geo.groups;
     if (geo.index) pGeo.setIndex(geo.index.clone());
     pGeo.boundingBox = geo.boundingBox;
     pGeo.boundingSphere = geo.boundingSphere;
@@ -957,7 +981,7 @@ function cityGrassAt(x,z) {
     bbRegister(mesh,pGeo);
     const itP = MAP_ITEMS.find(q => q.kind === 'p' && q.model === pr.m && Math.abs(q.x - pr.x) < 0.2 && Math.abs(q.z - pr.z) < 0.2 && !q.mesh);
     if (itP) { itP.mesh = mesh; mesh.userData.mapItem = itP; }
-    if(pr.bob)BEACH.boats.push({mesh,y0:pr.y,ph:rnd()*6});
+    if(pr.bob)BEACH.boats.push({mesh,model:pr.m,y0:pr.y,ph:rnd()*6});
     const c=Math.cos(pr.ry),sn=Math.sin(pr.ry),SX=mesh.scale.x,SY=mesh.scale.y,SZ=mesh.scale.z;   // las colisiones siguen el tamaño con el que se dibuja el modelo (el muelle se agranda)
     for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2*SX,lz=(z0+z1)/2*SZ,hx=(x1-x0)/2*SX,hz=(z1-z0)/2*SZ;
       COL.push({x:pr.x+lx*c+lz*sn,z:pr.z-lx*sn+lz*c,hx:Math.abs(c)*hx+Math.abs(sn)*hz,hz:Math.abs(sn)*hx+Math.abs(c)*hz,h:y1*SY,y0:y0<.05?0:y0*SY,ceiling:false,nocam:true,prop:mesh});}
@@ -1799,8 +1823,8 @@ function buildModel(skin, slim, parent) {
   const tex = new THREE.CanvasTexture(skin);
   tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
   const th = skin.height, legacy = th === 32, aw = slim ? 3 : 4;
-  const toonOpts = (alpha) => {
-    const mat = new THREE.MeshToonMaterial({ map: tex, gradientMap: TOON_GRAD, alphaTest: alpha ? 0.5 : 0, side: alpha ? THREE.DoubleSide : THREE.FrontSide, emissive: 0x000000 });
+  const toonOpts = (alpha, side) => {
+    const mat = new THREE.MeshToonMaterial({ map: tex, gradientMap: TOON_GRAD, ...CF_TEXTURES.alphaOptions(alpha), side, emissive: 0x000000 });
     mat.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `
         vec3 vView = normalize(vViewPosition);
@@ -1812,8 +1836,10 @@ function buildModel(skin, slim, parent) {
     };
     return mat;
   };
-  const base = toonOpts(false);
-  const over = toonOpts(true);
+  const base = toonOpts('opaque', THREE.FrontSide);
+  const over = toonOpts('cutout', THREE.DoubleSide);
+  const skinMode = CF_TEXTURES.mode(skin);
+  const blend = skinMode === 'blend' ? toonOpts('blend', THREE.FrontSide) : null;
   const root = new THREE.Group(), inner = new THREE.Group(), torso = new THREE.Group();
   inner.position.y = 16 * PX; root.add(inner);
   torso.position.y = -4 * PX; inner.add(torso);
@@ -1823,11 +1849,14 @@ function buildModel(skin, slim, parent) {
     const tk = w === 8 && h === 8 ? 1.5 : 1.1, ol = new THREE.Mesh(m.geometry, OUTLINE_MAT);
     ol.scale.set((w + tk) / w, (h + tk) / h, (d + tk) / d); m.add(ol);
     if (ou != null) {
-      const o = new THREE.Mesh(boxUV(w, h, d, ou, ov, th, inflate), over);
+      const semi = blend && CF_TEXTURES.mode(skin,null,[ou,ov,ou+2*w+2*d,ov+h+d]) === 'blend';
+      const o = new THREE.Mesh(boxUV(w, h, d, ou, ov, th, inflate), semi ? blend : over);
       o.position.y = offY * PX;
-      const otk = tk * 0.9, ool = new THREE.Mesh(o.geometry, OUTLINE_MAT);
-      ool.scale.set((w + inflate + otk) / (w + inflate), (h + inflate + otk) / (h + inflate), (d + inflate + otk) / (d + inflate));
-      o.add(ool);
+      if (!semi) {
+        const otk = tk * 0.9, ool = new THREE.Mesh(o.geometry, OUTLINE_MAT);
+        ool.scale.set((w + inflate + otk) / (w + inflate), (h + inflate + otk) / (h + inflate), (d + inflate + otk) / (d + inflate));
+        o.add(ool);
+      }
       par.add(o);
     }
   };
@@ -1846,7 +1875,7 @@ function buildModel(skin, slim, parent) {
   parent.add(root);
   const bind = {};
   for (const [name, part] of Object.entries({ torso, head, armL, armR, legL, legR })) bind[name] = part.position.clone();
-  return { root, inner, torso, head, armL, armR, legL, legR, gripRot, backHold, bind, tex, mats: [base, over], parent };
+  return { root, inner, torso, head, armL, armR, legL, legR, gripRot, backHold, bind, tex, mats: blend ? [base, over, blend] : [base, over], parent };
 }
 function disposeModel(m) {
   m.parent.remove(m.root);
@@ -5036,7 +5065,7 @@ function initAmbience() {
 function updateBeach(dt) {
   BEACH.t += dt; BEACH.sea.uTime.value = BEACH.t; const t = BEACH.t;
   { const S = BEACH.sea; S.uSky.value.copy(WX.skyHorizon); S.uSunV.value.copy(SUN_DIR).transformDirection(camera.matrixWorldInverse); S.uSunC.value.set(0xfff2d0).lerp(_c.set(0xff9a5a), WX.sunsetK || 0); S.uSunK.value = WX.sunVis == null ? 1 : WX.sunVis; }
-  for (const b of BEACH.boats) { b.mesh.position.y = b.y0 + Math.sin(t * 1.1 + b.ph) * .06; b.mesh.rotation.z = Math.sin(t * .9 + b.ph) * .035; b.mesh.rotation.x = Math.sin(t * .7 + b.ph) * .02; }
+  for (const b of BEACH.boats) { b.mesh.position.y = b.y0 + Math.sin(t * 1.1 + b.ph) * .06; b.mesh.rotation.z = Math.sin(t * .9 + b.ph) * .035 + (b.kick || 0); b.mesh.rotation.x = Math.sin(t * .7 + b.ph) * .02; }
   for (const g of BEACH.gulls) {
     const a = g.ph + t * g.sp; g.g.position.set(g.cx + Math.cos(a) * g.r, g.h + Math.sin(t * .6 + g.ph) * 1.5, g.cz + Math.sin(a) * g.r);
     g.g.rotation.y = Math.atan2(-Math.sin(a), Math.cos(a)); const f = Math.sin(t * 6 + g.ph * 3) * .45; g.wl.rotation.z = f; g.wr.rotation.z = -f;
@@ -9787,15 +9816,6 @@ try {
   }
 } catch (e) { composer = null; }
 }
-// texturas de los edificios y del mapa: sin suavizado al acercarse (píxeles nítidos) y con filtro anisotrópico al verlas de lado
-function sharpenTextures() {
-  const mx = renderer.capabilities.getMaxAnisotropy ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4, seen = new Set();
-  scene.traverse(o => {
-    const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
-    for (const m of ms) for (const k of ['map', 'emissiveMap']) { const t = m[k]; if (!t || seen.has(t) || !t.image || t.image.width < 256) continue;   // solo atlas y texturas grandes de la ciudad: las skins de los jugadores no se tocan
-       seen.add(t); t.magFilter = THREE.NearestFilter; t.anisotropy = mx; t.needsUpdate = true; }
-  });
-}
 // ================= Calidad gráfica adaptable =================
 // 0 Alta (bloom, sombras 2048, contornos) · 1 Media (sin bloom, sombras 1024) · 2 Baja (sin sombras ni contornos) · 3 Mínima (resolución reducida)
 // ================= Sistema Gráfico y Opciones Completas =================
@@ -11469,7 +11489,6 @@ const CF_A = (() => {
     get caPass() { return caPass; }, set caPass(v) { caPass = v; },
     get gradePass() { return gradePass; }, set gradePass(v) { gradePass = v; },
     initPostProcessing,
-    sharpenTextures,
     get GFX_LIMIT() { return GFX_LIMIT; },
     get GFX_CFG() { return GFX_CFG; },
     get GFX() { return GFX; },
@@ -15873,7 +15892,7 @@ function titleStart(force) {
   if (TITLE.on || (!force && /[#?](sala|room|j=|join)|notitle/i.test(location.hash + location.search))) return;
   if (!CHARS[G.charId]) G.charId = 'javi';
   let idx = 0; try { idx = (parseInt(localStorage.getItem('bsb_title_idx') || '-1') + 1) % 2; localStorage.setItem('bsb_title_idx', String(idx)); } catch (e) { }
-  TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; TITLE.nextSek = 7; TITLE.boomShake = 0; G.state = 'title';
+  TITLE.idx = idx; TITLE.on = true; TITLE.t = 0; TITLE.lt = null; TITLE.nextSek = 7; TITLE.nextCm = 6; TITLE.boomShake = 0; G.state = 'title';
   $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(GFX.post?innerWidth:16, GFX.post?innerHeight:16); }
    $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
   TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode }; if (bloomPass) { TITLE.bloom = bloomPass.enabled; bloomPass.enabled = false; }   // sin bloom en el inicio: difuminaba las siluetas
@@ -15978,7 +15997,7 @@ const bez = (p0, p1, p2, k) => p0.clone().multiplyScalar((1 - k) * (1 - k)).addS
 function titleSky(dt, t, cp, yaw) {
   const K = TITLE.sek;
   if (!K) {
-    if (!TITLE.wreck && TITLE.lt == null && t >= TITLE.nextSek && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw);
+    if (!TITLE.wreck && TITLE.cm?.id !== 'gatoBoat' && TITLE.lt == null && t >= TITLE.nextSek && BEACH.gulls[0] && CHARS.sekza) titleSekzaStart(cp, yaw);
     return;
   }
   K.t += dt; const T = K.t, m = K.model, x = K.anim.x;
@@ -16187,6 +16206,157 @@ function titleRepairCamera(cam, look) {
   cam.copy(close.lerp(wide, widen)); look.copy(closeLook.lerp(wideLook, widen));
   return 52;
 }
+const TITLE_BOAT_DUR = 5.7;
+const TITLE_BOAT_CLIMB = [
+  [0, { ix: .76, hx: -.62, alx: -1.85, arx: -1.8, llx: .25, lrx: -.18 }],
+  [.32, { ix: .35, hx: -.28, alx: -2.2, arx: -2.28, llx: -.42, lrx: .24 }],
+  [.7, { by: -2.8, ix: .6, hx: -.44, alx: -1.2, arx: -1.9, llx: -.9, lrx: .5 }],
+  [1.02, { by: -3, ix: .42, hx: -.22, alx: -.65, arx: -1.04, llx: -.88, lrx: .32 }],
+  [1.43, { by: -2.5, ix: .3, hx: -.15, alx: -.48, arx: -.75, llx: -.35, lrx: .12 }],
+];
+function titleRedBoat() {
+  camera.updateMatrixWorld();
+  let pick = null, best = Infinity;
+  for (const boat of BEACH.boats) {
+    if (boat.model !== 'barca_roja' || !boat.mesh.visible) continue;
+    if (boat.mesh.position.z < SHORE(boat.mesh.position.x) + 5) continue;
+    const p = boat.mesh.position.clone().setY(SEA_Y + 1), d = p.distanceTo(camera.position), v = p.project(camera);
+    if (v.z <= -1 || v.z >= 1 || Math.abs(v.x) > .94 || Math.abs(v.y) > .82 || d > 85) continue;
+    const score = Math.abs(v.x) + d * .012;
+    if (score < best) { best = score; pick = boat; }
+  }
+  return pick;
+}
+function titleBoatTentacles() {
+  const steps = 10, count = 3 * steps;
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const mesh = new THREE.InstancedMesh(geo, mat, count * 2);
+  mesh.visible = false; mesh.frustumCulled = false;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const color = new THREE.Color();
+  for (let i = 0; i < count; i++) {
+    mesh.setColorAt(i, color.set(i % 3 === 0 ? '#553965' : '#38264f'));
+    mesh.setColorAt(count + i, color.set(i % 2 ? '#bb7799' : '#d297b1'));
+  }
+  scene.add(mesh);
+  const curve = new THREE.CatmullRomCurve3(Array.from({length:5}, () => new V3()));
+  return { mesh, steps, count, curve, a: new V3(), b: new V3(), center: new V3(), tangent: new V3(), size: new V3(), up: new V3(0, 1, 0), q: new THREE.Quaternion(), matrix: new THREE.Matrix4() };
+}
+function poseTitleTentacles(c, t, body) {
+  const { mesh, steps, count, curve, a, b, center, tangent, size, up, q, matrix } = c.tentacles;
+  mesh.visible = t > 2.7 && t < 5.35;
+  if (!mesh.visible) return;
+  const [base, elbow, reach, wrap, tip] = curve.points;
+  for (let i = 0; i < 3; i++) {
+    const spread = i - 1, high = i === 1 ? .52 : .98;
+    const growth = smoothK(2.7 + i * .065, 3.23 + i * .045, t) * (1 - smoothK(4.56, 5.35, t));
+    c.boat.mesh.localToWorld(base.set(c.side * (2.25 + i * .25), 0, -.45 + spread * 1.22));
+    base.y = SEA_Y - 1.65;
+    elbow.copy(base).addScaledVector(c.out, .46).y += 2 + .42 * Math.sin(t * 10 + i);
+    reach.copy(body).addScaledVector(c.out, .78).addScaledVector(c.along, spread * .66).y += high + .34;
+    wrap.copy(body).addScaledVector(c.out, .14).addScaledVector(c.along, spread * .33 + (i === 1 ? .26 : 0)).y += high;
+    tip.copy(body).addScaledVector(c.out, -.28).addScaledVector(c.along, spread * .26).y += high + .24;
+    curve.getPoint(0, a);
+    for (let j = 0; j < steps; j++) {
+      const u = (j + 1) / steps, index = i * steps + j;
+      curve.getPoint(growth * u, b);
+      tangent.copy(b).sub(a);
+      const len = tangent.length(), width = (.38 - .28 * u) * Math.min(1, growth * 4);
+      q.setFromUnitVectors(up, tangent.divideScalar(len || 1));
+      center.copy(a).lerp(b, .5);
+      mesh.setMatrixAt(index, matrix.compose(center, q, size.set(width, len + width * .58, width)));
+      center.addScaledVector(c.out, width * .52);
+      mesh.setMatrixAt(count + index, matrix.compose(center, q, size.set(width * .52, width * .48, width * .62)));
+      a.copy(b);
+    }
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+}
+const TITLE_BOAT_CAMEO = {
+  dur: TITLE_BOAT_DUR,
+  init(c) {
+    const hull = c.boat.mesh;
+    hull.updateWorldMatrix(true, false);
+    const near = hull.worldToLocal(camera.position.clone());
+    c.side = near.x >= 0 ? 1 : -1;
+    c.out = new V3(c.side, 0, 0).applyAxisAngle(new V3(0, 1, 0), hull.rotation.y);
+    c.along = fwd(hull.rotation.y);
+    c.view = camera.position.clone().sub(hull.position).setY(0).normalize();
+    const f = cmSpawn('gato'); c.f = [f];
+    if (f.spear) f.spear.visible = false;
+    c.tentacles = titleBoatTentacles();
+    c.bang = bangSprite(); scene.add(c.bang);
+    c.nextSplash = 0;
+  },
+  upd(c, t) {
+    const f = c.f[0], x = f.anim.x, hull = c.boat.mesh;
+    hull.updateWorldMatrix(true, false);
+    const climb = smoothK(1.84, 2.91, t), over = smoothK(2.12, 2.87, t), drag = smoothK(3.62, 4.87, t);
+    const tug = smoothK(3.22, 3.57, t) * (1 - drag);
+    const swim = clamp(t / 1.48, 0, 1), stroke = Math.sin(swim * Math.PI * 5);
+    const deckX = .16 + .14 * tug + 2.65 * drag;
+    const localX = (1.16 + 3.32 * (1 - EZ.io(swim))) * (1 - over) + deckX * over;
+    const localZ = -.42 - .82 * (1 - swim) + .13 * stroke * (1 - swim) + .42 * drag;
+    const p = hull.localToWorld(new V3(c.side * localX, .18, localZ));
+    const floatY = SEA_Y - .93 - .65 * (1 - smoothK(0, .24, t)) + .08 * stroke * (1 - swim);
+    p.y = floatY * (1 - climb) + p.y * climb + .48 * Math.sin(Math.PI * climb) + .56 * Math.sin(Math.PI * drag) - 3.4 * drag ** 1.7;
+    let yaw = Math.atan2(-c.out.x, -c.out.z);
+    if (t < 1.48) {
+      const strokeB = Math.cos(swim * Math.PI * 5);
+      cmReset(x);
+      Object.assign(x, { ix: .76, hx: -.64, hy: .18 * stroke, alx: -1.85 + .68 * stroke, arx: -1.8 - .68 * stroke, alz: -.22, arz: .22, llx: .25 + .42 * strokeB, lrx: -.18 - .4 * strokeB });
+    } else if (t < 2.91) cmKeys(x, TITLE_BOAT_CLIMB, t - 1.48);
+    else {
+      const panic = smoothK(2.91, 3.16, t), flail = Math.sin((t - 2.91) * 27) * panic;
+      cmReset(x);
+      Object.assign(x, { by: -2.5 + 1.8 * drag, ix: .3 - .93 * drag, hx: -.15 - .28 * panic, hy: c.side * 1.05 * panic * (1 - drag), alx: -.48 - 1.4 * panic + flail * .66, arx: -.75 - 1.2 * panic - flail * .66, alz: -.52 * panic, arz: .6 * panic, llx: -.35 + flail * .7, lrx: .12 - flail * .64 });
+      yaw += c.side * .42 * panic;
+    }
+    cmPlace(f, p.x, p.z, yaw, p.y);
+    f.model.root.visible = t < 4.93;
+    c.bang.visible = t > 3.0 && t < 3.57;
+    if (c.bang.visible) {
+      f.model.head.getWorldPosition(c.bang.position).y += .73;
+      c.bang.scale.setScalar(.74 * outBack((t - 3.0) / .22));
+    }
+    poseTitleTentacles(c, t, p);
+    if (t > 3.2) { const u = t - 3.2; c.boat.kick = c.side * .22 * Math.sin(u * 12) * Math.exp(-u * 1.65); }
+    if (t >= .13 && t < 1.55 && t >= c.nextSplash) {
+      c.nextSplash = t + .24;
+      burst(p.clone().setY(SEA_Y + .08), 5, '#c5efff', 2.8, .11, .42, .45, 2);
+    }
+    if (!c.surge && t >= 2.83) {
+      c.surge = true;
+      const q = hull.localToWorld(new V3(c.side * 1.94, 0, -.42)).setY(SEA_Y + .06);
+      splashFx({pos:q});
+    }
+    if (!c.sunk && t >= 4.26) {
+      c.sunk = true;
+      const q = p.clone().setY(SEA_Y + .06);
+      splashFx({pos:q});
+      burst(q, 22, '#e2f7ff', 6.5, .19, .7, .7, 3.2);
+      sfx('drop', q, .62, { range: 70, title: true });
+    }
+  },
+  done(c) {
+    c.boat.kick = 0;
+    const { mesh } = c.tentacles;
+    scene.remove(mesh, c.bang);
+    mesh.geometry.dispose(); mesh.material.dispose(); mesh.dispose();
+    c.bang.material.map.dispose(); c.bang.material.dispose();
+  },
+};
+function titleBoatCamera(cam, look) {
+  const c = TITLE.cm;
+  if (c?.id !== 'gatoBoat' || TITLE.lt != null) return null;
+  const hull = c.boat.mesh.position, t = c.t;
+  const distance = 11.8 - 2.3 * smoothK(0, 2.92, t) + Math.max(0, 1 - camera.aspect) * 7;
+  cam.copy(hull).addScaledVector(c.view, distance).setY(2.55);
+  const follow = .72 + 1.12 * (1 - smoothK(0, 1.64, t)) + 1.2 * smoothK(3.65, 4.87, t);
+  look.copy(hull).addScaledVector(c.out, follow).setY(.46);
+  return 45;
+}
 const CAMEOS = {
   // Mattux: entra corriendo desde fuera, frena derrapando, espera impaciente y sale disparado hacia el sol
   mattux: { init(c) { c.f = [cmSpawn('mattux')]; c.z = 89; c.S = cmStage(-16, c.z); c.from = cmOff(c.S, c.z, 1); c.tIn = legT(c.from, c.S, 26) + .25; c.dur = c.tIn + 1.0 + 2.2; c.last = null; }, upd(c, t) {
@@ -16269,7 +16439,11 @@ function titleCameo(dt, t) {
   if (!C) {
     if (t < (TITLE.nextCm == null ? 6 : TITLE.nextCm) || TITLE.lt != null) return;
     const ids = CAMEO_IDS.filter(i => i !== G.charId && CHARS[i] && i !== TITLE.lastCm); if (!ids.length) return;
-    const id = ids[(Math.random() * ids.length) | 0], def = CAMEOS[id]; C = TITLE.cm = { id, def, t: 0 }; TITLE.lastCm = id; def.init(C);
+    const repairAt = TITLE.wreck?.repairAt ?? Infinity;
+    const boat = !TITLE.sek && TITLE.lastCm !== 'gatoBoat' && t + TITLE_BOAT_DUR + .3 < repairAt && Math.random() < .36 ? titleRedBoat() : null;
+    const id = boat ? 'gatoBoat' : ids[(Math.random() * ids.length) | 0];
+    const def = boat ? TITLE_BOAT_CAMEO : CAMEOS[id];
+    C = TITLE.cm = { id, def, t: 0, boat }; TITLE.lastCm = id; def.init(C);
   }
   C.t += dt; C.def.upd(C, C.t);
   if (C.t >= (C.dur || C.def.dur)) cameoEnd();
@@ -16354,20 +16528,20 @@ function titleUpdate(dt) {
   const cam = B.cam.clone(), look = B.look.clone(); let roll = sn(t * .55 + 50) * .006;
   { const ci = clamp(t / 5, 0, 1), ce = 1 - ci * ci * (3 - 2 * ci), dv = look.clone().sub(cam).setY(0).normalize(); cam.addScaledVector(dv, -ce * 2.2); cam.y += ce * .6; look.y += ce * .15; }   // travelling y grúa de entrada; luego la cámara queda fija
   updateTitleRepair(dt);
-  const repairFov = titleRepairCamera(cam, look);
+  const cameoFov = titleRepairCamera(cam, look) ?? titleBoatCamera(cam, look);
   if (TITLE.boomShake > 0) { cam.x += sn(t * 28 + 3) * .2 * TITLE.boomShake; cam.y += sn(t * 31 + 9) * .16 * TITLE.boomShake; roll += sn(t * 25) * .02 * TITLE.boomShake; TITLE.boomShake = Math.max(0, TITLE.boomShake - dt * 1.3); }
   cam.x += (sn(t * .7) + .5 * sn(t * 1.9 + 10)) * .05 + shake * sn(t * 24) * .12; cam.y += (sn(t * .8 + 20) + .5 * sn(t * 2.3 + 30)) * .04 + Math.sin(t * 1.25) * .008 + shake * sn(t * 21 + 7) * .1; look.y += sn(t * .6 + 40) * .09; look.x += sn(t * .5 + 60) * .09; look.z += sn(t * .45 + 80) * .09;
   if (L != null && L > .4) {   // la cámara se cae cuando el personaje termina de girar
     const fl = L - .4, drop = .5 * 9.8 * fl * fl * 2.4; cam.y = Math.max(B.gy + .06, cam.y - drop); roll += fl * 3.4; look.y -= fl * 5 * (1 + fl * 2);
     if (!TITLE.thud && cam.y <= B.gy + .09) { TITLE.thud = true; sfx('break', cam, 1); $('tfall').classList.add('black'); }
   }
-  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = (repairFov ?? B.fov) - 9 * zoom; camera.updateProjectionMatrix();
+  camera.position.copy(cam); camera.up.set(0, 1, 0); camera.lookAt(look); camera.rotateZ(roll); camera.fov = (cameoFov ?? B.fov) - 9 * zoom; camera.updateProjectionMatrix();
   // ---- Sekza cruza el cielo con las gaviotas y se va hacia el sol
   titleSky(dt, t, camera.position, yaw);
   if (!TITLE.wreck?.repair) titleCameo(dt, t);
   // ---- polvo flotando en la luz, rayos, destello de lente y grano
   if (Math.random() < dt * 14) { const F2 = fwd(yaw), R2 = rightOf(yaw), d = rand(3, 20), sd2 = rand(-9, 9); emit(camera.position.x + F2.x * d + R2.x * sd2, camera.position.y + rand(-1, 2.8), camera.position.z + F2.z * d + R2.z * sd2, rand(-.06, .06), rand(.03, .18), rand(-.06, .06), Math.random() < .3 ? '#ffffff' : '#ffd9a0', rand(.025, .06), rand(5, 9), 0, .5); }
-  { const v = CITY.sunDisc.position.clone().project(camera), vis = repairFov == null && v.z < 1 && Math.abs(v.x) < 1.6 && Math.abs(v.y) < 1.6, sx = (v.x * .5 + .5) * 100, sy = (-v.y * .5 + .5) * 100;
+  { const v = CITY.sunDisc.position.clone().project(camera), vis = cameoFov == null && v.z < 1 && Math.abs(v.x) < 1.6 && Math.abs(v.y) < 1.6, sx = (v.x * .5 + .5) * 100, sy = (-v.y * .5 + .5) * 100;
     const ry = $('trays'); ry.style.setProperty('--sx', sx.toFixed(1) + '%'); ry.style.setProperty('--sy', sy.toFixed(1) + '%'); ry.style.opacity = vis ? .55 : 0;
     const fls = document.querySelectorAll('.tfl'), mx = 50 - sx, my = 50 - sy;
     fls.forEach((el, i) => { const k = [.35, .7, 1.15, 1.5][i]; el.style.left = (sx + mx * k).toFixed(1) + '%'; el.style.top = (sy + my * k).toFixed(1) + '%'; el.style.opacity = vis && !TITLE.lt ? .85 : 0; }); }

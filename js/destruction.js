@@ -119,7 +119,7 @@
         bb: { geo, mesh, i0: c.i0, n: c.n, uv: c.uv, fc: c.fc, a: c.a },
         p: [(mnx + mxx) / 2, (mny + mxy) / 2, (mnz + mxz) / 2, Math.max(w, .06), h, Math.max(d, .06)],
         col: null,
-        mat: mesh.material,
+        mat: Array.isArray(mesh.material) ? mesh.material[c.fc[0]?.[5] || 0] : mesh.material,
         model: mesh.userData.model || '',
         isBuilding: isBldg,
         isCoreBody
@@ -148,11 +148,12 @@
     if (!best || !BBF[best[0]]) return d.bb.face = null;
     const c = BBF[best[0]], ax = (p, q) => { for (let i = 0; i < 3; i++) if (c[p][i] !== c[q][i]) return [i, c[p][i]]; return [0, 0]; };
     const [ua, u0] = ax(0, 1), [va, v0] = ax(0, 3);
-    return d.bb.face = { u1: best[1], v1: best[2], u2: best[3], v2: best[4], ua, u0, va, v0 };
+    return d.bb.face = { u1: best[1], v1: best[2], u2: best[3], v2: best[4], mi: best[5], w: best[6], h: best[7], ua, u0, va, v0 };
   }
 
   function destCell(d, t) {
-    const F = destFace(d), map = d.mat && d.mat.map;
+    const F = destFace(d), materials = d.bb.mesh.material;
+    const map = (Array.isArray(materials) ? materials[F?.mi] : materials)?.map;
     if (!F || !map || !map.image) return null;
     try {
       const M = map.userData;
@@ -164,7 +165,7 @@
         M.w = cv.width; M.h = cv.height;
         M.px = g.getImageData(0, 0, cv.width, cv.height).data;
       }
-      const RW = d.bb.geo.userData.RW, RH = d.bb.geo.userData.RH;
+      const RW = F.w || d.bb.geo.userData.RW, RH = F.h || d.bb.geo.userData.RH;
       const tu = F.u0 === 0 ? t[F.ua] : 1 - t[F.ua], tv = F.v0 === 0 ? t[F.va] : 1 - t[F.va];
       const clamp = window.clamp || ((v, min, max) => Math.max(min, Math.min(max, v)));
       const u = F.u1 + (F.u2 - F.u1) * tu, v = F.v2 + (F.v1 - F.v2) * tv;
@@ -179,20 +180,8 @@
     if (d.col) return d.col;
     let col = '#b9b19c';
     try {
-      const map = d.mat && d.mat.map, im = map && map.image, uv = d.bb && d.bb.uv, RW = d.bb.geo.userData.RW, RH = d.bb.geo.userData.RH;
-      if (im && uv) {
-        const M = map.userData;
-        if (!M.px) {
-          const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height;
-          const g = cv.getContext('2d'); g.drawImage(im, 0, 0);
-          M.w = cv.width; M.h = cv.height; M.px = g.getImageData(0, 0, cv.width, cv.height).data;
-        }
-        const clamp = window.clamp || ((v, min, max) => Math.max(min, Math.min(max, v)));
-        const u = clamp(Math.floor((uv[0] + uv[2]) / 2 * M.w / RW), 0, M.w - 1);
-        const v = clamp(Math.floor((uv[1] + uv[3]) / 2 * M.h / RH), 0, M.h - 1);
-        const i = (v * M.w + u) * 4;
-        if (M.px[i + 3] > 40) col = 'rgb(' + M.px[i] + ',' + M.px[i + 1] + ',' + M.px[i + 2] + ')';
-      }
+      const rgb = d.bb && destCell(d, [.5, .5, .5]);
+      if (rgb) col = 'rgb(' + rgb.join(',') + ')';
     } catch (e) { }
     return d.col = col;
   }
