@@ -102,5 +102,7 @@ evento del Kraken los lleva el servidor (server/abismo-sim.js), no un jugador:
   - si un monstruo le pega a Pepito, el servidor se lo dice a Pepito, y el resto ve bajar su vida; si tu defiendes a Pepito, el monstruo
     pierde vida para todos y se ven los ataques y los golpes de todos
   - el evento del Kraken empieza solo cada varios minutos; en una sala privada lo puede pedir el anfitrion; en una publica nadie
-  - el Kraken (jefe) en si todavia lo calcula el jugador que esta dentro desde hace mas tiempo; el servidor solo sabe si lo vencieron
+  - el Kraken (el jefe) tambien lo lleva el servidor: sus 8 tentaculos con vida, las fases, los 10 ataques con aviso, el gran golpe cada 4 ataques
+    que lo deja cansado, hacia donde mira y el dano a los jugadores. Los jugadores solo dibujan lo que manda el servidor y le mandan sus golpes
+    (el servidor elige el tentaculo al que le pegas y ajusta el dano)
 Pruebas: node tests/abismo-sim.test.cjs

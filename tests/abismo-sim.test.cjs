@@ -60,4 +60,29 @@ ok('el abismo vacío se reinicia', () => {
   const r = room(); r.sim.startEvent(r.now()); r.step(3); r.players.forEach(p => p.ab = 0); r.step(17);
   assert.strictEqual(r.sim.state.mobs.size, 0); assert.strictEqual(r.sim.state.groups, null);
 });
+// ---- el Kraken
+function bossRoom() { const r = room(); r.sim.startEvent(r.now()); r.players.forEach(p => { p.x = -60; p.z = 720; p.y = -90; }); r.players[1].x = 30; return r; }
+ok('el Kraken despierta al cruzar el portón y entra en combate tras la intro', () => {
+  const r = bossRoom(); r.step(1); assert.strictEqual(r.sim.snapshot().b[0], 1, 'intro'); r.step(4); assert.strictEqual(r.sim.snapshot().b[0], 2, 'combate');
+});
+ok('cada ataque avisa antes con un evento y hace daño a quien está dentro', () => {
+  const r = bossRoom(); r.step(5); const ev = [];
+  r.step(30, () => { for (const e of r.sim.snapshot().be) if (!ev.find(x => x.s === e.s)) ev.push(e); });
+  assert.ok(ev.length >= 3, 'ataques: ' + ev.length); assert.ok(ev.every(e => e.n && e.wd > 0), 'todos con pre-animación'); assert.ok(r.dmg.length > 0, 'daño a jugadores');
+});
+ok('cada 4.º ataque es el gran golpe y deja al Kraken cansado', () => {
+  const r = bossRoom(); r.step(5); const ev = []; let tired = false;
+  r.step(80, () => { const sn = r.sim.snapshot(); for (const e of sn.be) if (!ev.find(x => x.s === e.s)) ev.push(e); if (sn.b[5]) tired = true; });
+  const sig = ev.filter(e => e.g); assert.ok(sig.length >= 1 && sig[0].n === 'slam', 'gran golpe'); assert.strictEqual(ev.indexOf(sig[0]), 3, 'es el 4.º'); assert.ok(tired, 'quedó cansado');
+});
+ok('golpear al Kraken corta tentáculos y baja su vida compartida', () => {
+  const r = bossRoom(); r.step(5); const B = r.sim.boss(), hp0 = B.hp;
+  const p = { ...r.players[0], x: -60, z: 720, ch: 'javi' };
+  for (let i = 0; i < 6; i++) r.sim.hit(p, { i: 0, dm: 6, raw: 60 }, r.now() + i * 100);
+  assert.ok(B.hp < hp0, 'bajó la vida'); assert.ok(B.arms.some(a => a.sev), 'cortó un tentáculo'); assert.ok(r.sim.snapshot().b[2] > 0, 'se ve en el estado');
+});
+ok('vencer al Kraken da la victoria a todos', () => {
+  const r = bossRoom(); r.step(5); const B = r.sim.boss(); B.hp = 5; B.arms.forEach(a => { a.sev = true; });
+  r.sim.hit({ ...r.players[0], ch: 'javi' }, { i: 0, dm: 50, raw: 50 }, r.now()); assert.strictEqual(r.sim.snapshot().b[0], 3); assert.strictEqual(r.sim.snapshot().c, 1);
+});
 console.log(`\n${n} pruebas del simulador del abismo pasaron`);

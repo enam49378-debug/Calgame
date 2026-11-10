@@ -143,9 +143,8 @@ function onMessage(c, text) {
     case 'sk': if (typeof m.d === 'string' && m.d.length < 24000) { room.skins.set(c.id, m.d); broadcast(room, { t: 'sk', id: c.id, d: m.d }, c.id); } else { room.skins.delete(c.id); broadcast(room, { t: 'sk', id: c.id, d: '' }, c.id); } break;
     case 'pf': if (m.d && typeof m.d === 'object' && m.d.v === 1 && JSON.stringify(m.d).length <= 80000) { room.profiles.set(c.id, m.d); broadcast(room, { t: 'pf', id: c.id, d: m.d }, c.id); } break;
     case 'pi': sendTo(c, { t: 'po', ts: m.ts }); break;
-    // abismo: golpe a un monstruo (lo valida y lo aplica el servidor), el Kraken vencido y el evento pedido por el anfitrión de una sala privada
+    // abismo: golpe a un monstruo o al Kraken (lo valida y lo aplica el servidor) y el evento pedido por el anfitrión de una sala privada
     case 'abh': room.ab.hit(room.arb.get(c.id), m, now); break;
-    case 'abclear': room.ab.cleared(room.arb.get(c.id)); break;
     case 'abev': if (isHostId(room, c.id)) room.ab.startEvent(now); break;
     // señales para que dos jugadores abran un canal directo (WebRTC): se reenvían tal cual al destinatario
     case 'sig': if (typeof m.to === 'string' && m.d && typeof m.d === 'object') sendTo(room.clients.get(m.to), { t: 'sig', from: c.id, d: m.d }); break;
@@ -221,7 +220,7 @@ setInterval(() => {
   const now = Date.now();
   for (const room of rooms.values()) {
     const dt = Math.min(.2, Math.max(0, (now - room.abAt) / 1000)); room.abAt = now;
-    const all = room.arb.list().filter(p => room.clients.has(p.id)).map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z, alive: p.alive, ab: p.ab, st: p.st }));
+    const all = room.arb.list().filter(p => room.clients.has(p.id)).map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z, alive: p.alive, ab: p.ab, st: p.st, ch: p.ch }));
     try { room.ab.tick(dt, now, all); } catch (e) { console.error('[abismo] error', e); continue; }
     room.abT++;
     if (room.abT % 2 === 0) { const snap = JSON.stringify(room.ab.snapshot()); for (const p of all) if (p.ab) sendTo(room.clients.get(p.id), snap); }
