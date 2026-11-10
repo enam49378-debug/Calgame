@@ -284,6 +284,10 @@ function cityAnimeMaterial(material,opts={}){
 // Calles de 8 m, plaza abierta y manzanas bajas; la distribución es fija en todas las partidas.
 const B = 1.1, ARENA = 118, COL = [], CLOUDS = [], ELEVATORS = [];
 window.COL = COL; window.CLOUDS = CLOUDS;
+// Ver las cajas de colisión de la ciudad: abre la consola del navegador (F12) y escribe  mostrarColisiones()   (otra vez para ocultarlas)
+window.mostrarColisiones = () => { if (window._colVis) { scene.remove(window._colVis); window._colVis = null; return 'ocultas'; } const pts = [], p = (x, y, z) => pts.push(x, y, z);
+  for (const c of COL) { const y0 = c.y0 || 0, y1 = c.h || 1, x0 = c.x - c.hx, x1 = c.x + c.hx, z0 = c.z - c.hz, z1 = c.z + c.hz; for (const [a, b] of [[[x0, z0], [x1, z0]], [[x1, z0], [x1, z1]], [[x1, z1], [x0, z1]], [[x0, z1], [x0, z0]]]) { p(a[0], y0, a[1]); p(b[0], y0, b[1]); p(a[0], y1, a[1]); p(b[0], y1, b[1]); p(a[0], y0, a[1]); p(a[0], y1, a[1]); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x00ff66, depthTest: false })); l.renderOrder = 999; l.frustumCulled = false; scene.add(l); window._colVis = l; return COL.length + ' cajas'; };
 const CITY = { name: 'Ciudad Aurora', buildings: [], skyline: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], core: 62, bounds: 116 };
 // Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
 const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
@@ -700,13 +704,16 @@ function cityGrassAt(x,z) {
       }
       if(idx.length>i0)cubes.push({a:[mnx,mny,mnz,mxx,mxy,mxz],i0,n:idx.length-i0,uv:uvr,fc:fcs});
     };
-    const cols=[],isCol=n=>/^colisi/i.test(n.name||'');
+    const cols=[],isCol=n=>/^(colisi|collision|hitbox)/i.test(n.name||'');   // grupo de colisiones del modelo: colision, colisiones, collision, hitbox
     // Blockbench reciente guarda el nombre, el origen y la rotación de cada grupo en la lista "groups" y el outliner solo trae su uuid: se juntan los dos
     const GR=new Map((data.groups||[]).filter(g=>g&&typeof g==='object'&&g.uuid).map(g=>[g.uuid,g]));
     const gm=n=>{const g=GR.get(n.uuid);return g?Object.assign({},g,n,{name:n.name||g.name,origin:n.origin||g.origin,rotation:n.rotation||g.rotation}):n;};
     const walk=(nodes,mat,col)=>{for(const n0 of nodes){
       const n=typeof n0==='string'?n0:gm(n0);
-      if(typeof n==='string'){const e=els.get(n);if(!e){const g=GR.get(n);if(g&&g.children)walk(g.children,mat.clone().multiply(xf(g)),col||isCol(g));continue;}if(col){if(e.from&&e.to)cols.push([e.from[0]/16,e.from[1]/16,e.from[2]/16,e.to[0]/16,e.to[1]/16,e.to[2]/16]);}else emit(e,mat);}
+      if(typeof n==='string'){const e=els.get(n);if(!e){const g=GR.get(n);if(g&&g.children)walk(g.children,mat.clone().multiply(xf(g)),col||isCol(g));continue;}if(col){if(e.from&&e.to){   // la caja de colisión sigue la posición y rotación de sus grupos (y la suya)
+        const m=mat.clone();if(e.rotation)m.multiply(xf(e));const a=[1e9,1e9,1e9],b=[-1e9,-1e9,-1e9];
+        for(const cx of [e.from[0],e.to[0]])for(const cy of [e.from[1],e.to[1]])for(const cz of [e.from[2],e.to[2]]){v.set(cx,cy,cz).applyMatrix4(m).multiplyScalar(1/16);a[0]=Math.min(a[0],v.x);a[1]=Math.min(a[1],v.y);a[2]=Math.min(a[2],v.z);b[0]=Math.max(b[0],v.x);b[1]=Math.max(b[1],v.y);b[2]=Math.max(b[2],v.z);}
+        cols.push([a[0],a[1],a[2],b[0],b[1],b[2]]);}}else emit(e,mat);}
       else walk(n.children||[],mat.clone().multiply(xf(n)),col||isCol(n));
     }};
     walk(data.outliner||[],new THREE.Matrix4(),false);
@@ -14746,7 +14753,7 @@ function netDebug(dt) {
   if (!G.netDbg) { if (el) el.style.display = 'none'; return; }
   if (!el) { el = document.createElement('pre'); el.id = 'netdbg'; el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:60;margin:0;padding:8px 10px;background:rgba(0,0,0,.72);color:#9dff9d;font:11px/1.35 ui-monospace,Consolas,monospace;border-radius:6px;pointer-events:none;max-width:60vw;white-space:pre'; document.body.appendChild(el); }
   el.style.display = 'block'; G.fpsEst = G.fpsEst ? G.fpsEst * .95 + (1 / Math.max(dt, .001)) * .05 : 60; _dbgT -= dt; if (_dbgT > 0) return; _dbgT = .5;
-  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(GFX.fps)}  calidad: ${GFX.names[GFX.level]}${GFX.auto ? ' (auto)' : ''}${GFX.soft ? ' · SIN ACELERACIÓN GRÁFICA' : ''}`];
+  const L = [`RED (F3 oculta)  modo: ${NET_OLD ? 'viejo' : 'interpolación'}${NET.local ? ' · servidor local' : ''}  ping: ${NET.named && NET.named.ping != null ? Math.round(NET.named.ping) + ' ms' : '?'}  fps: ${Math.round(GFX.fps)}  calidad: ${GFX.names[GFX.level]}${GFX.auto ? ' (auto)' : ''} · resolución x${renderer.getPixelRatio()}${GFX.soft ? ' · SIN ACELERACIÓN GRÁFICA' : ''}`];
   for (const px of NET.proxies.values()) {
     const now = performance.now(), dtc = px.dbgT ? (now - px.dbgT) / 1000 : 0, rate = dtc > 0 ? ((px.netCnt || 0) - (px.dbgN || 0)) / dtc : 0; px.dbgT = now; px.dbgN = px.netCnt || 0;
     L.push(`${(px.name || '?').slice(0, 12).padEnd(12)} ${rate.toFixed(0).padStart(2)} paq/s  ${NET.named && NET.named.rtcOpen && NET.named.rtcOpen(px.peer) ? 'DIRECTO' : 'relay (' + (NET.named && NET.named.rtcInfo ? NET.named.rtcInfo(px.peer) : '?') + ')'}  intervalo ${Math.round(px.netIv || 0)} ms  jitter ${Math.round(px.netJit || 0)} ms  búfer ${px.netBuf ? px.netBuf.length : 0}  retraso ${Math.round(clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300))} ms`);
