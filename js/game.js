@@ -122,8 +122,12 @@ const renderer = (() => {
 })();
 renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); if (typeof GFX !== 'undefined') { GFX.post = false; if (GFX.level < 3 && typeof gfxSet === 'function') gfxSet(3, GFX.auto, false); } }, false);
 renderer.domElement.addEventListener('webglcontextrestored', () => { try { if (typeof gfxApply === 'function') gfxApply(false); } catch (e) {} }, false);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+// Tonos: 'ninguno' deja los colores de las texturas como se ven en Blockbench (más contraste y brillo); 'aces' es el filtro de cine de antes (más apagado).
+// Se cambia en la consola (F12):  tonos('aces')  o  tonos('ninguno')  y se guarda en tu navegador.
+const TONOS = { aces: THREE.ACESFilmicToneMapping, ninguno: THREE.NoToneMapping };
+renderer.toneMapping = TONOS[(() => { try { return localStorage.getItem('bsb_tonos'); } catch (e) { return null; } })()] ?? TONOS.ninguno;
 renderer.toneMappingExposure = 0.92;
+window.tonos = modo => { if (!(modo in TONOS)) return 'usa tonos("ninguno") o tonos("aces")'; renderer.toneMapping = TONOS[modo]; try { localStorage.setItem('bsb_tonos', modo); } catch (e) { } scene.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(m => { m.needsUpdate = true; }); }); return modo; };
 renderer.setPixelRatio(Math.min(devicePixelRatio || 1, (typeof WEAK_PC !== 'undefined' && (WEAK_PC || LOW_PC)) ? 1.0 : 2.0));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
