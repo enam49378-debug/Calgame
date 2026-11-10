@@ -9727,8 +9727,8 @@ sizeLines();
 let linesDrawn = false;
 // render con brillo (bloom) y los impact frames
 const _v2s = new THREE.Vector2();
-// nitidez de la imagen: en la consola (F12)  nitidez(0.9)  la sube, nitidez(0)  la quita (ahora 0.4)
-window.nitidez = v => { if (gradePass) gradePass.uniforms.uSharp.value = Math.max(0, Math.min(2, +v || 0)); return gradePass ? gradePass.uniforms.uSharp.value : 'sin post-proceso'; };
+// nitidez de la imagen: en la consola (F12)  nitidez(0.9)  la sube, nitidez(0)  la quita (ahora 0.9; se guarda en tu navegador)
+window.nitidez = v => { if (!gradePass) return 'sin post-proceso'; const q = Math.max(0, Math.min(2, +v || 0)); gradePass.uniforms.uSharp.value = q; try { localStorage.setItem('bsb_sharp', String(q)); } catch (e) { } return q; };
 let composer = null, renderPass = null, bloomPass = null, caPass = null, gradePass = null;
 function initPostProcessing(){if(composer)return;
 try {
@@ -9755,7 +9755,7 @@ try {
       caPass.enabled = false; composer.addPass(caPass);
       // gradación final: sombras violeta-azuladas, luces cálidas, curva S, más color y una viñeta suave
       gradePass = new THREE.ShaderPass({
-        uniforms: { tDiffuse: { value: null }, uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }, uSharp: { value: 0.4 } },
+        uniforms: { tDiffuse: { value: null }, uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }, uSharp: { value: (() => { try { const v = parseFloat(localStorage.getItem('bsb_sharp')); return v >= 0 && v <= 2 ? v : 0.9; } catch (e) { return 0.9; } })() } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uTexel; uniform float uSharp; varying vec2 vUv;
           void main(){
