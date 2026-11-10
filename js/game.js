@@ -9726,6 +9726,9 @@ function sizeLines() { LC.width = innerWidth; LC.height = innerHeight; }
 sizeLines();
 let linesDrawn = false;
 // render con brillo (bloom) y los impact frames
+const _v2s = new THREE.Vector2();
+// nitidez de la imagen: en la consola (F12)  nitidez(0.9)  la sube, nitidez(0)  la quita (ahora 0.4)
+window.nitidez = v => { if (gradePass) gradePass.uniforms.uSharp.value = Math.max(0, Math.min(2, +v || 0)); return gradePass ? gradePass.uniforms.uSharp.value : 'sin post-proceso'; };
 let composer = null, renderPass = null, bloomPass = null, caPass = null, gradePass = null;
 function initPostProcessing(){if(composer)return;
 try {
@@ -9752,11 +9755,14 @@ try {
       caPass.enabled = false; composer.addPass(caPass);
       // gradación final: sombras violeta-azuladas, luces cálidas, curva S, más color y una viñeta suave
       gradePass = new THREE.ShaderPass({
-        uniforms: { tDiffuse: { value: null } },
+        uniforms: { tDiffuse: { value: null }, uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) }, uSharp: { value: 0.4 } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uTexel; uniform float uSharp; varying vec2 vUv;
           void main(){
             vec3 c = texture2D(tDiffuse, vUv).rgb;
+            // nitidez: realza los bordes de las texturas (las de la ciudad son de pocos píxeles y la imagen se suaviza al reducirla)
+            vec3 nb = texture2D(tDiffuse, vUv + vec2(uTexel.x, 0.)).rgb + texture2D(tDiffuse, vUv - vec2(uTexel.x, 0.)).rgb + texture2D(tDiffuse, vUv + vec2(0., uTexel.y)).rgb + texture2D(tDiffuse, vUv - vec2(0., uTexel.y)).rgb;
+            c = clamp(c + (c - nb * .25) * uSharp, 0., 1.);
             float l = dot(c, vec3(.299, .587, .114));
             // Sombras azuladas cómic e iluminación suave anime (sin sobreexponer)
             c = mix(c * vec3(.92, .96, 1.08), c * vec3(1.05, 1.02, .96), smoothstep(.22, .82, l));
@@ -10040,7 +10046,7 @@ function renderView(sc,cm){
   if(!composer||!GFX.post){renderer.render(sc,cm);return;}
   const target=renderer.getRenderTarget(),autoClear=renderer.autoClear,alpha=renderer.getClearAlpha(),color=renderer.getClearColor(new THREE.Color());
   let completed=false;
-  try{renderPass.scene=sc;renderPass.camera=cm;composer.render();completed=true;}
+  try{if(gradePass&&gradePass.uniforms&&gradePass.uniforms.uTexel){const db=renderer.getDrawingBufferSize(_v2s);gradePass.uniforms.uTexel.value.set(1/Math.max(1,db.x),1/Math.max(1,db.y));}renderPass.scene=sc;renderPass.camera=cm;composer.render();completed=true;}
   catch(error){reportFrameError('imagen:shaders',error);GFX.post=false;}
   finally{renderer.setRenderTarget(target);renderer.autoClear=autoClear;renderer.setClearColor(color,alpha);}
   if(!completed)renderer.render(sc,cm);
