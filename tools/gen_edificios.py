@@ -806,12 +806,19 @@ BUILDINGS = [
 ]
 
 def export_js():
-    """Copia de cada .bbmodel como .js (sin textura) + atlas.js: el juego las usa cuando se abre index.html sin servidor (file://), donde fetch no funciona."""
-    for f in OUT.glob('*.bbmodel'):
+    """Copia de cada .bbmodel como .js (sin textura) + atlas.js: el juego las usa cuando se abre index.html sin servidor (file://) o por internet.
+    Cada modelo conserva SU textura: las texturas distintas se guardan una sola vez en atlas.js (BB_ATLASES) y el modelo apunta a la suya por un codigo."""
+    import hashlib
+    atlases, cur = {}, (OUT / 'atlas.png')
+    cur_src = 'data:image/png;base64,' + __import__('base64').b64encode(cur.read_bytes()).decode() if cur.exists() else ''
+    for f in sorted(OUT.glob('*.bbmodel')):
         d = json.loads(f.read_text(encoding='utf-8'))
-        atlas_src = d['textures'][0]['source']
+        src = d['textures'][0]['source']
+        key = hashlib.md5(src.encode()).hexdigest()[:8]
+        atlases[key] = src
         d['textures'][0]['source'] = ''
+        d['textures'][0]['atlas'] = key
         (OUT / (f.stem + '.js')).write_text("(window.BB_MODELS=window.BB_MODELS||{})['%s']=%s;" % (f.stem, json.dumps(d, ensure_ascii=False, separators=(',', ':'))), encoding='utf-8')
-    (OUT / 'atlas.js').write_text("window.BB_ATLAS=%s;" % json.dumps(atlas_src), encoding='utf-8')
-    print('js exportados')
+    (OUT / 'atlas.js').write_text("window.BB_ATLAS=%s;window.BB_ATLASES=%s;" % (json.dumps(cur_src or next(iter(atlases.values()))), json.dumps(atlases)), encoding='utf-8')
+    print('js exportados', len(atlases), 'texturas distintas')
 

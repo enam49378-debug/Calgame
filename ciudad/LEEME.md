@@ -17,3 +17,6 @@ Edificios con interior: `cafe`, `arcade`, `mercado`, `biblioteca`, `ramen`, `tal
 **Costa:** `palmera`, `sombrilla_*`, `torre_salvavidas`, `chiringuito`, `barca_*`, `velero`, `muelle`, `faro`, `rocas_*`, `castillo`, `voley` y `caseta_*` son adornos de la playa (su colocación está en el juego, en el bloque «Costa»). El mar queda al sur: la orilla es `SHORE(x)` en `index.html`.
 
 **Carga:** en tu equipo (servidor local) el juego lee los `.bbmodel` directamente; en internet usa las copias `.js` (sin textura) más el `atlas.js` compartido, que pesan mucho menos. Después de editar un `.bbmodel` regenera las `.js` con `export_js()` para verlo en internet.
+
+
+**Notas técnicas:** Blockbench reciente guarda el nombre, origen y rotación de los grupos en la lista `groups` (el juego ya lo entiende, así que `colision` sigue sin dibujarse). Las texturas se ven sin suavizado, igual que en Blockbench. Cada modelo conserva su propio atlas (las copias `.js` guardan las distintas en `atlas.js`).

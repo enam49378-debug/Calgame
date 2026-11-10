@@ -701,8 +701,12 @@ function cityGrassAt(x,z) {
       if(idx.length>i0)cubes.push({a:[mnx,mny,mnz,mxx,mxy,mxz],i0,n:idx.length-i0,uv:uvr,fc:fcs});
     };
     const cols=[],isCol=n=>/^colisi/i.test(n.name||'');
-    const walk=(nodes,mat,col)=>{for(const n of nodes){
-      if(typeof n==='string'){const e=els.get(n);if(!e)continue;if(col){if(e.from&&e.to)cols.push([e.from[0]/16,e.from[1]/16,e.from[2]/16,e.to[0]/16,e.to[1]/16,e.to[2]/16]);}else emit(e,mat);}
+    // Blockbench reciente guarda el nombre, el origen y la rotación de cada grupo en la lista "groups" y el outliner solo trae su uuid: se juntan los dos
+    const GR=new Map((data.groups||[]).filter(g=>g&&typeof g==='object'&&g.uuid).map(g=>[g.uuid,g]));
+    const gm=n=>{const g=GR.get(n.uuid);return g?Object.assign({},g,n,{name:n.name||g.name,origin:n.origin||g.origin,rotation:n.rotation||g.rotation}):n;};
+    const walk=(nodes,mat,col)=>{for(const n0 of nodes){
+      const n=typeof n0==='string'?n0:gm(n0);
+      if(typeof n==='string'){const e=els.get(n);if(!e){const g=GR.get(n);if(g&&g.children)walk(g.children,mat.clone().multiply(xf(g)),col||isCol(g));continue;}if(col){if(e.from&&e.to)cols.push([e.from[0]/16,e.from[1]/16,e.from[2]/16,e.to[0]/16,e.to[1]/16,e.to[2]/16]);}else emit(e,mat);}
       else walk(n.children||[],mat.clone().multiply(xf(n)),col||isCol(n));
     }};
     walk(data.outliner||[],new THREE.Matrix4(),false);
@@ -714,14 +718,15 @@ function cityGrassAt(x,z) {
   function loadBBModel(name){
     // Con servidor se lee el .bbmodel directo (los cambios hechos en Blockbench se ven al recargar); sin servidor (file://) se usa la copia ciudad/<nombre>.js
     const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
-    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];if(d.textures[0]&&(!d.textures[0].source||d.textures[0].source===''))d.textures[0].source=window.BB_ATLAS;return d;});
+    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js'),(window.BB_MODELS&&window.BB_MODELS[name])?0:script('ciudad/'+name+'.js')]).then(()=>{const d=window.BB_MODELS[name];const t=d.textures[0];if(t&&(!t.source||t.source===''))t.source=(t.atlas&&window.BB_ATLASES&&window.BB_ATLASES[t.atlas])||window.BB_ATLAS;return d;});
     // Una sola textura y un solo material para todos los modelos (comparten el atlas): arranca más rápido y usa menos memoria.
     const mat=(src,emSrc)=>{
       const key=src.length+':'+src.slice(-48)+(emSrc?'+'+emSrc.slice(-24):'');
       if(!bbMats.has(key))bbMats.set(key,new Promise((ok,fail)=>{
         const img=new Image();
         img.onload=()=>{
-          const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestMipmapLinearFilter;map.anisotropy=4;
+          const map=new THREE.Texture(img);map.needsUpdate=true;map.magFilter=THREE.NearestFilter;map.minFilter=THREE.NearestFilter;map.generateMipmaps=false;map.anisotropy=1;   // nítido, como en Blockbench
+          
           const finish=emImg=>{
             // Los tiles del atlas desde la fila 20 (índice 160) o la segunda textura PBR son luminosos (lámparas, neón, pantallas): se copian a un mapa de emisión.
             const cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,cv.width,cv.height);
