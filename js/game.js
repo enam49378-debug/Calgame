@@ -124,7 +124,7 @@ renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault
 renderer.domElement.addEventListener('webglcontextrestored', () => { try { if (typeof gfxApply === 'function') gfxApply(false); } catch (e) {} }, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.92;
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.0));
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, (typeof WEAK_PC !== 'undefined' && (WEAK_PC || LOW_PC)) ? 1.0 : 2.0));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // gradación final: más color y contraste, menos apagado
@@ -743,7 +743,7 @@ function cityGrassAt(x,z) {
     };
     // En tu equipo (servidor local) se lee el .bbmodel directo para ver al recargar lo que cambies en Blockbench; en internet se usan las copias .js (mucho más ligeras)
     const dev=/^(localhost|127\.|192\.168\.|10\.|\[::1\])/.test(location.hostname);
-    if(!bbCache.has(name))bbCache.set(name,(dev?fetch('ciudad/'+name+'.bbmodel').then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}):Promise.reject()).catch(viaScript)
+    if(!bbCache.has(name))bbCache.set(name,(dev?fetch('ciudad/'+name+'.bbmodel',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}):Promise.reject()).catch(viaScript)
       .then(data=>mat(data.textures[0].source,data.textures[1]&&data.textures[1].source).then(m=>({geo:bbGeometry(data),mat:m}))));
     return bbCache.get(name);
   }
@@ -947,9 +947,9 @@ function cityGrassAt(x,z) {
     const itP = MAP_ITEMS.find(q => q.kind === 'p' && q.model === pr.m && Math.abs(q.x - pr.x) < 0.2 && Math.abs(q.z - pr.z) < 0.2 && !q.mesh);
     if (itP) { itP.mesh = mesh; mesh.userData.mapItem = itP; }
     if(pr.bob)BEACH.boats.push({mesh,y0:pr.y,ph:rnd()*6});
-    const c=Math.cos(pr.ry),sn=Math.sin(pr.ry);
-    for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2,lz=(z0+z1)/2,hx=(x1-x0)/2,hz=(z1-z0)/2;
-      COL.push({x:pr.x+lx*c+lz*sn,z:pr.z-lx*sn+lz*c,hx:Math.abs(c)*hx+Math.abs(sn)*hz,hz:Math.abs(sn)*hx+Math.abs(c)*hz,h:y1,y0:y0<.05?0:y0,ceiling:false,nocam:true,prop:mesh});}
+    const c=Math.cos(pr.ry),sn=Math.sin(pr.ry),SX=mesh.scale.x,SY=mesh.scale.y,SZ=mesh.scale.z;   // las colisiones siguen el tamaño con el que se dibuja el modelo (el muelle se agranda)
+    for(const [x0,y0,z0,x1,y1,z1] of geo.userData.cols||[]){const lx=(x0+x1)/2*SX,lz=(z0+z1)/2*SZ,hx=(x1-x0)/2*SX,hz=(z1-z0)/2*SZ;
+      COL.push({x:pr.x+lx*c+lz*sn,z:pr.z-lx*sn+lz*c,hx:Math.abs(c)*hx+Math.abs(sn)*hz,hz:Math.abs(sn)*hx+Math.abs(c)*hz,h:y1*SY,y0:y0<.05?0:y0*SY,ceiling:false,nocam:true,prop:mesh});}
   }).catch(()=>{}));
   Promise.all(bbLoads).then(()=>{if(typeof rebuildCityNav==='function')rebuildCityNav();});
   // plataformas de entrada al minijuego de vóley playa (una por equipo)
@@ -9852,8 +9852,8 @@ function gfxApply(save = true) {
     }
   }
   if (gradePass) gradePass.enabled = wantPost;
-  const basePr = Math.min(devicePixelRatio || 1, 1.0);
-  const pr = Math.max(0.5, Math.min(1.5, basePr * (Number(GFX_CFG.scale) || 1.0)));
+  const basePr = Math.min(devicePixelRatio || 1, (WEAK_PC || LOW_PC) ? 1.0 : 2.0);   // resolución nativa de la pantalla (antes tope 1.0: borroso en pantallas con escala)
+  const pr = Math.max(0.5, Math.min(2.0, basePr * (Number(GFX_CFG.scale) || 1.0)));
   renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight);
   if (composer) {
