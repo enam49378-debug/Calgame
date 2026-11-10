@@ -20,3 +20,5 @@ Edificios con interior: `cafe`, `arcade`, `mercado`, `biblioteca`, `ramen`, `tal
 
 
 **Notas técnicas:** Blockbench reciente guarda el nombre, origen y rotación de los grupos en la lista `groups` (el juego ya lo entiende, así que `colision` sigue sin dibujarse). Las texturas se ven sin suavizado, igual que en Blockbench. Cada modelo conserva su propio atlas (las copias `.js` guardan las distintas en `atlas.js`).
+
+**Texturas en alta resolución:** `python tools/atlas_hq.py` redibuja los atlas a 128 px por cuadro (32 px por metro) sin el tramado de 256 colores, en el mismo orden que antes (los modelos no se mueven). `ciudad/previa_texturas.png` compara lo de antes (izquierda) con lo nuevo (derecha). Para volver atrás: `git revert` del commit que lo aplicó.
