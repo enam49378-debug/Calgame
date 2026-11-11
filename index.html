@@ -409,6 +409,14 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
           <small class="set-note">Auto baja la calidad sola si el juego va lento. Podés configurar cada opción abajo.</small>
         </div>
         <div class="field">
+          <label for="gfx-style">Estilo Visual (Gráficos)</label>
+          <select id="gfx-style">
+            <option value="zenless" selected>Zenless Urbano (Estilo Nuevo)</option>
+            <option value="classic">Bloque Clásico (Original)</option>
+          </select>
+          <small class="set-note">Iluminación urbana de alto contraste, cel-shading neón en peleadores, reflejos satinados e impact frames.</small>
+        </div>
+        <div class="field">
           <label for="gfx-fps-limit">Límite de FPS / Tasa de refresco</label>
           <select id="gfx-fps-limit">
             <option value="0">Ilimitado (Máximos FPS)</option>
@@ -592,7 +600,7 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="js/emote_list.js?v=1"></script>
 <script defer src="js/emotes.js?v=4"></script>
 <script defer src="js/cosmetics.js?v=2"></script>
-<script defer src="js/bbmodelos.js?v=4"></script>
+<script defer src="js/bbmodelos.js?v=5"></script>
 <script defer src="js/sonidos.js?v=1"></script>
 <script defer src="js/mini.js?v=3"></script>
 <script defer src="js/muelle.js?v=7"></script>
@@ -602,7 +610,7 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="js/disco.js?v=6"></script>
 <script defer src="js/titulo.js?v=5"></script>
 <script defer src="js/carga_partida.js?v=1"></script>
-<script defer src="js/game.js?v=9.6"></script>
+<script defer src="js/game.js?v=9.7"></script>
 
 </body>
 </html>

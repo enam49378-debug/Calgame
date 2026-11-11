@@ -45,7 +45,7 @@
         const key = `${i}:${alpha}:${glow}`;
         if (!mats.has(key)) {
           const opts = {map:D.textures[i].tex, side:T.DoubleSide, ...CF_TEXTURES.alphaOptions(alpha)};
-          const mat = glow ? new T.MeshBasicMaterial(opts) : new T.MeshLambertMaterial({...opts, emissive:0x182028});
+          const mat = glow ? new T.MeshBasicMaterial(opts) : cityAnimeMaterial(new T.MeshLambertMaterial({...opts, emissive:0x182028}));
           if (!glow) mat.userData.em = mat.emissive.clone();
           mats.set(key, mat);
         }
