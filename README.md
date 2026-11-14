@@ -11,6 +11,13 @@ Arena 3D de peleas anime con jugadores de bloques estilo Minecraft.
 
 Controles: WASD moverse · Mouse cámara · Clic combo · Espacio saltar · F bloquear · Q esquivar · 1-4 habilidades · G ulti
 
+## Estructura y Documentación
+
+- **Orden general de carpetas y código:** [`docs/ORDEN_DEL_PROYECTO.md`](docs/ORDEN_DEL_PROYECTO.md)
+- **Sistema de gráficos modulares (`js/graficos/`):** [`docs/GRAFICOS.md`](docs/GRAFICOS.md)
+- **Servidor, seguridad y comunidad:** [`docs/LEEME_SERVIDOR.txt`](docs/LEEME_SERVIDOR.txt), [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md), [`docs/ACTIVAR_COMUNIDAD.md`](docs/ACTIVAR_COMUNIDAD.md)
+- **Modo desarrollador y notas de versión:** [`docs/MODO_DESARROLLADOR.md`](docs/MODO_DESARROLLADOR.md), [`docs/ACTUALIZACION.md`](docs/ACTUALIZACION.md)
+
 ## Texturas de los modelos
 
 Cada entrada de `textures` de un `.bbmodel` puede incluir `cf_quality` con `pixel` (píxeles duros), `nitida` (píxeles nítidos de cerca, filtrado a distancia) o `suave` (interpolación también de cerca). `cf_anisotropy` admite valores de 1 a 8, con el límite de la tarjeta gráfica. La ciudad usa `nitida` por defecto y los modelos animados usan `pixel`.
@@ -64,7 +71,7 @@ Los perfiles tienen foto propia, biografía, estado, pronombres, acento, seis es
 
 Amigos incluye solicitudes, aceptación/rechazo, códigos de cuenta, conversaciones privadas persistentes, eliminación de amistad y bloqueo. Los datos se guardan en Firebase y las reglas exigen amistad aceptada para leer o escribir mensajes. Los roles se guardan separados de la apariencia. Las contraseñas y tokens no se comparten con los relays. Los perfiles públicos ahora incluyen el ID necesario para relacionar cuentas, además de su apariencia y estadísticas.
 
-Para activar la base real, seguí **ACTIVAR_COMUNIDAD.md** y publicá **firestore.rules** en el proyecto calgame. La integración se prueba en emuladores; no da por activada una base que todavía no exista. `test:perfiles:v2`, `test:social:reglas` y `test:social` cubren interfaz, permisos e intercambio entre cuentas.
+Para activar la base real, seguí **docs/ACTIVAR_COMUNIDAD.md** y publicá **firestore.rules** en el proyecto calgame. La integración se prueba en emuladores; no da por activada una base que todavía no exista. `test:perfiles:v2`, `test:social:reglas` y `test:social` cubren interfaz, permisos e intercambio entre cuentas.
 
 El modo Auto ahora reduce la calidad después de varios segundos de FPS bajos y respeta la selección manual. El compositor se crea solo al necesitar Alta y reduce buffers al salir de esa calidad. Los sistemas de partículas dibujan únicamente instancias vivas; la decoración submarina y las caras lejanas reducen trabajo visual sin cambiar física ni red.
 
@@ -103,7 +110,7 @@ Más vida (100 → 112), más velocidad (1.04 → 1.09), más daño (×0.72 → 
 
 ## Seguridad de las cuentas
 
-Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, cambio de contraseña y reglas de Firestore más estrictas. Ver [SEGURIDAD.md](SEGURIDAD.md) (incluye lo que hay que activar en la consola de Firebase).
+Contraseñas fuertes, freno a intentos fallidos, sesión opcional por pestaña, cambio de contraseña y reglas de Firestore más estrictas. Ver [docs/SEGURIDAD.md](docs/SEGURIDAD.md) (incluye lo que hay que activar en la consola de Firebase).
 
 ## El mar grande, el torbellino y el Kraken
 

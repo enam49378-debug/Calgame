@@ -5,7 +5,7 @@
    Este archivo se ejecuta dentro de game.js (como habilidades.js), con sus funciones a mano. */
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
-    const isOwner = () => !!((SOC && SOC.owner) || /^(localhost|127\.|\[::1\])/.test(location.hostname));
+    const isOwner = () => isOwnerBetaAllowed();
     const EV = { cardumen: 'school', tiburones: 'frenzy', marea: 'glow', kraken: 'squid', calamar: 'squid' };
     const css = document.createElement('style');
     css.textContent = '#ownp{position:fixed;top:60px;right:12px;width:min(380px,94vw);max-height:calc(100vh - 80px);z-index:120;display:none;flex-direction:column;background:rgba(10,14,26,.94);border:1px solid rgba(125,249,255,.35);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.6);color:#dfe8ff;font:13px system-ui,Arial;backdrop-filter:blur(8px)}#ownp.on{display:flex}'
@@ -20,7 +20,7 @@
     P.innerHTML = '<header><b>CONSOLA DEL OWNER</b><small>F2</small><button class="x" type="button">X</button></header><nav><button data-p="ev" class="on">Eventos</button><button data-p="ab">Abismo</button><button data-p="yo">Jugador</button><button data-p="co">Consola</button></nav>'
       + '<div class="pg on" data-p="ev"><div class="st" id="own-st"></div><h4>Lanzar evento</h4><button class="b" data-c="/evento cardumen">Cardumen gigante</button><button class="b" data-c="/evento tiburones">Frenesí de tiburones</button><button class="b" data-c="/evento marea">Marea luminosa</button><button class="b r" data-c="/evento kraken">Calamar gigante (Kraken)</button><h4>Control</h4><button class="b" data-c="/parar todos">⏹ Parar eventos</button><button class="b" data-c="/siguiente 5">Próximo evento en 5 s</button><button class="b" data-c="/barco">Llamar al barco</button><button class="b" data-c="/zarpar">Zarpar ya</button></div>'
       + '<div class="pg" data-p="ab"><div class="st" id="own-ab"></div><h4>Viajar</h4><button class="b" data-c="/tp abismo">Entrar al abismo</button><button class="b" data-c="/tp porton">Al portón enorme</button><button class="b" data-c="/tp muelle">Muelle</button><button class="b" data-c="/tp tablon">Tablón de eventos</button><button class="b" data-c="/tp ranking">Ranking</button><button class="b" data-c="/tp ciudad">Ciudad</button><h4>Abismo</h4><button class="b" data-c="/llave">Darme la llave</button><button class="b" data-c="/abrir">Abrir el portón</button><button class="b" data-c="/limpiar">Eliminar enemigos</button><button class="b r" data-c="/matar kraken">Matar al Kraken</button><button class="b" data-c="/reiniciar">Reiniciar abismo</button></div>'
-      + '<div class="pg" data-p="yo"><h4>Jugador</h4><button class="b" data-c="/vida">Curarme</button><button class="b" data-c="/ulti">Ulti al 100 %</button><button class="b" data-c="/dios">Invulnerable (on/off)</button><div class="st">Eres owner: tienes todos los emotes y cosméticos desbloqueados sin hacer nada.</div></div>'
+      + '<div class="pg" data-p="yo"><h4>Jugador</h4><button class="b" data-c="/vida">Curarme</button><button class="b" data-c="/ulti">Ulti al 100 %</button><button class="b" data-c="/dios">Invulnerable (on/off)</button><button class="b" data-c="/beta" id="own-beta-btn">Beta ZZZ: ON</button><div class="st">Eres owner: tienes todos los emotes y cosméticos desbloqueados sin hacer nada.</div></div>'
       + '<div class="pg" data-p="co"><div class="con" id="own-log"></div><input id="own-in" placeholder="/ayuda  ·  /evento kraken  ·  /tp abismo" autocomplete="off" spellcheck="false"></div>';
     document.body.appendChild(P);
     const B = document.createElement('button'); B.id = 'ownbtn'; B.type = 'button'; B.textContent = 'OWNER · F2'; document.body.appendChild(B);
@@ -33,7 +33,7 @@
     }
     const me = () => G.player;
     const CMD = {
-      ayuda() { return 'Comandos: /evento <cardumen|tiburones|marea|kraken> · /parar [todos] · /siguiente <seg> · /barco · /zarpar · /tp <abismo|porton|muelle|tablon|ranking|ciudad> · /llave · /abrir · /limpiar · /reiniciar · /matar kraken · /vida · /ulti · /dios · /estado'; },
+      ayuda() { return 'Comandos: /evento <cardumen|tiburones|marea|kraken> · /parar [todos] · /siguiente <seg> · /barco · /zarpar · /tp <abismo|porton|muelle|tablon|ranking|ciudad> · /llave · /abrir · /limpiar · /reiniciar · /matar kraken · /vida · /ulti · /dios · /beta [on|off] · /estado'; },
       evento(a) { const k = EV[(a[0] || '').toLowerCase()]; if (!k) return 'Eventos: cardumen, tiburones, marea, kraken'; return launch(k) ? 'Evento «' + SEA_EVENTS[k].n + '» lanzado' : 'Ese evento ya está en curso (o el mar aún no cargó: acércate a la costa)'; },
       parar(a) { const k = EV[(a[0] || '').toLowerCase()]; if (k) { SEA.ev[k] = 0; return 'Evento detenido'; } for (const q in SEA.ev) SEA.ev[q] = 0; return 'Todos los eventos detenidos'; },
       siguiente(a) { SEA.evTimer = Math.max(1, +a[0] || 5); return 'Próximo evento en ' + SEA.evTimer + ' s'; },
@@ -51,7 +51,8 @@
       vida() { const p = me(); if (!p) return ''; p.hp = p.maxHp; return 'Vida al máximo'; },
       ulti() { const p = me(); if (!p) return ''; p.ult = 100; return 'Ulti lista'; },
       dios() { god = !god; return god ? 'Invulnerable: ON' : 'Invulnerable: OFF'; },
-      estado() { return 'Modo: ' + (G.mp ? (NETPUB() ? 'sala pública' : 'sala privada') : 'solo/bots') + ' · eventos: ' + Object.keys(SEA.ev).map(k => k + '=' + Math.ceil(SEA.ev[k])).join(' ') + ' · próximo en ' + fmt(SEA.evTimer) + ' · barco: ' + (window.CF_MUELLE ? CF_MUELLE.state : '-'); },
+      beta(a) { const w = (a[0] || '').toLowerCase(); const next = w === 'on' ? true : w === 'off' ? false : !getOwnerBeta(); const on = setOwnerBeta(next); return on ? 'Gráficos Beta ZZZ: ON (vista Owner / Git local)' : 'Gráficos Beta ZZZ: OFF (simulando jugador normal)'; },
+      estado() { return 'Modo: ' + (G.mp ? (NETPUB() ? 'sala pública' : 'sala privada') : 'solo/bots') + ' · beta=' + (getOwnerBeta() ? 'ON' : 'OFF') + ' · eventos: ' + Object.keys(SEA.ev).map(k => k + '=' + Math.ceil(SEA.ev[k])).join(' ') + ' · próximo en ' + fmt(SEA.evTimer) + ' · barco: ' + (window.CF_MUELLE ? CF_MUELLE.state : '-'); },
     };
     function run(line) {
       line = String(line || '').trim(); if (!line) return; log(line, 'in'); const parts = line.replace(/^\//, '').split(/\s+/), c = parts.shift().toLowerCase(); const fn = CMD[c];
@@ -65,6 +66,8 @@
       const st = P.querySelector('#own-st'), ab = P.querySelector('#own-ab'); if (!st) return;
       st.innerHTML = 'Modo: <b>' + (G.mp ? (NETPUB() ? 'sala pública' : 'sala privada') : 'solo / bots') + '</b><br>' + Object.keys(SEA_EVENTS).map(k => SEA_EVENTS[k].ico + ' ' + SEA_EVENTS[k].n + ': <b>' + (SEA.ev[k] > 0 ? fmt(SEA.ev[k]) : '—') + '</b>').join(' · ') + '<br>Próximo evento: <b>' + (SEA.eventsAuto === false ? 'desactivados' : fmt(SEA.evTimer)) + '</b> · Barco: <b>' + (window.CF_MUELLE ? CF_MUELLE.state : '-') + '</b>';
       ab.innerHTML = 'Kraken: <b>' + (window.CF_ABISMO ? CF_ABISMO.state : '-') + '</b> · enemigos: <b>' + (window.CF_ABISMO ? CF_ABISMO.mobCount : 0) + '</b> · llave: <b>' + (window.CF_ABISMO ? CF_ABISMO.key : '-') + '</b> · portón: <b>' + (window.CF_ABISMO ? (CF_ABISMO.door ? 'abierto' : 'cerrado') : '-') + '</b>';
+      const bb = P.querySelector('#own-beta-btn');
+      if (bb) bb.textContent = getOwnerBeta() ? 'Beta ZZZ: ON' : 'Beta ZZZ: OFF (jugador)';
     }
     addEventListener('keydown', e => { if (e.code === 'F2' && !e.repeat && isOwner()) { e.preventDefault(); toggle(); } }, true);
     B.addEventListener('click', () => toggle());

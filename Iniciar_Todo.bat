@@ -19,7 +19,7 @@ if defined PLAYIT (
   echo playit iniciado.
 ) else (
   echo No se encontro playit.exe: el juego funciona en tu red local.
-  echo Para jugar con amigos de otros paises mira LEEME_SERVIDOR.txt ^(seccion playit.gg^).
+  echo Para jugar con amigos de otros paises mira docs\LEEME_SERVIDOR.txt ^(seccion playit.gg^).
 )
 echo.
 echo Abre el juego en: http://localhost:52018/

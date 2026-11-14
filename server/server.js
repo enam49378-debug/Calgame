@@ -251,7 +251,7 @@ server.listen(PORT, '0.0.0.0', () => {
   else console.log('  (no se encontró una red local: tus amigos no podrán entrar por wifi)');
   const pub = publicUrl();
   if (pub) console.log(`  Amigos por internet:           ${pub}/   (de publico.txt)`);
-  else console.log('  Amigos por internet: aún no configurado (mira LEEME_SERVIDOR.txt, sección playit.gg)');
+  else console.log('  Amigos por internet: aún no configurado (mira docs/LEEME_SERVIDOR.txt, sección playit.gg)');
   console.log('\n  Abre el juego desde esos links, elige un código de sala y toca Entrar.');
   console.log('  Ctrl+C para cerrar.\n');
 });

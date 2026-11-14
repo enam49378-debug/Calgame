@@ -1,7 +1,9 @@
 # Arquitectura del Juego
 - **Cliente:** HTML, CSS y JS puro con **THREE.js** para el 3D (`index.html`). Sin compiladores.
+- **Gráficos modulares (`js/graficos/`):** `motor_escena.js`, `materiales_peleador.js`, `escenario_ulti.js`, `efectos_combate.js` y `calidad_post.js` (documentados en `docs/GRAFICOS.md`).
 - **Servidor y Lógica:** Node.js puro sin dependencias externas en `server/` y `js/arbitro.js` (árbitro, salas, monstruos, Kraken).
-- **Herramientas:** Scripts en Python dentro de `tools/` para generar personajes, modelos y audios.
+- **Herramientas:** Scripts en Python dentro de `tools/` (`tools/parches_antiguos/`, `tools/audio/`, `tools/discord/`, `tools/launcher/` para utilidades no activas).
+- **Documentación:** En `docs/` (`docs/ORDEN_DEL_PROYECTO.md`, `docs/GRAFICOS.md`, etc.).
 - **Pruebas:** En JS con `node tests/...`.
 
 ## Ubicación de Carpetas de Assets

@@ -431,8 +431,9 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
         <div class="field">
           <label for="gfx-shadows">Sombras en tiempo real</label>
           <select id="gfx-shadows">
-            <option value="soft" selected>Altas (Suaves PCF)</option>
-            <option value="hard">Bajas (Rápidas 1024)</option>
+            <option value="ultra">Ultra (Suaves 3072)</option>
+            <option value="soft" selected>Altas (Suaves 2048)</option>
+            <option value="hard">Medias (Rápidas 1024)</option>
             <option value="off">Desactivadas (+60 FPS extra)</option>
           </select>
           <small class="set-note">Desactivar sombras duplica el rendimiento en combates con muchos efectos.</small>
@@ -590,6 +591,15 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="lib/mqtt.min.js?v=6.8"></script>
 
 <!-- ==================================================================== -->
+<!-- Módulos de gráficos y renderizado 3D (js/graficos/)                  -->
+<!-- ==================================================================== -->
+<script defer src="js/graficos/motor_escena.js?v=1"></script>
+<script defer src="js/graficos/materiales_peleador.js?v=1"></script>
+<script defer src="js/graficos/escenario_ulti.js?v=1"></script>
+<script defer src="js/graficos/efectos_combate.js?v=1"></script>
+<script defer src="js/graficos/calidad_post.js?v=1"></script>
+
+<!-- ==================================================================== -->
 <!-- Scripts modulares del juego                                          -->
 <!-- ==================================================================== -->
 <script defer src="js/physics.js?v=6.8"></script>
@@ -610,7 +620,7 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="js/disco.js?v=6"></script>
 <script defer src="js/titulo.js?v=5"></script>
 <script defer src="js/carga_partida.js?v=1"></script>
-<script defer src="js/game.js?v=9.7"></script>
+<script defer src="js/game.js?v=9.8"></script>
 
 </body>
 </html>
