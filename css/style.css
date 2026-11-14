@@ -277,6 +277,7 @@ tr.me td{color:var(--hot);font-weight:700}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
 #viewbtn{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:var(--hot);border:1px solid var(--hot);padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
 body:not(.dev) .devonly{display:none!important}
+body:not(.cf-beta) .cf-beta-only{display:none!important}
 .devbtn{font-family:var(--display);font-size:18px;letter-spacing:.06em;background:var(--panel);color:#ffb020;border:1px solid #ffb020;padding:8px 18px;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);cursor:pointer}
 .devbtn:hover{background:#ffb020;color:#000}
 #devbadge{position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:70;background:#ffb020;color:#000;font:900 11px/1 var(--display,'Chakra Petch',sans-serif);letter-spacing:.2em;padding:3px 14px 4px;clip-path:polygon(0 0,100% 0,calc(100% - 8px) 100%,8px 100%);pointer-events:none}

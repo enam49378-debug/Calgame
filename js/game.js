@@ -12057,6 +12057,7 @@ $('audedbtn').addEventListener('click', () => { sfx('select'); aeOpen(); });
 const DEV = { on: false, p: { salt: 'e1223a6e5d5ce1833853cbce67103fe2', iter: 150000, hash: '21dda3739d45c30713ac3333f8a0a349d17115890e2d965a0f95c7a5d28e7e28' } };
 const IS_LOCAL_HOST = /^(localhost|127\.|\[::1\])/.test(location.hostname) || location.protocol === 'file:';
 let OWNER_BETA_PREF = true, OWNER_AUTHED = false;
+const _betaSubs = new Set();
 function devHasLocalToken() {
   try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); return !!(d && d.h === DEV.p.hash.slice(0, 16) && Date.now() - d.t < 30 * 864e5); } catch (e) { return false; }
 }
@@ -12073,6 +12074,7 @@ function syncOwnerBeta(forceApply = false) {
   if (typeof document !== 'undefined' && document.body) document.body.classList.toggle('cf-beta', want > 0.5);
   if (want !== prev || forceApply) {
     try { if (typeof gfxApply === 'function') gfxApply(false); } catch (e) {}
+    for (const fn of _betaSubs) { try { fn(want > 0.5); } catch (e) {} }
   } else {
     try { if (typeof gfxSyncUI === 'function') gfxSyncUI(); } catch (e) {}
   }
@@ -12083,6 +12085,16 @@ function setOwnerBeta(v) {
   syncOwnerBeta(true);
   return getOwnerBeta();
 }
+window.CF_BETA = Object.freeze({
+  get on() { return getOwnerBeta(); },
+  isAllowed: isOwnerBetaAllowed,
+  set: setOwnerBeta,
+  subscribe(fn) {
+    if (typeof fn !== 'function') return () => {};
+    _betaSubs.add(fn);
+    return () => _betaSubs.delete(fn);
+  }
+});
 async function devHash(k) {
   const enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(k), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(DEV.p.salt), iterations: DEV.p.iter }, key, 256);

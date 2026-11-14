@@ -20,7 +20,7 @@
     P.innerHTML = '<header><b>CONSOLA DEL OWNER</b><small>F2</small><button class="x" type="button">X</button></header><nav><button data-p="ev" class="on">Eventos</button><button data-p="ab">Abismo</button><button data-p="yo">Jugador</button><button data-p="co">Consola</button></nav>'
       + '<div class="pg on" data-p="ev"><div class="st" id="own-st"></div><h4>Lanzar evento</h4><button class="b" data-c="/evento cardumen">Cardumen gigante</button><button class="b" data-c="/evento tiburones">Frenesí de tiburones</button><button class="b" data-c="/evento marea">Marea luminosa</button><button class="b r" data-c="/evento kraken">Calamar gigante (Kraken)</button><h4>Control</h4><button class="b" data-c="/parar todos">⏹ Parar eventos</button><button class="b" data-c="/siguiente 5">Próximo evento en 5 s</button><button class="b" data-c="/barco">Llamar al barco</button><button class="b" data-c="/zarpar">Zarpar ya</button></div>'
       + '<div class="pg" data-p="ab"><div class="st" id="own-ab"></div><h4>Viajar</h4><button class="b" data-c="/tp abismo">Entrar al abismo</button><button class="b" data-c="/tp porton">Al portón enorme</button><button class="b" data-c="/tp muelle">Muelle</button><button class="b" data-c="/tp tablon">Tablón de eventos</button><button class="b" data-c="/tp ranking">Ranking</button><button class="b" data-c="/tp ciudad">Ciudad</button><h4>Abismo</h4><button class="b" data-c="/llave">Darme la llave</button><button class="b" data-c="/abrir">Abrir el portón</button><button class="b" data-c="/limpiar">Eliminar enemigos</button><button class="b r" data-c="/matar kraken">Matar al Kraken</button><button class="b" data-c="/reiniciar">Reiniciar abismo</button></div>'
-      + '<div class="pg" data-p="yo"><h4>Jugador</h4><button class="b" data-c="/vida">Curarme</button><button class="b" data-c="/ulti">Ulti al 100 %</button><button class="b" data-c="/dios">Invulnerable (on/off)</button><button class="b" data-c="/beta" id="own-beta-btn">Beta ZZZ: ON</button><div class="st">Eres owner: tienes todos los emotes y cosméticos desbloqueados sin hacer nada.</div></div>'
+      + '<div class="pg" data-p="yo"><h4>Jugador</h4><button class="b" data-c="/vida">Curarme</button><button class="b" data-c="/ulti">Ulti al 100 %</button><button class="b" data-c="/dios">Invulnerable (on/off)</button><button class="b" data-c="/beta" id="own-beta-btn">Vista Privada: ON</button><div class="st">Eres owner: tienes todos los emotes y cosméticos desbloqueados sin hacer nada.</div></div>'
       + '<div class="pg" data-p="co"><div class="con" id="own-log"></div><input id="own-in" placeholder="/ayuda  ·  /evento kraken  ·  /tp abismo" autocomplete="off" spellcheck="false"></div>';
     document.body.appendChild(P);
     const B = document.createElement('button'); B.id = 'ownbtn'; B.type = 'button'; B.textContent = 'OWNER · F2'; document.body.appendChild(B);
@@ -51,7 +51,7 @@
       vida() { const p = me(); if (!p) return ''; p.hp = p.maxHp; return 'Vida al máximo'; },
       ulti() { const p = me(); if (!p) return ''; p.ult = 100; return 'Ulti lista'; },
       dios() { god = !god; return god ? 'Invulnerable: ON' : 'Invulnerable: OFF'; },
-      beta(a) { const w = (a[0] || '').toLowerCase(); const next = w === 'on' ? true : w === 'off' ? false : !getOwnerBeta(); const on = setOwnerBeta(next); return on ? 'Gráficos Beta ZZZ: ON (vista Owner / Git local)' : 'Gráficos Beta ZZZ: OFF (simulando jugador normal)'; },
+      beta(a) { const w = (a[0] || '').toLowerCase(); const next = w === 'on' ? true : w === 'off' ? false : !getOwnerBeta(); const on = setOwnerBeta(next); return on ? 'Vista Privada (Beta Owner): ON' : 'Vista Privada (Beta Owner): OFF (simulando jugador normal)'; },
       estado() { return 'Modo: ' + (G.mp ? (NETPUB() ? 'sala pública' : 'sala privada') : 'solo/bots') + ' · beta=' + (getOwnerBeta() ? 'ON' : 'OFF') + ' · eventos: ' + Object.keys(SEA.ev).map(k => k + '=' + Math.ceil(SEA.ev[k])).join(' ') + ' · próximo en ' + fmt(SEA.evTimer) + ' · barco: ' + (window.CF_MUELLE ? CF_MUELLE.state : '-'); },
     };
     function run(line) {
@@ -67,7 +67,7 @@
       st.innerHTML = 'Modo: <b>' + (G.mp ? (NETPUB() ? 'sala pública' : 'sala privada') : 'solo / bots') + '</b><br>' + Object.keys(SEA_EVENTS).map(k => SEA_EVENTS[k].ico + ' ' + SEA_EVENTS[k].n + ': <b>' + (SEA.ev[k] > 0 ? fmt(SEA.ev[k]) : '—') + '</b>').join(' · ') + '<br>Próximo evento: <b>' + (SEA.eventsAuto === false ? 'desactivados' : fmt(SEA.evTimer)) + '</b> · Barco: <b>' + (window.CF_MUELLE ? CF_MUELLE.state : '-') + '</b>';
       ab.innerHTML = 'Kraken: <b>' + (window.CF_ABISMO ? CF_ABISMO.state : '-') + '</b> · enemigos: <b>' + (window.CF_ABISMO ? CF_ABISMO.mobCount : 0) + '</b> · llave: <b>' + (window.CF_ABISMO ? CF_ABISMO.key : '-') + '</b> · portón: <b>' + (window.CF_ABISMO ? (CF_ABISMO.door ? 'abierto' : 'cerrado') : '-') + '</b>';
       const bb = P.querySelector('#own-beta-btn');
-      if (bb) bb.textContent = getOwnerBeta() ? 'Beta ZZZ: ON' : 'Beta ZZZ: OFF (jugador)';
+      if (bb) bb.textContent = getOwnerBeta() ? 'Vista Privada: ON' : 'Vista Privada: OFF (jugador)';
     }
     addEventListener('keydown', e => { if (e.code === 'F2' && !e.repeat && isOwner()) { e.preventDefault(); toggle(); } }, true);
     B.addEventListener('click', () => toggle());
