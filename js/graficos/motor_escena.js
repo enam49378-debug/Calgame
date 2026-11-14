@@ -21,7 +21,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
   renderer.toneMapping = TONOS[(() => { try { return localStorage.getItem('bsb_tonos'); } catch (e) { return null; } })()] ?? TONOS.ninguno;
   renderer.toneMappingExposure = 0.92;
   window.tonos = modo => { if (!(modo in TONOS)) return 'usa tonos("ninguno") o tonos("aces")'; renderer.toneMapping = TONOS[modo]; try { localStorage.setItem('bsb_tonos', modo); } catch (e) { } scene.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; ms.forEach(m => { m.needsUpdate = true; }); }); return modo; };
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, (typeof WEAK_PC !== 'undefined' && (WEAK_PC || LOW_PC)) ? 1.0 : 2.0));
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, (typeof WEAK_PC !== 'undefined' && (WEAK_PC || LOW_PC)) ? 1.0 : 1.5));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;   // gradación final: más color y contraste, menos apagado
@@ -38,12 +38,11 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
   scene.add(new THREE.HemisphereLight(0xaad8ff, 0x483e32, 0.88));
   const sun = new THREE.DirectionalLight(0xfff6e6, 0.98);
   sun.position.set(30, 55, 18); sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
   if (IS_LOCAL_HOST) {
-    sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(sun.shadow.camera, { left: -54, right: 54, top: 54, bottom: -54, near: 2, far: 185 });
-    sun.shadow.bias = -0.00028; sun.shadow.normalBias = .018;
+    Object.assign(sun.shadow.camera, { left: -38, right: 38, top: 38, bottom: -38, near: 2, far: 165 });
+    sun.shadow.bias = -0.00032; sun.shadow.normalBias = .018;
   } else {
-    sun.shadow.mapSize.set(1024, 1024);
     Object.assign(sun.shadow.camera, { left: -78, right: 78, top: 78, bottom: -78, near: 0.5, far: 260 });
     sun.shadow.bias = -0.0005; sun.shadow.normalBias = .025;
   }

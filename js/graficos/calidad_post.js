@@ -132,8 +132,8 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     const sh = $('gfx-shadows');
     if (sh) {
       const oU = sh.querySelector('option[value="ultra"]'), oS = sh.querySelector('option[value="soft"]'), oH = sh.querySelector('option[value="hard"]');
-      if (oU) { oU.hidden = !beta; oU.disabled = !beta; }
-      if (oS) oS.textContent = beta ? 'Altas (Suaves 2048)' : 'Altas (Suaves PCF)';
+      if (oU) { oU.hidden = !beta; oU.disabled = !beta; oU.textContent = 'Ultra (Suaves 2048)'; }
+      if (oS) oS.textContent = beta ? 'Altas (Suaves HD)' : 'Altas (Suaves PCF)';
       if (oH) oH.textContent = beta ? 'Medias (Rápidas 1024)' : 'Medias (Rápidas)';
       sh.value = (!beta && GFX_CFG.shadows === 'ultra') ? 'soft' : GFX_CFG.shadows;
     }
@@ -155,9 +155,9 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
   }
 
   const SHADOW_PROFILES_BETA = {
-    ultra: { type: THREE.PCFSoftShadowMap, size: 3072, span: 58, near: 2, far: 195, bias: -0.00022, normalBias: 0.014 },
-    soft:  { type: THREE.PCFSoftShadowMap, size: 2048, span: 54, near: 2, far: 185, bias: -0.00028, normalBias: 0.018 },
-    hard:  { type: THREE.PCFShadowMap,     size: 1024, span: 62, near: 2, far: 195, bias: -0.00045, normalBias: 0.030 },
+    ultra: { type: THREE.PCFSoftShadowMap, size: 2048, span: 48, near: 2, far: 185, bias: -0.00028, normalBias: 0.016 },
+    soft:  { type: THREE.PCFSoftShadowMap, size: 1024, span: 38, near: 2, far: 165, bias: -0.00032, normalBias: 0.018 },
+    hard:  { type: THREE.PCFShadowMap,     size: 1024, span: 42, near: 2, far: 165, bias: -0.00045, normalBias: 0.025 },
   };
   const SHADOW_PROFILES_PUBLIC = {
     soft:  { type: THREE.PCFSoftShadowMap, size: 1024, span: 78, near: 0.5, far: 260, bias: -0.0005, normalBias: 0.025 },
@@ -218,7 +218,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     }
     if (gradePass) gradePass.enabled = wantPost;
     if (typeof WX !== 'undefined' && WX.sky && dep.updateCityWeather) dep.updateCityWeather(0, true);
-    const basePr = Math.min(devicePixelRatio || 1, (WEAK_PC || LOW_PC) ? 1.0 : 2.0);   // resolución nativa de la pantalla (antes tope 1.0: borroso en pantallas con escala)
+    const basePr = Math.min(devicePixelRatio || 1, (WEAK_PC || LOW_PC) ? 1.0 : (GFX.level >= 1 ? 1.25 : 1.5));
     const pr = Math.max(0.5, Math.min(2.0, basePr * (Number(GFX_CFG.scale) || 1.0)));
     renderer.setPixelRatio(pr);
     renderer.setSize(innerWidth, innerHeight);
@@ -538,6 +538,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
   // ====================================================================
   // RESPLANDOR SOLAR SUAVE EN EL CIELO (sin líneas radiales sobre árboles)
   // ====================================================================
+  const _grFwd = new THREE.Vector3(), _grSun = new THREE.Vector3(), _grProj = new THREE.Vector3();
   function updateGodRays() {
     const G = dep.getG(), WX = dep.getWX();
     const gr = $('game-godrays');
@@ -549,11 +550,11 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       gr.style.opacity = '0';
       return;
     }
-    const camFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const sunPos = sun.position.clone().sub(sun.target.position).normalize();
-    const dot = camFwd.dot(sunPos);
+    _grFwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    _grSun.copy(sun.position).sub(sun.target.position).normalize();
+    const dot = _grFwd.dot(_grSun);
     if (dot > 0.05) {
-      const sv = sunPos.clone().multiplyScalar(150).project(camera);
+      const sv = _grProj.copy(_grSun).multiplyScalar(150).project(camera);
       const sx = clamp((sv.x * 0.5 + 0.5) * 100, 10, 90);
       const sy = clamp((-sv.y * 0.5 + 0.5) * 100, -25, 12);
       gr.style.setProperty('--sx', sx.toFixed(1) + '%');

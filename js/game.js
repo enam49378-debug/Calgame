@@ -3029,13 +3029,22 @@ function eyeGlow(m, on, T) {
   m.eyes.scale.set(on ? 1.15 : 1, on ? 1.6 : 1, 1);
 }
 // Arma hecha de vóxeles (1 vóxel = 1 píxel), apunta a +z, agarre en z=0
+const _wepGeoCache = new Map();
 function buildVoxelWeapon(vox, scale = 1, outlineScale = 0.14) {
   const mat = fighterToonMaterial(null, 'opaque', THREE.FrontSide, { color: 0xffffff, spec: 1.0 });
-  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(PX * scale, PX * scale, PX * scale), mat, vox.length), M = new THREE.Matrix4();
-  const olGeo = addOutlineOffset(new THREE.BoxGeometry(PX * scale, PX * scale, PX * scale), outlineScale * PX * scale);
-  const olM = new THREE.InstancedMesh(olGeo, OUTLINE_MAT, vox.length);
+  const key = scale + ':' + outlineScale;
+  let pair = _wepGeoCache.get(key);
+  if (!pair) {
+    pair = {
+      geo: new THREE.BoxGeometry(PX * scale, PX * scale, PX * scale),
+      olGeo: addOutlineOffset(new THREE.BoxGeometry(PX * scale, PX * scale, PX * scale), outlineScale * PX * scale),
+    };
+    _wepGeoCache.set(key, pair);
+  }
+  const m = new THREE.InstancedMesh(pair.geo, mat, vox.length), M = new THREE.Matrix4();
+  const olM = new THREE.InstancedMesh(pair.olGeo, OUTLINE_MAT, vox.length);
   vox.forEach(([y, z, c], i) => { M.makeTranslation(0, y * PX * scale, z * PX * scale); m.setMatrixAt(i, M); m.setColorAt(i, _c.set(c)); olM.setMatrixAt(i, M); });
-  m.castShadow = true; m.frustumCulled = false; olM.frustumCulled = false; m.add(olM);
+  m.castShadow = true; m.frustumCulled = false; olM.castShadow = false; olM.receiveShadow = false; olM.frustumCulled = false; m.add(olM);
   return m;
 }
 // Lanza de Minecraft hecha de vóxeles
@@ -7391,20 +7400,41 @@ function cityCull() {
   }
   if (window.BBM && !(typeof ME !== 'undefined' && ME.open)) {
     const beta = ZZZ_U.beta.value > 0.5;
-    const shDistSq = beta
-      ? (GFX_CFG.shadows === 'off' ? 0 : (GFX_CFG.shadows === 'hard' ? 58 * 58 : 74 * 74))
+    const shMode = GFX_CFG.shadows;
+    const propShDistSq = beta
+      ? (shMode === 'off' ? 0 : (shMode === 'ultra' ? 54 * 54 : (shMode === 'hard' ? 40 * 40 : 48 * 48)))
       : (GFX.level === 0 ? 75 * 75 : (GFX.level === 1 ? 48 * 48 : 0));
+    const bldgShDistSq = beta
+      ? (shMode === 'off' ? 0 : (shMode === 'ultra' ? 54 * 54 : (shMode === 'hard' ? 36 * 36 : 42 * 42)))
+      : propShDistSq;
     const shTx = sun.target.position.x, shTz = sun.target.position.z;
     const propRangeSq = (range * 0.72) ** 2;
     const bldgRangeSq = (range + 35) ** 2;
     for (let i = 0; i < window.BBM.length; i++) {
       const m = window.BBM[i];
       if (!m || (m.userData.mapItem && m.userData.mapItem.del)) continue;
+      if (!m.userData.cullSp && m.geometry) {
+        if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+        if (m.geometry.boundingSphere) {
+          m.updateMatrixWorld();
+          m.userData.cullSp = m.geometry.boundingSphere.clone().applyMatrix4(m.matrixWorld);
+        }
+      }
       const dx = cp.x - m.position.x, dz = cp.z - m.position.z, dSq = dx * dx + dz * dz;
+      const isProp = !!m.userData.isProp;
+      const maxSq = isProp ? propRangeSq : bldgRangeSq;
+      let vis = dSq < maxSq;
+      if (vis && m.userData.cullSp) {
+        if (m.matrixAutoUpdate) CULL.sp.copy(m.geometry.boundingSphere).applyMatrix4(m.matrixWorld);
+        else CULL.sp.copy(m.userData.cullSp);
+        const rawR = CULL.sp.radius;
+        CULL.sp.radius = rawR + 18;
+        vis = CULL.fr.intersectsSphere(CULL.sp) || dSq < (rawR + 18) ** 2;
+      }
+      m.visible = vis;
       const sdx = shTx - m.position.x, sdz = shTz - m.position.z;
-      const maxSq = m.userData.isProp ? propRangeSq : bldgRangeSq;
-      m.visible = dSq < maxSq;
-      m.castShadow = m.visible && shDistSq > 0 && (beta ? (sdx * sdx + sdz * sdz) : dSq) < shDistSq;
+      const shSq = isProp ? propShDistSq : bldgShDistSq;
+      m.castShadow = vis && shSq > 0 && (beta ? (sdx * sdx + sdz * sdz) : dSq) < shSq;
     }
   }
   if (SEA.root) SEA.root.visible = cp.z > 10 || cp.y > 8;
