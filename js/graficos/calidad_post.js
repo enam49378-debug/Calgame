@@ -150,7 +150,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     dust: true,
     contactShadows: true
   };
-  const GFX = { level: 0, auto: true, post: true, names: ['Alta', 'Media', 'Baja', 'Mínima', 'Ultra baja'], acc: 0, frames: 0, bad: 0, good: 0, best: 0, cool: 6, soft: false, fps: 60 };
+  const GFX = { level: 0, auto: true, post: true, names: ['Alta', 'Media', 'Baja', 'Mínima', 'Ultra baja'], acc: 0, frames: 0, bad: 0, good: 0, best: 0, cool: 6, soft: false, fps: 60, dynScale: 1.0, drs: true, shFrame: 0, shSkip: 0, shForce: true };
   window.estiloVisual = modo => {
     if (modo !== 'zenless' && modo !== 'classic') return 'usa estiloVisual("zenless") o estiloVisual("classic")';
     GFX_CFG.style = modo;
@@ -198,6 +198,22 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     hard:  { type: THREE.PCFShadowMap,     size: 1024, span: 78, near: 0.5, far: 260, bias: -0.0005, normalBias: 0.025 },
   };
 
+  function applyDynamicScale() {
+    const basePr = Math.min(devicePixelRatio || 1, (WEAK_PC || LOW_PC) ? 1.0 : (GFX.level >= 1 ? 1.25 : 1.5));
+    const drsFactor = (GFX.auto && GFX.drs) ? GFX.dynScale : 1.0;
+    const pr = Math.max(0.5, Math.min(2.0, basePr * (Number(GFX_CFG.scale) || 1.0) * drsFactor));
+    renderer.setPixelRatio(pr);
+    renderer.setSize(innerWidth, innerHeight);
+    if (composer) {
+      composer.setPixelRatio && composer.setPixelRatio(pr);
+      composer.setSize(GFX.post ? innerWidth : 16, GFX.post ? innerHeight : 16);
+      if (bloomPass && bloomPass.setSize && GFX.post) {
+        const bDiv = drsFactor < 0.85 ? 2.5 : 2;
+        bloomPass.setSize(Math.max(128, Math.floor(innerWidth / bDiv)), Math.max(128, Math.floor(innerHeight / bDiv)));
+      }
+    }
+  }
+
   function gfxApply(save = true) {
     const WX = dep.getWX();
     const beta = ZZZ_U.beta.value > 0.5;
@@ -212,6 +228,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     const wasOn = renderer.shadowMap.enabled;
     const wasType = renderer.shadowMap.type;
     renderer.shadowMap.enabled = wantShadows;
+    renderer.shadowMap.autoUpdate = false;
     sun.castShadow = wantShadows;
     if (wantShadows) {
       const table = beta ? SHADOW_PROFILES_BETA : SHADOW_PROFILES_PUBLIC;
@@ -228,8 +245,10 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       sun.shadow.normalBias = prof.normalBias;
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
       renderer.shadowMap.needsUpdate = true;
+      GFX.shForce = true;
     } else {
       if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+      renderer.shadowMap.needsUpdate = false;
     }
     if (dep.syncShadowReceivers) dep.syncShadowReceivers(beta);
     if (wasOn !== wantShadows || (wantShadows && wasType !== renderer.shadowMap.type)) {
@@ -252,14 +271,8 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     }
     if (gradePass) gradePass.enabled = wantPost;
     if (typeof WX !== 'undefined' && WX.sky && dep.updateCityWeather) dep.updateCityWeather(0, true);
-    const basePr = Math.min(devicePixelRatio || 1, (WEAK_PC || LOW_PC) ? 1.0 : (GFX.level >= 1 ? 1.25 : 1.5));
-    const pr = Math.max(0.5, Math.min(2.0, basePr * (Number(GFX_CFG.scale) || 1.0)));
-    renderer.setPixelRatio(pr);
-    renderer.setSize(innerWidth, innerHeight);
-    if (composer) {
-      composer.setPixelRatio && composer.setPixelRatio(pr);
-      composer.setSize(GFX.post ? innerWidth : 16, GFX.post ? innerHeight : 16);
-    }
+    if (!GFX.auto) GFX.dynScale = 1.0;
+    applyDynamicScale();
     OUTLINE_MAT.visible = !!GFX_CFG.outlines;
     dep.onPerf([1, .8, .55, .35, .2][GFX.level] || 1, [1, 1, .8, .55, .3][GFX.level] || 1);
     performanceDecorations();
@@ -419,10 +432,26 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
   // Auto reduce calidad después de varias mediciones malas; nunca cambia la física ni la frecuencia de red.
   function gfxWatch(rawDt){
     const G = dep.getG();
-    if(document.hidden||rawDt<=0||rawDt>.5||!['play','title','menu'].includes(G.state)||G.paused||G.cine||G.viewer||dep.roomInputBlocked()){GFX.acc=GFX.frames=GFX.bad=0;return;}
-    GFX.acc+=rawDt;GFX.frames++;GFX.cool=Math.max(0,GFX.cool-rawDt);if(GFX.acc<1)return;
+    if(document.hidden||rawDt<=0||rawDt>.5||!['play','title','menu'].includes(G.state)||G.paused||G.cine||G.viewer||dep.roomInputBlocked()){GFX.acc=GFX.frames=GFX.bad=GFX.good=0;return;}
+    GFX.acc+=rawDt;GFX.frames++;GFX.cool=Math.max(0,GFX.cool-rawDt);if(GFX.acc<0.65)return;
     const elapsed=GFX.acc;GFX.fps=GFX.frames/elapsed;GFX.acc=GFX.frames=0;
     if(!GFX.auto||GFX_CFG.preset!=='auto')return;
+    // DRS primero: ajusta resolución interna suave antes de bajar de nivel de preset
+    if(GFX.drs){
+      if(GFX.fps<46&&GFX.dynScale>0.68){
+        const step=GFX.fps<30?0.12:0.07;
+        const nextScale=Math.max(0.68,+(GFX.dynScale-step).toFixed(2));
+        if(nextScale!==GFX.dynScale){GFX.dynScale=nextScale;applyDynamicScale();GFX.good=0;return;}
+      }else if(GFX.fps>=57&&GFX.dynScale<1.0){
+        GFX.good+=elapsed;
+        if(GFX.good>=2.4){
+          GFX.dynScale=Math.min(1.0,+(GFX.dynScale+0.06).toFixed(2));
+          applyDynamicScale();GFX.good=0;
+        }
+      }else{
+        GFX.good=Math.max(0,GFX.good-elapsed);
+      }
+    }
     const weight=GFX.fps<25?elapsed*2:GFX.fps<42?elapsed:0;
     GFX.bad=weight>0?GFX.bad+weight:Math.max(0,GFX.bad-elapsed*2);
     if(GFX.bad>=2.2&&GFX.cool===0&&GFX.level<4){const next=Math.min(4,GFX.level+(GFX.fps<22?2:1));GFX.best=Math.max(GFX.best,next);gfxSet(next,true,false);GFX.bad=0;GFX.cool=6;}
@@ -437,10 +466,26 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
   }
 
   const _shSave = { n: 0, s: 0, kd: new V3(), rc: new THREE.Color(), rw: new THREE.Color() };
+  const _rvClearCol = new THREE.Color();
   function renderView(sc, cm) {
     const reportFrameError = dep.getReportFrameError();
-    const SH = dep.getSH && dep.getSH();
+    const G = dep.getG(), SH = dep.getSH && dep.getSH();
     const inStudio = !!(SH && sc === SH.scene && ZZZ_U.beta.value > 0.5);
+    // Throttling de shadow-map: evita recalcular sombras en cada fotograma o en pausa
+    if (renderer.shadowMap.enabled && sun.castShadow) {
+      const idlePaused = !!(G.paused && !G.mp && !G.cine && !inStudio);
+      if (idlePaused && !GFX.shForce) {
+        renderer.shadowMap.needsUpdate = false;
+      } else {
+        GFX.shFrame = (GFX.shFrame + 1) | 0;
+        const cadence = (sc !== scene || inStudio) ? 1
+          : (GFX_CFG.shadows === 'ultra' && GFX.fps >= 54 && GFX.dynScale >= 0.95) ? 1
+          : (GFX.fps < 36 || GFX.dynScale < 0.80) ? 3 : 2;
+        const doSh = GFX.shForce || (GFX.shFrame % cadence) === 0;
+        renderer.shadowMap.needsUpdate = doSh;
+        if (doSh) GFX.shForce = false; else GFX.shSkip++;
+      }
+    }
     if (inStudio) {
       _shSave.n = ZZZ_U.night.value;
       _shSave.s = ZZZ_U.sunset.value;
@@ -455,7 +500,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     }
     try {
       if (!composer || !GFX.post) { renderer.render(sc, cm); return; }
-      const target = renderer.getRenderTarget(), autoClear = renderer.autoClear, alpha = renderer.getClearAlpha(), color = renderer.getClearColor(new THREE.Color());
+      const target = renderer.getRenderTarget(), autoClear = renderer.autoClear, alpha = renderer.getClearAlpha(), color = renderer.getClearColor(_rvClearCol);
       let completed = false;
       try {
         if (bloomPass && GFX_CFG.bloom !== 'off' && ZZZ_U.beta.value > 0.5 && ZZZ_U.on.value > 0.5) {
@@ -525,6 +570,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     ];
     renderer.setScissorTest(true);
     try { for (let i = 0; i < 3; i++) {
+      if (i > 0 && renderer.shadowMap.enabled) renderer.shadowMap.needsUpdate = false;
       const x0 = PANEL_CUTS[i] * W, w = (PANEL_CUTS[i + 1] - PANEL_CUTS[i]) * W, cm = PCAMS[i];
       cm.up.set(0, 1, 0); set[i](cm); cm.aspect = w / H; cm.updateProjectionMatrix();
       renderer.setViewport(x0, 0, w, H); renderer.setScissor(x0, 0, w, H); renderer.render(sc, cm);
@@ -614,7 +660,8 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       const fps = FPS.n / FPS.t;
       const frameMs = (1000 / Math.max(1, fps)).toFixed(1);
       FPS.el.style.color = fps >= 180 ? '#3ee07a' : fps >= 120 ? '#4fc3ff' : fps >= 50 ? '#d7ff2f' : fps >= 30 ? '#ffd23f' : '#ff4757';
-      FPS.el.textContent = Math.round(fps) + ' FPS · ' + frameMs + ' ms · pico ' + Math.round(FPS.ms) + ' ms';
+      const drsNote = (GFX.auto && GFX.drs && GFX.dynScale < 0.99) ? (' · res ' + Math.round(GFX.dynScale * 100) + '%') : '';
+      FPS.el.textContent = Math.round(fps) + ' FPS · ' + frameMs + ' ms · pico ' + Math.round(FPS.ms) + ' ms' + drsNote;
       FPS.n = 0; FPS.t = 0; FPS.ms = 0;
     }
   }
@@ -656,7 +703,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     set linesDrawn(v) { linesDrawn = v; },
     _v2s, initPostProcessing, GFX_LIMIT, GFX_CFG, GFX,
     gfxSyncUI, gfxSave, gfxApply, gfxApplyPreset, gfxSet, gfxAutoLevel,
-    gfxInit, gfxWatch, PERF_FRAME, performanceDecorations,
+    gfxInit, gfxWatch, PERF_FRAME, performanceDecorations, applyDynamicScale,
     renderView, PCAMS, PANEL_CUTS, renderPanels, drawPanelBorders,
     renderMain, drawLines, FPS, fpsTick, updateGodRays
   };

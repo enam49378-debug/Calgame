@@ -105,10 +105,11 @@
         }
       }
 
-      // Rebote físico contra muros en COL
+      // Rebote físico contra muros en COL (usando Spatial Grid cuando está disponible)
       if (Math.abs(d.vx) > 1.8 || Math.abs(d.vz) > 1.8) {
-        for (let ci = 0; ci < COL.length; ci++) {
-          const c = COL[ci];
+        const nearCols = window.colQuery ? window.colQuery(d.x, d.z, 0.35) : COL;
+        for (let ci = 0; ci < nearCols.length; ci++) {
+          const c = nearCols[ci];
           if (!c || c.ceiling || c.rubble || d.y < (c.y0 || 0) || d.y > c.h) continue;
           if (Math.abs(d.x - c.x) < c.hx + 0.22 && Math.abs(d.z - c.z) < c.hz + 0.22) {
             const ox = (c.hx + 0.22) - Math.abs(d.x - c.x);
@@ -139,7 +140,7 @@
               f.lastDebHit = G.time;
               f.damage(Math.round(debSpeed * 0.4), f.pos, null, null, null, null, true);
               if (window.sfx) window.sfx('ding', f.pos, 0.5);
-              if (window.burst) window.burst(new THREE.Vector3(d.x, d.y, d.z), 4, '#fff', 3, 0.1, 0.25);
+              if (window.burst) { _dv.set(d.x, d.y, d.z); window.burst(_dv, 4, '#fff', 3, 0.1, 0.25); }
             }
             d.vx *= -0.3;
             d.vy = Math.max(d.vy * 0.5, 2.5);
@@ -218,9 +219,11 @@
   }
 
   // Detección de impacto contra muros (Wall-Splat estilo anime)
+  const _splatPos = new THREE.Vector3();
   function checkWallSplat(f, b, speed, normal) {
     if (!f || !b || speed < 5.5) return;
-    const pos = f.pos.clone().add(new THREE.Vector3(0, 1.0, 0));
+    _splatPos.copy(f.pos).setY(f.pos.y + 1.0);
+    const pos = _splatPos;
     if (window.comicPop) window.comicPop(pos, '¡SLAM!', 'burst-orange', 38);
     if (window.sfx) { window.sfx('heavy', pos, 0.95); window.sfx('break', pos, 0.85); }
     if (window.shakeFrom) window.shakeFrom(pos, 0.4);

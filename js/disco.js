@@ -4,7 +4,13 @@
    Para anadir mas canciones: agrega su archivo en TRACKS (nombre del mp3 -> titulo, autor, portada). Este archivo se ejecuta dentro de game.js. */
 (window.CF_HABILIDADES = window.CF_HABILIDADES || []).push(function (A) {
   with (A) {
-    const TRACKS = { 'calfight_intro.mp3': { t: 'CalFight · Tema principal', a: 'CalFight (canción original)', cover: 'assets/calfight_logo.png', fit: '80% auto' }, 'green_room.mp3': { t: 'Welcome to the Green Room (Wii U Mix)', a: 'Toby Fox · Tai Undead', cover: 'musica/portadas/green_room.jpg' } };
+    const TRACKS = {
+      'calfight_arcade.mp3': { t: 'CalFight · Bit Rush (Arcade)', a: 'CalFight (canción original)', cover: 'assets/calfight_logo.png', fit: '80% auto' },
+      'calfight_nocturno.mp3': { t: 'Ciudad Aurora · Nocturno Lo-Fi', a: 'CalFight (canción original)', cover: 'assets/calfight_logo.png', fit: '80% auto' },
+      'calfight_intro.mp3': { t: 'CalFight · Tema principal', a: 'CalFight (canción original)', cover: 'assets/calfight_logo.png', fit: '80% auto' },
+      'menu.mp3': { t: 'CalFight · Selección de Peleadores', a: 'CalFight (canción original)', cover: 'assets/calfight_logo.png', fit: '80% auto' },
+      'green_room.mp3': { t: 'Welcome to the Green Room (Wii U Mix)', a: 'Toby Fox · Tai Undead', cover: 'musica/portadas/green_room.jpg' }
+    };
     const DISCORD = 'https://discord.gg/hwU3SYxeuZ';
     const css = document.createElement('style');
     css.textContent = '#disco{position:fixed;left:22px;top:44%;z-index:60;display:none;align-items:center;pointer-events:none}#disco.on{display:flex}'

@@ -46,14 +46,12 @@
   })();
 
   let SCAR_N = 0;
-
-  // Estampa una calcomanía de impacto y grietas sobre muros o el suelo
-  function scarDecal(p, r, n) {
-    if (SCAR_N > 70) return;
-    SCAR_N++;
-    const rnd = window.rand || ((a, b) => a + Math.random() * (b - a));
-    const geo = new THREE.PlaneGeometry(r * 2, r * 2);
-    const mat = new THREE.MeshBasicMaterial({
+  const SCAR_GEO = new THREE.PlaneGeometry(1, 1);
+  const SCAR_MAT_POOL = [];
+  function acquireScarMat() {
+    const m = SCAR_MAT_POOL.pop();
+    if (m) { m.opacity = 1; return m; }
+    return new THREE.MeshBasicMaterial({
       map: SCAR_TEX,
       transparent: true,
       depthWrite: false,
@@ -61,7 +59,16 @@
       polygonOffsetFactor: -3,
       polygonOffsetUnits: -3
     });
-    const m = new THREE.Mesh(geo, mat);
+  }
+
+  // Estampa una calcomanía de impacto y grietas sobre muros o el suelo
+  function scarDecal(p, r, n) {
+    if (SCAR_N > 70) return;
+    SCAR_N++;
+    const rnd = window.rand || ((a, b) => a + Math.random() * (b - a));
+    const mat = acquireScarMat();
+    const m = new THREE.Mesh(SCAR_GEO, mat);
+    m.scale.set(r * 2, r * 2, 1);
     if (n) {
       m.position.copy(p).addScaledVector(n, .05);
       m.lookAt(p.x + n.x, p.y + n.y, p.z + n.z);
@@ -76,8 +83,8 @@
         mat.opacity = k < .8 ? .95 : .95 * (1 - (k - .8) / .2);
       }, () => {
         SCAR_N--;
-        geo.dispose();
-        mat.dispose();
+        if (SCAR_MAT_POOL.length < 72) SCAR_MAT_POOL.push(mat);
+        else mat.dispose();
       });
     }
   }
@@ -243,22 +250,25 @@
       }
     }
     const COL = window.COL || [];
+    let colChanged = false;
     for (let i = COL_OFF.length - 1; i >= 0; i--) {
       const e = COL_OFF[i];
       if (all || G.time >= e.back) {
         if (e.isRubble) {
           const ri = COL.indexOf(e.b);
-          if (ri >= 0) COL.splice(ri, 1);
+          if (ri >= 0) { COL.splice(ri, 1); colChanged = true; }
         } else {
           COL.push(e.b);
+          colChanged = true;
         }
         COL_OFF.splice(i, 1);
       }
     }
     for (const [root, rec] of COL_ROOTS) {
       if (all || G.time >= rec.back) {
-        for (let i = COL.length - 1; i >= 0; i--) if (COL[i].root === root) COL.splice(i, 1);
+        for (let i = COL.length - 1; i >= 0; i--) if (COL[i].root === root) { COL.splice(i, 1); colChanged = true; }
         COL.push(root);
+        colChanged = true;
         COL_ROOTS.delete(root);
       }
     }
@@ -267,8 +277,9 @@
       const DEB = window.PHYSICS ? window.PHYSICS.DEB : null;
       if (DEB) { DEB.a.length = 0; if (DEB.m) DEB.m.count = 0; }
       HOLES.length = 0;
-      for (let i = COL.length - 1; i >= 0; i--) if (COL[i].rubble) COL.splice(i, 1);
+      for (let i = COL.length - 1; i >= 0; i--) if (COL[i].rubble) { COL.splice(i, 1); colChanged = true; }
     }
+    if (colChanged && window.colMarkDirty) window.colMarkDirty();
   }
 
   // Talla una caja de prop en cubos sueltos (capado a 160 cubos para rendimiento fluido)
@@ -394,16 +405,19 @@
             }
           }
         }
+        let cascadeColChanged = false;
         for (let ci = COL.length - 1; ci >= 0; ci--) {
           const b = COL[ci];
           if (b && b.prop === mesh) {
             COL_OFF.push({ b, back: G.time + 26 + Math.random() * 10 });
             COL.splice(ci, 1);
+            cascadeColChanged = true;
           }
         }
         const rubbleCol = { x: mesh.position.x, z: mesh.position.z, hx: 2.2, hz: 2.2, h: gy + 0.75, y0: gy, rubble: true, ceiling: false, nocam: true };
         COL.push(rubbleCol);
         COL_OFF.push({ b: rubbleCol, back: G.time + 26, isRubble: true });
+        if (window.colMarkDirty) window.colMarkDirty();
       }
     }
   }
@@ -501,6 +515,7 @@
   function colCarve(c, r) {
     const COL = window.COL || [];
     const hy = Math.max(.55, r * .85);
+    let colChanged = false;
     for (let i = COL.length - 1; i >= 0; i--) {
       const b = COL[i];
       if (!b || b.nobreak || b.ceiling || b.rubble) continue;
@@ -514,6 +529,7 @@
       if (fullyEngulfed) {
         COL_OFF.push({ b, back: (window.G ? window.G.time : 0) + 26 + Math.random() * 10 });
         COL.splice(i, 1);
+        colChanged = true;
         continue;
       }
 
@@ -540,8 +556,10 @@
         const back = (window.G ? window.G.time : 0) + 26 + Math.random() * 10;
         COL_ROOTS.set(root, { back });
         COL.splice(i, 1, ...pcs);
+        colChanged = true;
       }
     }
+    if (colChanged && window.colMarkDirty) window.colMarkDirty();
   }
 
   // Huecos de corte visual en shaders de edificios Blockbench

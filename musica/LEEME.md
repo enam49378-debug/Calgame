@@ -1,6 +1,6 @@
 # Música
 
-`menu.mp3` suena en el menú y `pelea1.mp3`, `pelea2.mp3` y `pelea3.mp3` en las peleas (en orden aleatorio). Son pistas aportadas por el autor del juego (convertidas de WAV a MP3). La tecla **M** activa o desactiva la música.
+`calfight_arcade.mp3` (*CalFight · Bit Rush (Arcade)*), `calfight_nocturno.mp3` (*Ciudad Aurora · Nocturno Lo-Fi*), `calfight_intro.mp3` (*CalFight · Tema principal*) y `green_room.mp3` se turnan en la pantalla de inicio (y el disco muestra el nombre de la pista y su autor). En el selector de peleadores suenan `calfight_arcade.mp3`, `calfight_nocturno.mp3` y `menu.mp3`; en las peleas se alternan `pelea1.mp3`, `pelea2.mp3` y `pelea3.mp3` en orden aleatorio. Las pistas `calfight_arcade.mp3`, `calfight_nocturno.mp3`, `calfight_intro.mp3`, `menu.mp3` y `pelea1..3.mp3` son originales de CalFight, aportadas por el autor del juego. La tecla **M** activa o desactiva la música.
 
 ### Pistas Instrumentales de HYPNOTIC DATA (SIN VOZ - Choques y Pegada Idéntica):
 - `hypnotic_choques_identico.mp3`: Versión 1 (máxima pegada, choques de bombo phonk a 46Hz, acorde stab supersaw distorsionado y sub-bajo 808 rugiente, 100% instrumental sin voz).
