@@ -1316,8 +1316,10 @@ CF.mover('rbCosmos', function (f, o) {
     return { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
   };
 
+  let untrackCosmos = () => {};
   const cleanup = () => {
     if (finished) return; finished = true;
+    untrackCosmos();
     killBeam(); if (mundo) { try { mundo.dispose(); } catch (e) { } mundo = null; } if (space) { try { space.dispose(); } catch (e) { } space = null; } if (desc) { try { desc.dispose(); } catch (e) { } desc = null; }
     if (graded) { cineGrade(false); graded = false; }
     rbCosmosSnd.stopAll(); setFx(0, 0, 1); glow.style.opacity = 0; if (isP) barsOut(); document.body.classList.remove('cine'); killSky();
@@ -1410,6 +1412,7 @@ CF.mover('rbCosmos', function (f, o) {
     name: 'rbCosmos', dur: 200, noControl: true, speedMul: 0, lockYaw: true, armor: true, eyes: true, bbClip: isP ? 'caminar' : 'idle',
     start: (a) => {
       A = a; f.yaw = Y; f.iframes = Math.max(f.iframes, 60); f.vel.set(0, 0, 0);
+      untrackCosmos = trackSkillObj(f, 65, cleanup);
       if (isP) {
         f.cineHide = true; if (!f.remote) f.pos.set(S0.x, S0.y, S0.z);
         document.body.classList.add('cine'); bars.forEach(b => { b.style.transition = 'none'; b.style.height = '0vh'; }); barC = 0; setBars(15);
@@ -1870,8 +1873,10 @@ CF.mover('sekBoomerang', function (f, o) {
         const F = fwd(f.yaw), R = rightOf(f.yaw), side = Math.random() < .5 ? 1 : -1, col = o.color, T = 1.5, tg0 = findTarget(f, 18), R0 = tg0 ? clamp(dist2d(f, tg0) + 1.5, 7, 16) : (o.range || 11), out = new Set(), back = new Set();
         const g1 = new THREE.RingGeometry(.5, 1, 20, 1, -1.2, 2.4), g2 = new THREE.RingGeometry(.78, 1, 20, 1, -1.2, 2.4), m1 = glowMat(col, .75), m2 = glowMat('#ffffff', .95);
         const grp = new THREE.Group(), a = new THREE.Mesh(g1, m1), b = new THREE.Mesh(g2, m2); a.rotation.x = b.rotation.x = -Math.PI / 2; grp.add(a, b); grp.scale.setScalar(1.7); scene.add(grp);
-        sfx('whoosh', f.pos); let t = 0;
-        const nd = ndt(); const tick = () => { const dt = nd();
+        sfx('whoosh', f.pos); let t = 0, done = false, untrack = () => {};
+        const stop = () => { if (done) return; done = true; untrack(); scene.remove(grp); g1.dispose(); g2.dispose(); m1.dispose(); m2.dispose(); };
+        untrack = trackSkillObj(f, T + 1, stop);
+        const nd = ndt(); const tick = () => { if (done) return; const dt = nd();
           t += dt; const u = Math.min(1, t / T);
           const fw = R0 * (1 - Math.cos(TAU * u)) / 2, la = side * 2.4 * Math.sin(TAU * u);
           grp.position.set(f.pos.x + F.x * fw + R.x * la, f.pos.y + 1.2, f.pos.z + F.z * fw + R.z * la); grp.rotation.y += .55;
@@ -1881,8 +1886,8 @@ CF.mover('sekBoomerang', function (f, o) {
             if (u < .5 && !out.has(g)) { out.add(g); applyHit(f, g, { dmg: o.dmg || 4, stun: .35, kb: 3, up: 2, dir: F, color: col, hitstop: .04, shake: .15 }); }
             else if (u >= .5 && !back.has(g)) { back.add(g); applyHit(f, g, { dmg: o.dmg || 4, stun: .5, kb: 8, up: 1, dir: new V3(f.pos.x - g.pos.x, 0, f.pos.z - g.pos.z), color: col, hitstop: .04, shake: .15 }); }
           }
-          if (u < 1 && G.state === 'play') later(0, tick);
-          else { scene.remove(grp); g1.dispose(); g2.dispose(); m1.dispose(); m2.dispose(); }
+          if (u < 1 && !f._disposed && G.state === 'play') later(0, tick);
+          else stop();
         };
         tick();
       } }],
@@ -1994,7 +1999,10 @@ CF.mover('rkSwarm', function (f, o) {
         }
         burst(chestOf(f), 24, col, 7, .16, .5, 0); sfx('tp', f.pos);
         const rm = k => { k.dead = true; scene.remove(k.mesh); k.mesh.traverse(m => { if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); }); };
-        const nd = ndt(); const loop = () => { const dt = nd();
+        let done = false, untrack = () => {};
+        const stopAll = () => { if (done) return; done = true; untrack(); kids.forEach(k => { if (!k.dead) rm(k); }); };
+        untrack = trackSkillObj(f, 8, stopAll);
+        const nd = ndt(); const loop = () => { if (done) return; const dt = nd();
           for (const k of kids) {
             if (k.dead) continue; k.t += dt;
             let best = null, bd = 1e9; for (const g of enemiesOf(f)) { const d = chestOf(g).distanceTo(k.mesh.position); if (g.alive && d < bd) { bd = d; best = g; } }
@@ -2005,7 +2013,7 @@ CF.mover('rkSwarm', function (f, o) {
             k.mesh.lookAt(k.mesh.position.clone().add(k.vel));
             if (d < 1.3) { k.bt -= dt; if (k.bt <= 0) { k.bt = .3; k.bites++; applyHit(f, best, { dmg: o.dmg || 1.8, stun: .25, kb: 0, color: col, hitstop: .02, shake: .05, noCounter: true }); burst(chestOf(best), 5, col, 4, .1, .2, 0); sfx('hit', best.pos, .4); } }
           }
-          if (kids.some(k => !k.dead) && G.state === 'play') later(0, loop); else kids.forEach(k => { if (!k.dead) rm(k); });
+          if (kids.some(k => !k.dead) && !f._disposed && G.state === 'play') later(0, loop); else stopAll();
         };
         loop();
       } }],
@@ -2197,8 +2205,10 @@ CF.mover('ukSweep', function (f, o) {
         const g1 = new THREE.RingGeometry(.85, 1.35, 24, 1, -1.25, 2.5), g2 = new THREE.RingGeometry(1.15, 1.35, 24, 1, -1.25, 2.5), m1 = glowMat(col, .7), m2 = glowMat('#ffffff', .9);
         const grp = new THREE.Group(), arc = new THREE.Group(), a = new THREE.Mesh(g1, m1), b = new THREE.Mesh(g2, m2); a.rotation.x = b.rotation.x = -Math.PI / 2; arc.add(a, b); grp.add(arc); grp.rotation.y = f.yaw - Math.PI / 2; scene.add(grp);
         arcSlash(f, col, { tilt: .05, r: 2.2, w: .7, len: 3.4, dur: .3, y: .5 }); sfx('swing', f.pos);
-        let t = 0;
-        const nd = ndt(); const tick = () => { const dt = nd();
+        let t = 0, done = false, untrack = () => {};
+        const stop = () => { if (done) return; done = true; untrack(); scene.remove(grp); g1.dispose(); g2.dispose(); m1.dispose(); m2.dispose(); };
+        untrack = trackSkillObj(f, T + 1, stop);
+        const nd = ndt(); const tick = () => { if (done) return; const dt = nd();
           t += dt; const u = Math.min(1, t / T), sc = 1.2 + 1.4 * u;
           const x = org.x + F.x * (1.2 + L * u), z = org.z + F.z * (1.2 + L * u); grp.position.set(x, groundAt(x, z) + .3, z); arc.scale.set(sc, sc, sc);
           emit(x + rand(-1, 1), grp.position.y, z + rand(-1, 1), rand(-1, 1), rand(.5, 2), rand(-1, 1), '#d8d0c0', .18, .3, 0, 0);
@@ -2209,7 +2219,7 @@ CF.mover('ukSweep', function (f, o) {
               applyHit(f, g, { dmg: o.dmg || 6, kb: 6, up: 4, ragdoll: .7, dir: new V3(F.x * .5 + Rr.x * side, 0, F.z * .5 + Rr.z * side), color: col, hitstop: .06, shake: .3 });
             }
           }
-          if (u < 1 && G.state === 'play') later(0, tick); else { scene.remove(grp); g1.dispose(); g2.dispose(); m1.dispose(); m2.dispose(); }
+          if (u < 1 && !f._disposed && G.state === 'play') later(0, tick); else stop();
         };
         tick();
       } }],
@@ -2227,18 +2237,23 @@ CF.mover('ukFireball', function (f, o) {
       steps: [{ at: .25, fn: () => {
         const F = fwd(f.yaw), col = o.color, ball = new THREE.Mesh(new THREE.IcosahedronGeometry(.55, 1), glowMat('#ff8a1a', .9));
         const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.32, 0), new THREE.MeshBasicMaterial({ color: '#fff3c4' })); ball.add(core); ball.position.copy(front(f, 1, 1.3)); scene.add(ball);
-        const vel = F.clone().multiplyScalar(24); let life = 0; sfx('fire', f.pos);
+        const vel = F.clone().multiplyScalar(24); let life = 0, done = false, untrack = () => {}; sfx('fire', f.pos);
+        const cleanup = () => {
+          if (done) return; done = true; untrack();
+          scene.remove(ball); ball.geometry.dispose(); ball.material.dispose(); core.geometry.dispose(); core.material.dispose();
+        };
+        untrack = trackSkillObj(f, 3, cleanup);
         const finish = pos => {
           explode(f, pos, 3.2, { dmg: o.dmg || 9, kb: 8, up: 8, ragdoll: .7, color: col, hitstop: .08, shake: .4 });
           const gp = new V3(pos.x, groundAt(pos.x, pos.z), pos.z); fireColumn(gp, 2, '#ff7a1a', 5); firePatch(f, gp, 3, 3.5, col);
-          scene.remove(ball); ball.geometry.dispose(); ball.material.dispose(); core.geometry.dispose(); core.material.dispose();
+          cleanup();
         };
-        const nd = ndt(); const tick = () => { const dt = nd();
+        const nd = ndt(); const tick = () => { if (done) return; const dt = nd();
           life += dt; ball.position.addScaledVector(vel, dt); ball.scale.setScalar(1 + .15 * Math.sin(life * 40)); ball.rotation.x += .3;
           emit(ball.position.x, ball.position.y, ball.position.z, rand(-1, 1), rand(0, 2), rand(-1, 1), Math.random() < .5 ? '#ff7a1a' : '#ffd54f', .3, .35, 0, 1);
           let hit = life > 1.2 || groundAt(ball.position.x, ball.position.z) > ball.position.y - .2 || ball.position.y < .2 || Math.hypot(ball.position.x, ball.position.z) > ARENA + 1;
           if (!hit) for (const g of enemiesOf(f)) if (g.alive && chestOf(g).distanceTo(ball.position) < 1.2) { hit = true; break; }
-          if (hit) finish(ball.position.clone()); else if (G.state === 'play') later(0, tick); else { scene.remove(ball); }
+          if (hit) finish(ball.position.clone()); else if (!f._disposed && G.state === 'play') later(0, tick); else cleanup();
         };
         tick();
       } }],
@@ -2256,14 +2271,16 @@ CF.mover('ukSun', function (f, o) {
       steps: [{ at: .3, fn: () => {
         const F = fwd(f.yaw), hit = new Set(), g1 = new THREE.RingGeometry(1.3, 1.9, 28, 1, -1.2, 2.4), g2 = new THREE.RingGeometry(1.65, 1.9, 28, 1, -1.2, 2.4), m1 = glowMat('#ff6a1a', .8), m2 = glowMat('#fff3c4', .95);
         const grp = new THREE.Group(), a = new THREE.Mesh(g1, m1), b = new THREE.Mesh(g2, m2); a.rotation.z = b.rotation.z = Math.PI / 2; grp.add(a, b); grp.rotation.y = f.yaw; grp.position.copy(front(f, 1.2, 1.6)); scene.add(grp);
-        sfx('fire', f.pos); arcSlash(f, '#ff7a1a', { tilt: 1.4, r: 2.2, w: .8, len: 2.6, dur: .3 }); let t = 0;
-        const nd = ndt(); const tick = () => { const dt = nd();
+        sfx('fire', f.pos); arcSlash(f, '#ff7a1a', { tilt: 1.4, r: 2.2, w: .8, len: 2.6, dur: .3 }); let t = 0, done = false, untrack = () => {};
+        const stop = () => { if (done) return; done = true; untrack(); scene.remove(grp); g1.dispose(); g2.dispose(); m1.dispose(); m2.dispose(); };
+        untrack = trackSkillObj(f, 2, stop);
+        const nd = ndt(); const tick = () => { if (done) return; const dt = nd();
           t += dt; const sc = 1 + t * 1.2; grp.position.addScaledVector(F, 30 * dt); grp.scale.set(sc, sc, sc);
           for (let k = 0; k < 3; k++) { const an = rand(-1.2, 1.2) + Math.PI / 2, q = grp.localToWorld(new V3(Math.cos(an) * 1.7, Math.sin(an) * 1.7, 0)); emit(q.x, q.y, q.z, rand(-1, 1), rand(0, 2), rand(-1, 1), Math.random() < .5 ? '#ff7a1a' : '#ffd54f', .3, .4, 0, 1); }
           for (const g of enemiesOf(f)) if (!hit.has(g) && g.alive && chestOf(g).distanceTo(grp.position) < 2.4 * sc) {
             hit.add(g); applyHit(f, g, { dmg: o.dmg || 8, kb: 8, up: 10, ragdoll: .8, dir: F, color: '#ff7a1a', hitstop: .08, shake: .4, guardBreak: true }); impactStar(chestOf(g), '#ff7a1a', 2.2, .25);
           }
-          if (t < .75 && G.state === 'play') later(0, tick); else { scene.remove(grp); g1.dispose(); g2.dispose(); m1.dispose(); m2.dispose(); }
+          if (t < .75 && !f._disposed && G.state === 'play') later(0, tick); else stop();
         };
         tick();
       } }],
@@ -2286,7 +2303,10 @@ CF.mover('ukKnives', function (f, o) {
         }
         sfx('slash', f.pos);
         const rm = k => { k.st = 'dead'; scene.remove(k.mesh); k.mesh.geometry.dispose(); k.mesh.material.dispose(); };
-        const nd = ndt(); const loop = () => { const dt = nd();
+        let done = false, untrack = () => {};
+        const stopAll = () => { if (done) return; done = true; untrack(); ks.forEach(k => { if (k.st !== 'dead') rm(k); }); };
+        untrack = trackSkillObj(f, 6, stopAll);
+        const nd = ndt(); const loop = () => { if (done) return; const dt = nd();
           T += dt;
           for (const k of ks) {
             if (k.st === 'dead') continue; const pos = k.mesh.position;
@@ -2306,7 +2326,7 @@ CF.mover('ukKnives', function (f, o) {
               if (d < 1) rm(k); else { to.multiplyScalar(1 / d); pos.addScaledVector(to, 42 * dt); k.mesh.lookAt(pos.clone().add(to)); }
             }
           }
-          if (ks.some(k => k.st !== 'dead') && G.state === 'play' && T < 5) later(0, loop); else ks.forEach(k => { if (k.st !== 'dead') rm(k); });
+          if (ks.some(k => k.st !== 'dead') && !f._disposed && G.state === 'play' && T < 5) later(0, loop); else stopAll();
         };
         loop();
       } }],
@@ -2673,12 +2693,21 @@ CF.mover('randiCondor', function (f, o) {
    Puedes usar cualquier función del juego (startAction, applyHit, hitArea, ...) como si estuvieras dentro de js/game.js. */
 CF.mover('randiLlamas', function (f, o) {
     const F = fwd(f.yaw), R = rightOf(f.yaw), llamas = [], pick = [0, 2, 3];
-    const clear = () => { for (const L of llamas) if (L.g.parent) L.g.parent.remove(L.g); llamas.length = 0; };
+    let untrack = () => {};
+    const clear = () => {
+      untrack();
+      for (const L of llamas) {
+        if (L.g.parent) L.g.parent.remove(L.g);
+        L.g.traverse(q => { if (q.isMesh) { q.geometry?.dispose(); q.material?.dispose(); } });
+      }
+      llamas.length = 0;
+    };
     startAction(f, {
       name: 'randiLlamas', dur: 2.3, aim: true, speedMul: .3, anim: [[0, 'windup', 700], [.3, 'mega', 1500]],
       start: () => { popText(chestOf(f), '¡ESTAMPIDA ANDINA!', '#ffd23f', 24); sfx('dash', f.pos); },
       steps: [{ at: .35, fn: () => {
         sfx('fire', f.pos, .6); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#ffd23f', 4, .5);
+        untrack = trackSkillObj(f, 3.0, clear);
         for (let i = 0; i < 5; i++) {
           const off = (i - 2) * 1.9, g = DOM_ANIMALS[pick[i % 3]](); g.scale.setScalar(.8);
           const p = new V3(f.pos.x + F.x * 1.5 + R.x * off, f.pos.y + 1, f.pos.z + F.z * 1.5 + R.z * off);
@@ -2876,8 +2905,11 @@ CF.mover('jlWave', function (f, o) {
       steps: [{ at: .35, fn: () => {
         const yaw = f.yaw, dir = new V3(Math.sin(yaw), 0, Math.cos(yaw)), geo = new THREE.BoxGeometry(7.4, .75, .4), mat = new THREE.MeshBasicMaterial({ map: jlBarTex(), transparent: true, opacity: .96 }), mesh = new THREE.Mesh(geo, mat), hit = new Set(), nd = ndt(); let life = 0;
         mesh.position.copy(front(f, 1.6, 1.2)); mesh.rotation.y = yaw; scene.add(mesh); sfx('beam', f.pos, .8);
-        const end = () => { scene.remove(mesh); geo.dispose(); mat.dispose(); };
+        let done = false, untrack = () => {};
+        const end = () => { if (done) return; done = true; untrack(); scene.remove(mesh); geo.dispose(); mat.dispose(); };
+        untrack = trackSkillObj(f, 2.2, end);
         const tick = () => {
+          if (done) return;
           const dt = nd(); life += dt; mesh.position.addScaledVector(dir, 26 * dt); mesh.scale.y = 1 + Math.sin(life * 22) * .06;
           emit(mesh.position.x + rand(-3.5, 3.5) * Math.cos(yaw), mesh.position.y + rand(-.3, .6), mesh.position.z - rand(-3.5, 3.5) * Math.sin(yaw), 0, rand(.5, 2), 0, '#7ad7ff', .14, .35, 0, 1);
           for (const g of enemiesOf(f)) {
@@ -2885,7 +2917,7 @@ CF.mover('jlWave', function (f, o) {
             if (Math.abs(along) < 1.3 && side < 3.9) { hit.add(g); applyHit(f, g, { dmg: o.dmg || 7, stun: 1.6, freeze: 1.6, kb: 3, color: '#0078d7', guardBreak: true, hitstop: .08, shake: .3 }); popText(chestOf(g), 'No responde', '#ffffff', 20); burst(chestOf(g), 16, '#7ad7ff', 8, .16, .4, 0); sfx('ice', g.pos); }
           }
           if (life > 1.05 || groundAt(mesh.position.x, mesh.position.z) > 1.6) { end(); return; }
-          if (G.state === 'play') later(0, tick); else end();
+          if (!f._disposed && G.state === 'play') later(0, tick); else end();
         };
         later(0, tick);
       } }],
@@ -2920,10 +2952,23 @@ CF.mover('sunnShield', function (f, o) {
 CF.mover('sunnDrones', function (f, o) {
   const N = o.n || 10, drones = [], g = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color: 0x9d6bff }), core = new THREE.MeshBasicMaterial({ color: 0xffffff });
   for (let i = 0; i < 4; i++) { const d = new THREE.Group(); d.add(new THREE.Mesh(new THREE.BoxGeometry(.32, .12, .32), mat), new THREE.Mesh(new THREE.BoxGeometry(.14, .16, .14), core)); g.add(d); drones.push(d); }
-  scene.add(g); let t = 0; const life = .4 + N * .45 + .6, iv = setInterval(() => { t += .016; if (!f.alive || t > life || G.state !== 'play') { clearInterval(iv); scene.remove(g); return; } drones.forEach((d, i) => { const a = t * 3 + i * Math.PI / 2; d.position.set(f.pos.x + Math.cos(a) * 1.8, f.pos.y + 2.5 + Math.sin(t * 5 + i) * .2, f.pos.z + Math.sin(a) * 1.8); d.rotation.y = a * 2; }); }, 16);
+  scene.add(g); let t = 0, done = false, untrack = () => {}; const life = .4 + N * .45 + .6, nd = ndt();
+  const end = () => {
+    if (done) return; done = true; untrack();
+    scene.remove(g); drones.forEach(d => d.children.forEach(m => m.geometry?.dispose())); mat.dispose(); core.dispose();
+  };
+  untrack = trackSkillObj(f, life + 1, end);
+  const tick = () => {
+    if (done) return;
+    t += nd();
+    if (!f.alive || f._disposed || t > life || G.state !== 'play') { end(); return; }
+    drones.forEach((d, i) => { const a = t * 3 + i * Math.PI / 2; d.position.set(f.pos.x + Math.cos(a) * 1.8, f.pos.y + 2.5 + Math.sin(t * 5 + i) * .2, f.pos.z + Math.sin(a) * 1.8); d.rotation.y = a * 2; });
+    later(0, tick);
+  };
+  later(0, tick);
   startAction(f, { name: 'sunnDrones', dur: .55, aim: true, speedMul: .5, anim: [[0, 'castUp', 800]] }); sfx('whoosh', f.pos, .5);
   for (let i = 0; i < N; i++) later(.4 + i * .45, () => {
-    if (!f.alive) return; const tg = findTarget(f, 32); if (!tg) return; const d = drones[i % 4], from = d.position.clone(), q = chestOf(tg);
+    if (!f.alive || f._disposed || done || !G.fighters.includes(f) || G.state !== 'play') return; const tg = findTarget(f, 32); if (!tg) return; const d = drones[i % 4], from = d.position.clone(), q = chestOf(tg);
     spawnProj(f, Math.atan2(q.x - from.x, q.z - from.z), { from, color: '#9d6bff', speed: 50, size: .24, long: 1.8, homing: 3.2, range: 34, dmg: o.dmg || 3.4, stun: .25, kb: 2, up: .5 }); sfx('zap', from, .4); burst(from, 4, '#9d6bff', 4, .12, .2, 0);
   });
 });
