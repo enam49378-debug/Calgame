@@ -236,6 +236,8 @@ const CITY_MODEL_DIMS = {"apartamentos_ladrillo": [9.0, 9.0, 12.1], "apartamento
 {const I = {"0": {"m": "cafe", "x": -12, "z": -12, "k": "cafe", "base": 4.5, "door": 3.2}, "1": {"m": "arcade", "x": 12, "z": -12, "k": "arcade", "base": 4.5, "door": 3.2}, "2": {"m": "mercado", "x": -12, "z": 12, "k": "market", "base": 4.5, "door": 3.2}, "4": {"m": "biblioteca", "x": -33, "z": -12, "k": "library", "base": 5.1, "door": 3.2}, "5": {"m": "ramen", "x": 33, "z": 12, "k": "ramen", "base": 4.5, "door": 3.2}, "9": {"m": "taller", "x": 12, "z": 33, "k": "workshop", "base": 4.7, "door": 3.2}, "34": {"m": "centro_comercial", "x": 0, "z": 53.5, "k": "mall", "base": 5.7, "door": 3.2}, "35": {"m": "torre_aurora", "x": 0, "z": -54, "k": "lobby", "base": 6.2, "door": 3.2}}, M2 = {"16": [-19, -53], "17": [19, -53], "18": [-21, 52], "19": [21, 52]};
   for (const i in I) { const b = CITY_PLAN[i], q = I[i], dm = CITY_MODEL_DIMS[q.m]; b.model = q.m; b.x = q.x; b.z = q.z; b.w = dm[0]; b.d = dm[1]; b.h = dm[2]; b.acc = { kind: q.k, base: q.base, door: q.door }; b.accessible = true; }
   for (const i in M2) { CITY_PLAN[i].x = M2[i][0]; CITY_PLAN[i].z = M2[i][1]; } }
+// Arreglo de choques: con el tamaño real de sus modelos, las oficinas grises se metían en el gimnasio y el art déco en el museo
+for (const [m, x, z, nz] of [['oficinas_gris', 54, -16, -18.4], ['artdeco_crema', -54, -16, -18]]) { const b = CITY_PLAN.find(q => q.model === m && Math.abs(q.x - x) < .6 && Math.abs(q.z - z) < .6); if (b) b.z = nz; }
 CITY_PLAN.push({x:78,z:-30,w:26,d:22,h:10,color:'#c5a578',label:'CASINO AURORA',accent:'#684061',acc:{kind:'casino',base:6.2,door:4.4},accessible:true});
 
 // ===== Ediciones del mapa (las hace el editor de mapa en modo desarrollador y quedan en config/mapa.json) =====
@@ -285,12 +287,14 @@ function cityGrassAt(x,z) {
   const asphalt=pixTex(64,64,g=>{noiseRect(g,0,0,64,64,'#d0d4d5',17);g.fillStyle='rgba(65,72,80,.16)';g.fillRect(4,18,20,1);g.fillRect(24,18,1,15);g.fillRect(24,33,13,1);});
   const facadeColors=['#f0bf7b','#e49aab','#77beaa','#e9cd83','#b9a0db','#eda777','#88b8dc','#dda19b','#deca8b','#a9cd86','#87c8d0','#dcc080'];
   const batches = new Map(), matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), xyz = new V3(), size = new V3();
+  // Vista privada (CF_BETA): lo que se construye con BETA_ON = true va en lotes aparte y solo lo ve el Owner hasta su lanzamiento (CITY.betaApply)
+  let BETA_ON = false; const betaCols = [], betaObjs = [], betaMeshes = [];
   const box = (x,y,z,w,h,d,color,tex=null,tower=null) => {
-    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44);   // un lote por color y por zona de 44 m
-    if (!batches.has(key)) batches.set(key, { color, tex, items: [] });
+    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44) + (BETA_ON ? ':beta' : '');   // un lote por color y por zona de 44 m
+    if (!batches.has(key)) batches.set(key, { color, tex, items: [], beta: BETA_ON });
     batches.get(key).items.push([x,y,z,w,h,d,tower]);
   };
-  const solid = (x,z,w,d,h,y0=0,ceiling=false) => COL.push({x,z,hx:w/2,hz:d/2,h,y0,ceiling});
+  const solid = (x,z,w,d,h,y0=0,ceiling=false) => { const c = {x,z,hx:w/2,hz:d/2,h,y0,ceiling}; if (BETA_ON) betaCols.push(c); else COL.push(c); };
   const flat = (x,z,w,d,color,y=.013) => box(x,y,z,w,.018,d,color);
   const grass = BLOCK_TEX.grass.clone(); grass.needsUpdate = true;
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,280/B);
@@ -765,16 +769,17 @@ function cityGrassAt(x,z) {
     for(const s of [-1,1])box(x+s*3.5,.12,z,.16,.24,6,'#d4ceb6');
   }
   // Pequeña fuente en una esquina de la plaza, dejando el centro libre.
-  box(-6,.22,-6,2.8,.44,2.8,'#859eaa');box(-6,.46,-6,2.45,.1,2.45,'#64c3d5');
-  box(-6,.8,-6,.6,1,.6,'#b4c8c9');box(-6,1.25,-6,1.25,.18,1.25,'#86bfc9');solid(-6,-6,2.8,2.8,1.34);
+  const FX=7.2,FZ=7.2;CITY.fountain={x:FX,z:FZ};   // antes en (-6,-6): quedaba dentro de la esquina del café
+  box(FX,.22,FZ,2.8,.44,2.8,'#859eaa');box(FX,.46,FZ,2.45,.1,2.45,'#64c3d5');
+  box(FX,.8,FZ,.6,1,.6,'#b4c8c9');box(FX,1.25,FZ,1.25,.18,1.25,'#86bfc9');solid(FX,FZ,2.8,2.8,1.34);
   for(const [x,z] of [[-3.2,-2],[3.2,2],[19.8,7]])planter(x,z,1.6,1.6);
   function bench(x,z,turn=false){
     const w=turn?.65:2.4,d=turn?2.4:.65;
     box(x,.52,z,w,.14,d,'#967852','plank');box(x,.25,z,w*.8,.5,d*.65,'#52616b');
     box(x+(turn?.32:0),.95,z+(turn?0:.32),turn?.12:2.4,.65,turn?2.4:.12,'#967852','plank');solid(x,z,w,d,1.2);
   }
-  bench(6,8);bench(-8,2,true);bench(-19,16,true);bench(19,-16,true);
-  for(const [x,z] of [[-5,-18],[5,18],[-18,5],[18,-5],[-5,30],[5,-30],[-30,-5],[30,5]]){
+  bench(8.6,4.9);bench(-8,2,true);bench(-19,16,true);bench(19,-16,true);
+  for(const [x,z] of [[-5,-18],[5,18],[-18,4.2],[18,-4.2],[-5,30],[5,-30],[-30,-3.4],[30,3.4]]){   // las del eje este-oeste van al borde de la avenida: antes tocaban los toldos de los locales
     CITY.lamps.push({x,z});
     box(x,1.9,z,.16,3.8,.16,'#435766');box(x,3.85,z,.55,.16,.55,'#435766');
     box(x,3.62,z,.38,.34,.38,'#fff0b1');solid(x,z,.22,.22,4);
@@ -799,6 +804,7 @@ function cityGrassAt(x,z) {
       piece(x+side*4.02,yy,z+xx,.06,1.25,1.15,'#aac5d1');
     }
   }
+  const GARDEN={x:-90,z:28,r:14};
   // ===== Costa: paseo marítimo, playa, mar, bosque y adornos (todo determinista: igual para todos los jugadores) =====
   const rnd=(()=>{let q=20261031;return()=>(q=(q*1664525+1013904223)>>>0)/4294967296;})();
   flat(0,66,240,6,'#56616a');for(let x=-114;x<=114;x+=6)flat(x,66,2.4,.12,'#f6daa0',.04);
@@ -807,8 +813,8 @@ function cityGrassAt(x,z) {
   flat(0,76,6,12,'#a98255',.03);for(let zz=70.6;zz<82;zz+=.8)flat(0,zz,6,.06,'#7e5c38',.032);
   for(let x=-96;x<=96;x+=16){
     if(Math.abs(x)<6||Math.abs(x-64)<4)continue;   // la farola de x=64 caía justo encima de la plataforma de entrada del vóley
-    CITY.lamps.push({x,z:71.4});
-    box(x,1.9,71.4,.16,3.8,.16,'#435766');box(x,3.85,71.4,.55,.16,.55,'#435766');box(x,3.62,71.4,.38,.34,.38,'#fff0b1');solid(x,71.4,.22,.22,4);
+    CITY.lamps.push({x,z:70.2});
+    box(x,1.9,70.2,.16,3.8,.16,'#435766');box(x,3.85,70.2,.55,.16,.55,'#435766');box(x,3.62,70.2,.38,.34,.38,'#fff0b1');solid(x,70.2,.22,.22,4);
   }
   // arena, arena mojada, fondo marino y el mar con olas
   const sandTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#e8d29a',9);g.fillStyle='rgba(180,150,90,.18)';for(let i=0;i<22;i++)g.fillRect((i*7)%32,(i*13)%32,2,1);});
@@ -866,9 +872,10 @@ function cityGrassAt(x,z) {
     const x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,r=Math.hypot(x,z);
     if(r<70||r>ARENA-6||z>60||rnd()<.2)continue;
     if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<4.5))continue;
-    tree(x,z);
-    if(rnd()<.4)box(x+1.6,.35,z+.8,1.1,.7,1.1,'#5f9a55','leaves');
-    if(rnd()<.15)box(x-1.5,.3,z-1,1.2,.6,1,'#8c9195');
+    const claro=Math.hypot(x-GARDEN.x,z-GARDEN.z)<GARDEN.r;   // claro del Jardín de los Cerezos (se siguen pidiendo los mismos números al azar)
+    if(!claro)tree(x,z);
+    if(rnd()<.4&&!claro)box(x+1.6,.35,z+.8,1.1,.7,1.1,'#5f9a55','leaves');
+    if(rnd()<.15&&!claro)box(x-1.5,.3,z-1,1.2,.6,1,'#8c9195');
   }
   // adornos de la costa (modelos de Blockbench en ciudad/)
   const PR=[];
@@ -883,7 +890,7 @@ function cityGrassAt(x,z) {
   const FOOT=[[-22,78.5,5.2,3.8],[25,79.5,5.2,3.8],[64,83,4.8,8.8],[64,70.6,2.4,2.4],[64,95.4,2.4,2.4],[0,112,8.6,36],[-46,88,2.4,3.8],[50,89,2.4,3.8],
     [-72,74.8,1.8,1.8],[-68.4,74.8,1.8,1.8],[-64.8,74.8,1.8,1.8],[-61.2,74.8,1.8,1.8],
     [-70,80,2.4,3.8],[-58,84,2.4,3.8],[-34,86,2.4,3.8],[-10,83,2.4,3.8],[12,87,2.4,3.8],[40,85,2.4,3.8],[50,79,2.4,3.8],[78,85,2.4,3.8],
-    [-52,SHORE(-52)-6,1.4,1.4],[-12,SHORE(-12)-6,1.4,1.4],[34,SHORE(34)-6,1.4,1.4],[76,SHORE(76)-6,1.4,1.4]];
+    [-52,SHORE(-52)-6,1.4,1.4],[-12,SHORE(-12)-6,1.4,1.4],[34,SHORE(34)-6,1.4,1.4],[72,SHORE(72)-6,1.4,1.4]];
   const nearProp=(x,z,m)=>FOOT.some(([cx,cz,hw,hd])=>Math.abs(x-cx)<hw+m&&Math.abs(z-cz)<hd+m);
   for(let x=-96;x<=96;x+=10){const ry=rnd()*TAU;if(Math.abs(x)<7||nearProp(x,73.4,4.6))continue;addP('palmera',x,73.4,ry);}
   for(let i=0;i<16;i++){const x=-80+rnd()*160,z=77+rnd()*10,ry=rnd()*TAU;if(Math.abs(x)<9||z>SHORE(x)-8||nearProp(x,z,4.6))continue;addP('palmera',x,z,ry);}
@@ -891,10 +898,10 @@ function cityGrassAt(x,z) {
   addP('torre_salvavidas',-46,88,0);addP('torre_salvavidas',50,89,0);
   addP('chiringuito',-22,78.5,0);addP('chiringuito',25,79.5,0);
   addP('voley',64,83,0);
-  [-52,-12,34,76].forEach(x=>addP('castillo',x,SHORE(x)-6,rnd()*TAU));
+  [-52,-12,34,72].forEach(x=>addP('castillo',x,SHORE(x)-6,rnd()*TAU));   // el de x=76 chocaba con la sombrilla y las rocas
   [-72,-68.4,-64.8,-61.2].forEach((x,i)=>addP(i%2?'caseta_azul':'caseta_roja',x,74.8,0));
-  addP('barca_roja',-34,SHORE(-34)+9,.4,{y:-.12,bob:1});addP('barca_azul',22,SHORE(22)+13,-.5,{y:-.12,bob:1});addP('velero',-6,SHORE(-6)+19,.2,{y:-.1,bob:1});addP('barca_roja',46,SHORE(46)+8,1.2,{y:-.12,bob:1});
-  addP('rocas_a',-78,SHORE(-78)-2,.5);addP('rocas_b',78,SHORE(78)-2,2.1);addP('faro',86,SHORE(86)-5,0);
+  addP('barca_roja',-34,SHORE(-34)+9,.4,{y:-.12,bob:1});addP('barca_azul',22,SHORE(22)+13,-.5,{y:-.12,bob:1});addP('velero',-17,SHORE(-17)+19,.2,{y:-.1,bob:1});addP('barca_roja',46,SHORE(46)+8,1.2,{y:-.12,bob:1});
+  addP('rocas_a',-78,SHORE(-78)-2,.5);addP('rocas_b',73.5,SHORE(73.5)+1.6,2.1);addP('faro',86,SHORE(86)-5,0);
   for(const a of MAPED.add)if(a.kind==='p'&&a.model){MAP_ITEMS.push({key:a.id,kind:'p',model:a.model,label:'',ox:a.x,oz:a.z,ory:a.ry,x:a.x,z:a.z,ry:a.ry,added:true,from:a.from});PR.push({m:a.model,x:a.x,z:a.z,ry:a.ry});}
   const SMALL_BB_PROPS=new Set(['sombrilla_roja','sombrilla_azul','sombrilla_amarilla','sombrilla_verde','caseta_azul','caseta_roja','castillo','rocas_a','rocas_b']);
   for(const pr of PR)bbLoads.push(loadBBModel(pr.m).then(({geo,mat})=>{
@@ -942,6 +949,61 @@ function cityGrassAt(x,z) {
       BEACH.gulls.push({g,wl,wr,cx:-70+i*20,cz:98+(i%3)*8,r:9+rnd()*16,sp:.22+rnd()*.2,ph:rnd()*6,h:10+rnd()*9});
     }
   }
+  // ===== Lugares con encanto (vista privada CF_BETA hasta su lanzamiento): jardín de cerezos, farolillos, gato de la suerte, arco del muelle =====
+  BETA_ON=true;
+  {
+    const bsign=(text,x,y,z,w,ry,color)=>{
+      const texture=pixTex(256,64,g=>{g.fillStyle=color;g.fillRect(0,0,256,64);g.strokeStyle='#eae7cf';g.lineWidth=4;g.strokeRect(5,5,246,54);g.fillStyle='#fff8df';g.textAlign='center';g.textBaseline='middle';g.font='bold 26px sans-serif';g.fillText(text,128,34,232);});
+      const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,w/4),new THREE.MeshLambertMaterial({map:texture}));cityAnimeMaterial(mesh.material);mesh.material.emissiveMap=texture;CITY.signMaterials.push(mesh.material);
+      mesh.position.set(x,y,z);mesh.rotation.y=ry;mesh.visible=false;scene.add(mesh);betaObjs.push(mesh);
+    };
+    let lq=77123;const lr=()=>(lq=(lq*1664525+1013904223)>>>0)/4294967296;   // azar propio: no toca el del resto del mapa
+    // --- Jardín de los Cerezos (claro del bosque, al oeste)
+    const JX=GARDEN.x,JZ=GARDEN.z;
+    flat(JX,JZ,24,22,'#93c47d',.018);
+    for(let i=0;i<7;i++)flat(JX+13.6+i*1.5,JZ+(i%2?.35:-.35),1,1,'#d9cdb0',.03);                       // piedras del sendero hacia la ciudad
+    for(const sz of [-2.3,2.3]){box(JX+11.5,2.3,JZ+sz,.45,4.6,.45,'#c8473f');solid(JX+11.5,JZ+sz,.45,.45,4.6);}   // torii de la entrada
+    box(JX+11.5,4.45,JZ,.5,.38,6.2,'#c8473f');box(JX+11.5,4.95,JZ,.7,.3,7.4,'#2a2f3a');box(JX+11.5,3.75,JZ,.34,.28,5.2,'#c8473f');
+    flat(JX-1,JZ+1,10,7,'#3b86ad',.035);flat(JX-1,JZ+1,8.4,5.4,'#5fb8d6',.045);flat(JX-3,JZ-.2,1.6,.5,'#e8f7ff',.055);flat(JX+1.2,JZ+2.4,1.1,.4,'#e8f7ff',.055);   // estanque
+    for(const [dx,dz] of [[-4.2,2.6],[2.2,-.8],[-2,3],[.6,2.9],[-3.6,-.9]]){flat(JX-1+dx,JZ+1+dz,.8,.8,'#4f9a5b',.06);if(lr()<.6)box(JX-1+dx,.12,JZ+1+dz,.22,.14,.22,'#f3a2cb');}   // nenúfares
+    for(let i=0;i<14;i++){const a=i/14*TAU;box(JX-1+Math.cos(a)*5.4,.16,JZ+1+Math.sin(a)*3.9,.7+lr()*.5,.32,.6+lr()*.4,i%3?'#8c9195':'#a3a8ab');}   // piedras de la orilla
+    [.25,.5,.7,.8,.7,.5,.25].forEach((h,i)=>{const x=JX-5.8+i*1.6,z=JZ+1;                          // puente rojo: se cruza caminando (escalones bajos)
+      box(x,h-.06,z,1.6,.12,1.9,'#c8473f');solid(x,z,1.6,1.9,h);
+      for(const sg of [-1,1]){box(x,h+.55,z+sg*.9,1.6,.09,.09,'#8f2f2a');if(i%2===0)box(x,h+.3,z+sg*.9,.12,.6,.12,'#8f2f2a');}});
+    for(const [dx,dz] of [[-9,-7],[-10,4.5],[4,-8],[8,6.5],[-3,8.5],[9,-4.5]]){const x=JX+dx,z=JZ+dz;   // cerezos
+      box(x,1.3,z,.5,2.6,.5,'#6b4a3a','log');solid(x,z,.5,.5,2.7);
+      box(x,3.4,z,3.1,1.6,3.1,'#f7b6cf');box(x+.25,4.45,z-.15,2.1,1,2.1,'#fbd0e0');box(x-.9,2.75,z+.8,1.3,.7,1.3,'#f39dbd');
+      for(let k=0;k<7;k++)flat(x+(lr()-.5)*5,z+(lr()-.5)*5,.16,.16,k%2?'#f7b6cf':'#fbd0e0',.05);}        // pétalos caídos
+    for(const [dx,dz] of [[9,3.4],[-6.5,-4.6],[2.6,5.6]]){const x=JX+dx,z=JZ+dz;                          // farolillos de piedra (se encienden de noche)
+      box(x,.4,z,.42,.8,.42,'#8c9195');box(x,1,z,.6,.42,.6,'#fff0b1');box(x,1.3,z,.82,.14,.82,'#6f777c');box(x,1.45,z,.3,.16,.3,'#6f777c');solid(x,z,.6,.6,1.5);}
+    bench(JX+5.2,JZ-3.2);bench(JX-7.4,JZ+1,true);
+    bsign('JARDÍN DE LOS CEREZOS',JX+11.85,3.05,JZ,3.6,Math.PI/2,'#7a2f3a');
+    // --- Farolillos colgados sobre las cuatro entradas de la plaza (solo adorno: quedan por encima de las cabezas)
+    for(const [ax,az,alongX] of [[0,-11.4,1],[0,11.4,1],[-11.4,0,0],[11.4,0,0]]){
+      box(ax,5.3,az,alongX?10.8:.05,.05,alongX?.05:10.8,'#2a3b4a');
+      for(let i=-2;i<=2;i++){const x=ax+(alongX?i*2.1:0),z=az+(alongX?0:i*2.1),y=5.3-.42-Math.abs(i)*-.06-(i===0?.16:0);
+        box(x,y,z,.44,.52,.44,i%2?'#fff0b1':'#e2504a');box(x,y+.3,z,.3,.08,.3,'#2a3b4a');box(x,y-.3,z,.2,.08,.2,'#e9c24a');}
+    }
+    // --- Gato de la suerte gigante en la azotea del ramen (se ve desde lejos)
+    {const rb=CITY_PLAN.find(q=>q.model==='ramen');
+      if(rb){const fc=rb.z<0?1:-1,cx=rb.x-4.6,cz=rb.z+fc*(rb.d/2-1.9),y0=rb.h+.15,W='#f6f3ec';
+        box(cx,y0+.1,cz,2.5,.2,2.2,'#b0463c');box(cx,y0+1.2,cz,1.8,2,1.5,W);box(cx,y0+2.95,cz,1.95,1.5,1.55,W);
+        for(const sg of [-1,1]){box(cx+sg*.66,y0+3.9,cz,.5,.5,.4,W);box(cx+sg*.66,y0+3.86,cz+fc*.16,.26,.3,.1,'#f3a2cb');box(cx+sg*.44,y0+3.1,cz+fc*.79,.22,.3,.06,'#22272e');box(cx+sg*.72,y0+2.72,cz+fc*.79,.3,.05,.05,'#22272e');}
+        box(cx,y0+2.82,cz+fc*.8,.2,.14,.06,'#f3a2cb');box(cx,y0+2.18,cz,2,.22,1.62,'#d8433b');box(cx,y0+2.02,cz+fc*.82,.32,.32,.14,'#e9c24a');
+        box(cx+1.14,y0+2.9,cz+fc*.2,.5,1.6,.6,W);box(cx+1.14,y0+3.78,cz+fc*.35,.56,.4,.7,W);box(cx-.5,y0+1.05,cz+fc*.82,.95,1.2,.12,'#e9c24a');box(cx-.5,y0+1.05,cz+fc*.9,.5,.7,.04,'#b8902c');
+        box(cx-.3,y0+.7,cz-fc*.95,.3,.9,.3,W);box(cx+.5,y0+.35,cz+fc*.8,.6,.5,.4,W);}}
+    // --- Arco del muelle, en el paseo marítimo
+    for(const sg of [-1,1]){box(sg*3.7,2.5,71.7,.55,5,.55,'#b0463c');solid(sg*3.7,71.7,.55,.55,5);box(sg*3.7,.2,71.7,.9,.4,.9,'#7e2f29');}
+    box(0,5.05,71.7,8.9,.5,.7,'#b0463c');box(0,5.6,71.7,10.2,.32,.95,'#7e2f29');box(0,4.3,71.7,7,.16,.3,'#b0463c');
+    bsign('MUELLE · PLAYA DE SEKZA',0,4.72,71.3,5.6,Math.PI,'#1d5f7a');bsign('CIUDAD AURORA',0,4.72,72.1,5.6,0,'#7a2f3a');
+    for(const sg of [-1,1]){box(sg*3.7,5.95,71.7,.4,.5,.4,'#fff0b1');box(sg*3.7,6.25,71.7,.56,.12,.56,'#7e2f29');}
+    // --- Ascensor de la Torre Aurora: cartel fuera de la entrada y haz de luz sobre la caseta de la azotea, para encontrarlo
+    {const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA');
+      if(T){const fc=T.z<0?1:-1;bsign('ASCENSOR A LA AZOTEA',T.x,6.9,T.z+fc*(T.d/2+.95),6.4,fc>0?0:Math.PI,'#1b2330');
+        const beam=new THREE.Mesh(new THREE.BoxGeometry(.7,18,.7),new THREE.MeshBasicMaterial({color:0x7ad7ff,transparent:true,opacity:.2,depthWrite:false,fog:false}));
+        beam.position.set(T.x,T.h+3.9+9,T.z+fc*(T.d/2-2.6));beam.visible=false;scene.add(beam);betaObjs.push(beam);}}
+  }
+  BETA_ON=false;
   // Contornos de arquitectura: líneas sobrias que acentúan la silueta del barrio.
   const edgePositions=[];
   for(const b of CITY.buildings){
@@ -985,9 +1047,13 @@ function cityGrassAt(x,z) {
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
     batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);const tower=p.pop();if(tower)tower.parts.push({mesh,index:i});if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color,isBuilding:true});});
     cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;scene.add(mesh);
+    if(batch.beta){mesh.userData.betaN=batch.items.length;mesh.count=0;betaMeshes.push(mesh);}
     {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
     mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
   }
+  CITY.betaApply=on=>{for(const m of betaMeshes)m.count=on?m.userData.betaN:0;for(const o of betaObjs)o.visible=!!on;
+    for(const c of betaCols){const i=COL.indexOf(c);if(on&&i<0)COL.push(c);else if(!on&&i>=0)COL.splice(i,1);}
+    colMarkDirty();if(CITY.modelsReady&&typeof rebuildCityNav==='function')rebuildCityNav();};
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
   for(let i=0;i<16;i++){
     const c=new THREE.Mesh(new THREE.BoxGeometry(14+(i%4)*3,2,8+(i%3)*2),cloudMat);
@@ -1364,7 +1430,7 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
   const jetMat=new THREE.MeshPhongMaterial({color:0xa9dfed,transparent:true,opacity:.62,shininess:95,emissive:0x1c3540});
   for(let i=0;i<6;i++){
     const angle=i/6*TAU,points=[];
-    for(let j=0;j<=12;j++){const t=j/12,r=t*.95;points.push(new V3(-6+Math.cos(angle)*r,1.25+Math.sin(t*Math.PI)*.65-t*.78,-6+Math.sin(angle)*r));}
+    for(let j=0;j<=12;j++){const t=j/12,r=t*.95;points.push(new V3(CITY.fountain.x+Math.cos(angle)*r,1.25+Math.sin(t*Math.PI)*.65-t*.78,CITY.fountain.z+Math.sin(angle)*r));}
     const jet=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),16,.019,4,false),jetMat);scene.add(jet);
   }
 }
@@ -12631,6 +12697,7 @@ window.CF_BETA = Object.freeze({
     return () => _betaSubs.delete(fn);
   }
 });
+if (CITY.betaApply) { CF_BETA.subscribe(CITY.betaApply); CITY.betaApply(CF_BETA.on); }   // lugares nuevos del mapa: solo en la vista privada
 async function devHash(k) {
   const enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(k), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(DEV.p.salt), iterations: DEV.p.iter }, key, 256);
