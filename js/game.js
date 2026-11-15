@@ -4658,19 +4658,26 @@ function applyHit0(att, t, o) {
     }
     if (o.freeze) freeze(t, o.freeze);
   }
-  const heavy = ragdoll > 0 || o.dmg >= 8;
+  const heavy = ragdoll > 0 || o.dmg >= 8, betaVfx = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
   burst(chest, heavy ? 22 : 9, col, heavy ? 11 : 6, heavy ? .22 : .14, heavy ? .5 : .3, .5);
   burst(chest, heavy ? 10 : 4, '#ffffff', heavy ? 9 : 5, .1, .25, .3);
   ringAt(chest, '#ffffff', heavy ? 2.8 : 1.6, heavy ? .28 : .18, 'face', Math.atan2(dir.x, dir.z));
   if (heavy && t.onGround) animeDustRing(t.pos, 10, 2.0);
   impactStar(chest.clone().addScaledVector(dir, -.3), heavy ? col : '#ffffff', heavy ? 2.4 : 1.2, heavy ? .26 : .16);
   if (heavy) ringAt(chest, col, 2.4, .35, 'face', Math.atan2(dir.x, dir.z));
-  sparkLines(chest, col, heavy ? 9 : 4, heavy ? 2.2 : 1.2);
+  sparkLines(chest, col, betaVfx ? (heavy ? 11 : 5) : (heavy ? 9 : 4), betaVfx ? (heavy ? 2.4 : 1.35) : (heavy ? 2.2 : 1.2), scene, betaVfx ? dir : null);
+  if (betaVfx && (heavy || o.spearFinish || G.combo === 4)) {
+    const side = new V3(-dir.z, rand(-.55, .55), dir.x).normalize().multiplyScalar(heavy ? 1.55 : 1.05);
+    slashLine(chest.clone().sub(side), chest.clone().add(side), col, .20, heavy ? .13 : .09);
+    slashLine(chest.clone().sub(side), chest.clone().add(side), '#ffffff', .14, .045);
+  }
   if (involved && (ragdoll >= 1 || o.dmg >= 11 || o.impact)) impactFrame(col);
   sfx(o.sound || (heavy ? 'heavy' : 'hit'), t.pos);
   if (involved) {
     G.hitstop = Math.max(G.hitstop, o.hitstop != null ? o.hitstop : (heavy ? .08 : .035));
+    if (betaVfx && !t.cineLock && G.hitstop > 0) G.hitVictim = t;
     if (heavy && !t.cineLock) camPunch(ragdoll >= 1 ? .6 : .3, Math.random() < .5 ? 1 : -1);
+    else if (betaVfx && !t.cineLock && (o.spearFinish || G.combo === 4)) camPunch(.22, Math.random() < .5 ? 1 : -1);
     G.shake = Math.max(G.shake, o.shake || (heavy ? .35 : .12));
     if (heavy) G.fovKick = Math.max(G.fovKick, 4);
     popText(chest, Math.max(1, Math.round(dmg)), t.isPlayer ? '#ff6b6b' : (heavy ? '#d7ff2f' : '#ffffff'), heavy ? 30 : 22);
@@ -16394,6 +16401,8 @@ function loop(now){
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
   frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('cartel_mall',()=>updateMallBillboard(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('culling',()=>cityCull());frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
+  else if(G.hitstop>0&&ZZZ_U.beta.value>.5&&G.hitVictim&&G.hitVictim.model&&G.hitVictim.alive){const m=G.hitVictim.model.root;m.position.copy(G.hitVictim.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.16)*.042*pulse;m.position.y+=Math.sin(now*.21)*.02*pulse;}
+  else if(G.hitstop<=0&&G.hitVictim){if(G.hitVictim.model)G.hitVictim.model.root.position.copy(G.hitVictim.pos);G.hitVictim=null;}
   frameTask('voces',()=>updateCharacterVoices());
   frameTask('interfaz',()=>updateHUD(rdt));frameTask('lineas',()=>drawLines(rdt));
   if(G.cine&&G.cine.shot===1)frameTask('paneles',()=>drawPanelBorders());

@@ -95,11 +95,24 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
                   c = max(vec3(0.), mix(vec3(g), c, vib));
                 }
                 if (uImpact > .01) {
-                  float impK = smoothstep(.32, .85, uImpact);
-                  float ink = step(.46, dot(c, vec3(.299, .587, .114)));
-                  vec3 cut = mix(vec3(.04, .05, .10), mix(vec3(.98), uImpactCol * 1.15, .45), 1.0 - ink);
-                  c = mix(c, cut, impK * .82);
-                  c += uImpactCol * (uImpact * (1.0 - impK) * .30);
+                  if (uBeta > .5) {
+                    vec2 dc = vUv - .5;
+                    float rad = length(dc) * 2.0;
+                    float ang = atan(dc.y, dc.x);
+                    float rays = smoothstep(.15, .85, sin(ang * 26.0 + uImpact * 14.0) * .5 + .5) * smoothstep(.22, .95, rad);
+                    float impPeak = smoothstep(.42, .92, uImpact);
+                    float ink = step(.44, dot(c, vec3(.299, .587, .114)));
+                    vec3 cut = mix(vec3(.03, .04, .09), mix(vec3(.99), uImpactCol * 1.2, .38), 1.0 - ink);
+                    cut = mix(cut, uImpactCol * 1.25, rays * .35);
+                    c = mix(c, cut, impPeak * (.62 + smoothstep(.20, .85, rad) * .28));
+                    c += uImpactCol * (uImpact * (1.0 - impPeak) * (.22 + smoothstep(.28, .96, rad) * .36));
+                  } else {
+                    float impK = smoothstep(.32, .85, uImpact);
+                    float ink = step(.46, dot(c, vec3(.299, .587, .114)));
+                    vec3 cut = mix(vec3(.04, .05, .10), mix(vec3(.98), uImpactCol * 1.15, .45), 1.0 - ink);
+                    c = mix(c, cut, impK * .82);
+                    c += uImpactCol * (uImpact * (1.0 - impK) * .30);
+                  }
                 }
               } else {
                 c = mix(c * vec3(.92, .96, 1.08), c * vec3(1.05, 1.02, .96), smoothstep(.22, .82, l));
@@ -529,12 +542,15 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       if (linesDrawn) { LG.clearRect(0, 0, LC.width, LC.height); linesDrawn = false; }
       return;
     }
-    if (IMPACT.t > 0 && performance.now() >= IMPACT.until) IMPACT.t = 0;
+    const beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+    if (IMPACT.t > 0 && !beta && performance.now() >= IMPACT.until) IMPACT.t = 0;
     if (IMPACT.t > 0) {
       const w = LC.width, h = LC.height, cx = w / 2, cy = h / 2, R = Math.hypot(w, h) / 2;
-      LG.clearRect(0, 0, w, h); linesDrawn = true; LG.fillStyle = IMPACT.col; LG.globalAlpha = .92;
-      for (let i = 0; i < 34; i++) {
-        const a = rand(0, TAU), da = rand(.015, .05), r0 = R * rand(.28, .55);
+      LG.clearRect(0, 0, w, h); linesDrawn = true;
+      for (let i = 0; i < (beta ? 40 : 34); i++) {
+        const a = rand(0, TAU), da = beta ? rand(.01, .042) : rand(.015, .05), r0 = R * rand(beta ? .24 : .28, beta ? .58 : .55);
+        LG.fillStyle = beta ? (i % 4 === 0 ? '#ffffff' : i % 4 === 3 ? '#0a0d1a' : IMPACT.col) : IMPACT.col;
+        LG.globalAlpha = beta ? (i % 4 === 0 ? .88 : .92) : .92;
         LG.beginPath(); LG.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
         LG.lineTo(cx + Math.cos(a - da) * R * 1.15, cy + Math.sin(a - da) * R * 1.15); LG.lineTo(cx + Math.cos(a + da) * R * 1.15, cy + Math.sin(a + da) * R * 1.15);
         LG.closePath(); LG.fill();
@@ -553,7 +569,8 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     const col = G.cine ? G.cine.f.ch.color : (p && p.ch ? p.ch.color : '#ffffff');
     for (let i = 0; i < 80 * I; i++) {
       const a = rand(0, TAU), r0 = R * rand(.36, .68), r1 = R * 1.08;
-      LG.strokeStyle = i % 3 ? `rgba(255,255,255,${.45 * I})` : col; LG.globalAlpha = i % 3 ? 1 : .65 * I;
+      if (beta && i % 7 === 0) { LG.strokeStyle = `rgba(10,12,24,${.42 * I})`; LG.globalAlpha = 1; }
+      else { LG.strokeStyle = i % 3 ? `rgba(255,255,255,${.45 * I})` : col; LG.globalAlpha = i % 3 ? 1 : .65 * I; }
       LG.lineWidth = rand(1.5, 4.5);
       LG.beginPath(); LG.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); LG.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); LG.stroke();
     }

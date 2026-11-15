@@ -91,11 +91,30 @@ window.CF_GRAFICOS.crearEfectosCombate = function crearEfectosCombate(dep) {
   }
 
   const ADD = THREE.AdditiveBlending;
+  const RING_UNIT_GEO = new THREE.RingGeometry(.78, 1, 40);
+  const RING_TIGHT_GEO = new THREE.RingGeometry(.89, 1, 32);
   function glowMat(col, op = 1) { return new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, blending: ADD, side: THREE.DoubleSide }); }
+  function inkMat(col = '#080a14', op = .78) { return new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide }); }
   function ringAt(p, col, maxR, dur = .45, mode = 'flat', yaw = 0, sc = scene) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(.78, 1, 40), glowMat(col));
+    const beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+    if (beta) {
+      const grp = new THREE.Group();
+      const mOut = glowMat(col, .95), mIn = glowMat('#ffffff', .88);
+      const rOut = new THREE.Mesh(RING_UNIT_GEO, mOut), rIn = new THREE.Mesh(RING_TIGHT_GEO, mIn);
+      rIn.scale.setScalar(.72); grp.add(rOut, rIn);
+      grp.position.copy(p); if (mode === 'flat') { grp.rotation.x = -Math.PI / 2; grp.position.y += .08; } else grp.rotation.y = yaw;
+      addFx(grp, dur, (g, k) => {
+        const s = .22 + maxR * easeOut(k);
+        g.scale.set(s, s, s);
+        rIn.scale.setScalar(.68 + k * .26);
+        mOut.opacity = .95 * (1 - k * k);
+        mIn.opacity = .88 * (1 - Math.min(1, k * 1.25));
+      }, () => { mOut.dispose(); mIn.dispose(); }, sc);
+      return;
+    }
+    const m = new THREE.Mesh(RING_UNIT_GEO, glowMat(col));
     m.position.copy(p); if (mode === 'flat') { m.rotation.x = -Math.PI / 2; m.position.y += .08; } else m.rotation.y = yaw;
-    addFx(m, dur, (m, k) => { const s = .2 + maxR * easeOut(k); m.scale.set(s, s, s); m.material.opacity = 1 - k; }, null, sc);
+    addFx(m, dur, (o, k) => { const s = .2 + maxR * easeOut(k); o.scale.set(s, s, s); o.material.opacity = 1 - k; }, () => m.material.dispose(), sc);
   }
   function sphereFlash(p, col, r, dur = .35) {
     const m = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), glowMat(col, .7));
@@ -109,8 +128,36 @@ window.CF_GRAFICOS.crearEfectosCombate = function crearEfectosCombate(dep) {
     addFx(m, dur, (m, k) => { m.material.opacity = 1 - k; m.scale.set(1 + k * 3, 1 - k * .6, 1); }, null, sc);
   }
   const STAR_GEO = (() => { const s = new THREE.Shape(); s.moveTo(-1, 0); s.lineTo(0, .07); s.lineTo(1, 0); s.lineTo(0, -.07); s.closePath(); return new THREE.ShapeGeometry(s); })();
+  const STAR_DIAMOND_GEO = (() => { const s = new THREE.Shape(); s.moveTo(0, .42); s.lineTo(.42, 0); s.lineTo(0, -.42); s.lineTo(-.42, 0); s.closePath(); return new THREE.ShapeGeometry(s); })();
   function impactStar(p, col, size = 1.6, dur = .2, sc = scene) {
-    const grp = new THREE.Group(), mat = glowMat(col), mw = glowMat('#ffffff'), zzz = ZZZ_U.on.value > .5;
+    const grp = new THREE.Group(), mat = glowMat(col), mw = glowMat('#ffffff'), zzz = ZZZ_U.on.value > .5, beta = zzz && ZZZ_U.beta.value > .5;
+    if (beta) {
+      const spin0 = rand(-.45, .45);
+      for (let i = 0; i < 4; i++) {
+        const m = new THREE.Mesh(STAR_GEO, i % 2 ? mat : mw);
+        m.rotation.z = spin0 + i * Math.PI / 4 + rand(-.12, .12);
+        m.scale.set(i % 2 ? 1.45 : .88, i % 2 ? 1.05 : 1.55, 1);
+        grp.add(m);
+      }
+      const core = new THREE.Mesh(STAR_DIAMOND_GEO, mw); core.rotation.z = spin0; grp.add(core);
+      const mrOut = glowMat(col, .95), mrIn = glowMat('#ffffff', .9);
+      const ringOut = new THREE.Mesh(RING_TIGHT_GEO, mrOut), ringIn = new THREE.Mesh(RING_TIGHT_GEO, mrIn);
+      grp.add(ringOut, ringIn);
+      grp.position.copy(p);
+      addFx(grp, dur, (g, k) => {
+        const pop = k < .18 ? (k / .18) * 1.18 : 1.18 - ((k - .18) / .82) * .12;
+        const s = size * pop;
+        g.scale.set(s, s * (1 - k * .32), s);
+        const rO = .38 + k * 1.05, rI = .24 + k * .65;
+        ringOut.scale.set(rO, rO, 1); ringIn.scale.set(rI, rI, 1);
+        mat.opacity = 1 - k * k;
+        mw.opacity = 1 - Math.min(1, k * 1.15);
+        mrOut.opacity = (1 - k) * .92;
+        mrIn.opacity = (1 - Math.min(1, k * 1.35)) * .9;
+        g.lookAt(camera.position);
+      }, () => { mat.dispose(); mw.dispose(); mrOut.dispose(); mrIn.dispose(); }, sc);
+      return;
+    }
     for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(STAR_GEO, i % 2 ? mat : mw); m.rotation.z = i * Math.PI / 4 + rand(-.2, .2); m.scale.set(i % 2 ? (zzz ? 1.2 : 1) : .65, zzz && i % 2 === 0 ? 1.4 : 1, 1); grp.add(m); }
     let mr = null, rg = null;
     if (zzz) { rg = new THREE.RingGeometry(.34, .48, 24); mr = glowMat(col, .95); grp.add(new THREE.Mesh(rg, mr)); }
@@ -122,6 +169,25 @@ window.CF_GRAFICOS.crearEfectosCombate = function crearEfectosCombate(dep) {
     const grp = new THREE.Group(); grp.position.set(f.pos.x, f.pos.y + (o.y || 1.15), f.pos.z); grp.rotation.y = f.yaw;
     const tilt = new THREE.Group(); tilt.rotation.z = o.tilt || 0; grp.add(tilt);
     const sw = new THREE.Group(); tilt.add(sw);
+    const beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+    if (beta) {
+      const g1 = new THREE.RingGeometry(r - w * 1.1, r, 32, 1, -Math.PI / 2 - len / 2, len);
+      const g2 = new THREE.RingGeometry(r - w * .24, r * 1.01, 32, 1, -Math.PI / 2 - len / 2, len);
+      const gInk = new THREE.RingGeometry(Math.max(.18, r - w * 1.32), r - w * .85, 28, 1, -Math.PI / 2 - len * .42, len * .84);
+      const m1 = glowMat(col, .90), m2 = glowMat('#ffffff', .98), mInk = inkMat('#080a14', .76);
+      const a = new THREE.Mesh(g1, m1), b = new THREE.Mesh(g2, m2), c = new THREE.Mesh(gInk, mInk);
+      a.rotation.x = b.rotation.x = c.rotation.x = -Math.PI / 2; c.position.y = -.01; sw.add(c, a, b);
+      addFx(grp, o.dur || .22, (g, k) => {
+        const snap = 1 - Math.pow(1 - Math.min(1, k * 2.55), 3);
+        sw.rotation.y = dir * (1 - snap) * -1.02;
+        const s = (k < .18 ? .82 + (k / .18) * .26 : 1.08 + (k - .18) * .18);
+        sw.scale.set(s, s, s);
+        m1.opacity = .90 * (1 - k * k);
+        m2.opacity = .98 * (1 - Math.min(1, k * 1.15));
+        mInk.opacity = .76 * (1 - k);
+      }, () => { g1.dispose(); g2.dispose(); gInk.dispose(); m1.dispose(); m2.dispose(); mInk.dispose(); });
+      return;
+    }
     const g1 = new THREE.RingGeometry(r - w, r, 28, 1, -Math.PI / 2 - len / 2, len), g2 = new THREE.RingGeometry(r - w * .28, r, 28, 1, -Math.PI / 2 - len / 2, len);
     const m1 = glowMat(col, .85), m2 = glowMat('#ffffff', .9);
     const a = new THREE.Mesh(g1, m1), b = new THREE.Mesh(g2, m2); a.rotation.x = b.rotation.x = -Math.PI / 2; sw.add(a, b);
@@ -164,28 +230,43 @@ window.CF_GRAFICOS.crearEfectosCombate = function crearEfectosCombate(dep) {
   const IMPACT = { t: 0, dur: .11, col: '#ffffff', cd: 0, until: 0 };
   function impactFrame(col, dur = .11) {
     if (IMPACT.cd > 0 || dep.getFxMute()) return;
-    const duration = clamp(Number.isFinite(dur) ? dur : .11, .04, .12);
+    const beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+    const duration = clamp(Number.isFinite(dur) ? dur : (beta ? .12 : .11), .04, beta ? .13 : .12);
     IMPACT.t = duration; IMPACT.dur = duration; IMPACT.col = col || '#ffffff'; IMPACT.cd = .45; IMPACT.until = performance.now() + duration * 1000;
     if (ZZZ_U.on.value > .5) { ZZZ_U.impact.value = 1; ZZZ_U.impactCol.value.set(IMPACT.col); }
+    if (beta && dep.camPunch) dep.camPunch(.52, Math.random() < .5 ? 1 : -1);
     document.body.classList.add('impact-active');
     setTimeout(() => document.body.classList.remove('impact-active'), duration * 1000);
     const GFX = dep.getGFX(), gradePass = dep.getGradePass();
     const el = $('impact-flash'), useShader = GFX.post && ZZZ_U.on.value > .5 && gradePass && gradePass.enabled;
     for (const animation of el.getAnimations()) animation.cancel();
     el.animate([
-      { opacity: useShader ? .22 : .88, background: '#ffffff', filter: useShader ? 'none' : 'invert(1) contrast(1.8)' },
-      { opacity: useShader ? .12 : .55, background: IMPACT.col, filter: useShader ? 'none' : 'invert(0.6)', offset: .35 },
+      { opacity: useShader ? (beta ? .16 : .22) : .88, background: '#ffffff', filter: useShader ? 'none' : 'invert(1) contrast(1.8)' },
+      { opacity: useShader ? (beta ? .09 : .12) : .55, background: IMPACT.col, filter: useShader ? 'none' : 'invert(0.6)', offset: .35 },
       { opacity: useShader ? .04 : .2, background: IMPACT.col, filter: 'none', offset: .7 },
       { opacity: 0, background: IMPACT.col, filter: 'none' }
     ], { duration: duration * 1000, easing: 'ease-out' });
   }
   // chispas: rayas finas que salen disparadas del punto de impacto
-  const SPARK_GEO = new THREE.BoxGeometry(1, 1, 1);
-  function sparkLines(p, col, n = 6, len = 1.6, sc = scene) {
+  const SPARK_GEO = new THREE.BoxGeometry(1, 1, 1), _sparkLook = new V3();
+  function sparkLines(p, col, n = 6, len = 1.6, sc = scene, dir = null) {
+    const beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
     for (let i = 0; i < n; i++) {
-      const mat = glowMat(i % 2 ? col : '#ffffff', 1), m = new THREE.Mesh(SPARK_GEO, mat), d = new V3(rand(-1, 1), rand(-.4, 1), rand(-1, 1)).normalize();
-      m.position.copy(p); m.lookAt(p.clone().add(d)); const L = len * rand(.6, 1.3), w = rand(.03, .07);
-      addFx(m, rand(.12, .2), (o, k) => { const e = easeOut(k); o.scale.set(w * (1 - k), w * (1 - k), L * (.3 + e)); o.position.copy(p).addScaledVector(d, L * (.2 + e * .7)); mat.opacity = 1 - k; }, () => mat.dispose(), sc);
+      const mat = glowMat(i % 2 ? col : '#ffffff', 1), m = new THREE.Mesh(SPARK_GEO, mat);
+      const d = new V3(rand(-1, 1), rand(-.35, 1), rand(-1, 1));
+      if (beta && dir && (i % 2 === 0)) d.addScaledVector(dir, 1.35);
+      if (d.lengthSq() < 1e-4) d.set(0, 1, 0);
+      d.normalize();
+      m.position.copy(p); m.lookAt(_sparkLook.copy(p).add(d));
+      const L = len * (beta ? rand(.75, 1.45) : rand(.6, 1.3)), w = beta ? rand(.028, .065) : rand(.03, .07);
+      const sdur = beta ? rand(.14, .23) : rand(.12, .2);
+      addFx(m, sdur, (o, k) => {
+        const e = easeOut(k);
+        const wNow = beta ? w * (1 - k * .82) : w * (1 - k);
+        o.scale.set(wNow, wNow, L * (beta ? (.36 + e * .92) : (.3 + e)));
+        o.position.copy(p).addScaledVector(d, L * (beta ? (.24 + e * .85) : (.2 + e * .7)));
+        mat.opacity = beta ? (1 - k * k) : (1 - k);
+      }, () => mat.dispose(), sc);
     }
   }
   // grietas en el piso para golpes grandes
