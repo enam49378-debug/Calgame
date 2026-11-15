@@ -203,6 +203,22 @@ function addPropCull(mesh, x, y, z, radius, rangeMul = 1, canShadow = false) {
 // Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
 const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
 const inSea = (x, z) => z > SHORE(x) - 1.2;
+// Mundo ampliado (vista privada CF_BETA): fuera del círculo de la ciudad hay biomas. El límite pasa a ser un rectángulo.
+const WORLD_BIG = { hx: 326, zn: -132 };
+const worldBig = () => !!(window.CF_BETA && window.CF_BETA.on);
+const outLand = (x, z, m = 1) => worldBig() ? (Math.abs(x) > WORLD_BIG.hx + m || z < WORLD_BIG.zn - m) : Math.hypot(x, z) > ARENA + m;
+// Agua tierra adentro (ríos, lagos): rectángulos {x0,x1,z0,z1,d}. Se nada igual que en el mar. LAKES.on lo enciende la vista privada.
+const LAKES = [];
+function lakeAt(x, z) { if (!LAKES.on) return null; for (let i = 0; i < LAKES.length; i++) { const l = LAKES[i]; if (x > l.x0 && x < l.x1 && z > l.z0 && z < l.z1) return l; } return null; }
+function lakeFloor(l, x, z) {   // orilla en pendiente; donde un tramo toca otro tramo (o el mar) no hay orilla
+  let m = 9;
+  if (!lakeAt(l.x0 - .5, z)) m = Math.min(m, x - l.x0); if (!lakeAt(l.x1 + .5, z)) m = Math.min(m, l.x1 - x);
+  if (!lakeAt(x, l.z0 - .5)) m = Math.min(m, z - l.z0); if (!lakeAt(x, l.z1 + .5) && l.z1 < SHORE(x)) m = Math.min(m, l.z1 - z);
+  return -Math.min(l.d, .35 + m * 1.7);
+}
+const wetAt = (x, z) => z > SHORE(x) + .2 || !!lakeAt(x, z);
+let _navC = null, _navN = -1;
+function navCols() { if (_navN !== COL.length) { _navN = COL.length; _navC = COL.filter(c => Math.hypot(c.x, c.z) < CITY.bounds + c.hx + c.hz + 2); } return _navC; }   // la navegación de los bots solo mira lo que cae dentro de la ciudad
 const SUN_DIR = new THREE.Vector3(0, 1, 0);
 const BEACH = { t: 0, boats: [], gulls: [], sea: { uTime: { value: 0 }, uSky: { value: new THREE.Color(0xb4dcf6) }, uSunV: { value: new THREE.Vector3(0, 1, 0) }, uSunC: { value: new THREE.Color(0xfff0c8) }, uSunK: { value: 1 } } };
 // Plan de la ciudad: [x, z, ancho, fondo, alto, color, etiqueta, acento, interior]. Lo usan el dibujo de los edificios y el clima (refugio de los rayos).
@@ -289,7 +305,7 @@ function cityGrassAt(x,z) {
   const facadeColors=['#f0bf7b','#e49aab','#77beaa','#e9cd83','#b9a0db','#eda777','#88b8dc','#dda19b','#deca8b','#a9cd86','#87c8d0','#dcc080'];
   const batches = new Map(), matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), xyz = new V3(), size = new V3();
   // Vista privada (CF_BETA): lo que se construye con BETA_ON = true va en lotes aparte y solo lo ve el Owner hasta su lanzamiento (CITY.betaApply)
-  let BETA_ON = false; const betaCols = [], betaObjs = [], betaMeshes = [], pubCols = [], pubMeshes = [];   // BETA_ON = -1: solo para el público (lo que la novedad sustituye)
+  let BETA_ON = false; const betaCols = [], betaObjs = [], betaMeshes = [], pubCols = [], pubMeshes = [], pubObjs = [];   // BETA_ON = -1: solo para el público (lo que la novedad sustituye)
   const box = (x,y,z,w,h,d,color,tex=null,tower=null) => {
     const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44) + (BETA_ON ? (BETA_ON < 0 ? ':pub' : ':beta') : '');   // un lote por color y por zona de 44 m
     if (!batches.has(key)) batches.set(key, { color, tex, items: [], beta: BETA_ON > 0, pub: BETA_ON < 0 });
@@ -301,6 +317,26 @@ function cityGrassAt(x,z) {
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,280/B);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(420,280),new THREE.MeshLambertMaterial({map:grass}));   // el césped llega hasta la playa (z=70): ya no tapa el mar
   ground.rotation.x=-Math.PI/2; ground.position.y=-.15; ground.position.z=-70; ground.receiveShadow=true; ground.frustumCulled=false; scene.add(ground); CITY.ground=ground;
+  // Mundo ampliado: el suelo pasa a ser una rejilla de 3 m que deja huecos donde hay ríos y lagos, con un tinte suave por bioma
+  CITY.bigGround=on=>{
+    if(!CITY.groundGeoPub)CITY.groundGeoPub=ground.geometry;
+    if(on&&!CITY.groundGeoBig){
+      const P=[],U=[],C=[],I=[];let n=0;
+      const tint=x=>{const w=clamp((-x-112)/22,0,1),e=clamp((x-112)/22,0,1);return [1-.34*e+.0*w,1-.1*e,1-.3*e-.06*w];};
+      for(let x=-339;x<339;x+=3)for(let z=-168;z<69;z+=3){
+        if(LAKES.some(l=>x+1.5>l.x0&&x+1.5<l.x1&&z+1.5>l.z0&&z+1.5<l.z1))continue;
+        for(const [dx,dz] of [[0,0],[3,0],[0,3],[3,3]]){const X=x+dx,Z=z+dz;P.push(X,-(Z+70),0);U.push((X+210)/420,(Z+210)/280);const t=tint(X);C.push(t[0],t[1],t[2]);}
+        I.push(n,n+2,n+1,n+1,n+2,n+3);n+=4;}
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();CITY.groundGeoBig=g;
+      // superficie del agua de ríos y lagos (mismo material que el mar)
+      const WP=[],WI=[];let k=0;
+      for(const l of LAKES){const z1=Math.min(l.z1,67);if(z1<=l.z0)continue;WP.push(l.x0,SEA_Y,l.z0,l.x1,SEA_Y,l.z0,l.x0,SEA_Y,z1,l.x1,SEA_Y,z1);WI.push(k,k+2,k+1,k+1,k+2,k+3);k+=4;}
+      const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(WP,3));wg.setAttribute('uv',new THREE.Float32BufferAttribute(WP.filter((_,i)=>i%3!==1).map(v=>v/8),2));wg.setIndex(WI);wg.computeVertexNormals();
+      const wm=new THREE.Mesh(wg,new THREE.MeshPhongMaterial({color:0x2f9bd1,transparent:true,opacity:.8,shininess:90,specular:0x9fd8ff,side:THREE.DoubleSide}));wm.frustumCulled=false;wm.renderOrder=-4;scene.add(wm);CITY.lakeWater=wm;
+    }
+    ground.geometry=on?CITY.groundGeoBig:CITY.groundGeoPub;ground.material.vertexColors=!!on;ground.material.needsUpdate=true;
+    if(CITY.lakeWater)CITY.lakeWater.visible=!!on;
+  };
   const paving = pixTex(32,32,g=>{
     noiseRect(g,0,0,32,32,'#8c999f',8); g.fillStyle='#919da5';
     for(let i=0;i<32;i+=8){g.fillRect(i,0,1,32);g.fillRect(0,i,32,1);}
@@ -790,7 +826,8 @@ function cityGrassAt(x,z) {
     flat(p.x,p.z,2.5,2.5,'#527e85',.054);flat(p.x,p.z,2.12,2.12,'#91d4cd',.067);
     flat(p.x,p.z,1.78,1.78,'#527e85',.08);flat(p.x,p.z,.18,1.1,'#defff0',.094);flat(p.x,p.z,1.1,.18,'#defff0',.094);
   }
-  // Borde bajo legible (no en el mar) y barrio de fondo lejano, fuera del área jugable.
+  // Borde bajo legible (no en el mar) y barrio de fondo lejano, fuera del área jugable. En el mundo ampliado (vista privada) no están: ahí hay biomas.
+  BETA_ON=-1;
   for(let i=0;i<230;i++){
     const a=i/230*TAU,x=Math.cos(a)*(ARENA+2.4),z=Math.sin(a)*(ARENA+2.4);if(z>64)continue;
     box(x,.42,z,1.6,.84,1.6,'#96a8a6');if(i%8===0)box(x,.97,z,1.8,.26,1.8,'#d5d9c8');
@@ -805,8 +842,9 @@ function cityGrassAt(x,z) {
       piece(x+side*4.02,yy,z+xx,.06,1.25,1.15,'#aac5d1');
     }
   }
+  BETA_ON=false;
   const GARDEN={x:-90,z:28,r:14};
-  const CLAROS=[[-109,-70,-27,44],[77,101,-12,14],[-15,15,-108,-77]];   // [x0,x1,z0,z1] Barrio Sakura, Campamento y Lago: ahí el bosque solo lo ve el público
+  const CLAROS=[[-116,-70,-27,44],[77,101,-12,14],[-15,15,-108,-77],[100,116,-3,5]];   // [x0,x1,z0,z1] Barrio Sakura, Campamento y Lago: ahí el bosque solo lo ve el público
   // ===== Costa: paseo marítimo, playa, mar, bosque y adornos (todo determinista: igual para todos los jugadores) =====
   const rnd=(()=>{let q=20261031;return()=>(q=(q*1664525+1013904223)>>>0)/4294967296;})();
   flat(0,66,240,6,'#56616a');for(let x=-114;x<=114;x+=6)flat(x,66,2.4,.12,'#f6daa0',.04);
@@ -822,14 +860,16 @@ function cityGrassAt(x,z) {
   const sandTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#e8d29a',9);g.fillStyle='rgba(180,150,90,.18)';for(let i=0;i<22;i++)g.fillRect((i*7)%32,(i*13)%32,2,1);});
   sandTex.wrapS=sandTex.wrapT=THREE.RepeatWrapping;
   const wetTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#bfa271',8);});wetTex.wrapS=wetTex.wrapT=THREE.RepeatWrapping;
-  const strip=(x0,x1,step,zN,zS,y,mat,uv)=>{
+  const strip=(x0,x1,step,zN,zS,y,mat,uv,pub)=>{
     const pos=[],uvs=[],idx=[];let k=0;
     for(let x=x0;x<=x1;x+=step){pos.push(x,y,zN(x),x,y,zS(x));uvs.push(x/uv,zN(x)/uv,x/uv,zS(x)/uv);if(k>0){const q=(k-1)*2;idx.push(q,q+1,q+2,q+1,q+3,q+2);}k++;}
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geo.setIndex(idx);geo.computeVertexNormals();
-    const m=new THREE.Mesh(geo,mat);m.receiveShadow=true;scene.add(m);addPropCull(m,0,y,83,156,1.35);return m;
+    const m=new THREE.Mesh(geo,mat);m.receiveShadow=true;scene.add(m);if(pub)pubObjs.push(m);else addPropCull(m,(x0+x1)/2,y,83,(x1-x0)/2+8,1.35);return m;
   };
-  strip(-150,150,3,()=>67.4,x=>SHORE(x),-.004,cityAnimeMaterial(new THREE.MeshLambertMaterial({map:sandTex})),4);
-  strip(-150,150,3,x=>SHORE(x)-3,x=>SHORE(x),-.003,cityAnimeMaterial(new THREE.MeshLambertMaterial({map:wetTex})),4);
+  {const sandM=cityAnimeMaterial(new THREE.MeshLambertMaterial({map:sandTex})),wetM=cityAnimeMaterial(new THREE.MeshLambertMaterial({map:wetTex}));
+    // la playa llega a los lados del mundo; en las dos desembocaduras de los ríos (vista privada) la arena solo la ve el público
+    for(const [a,b,pub] of [[-339,-183,0],[-183,-171,1],[-171,207,0],[207,219,1],[219,339,0]]){
+      strip(a,b,3,()=>67.4,x=>SHORE(x),-.004,sandM,4,pub);strip(a,b,3,x=>SHORE(x)-3,x=>SHORE(x),-.003,wetM,4,pub);}}
   {
     const sea=new THREE.MeshPhongMaterial({color:0xffffff,shininess:70,specular:0x667b8e,transparent:true});
     sea.onBeforeCompile=sh=>{
@@ -1062,6 +1102,169 @@ function cityGrassAt(x,z) {
         ['#2f5d8a','#d8433b','#f39dbd'].forEach((c,k)=>{box(kx+1,6.5-k*.95,kz,1.6,.42,.3,c);box(kx+1.95,6.5-k*.95,kz,.3,.6,.3,c);box(kx+.36,6.56-k*.95,kz+.16,.12,.12,.04,'#fff8df');});}
       for(const [x,z] of [[-84,-11.8],[-92.6,-9.6],[-92.3,13],[-83.8,12.4],[-96,5.4],[-82.4,-16.4]])sakura(x,z);
       bench(DX+3.9,DZ-3.3);bench(DX-3.9,DZ+3.3);
+
+      // =====================================================================================================================
+      // BIOMAS DEL MUNDO AMPLIADO (vista privada): Valle Sakura al oeste y Selva Esmeralda al este, con ríos y lagos nadables
+      // =====================================================================================================================
+      const PLANK='#967852',ROCK='#7d8a80',ROCK2='#6f7c73',WATERFALL='#bfe8f5',DIRT='#b9a27a',MMR=[];
+      const lake=(x0,x1,z0,z1,d)=>{LAKES.push({x0,x1,z0,z1,d});const zc=Math.min(z1,SHORE((x0+x1)/2)+8);box((x0+x1)/2,-d-1.5,(z0+zc)/2,x1-x0+2,3,zc-z0+2,'#5f8fa3');};
+      const inW=(x,z,m=0)=>LAKES.some(l=>x>l.x0-m&&x<l.x1+m&&z>l.z0-m&&z<l.z1+m);
+      const used=[],claim=(x,z,hw,hd)=>used.push([x,z,hw,hd]);
+      const free=(x,z,r)=>!inW(x,z,r)&&!used.some(u=>Math.abs(x-u[0])<u[2]+r&&Math.abs(z-u[1])<u[3]+r);
+      const scatter=(n,x0,x1,z0,z1,r,fn)=>{for(let i=0;i<n;i++){const x=x0+lr()*(x1-x0),z=z0+lr()*(z1-z0);if(free(x,z,r)){fn(x,z);claim(x,z,r*.55,r*.55);}}};
+      const road=(x0,z0,x1,z1,w,col)=>{const ax=Math.abs(x1-x0)>Math.abs(z1-z0),cx=(x0+x1)/2,cz=(z0+z1)/2,W=ax?Math.abs(x1-x0)+w:w,D=ax?w:Math.abs(z1-z0)+w;
+        const a0=ax?Math.min(x0,x1):Math.min(z0,z1),a1=ax?Math.max(x0,x1):Math.max(z0,z1);
+        for(let a=a0;a<a1;a+=6){const b=Math.min(a+6,a1),m=(a+b)/2,px=ax?m:cx,pz=ax?cz:m;if(inW(px,pz,-.5))continue;flat(px,pz,ax?b-a+.02:w,ax?w:b-a+.02,col,.022);}
+        claim(cx,cz,W/2+.4,D/2+.4);MMR.push([cx,cz,W,D]);};
+      const mesa=(x,z,w,d,n,c1,c2)=>{for(let i=0;i<n;i++){const g=(n-1-i)*2.4,h=(i+1)*.5;box(x,h/2,z,w+g,h,d+g,i%2?c1:c2);solid(x,z,w+g,d+g,h);}claim(x,z,(w+(n-1)*2.4)/2+1,(d+(n-1)*2.4)/2+1);};
+      const mount=(x,z,w,h,c=ROCK)=>{for(let i=0;i<4;i++){const k=1-i*.22;box(x+(lr()-.5)*w*.1,h*(i+.5)/4,z+(lr()-.5)*w*.1,w*k,h/4+.04,w*k,i===3&&h>22?'#f1f5f7':(i%2?c:ROCK2));}solid(x,z,w,w,h);claim(x,z,w/2,w/2);};
+      const deck=(x,z,w,d,h=.5,post=1)=>{box(x,h-.08,z,w,.16,d,PLANK,'plank');solid(x,z,w,d,h,.12);if(post)for(const sx of [-1,1])for(const sz of [-1,1])box(x+sx*(w/2-.3),h/2-1.6,z+sz*(d/2-.3),.26,h+3.2,.26,WOOD);claim(x,z,w/2,d/2);};
+      const bridge=(x,z,len,alongX,w=3.2,col=RED)=>{const n=Math.max(5,Math.round(len/1.5)+2),L=n*1.5;
+        for(let i=0;i<n;i++){const t=(i+.5)/n,h=.25+1*Math.sin(Math.PI*t),o=-L/2+(i+.5)*1.5,bx=alongX?x+o:x,bz=alongX?z:z+o;
+          box(bx,h-.07,bz,alongX?1.52:w,.14,alongX?w:1.52,col);solid(bx,bz,alongX?1.5:w,alongX?w:1.5,h,(i===0||i===n-1)?0:.12);
+          for(const sg of [-1,1]){const rx=alongX?bx:bx+sg*(w/2-.08),rz=alongX?bz+sg*(w/2-.08):bz;box(rx,h+.62,rz,alongX?1.52:.1,.1,alongX?.1:1.52,'#8f2f2a');if(i%2===0)box(rx,h+.32,rz,.14,.62,.14,'#8f2f2a');}}
+        claim(x,z,alongX?L/2:w/2,alongX?w/2:L/2);MMR.push([x,z,alongX?L:w,alongX?w:L]);};
+      const shore=()=>{for(const l of LAKES){const pts=[];for(let x=l.x0;x<=l.x1;x+=2.4){pts.push([x,l.z0-.7],[x,l.z1+.7]);}for(let z=l.z0;z<=l.z1;z+=2.4){pts.push([l.x0-.7,z],[l.x1+.7,z]);}
+        for(const [x,z] of pts){if(z>64||inW(x,z,-.1)||!free(x,z,.2))continue;const r=lr();if(r<.3)box(x,.18,z,.7+lr()*.6,.36,.6+lr()*.5,r<.15?STONE:'#a3a8ab');else if(r<.42)for(let k=0;k<3;k++)box(x+(lr()-.5)*.8,.55,z+(lr()-.5)*.8,.09,1.1+lr()*.5,.09,k%2?'#7fb069':'#b08d57');}}};
+      const puesto=(x,z,c)=>{box(x,.5,z,2.6,1,.9,PLANK,'plank');solid(x,z,2.6,.9,1.05);for(const sx of [-1,1])for(const sz of [-1,1])box(x+sx*1.3,1.3,z+sz*.65,.1,2.6,.1,WOOD);
+        for(let k=0;k<5;k++)box(x-1.2+k*.6,2.66,z,.6,.12,1.9,k%2?'#f6f0dc':c);box(x-.5,1.2,z,.4,.3,.4,'#e2504a');box(x+.5,1.16,z,.5,.2,.4,'#ffd35c');claim(x,z,1.6,1.2);};
+
+      // ---------- agua ----------
+      lake(-216,-207,-129,-39,2.6);lake(-216,-168,-39,-30,2.6);lake(-177,-168,-30,24,2.6);lake(-207,-150,24,51,4);lake(-183,-171,51,102,2.6);lake(-306,-294,-114,-105,.8);   // Río Koi, Lago del Espejo y aguas termales
+      lake(225,234,-126,-33,2.8);lake(198,261,-33,12,3.6);lake(207,219,12,102,2.8);lake(291,306,36,51,6);                                                              // Río Jade, Laguna de las Cabañas y cenote
+      claim(DX-4,DZ+10,24,36);claim(89,1,12,10);   // el barrio y el campamento ya existen
+
+      // ---------- montañas del borde y cascadas ----------
+      for(let x=-330;x<=330;x+=19){if((x>-236&&x<-188)||(x>198&&x<262))continue;mount(x+(lr()-.5)*6,-150+lr()*6,22+lr()*9,13+lr()*24);}
+      for(let z=-128;z<=58;z+=20){mount(-341-lr()*3,z+(lr()-.5)*6,22+lr()*6,11+lr()*18);mount(341+lr()*3,z+(lr()-.5)*6,22+lr()*6,11+lr()*18);}
+      {const cx=-211.5;box(cx,7,-141,44,14,20,ROCK);box(cx-9,9.5,-143,18,19,16,ROCK2);box(cx+11,8.5,-144,16,17,14,ROCK2);box(cx,16.5,-146,22,5,10,'#f1f5f7');solid(cx,-141,44,20,14);claim(cx,-141,22,10);
+        box(cx,7,-130.8,7.4,14,.5,WATERFALL);box(cx-1.4,7,-130.6,1.2,14,.3,'#e9fbff');box(cx+2,7,-130.6,.8,14,.3,'#e9fbff');for(let k=0;k<7;k++)box(cx-3.4+k*1.1,.2,-129.6-(k%2)*.5,1,.5,1,'#e9fbff');
+        box(cx,36,-196,90,72,60,'#8a96a3');box(cx,58,-196,62,30,44,'#a9b4bf');box(cx,76,-196,36,14,28,'#f1f5f7');}   // monte nevado al fondo
+      {const cx=229.5;box(cx,8,-139,58,16,26,ROCK);box(cx-14,11,-142,22,22,18,ROCK2);box(cx+15,10,-143,20,20,16,ROCK2);box(cx,16.3,-139,58,.6,26,'#3a8f4a');solid(cx,-139,58,26,16);claim(cx,-139,29,13);
+        box(cx,8,-125.8,8.6,16,.5,WATERFALL);box(cx-2,8,-125.6,1.3,16,.3,'#e9fbff');box(cx+2.6,8,-125.6,.9,16,.3,'#e9fbff');for(let k=0;k<8;k++)box(cx-3.9+k*1.1,.2,-124.6-(k%2)*.5,1,.5,1,'#e9fbff');}
+
+      // ====================== VALLE SAKURA (oeste) ======================
+      // caminos
+      road(-93,-7.5,-166,-7.5,2.8,PAVE);road(-179,-7.5,-232,-7.5,2.8,PAVE);road(-232,-7.5,-232,-63,2.8,PAVE);road(-232,-63,-241,-63,2.8,PAVE);
+      road(-190,-7.5,-190,-27,2.4,PAVE);road(-190,-42,-190,-90,2.4,PAVE);road(-190,-90,-204,-90,2.4,PAVE);road(-219,-90,-234,-90,2.4,PAVE);road(-234,-90,-234,-101,2.4,PAVE);road(-234,-101,-292,-101,2.4,PAVE);
+      road(-140,-7.5,-140,60,2.4,PAVE);road(-126,60,-169,60,2.6,DIRT);road(-185,60,-300,60,2.6,DIRT);road(-240,60,-240,66,2.6,DIRT);road(-232,-7.5,-232,3,2.4,DIRT);road(-283,25,-262,25,2.2,PAVE);road(-262,3,-262,25,2.2,DIRT);road(-232,3,-262,3,2.2,DIRT);
+      bridge(-172.5,-7.5,10,true);bridge(-190,-34.5,10,false);bridge(-211.5,-90,10,true);bridge(-177,60,13,true,3.4,'#b0463c');
+      for(let x=-100;x>-232;x-=11){if(inW(x,-9.6,2))continue;toro(x,-9.6);}
+      // Aldea del Río
+      {const nor=['#2f5d8a','#7a2f3a','#3f7a4f','#b8902c','#5a3f7a'];let k=0;
+        for(const hx of [-158,-150.5,-126.5,-119]){casa(hx,-13.6,5,4.6,1,nor[k++%5]);claim(hx,-13.6,3.4,3.2);casa(hx,-1.4,5,4.6,-1,nor[k++%5]);claim(hx,-1.4,3.4,3.2);}
+        casa(-133,-13.6,5,4.6,1,nor[2]);claim(-133,-13.6,3.4,3.2);
+        for(const lx of [-154.2,-122.8]){box(lx,3.95,-7.5,.05,.05,7.6,TILE);for(let i=-1;i<=1;i++){box(lx,3.6-(i===0?.14:0),-7.5+i*1.9,.4,.5,.4,i?'#e2504a':'#fff0b1');box(lx,3.3-(i===0?.14:0),-7.5+i*1.9,.18,.08,.18,GOLD);}}
+        puesto(-146,-1.6,'#d8433b');puesto(-133.5,-2,'#2f5d8a');puesto(-146,14,'#3f7a4f');
+        torii(-112.5,-7.5,true,5.4,5.6,RED);bsign('VALLE SAKURA',-112.05,4.5,-7.5,4.4,Math.PI/2,'#7a2f3a');claim(-112.5,-7.5,1,4);
+        box(-136.6,.5,-1,1.6,1,1.6,STONE);box(-136.6,1.05,-1,1.2,.1,1.2,'#5fb8d6');for(const sg of [-1,1])box(-136.6+sg*.7,1.6,-1,.14,1.2,.14,WOOD);box(-136.6,2.3,-1,2,.16,1.4,TILE);solid(-136.6,-1,1.6,1.6,1.1);claim(-136.6,-1,1.2,1.2);}   // pozo
+      // Lago del Espejo: casa de té sobre pilotes y zorro guardián
+      {deck(-201.5,38,14,2.2);deck(-189,38,12,10);
+        const tx=-189,tz=38.6;box(tx,2,tz,6.4,3,5,CREAM);solid(tx,tz,6.4,5,4.6,.5);for(const sx of [-1,1])for(const sz of [-1,1])box(tx+sx*3.1,2,tz+sz*2.4,.26,3,.26,WOOD);
+        box(tx,3.7,tz,8.4,.3,7,TILE);box(tx,4.1,tz,6.6,.5,4.6,TILE);box(tx,4.6,tz,6.2,.5,2.2,TILE);box(tx,1.6,tz-2.53,1.5,2.2,.06,'#3a2a22');box(tx,2.45,tz-2.6,1.7,.7,.05,'#3f7a4f');
+        for(const sx of [-1,1]){box(tx+sx*4.6,2.3,tz-4.2,.34,.52,.34,'#e2504a');box(tx+sx*4.6,1.2,tz-4.2,.1,2.4,.1,WOOD);}
+        bsign('CASA DE TÉ DEL LAGO',-209.6,2.6,38,3.6,-Math.PI/2,'#3f5a3a');box(-209.6,1.1,38.9,.18,2.2,.18,WOOD);
+        for(let i=0;i<14;i++){const x=-204+lr()*50,z=27+lr()*21;if(Math.abs(x+189)<8&&Math.abs(z-38)<7)continue;box(x,.1,z,.42,.3,.42,i%3?'#fff0b1':'#f3a2cb');box(x,.0,z,.6,.06,.6,PLANK);}   // farolillos flotantes
+        for(let i=0;i<12;i++){const x=-204+lr()*50,z=27+lr()*21;flat(x,z,.9,.9,'#4f9a5b',.0);}
+        const fx=-144.5,fz=40,W='#f6f3ec';box(fx,.4,fz,5,.8,5,STONE);solid(fx,fz,5,5,.8);claim(fx,fz,3,3);
+        box(fx,2.5,fz,2.6,3.4,2.8,W);box(fx-.3,5,fz,2.2,1.9,2.2,W);box(fx-1.5,4.7,fz,.9,.7,.9,W);box(fx-2,4.75,fz,.3,.3,.3,'#22272e');for(const sz of [-1,1]){box(fx-.1,6.3,fz+sz*.7,.5,.9,.5,W);box(fx-.1,6.5,fz+sz*.7,.2,.5,.3,'#f3a2cb');box(fx-1.4,5.4,fz+sz*.6,.1,.16,.2,'#22272e');}
+        box(fx-.4,3.9,fz,2.8,.4,3,'#d8433b');box(fx-1.5,3.5,fz,.3,.5,.5,GOLD);box(fx+1.9,1.7,fz,1.4,1.4,1.4,W);box(fx+2.7,3,fz,1.2,1.8,1.2,W);box(fx+2.9,4.3,fz,1,1,1,'#d8433b');solid(fx,fz,3,3,6,.8);
+        bsign('KITSUNE GUARDIÁN',fx-2.56,1.35,fz,2.6,-Math.PI/2,'#7a2f3a');bench(-144.5,34.6);}
+      // Arrozales y granja
+      {for(let i=0;i<3;i++)for(let j=0;j<3;j++){const x=-252+i*11,z=12+j*13;flat(x,z,10,12,'#7fc8d8',.03);for(let a=-4;a<=4;a+=1.3)for(let b=-5;b<=5;b+=1.5)box(x+a,.16,z+b,.1,.3,.1,(i+j)%2?'#93c47d':'#a9cd86');
+          box(x,.1,z-6.25,10.6,.2,.5,'#8a6a3a');box(x-5.25,.1,z,.5,.2,12.6,'#8a6a3a');}
+        box(-225.3,.1,25,.5,.2,39,'#8a6a3a');box(-241,.1,44.75,32,.2,.5,'#8a6a3a');claim(-241,25,17.5,20.5);MMR.push([-241,25,33,39,'#7fc8d8']);
+        casa(-270,28,6,5,-1,'#b8902c');claim(-270,28,4,4);box(-256.5,1.2,3,.14,2.4,.14,WOOD);box(-256.5,1.9,3,1.6,.14,.14,WOOD);box(-256.5,2.6,3,.6,.6,.6,'#e9dfc0');box(-256.5,3,3,1.1,.12,1.1,'#b8902c');box(-256.5,1.5,3,.7,.9,.3,'#3f7a4f');
+        for(let k=0;k<3;k++){box(-264.5+k*.1,.5+k*1,36,1.6-k*.3,1,1.6-k*.3,'#e9c24a');}solid(-264.5,36,1.6,1.6,2);}
+      // Castillo del Dragón Blanco sobre su colina
+      {const CX=-273,CZ=-63,T2='#3b5560',WH='#f4f1e8';mesa(CX,CZ,46,46,8,'#79b560','#6fae5a');
+        for(let i=0;i<8;i++)flat(CX+23+(7-i)*1.2+.6,CZ,1.24,4,PAVE,(i+1)*.5+.013);
+        const wall=(x,z,w,d)=>{box(x,5.3,z,w,2.6,d,WH);box(x,6.75,z,w+.5,.3,d+.5,T2);box(x,4.3,z,w+.2,.6,d+.2,STONE);solid(x,z,w,d,6.9,4);};
+        wall(CX,CZ-22,45,1);wall(CX,CZ+22,45,1);wall(CX-22,CZ,1,45);wall(CX+22,CZ-13,1,19);wall(CX+22,CZ+13,1,19);
+        box(CX+22,7.6,CZ,2.4,.5,9,T2);box(CX+22,8.1,CZ,1.6,.5,7,T2);for(const sg of [-1,1])box(CX+22,5.5,CZ+sg*3.5,1.4,3.8,.8,WOOD);
+        for(const sx of [-1,1])for(const sz of [-1,1]){const x=CX+sx*21,z=CZ+sz*21;box(x,6.5,z,5,5,5,WH);box(x,9.2,z,6.6,.4,6.6,T2);box(x,9.7,z,4.4,.6,4.4,T2);box(x,10.2,z,2,.4,2,T2);box(x,5.2,z+sz*-2.52,1,1,.06,'#22272e');solid(x,z,5,5,9.4,4);}
+        const bx=CX-4;box(bx,4.75,CZ,22,1.5,20,STONE);box(bx,6.25,CZ,19,1.5,17,'#a3a8ab');solid(bx,CZ,22,20,5.5,4);solid(bx,CZ,19,17,7,4);
+        for(let i=0;i<6;i++){const h=4.5+i*.5;box(bx+15.5-i,h/2+2,CZ,1,h-4,4,'#a3a8ab');solid(bx+15.5-i,CZ,1,4,h,4);}
+        let y=7;for(let i=0;i<5;i++){const w=14-i*2.3,d=12-i*2,h=i?3.2:4;
+          box(bx,y+h/2,CZ,w,h,d,WH);box(bx,y+h-.3,CZ,w+.14,.22,d+.14,'#22272e');
+          for(let k=-1;k<=1;k++){box(bx+k*w*.28,y+h*.55,CZ+d/2+.02,1,1.1,.06,'#22272e');box(bx+k*w*.28,y+h*.55,CZ-d/2-.02,1,1.1,.06,'#22272e');box(bx+w/2+.02,y+h*.55,CZ+k*d*.28,.06,1.1,1,'#22272e');}
+          y+=h;box(bx,y+.18,CZ,w+3.4,.36,d+3.4,T2);box(bx,y+.5,CZ,w+1.8,.3,d+1.8,'#4a6875');box(bx,y+.85,CZ,w+2.6,.4,d*.3,T2);y+=.7;}
+        for(const sg of [-1,1]){box(bx+sg*1.6,y+.6,CZ,.5,1,.5,GOLD);box(bx+sg*1.6,y+1.2,CZ,.3,.5,.9,GOLD);}
+        solid(bx,CZ,14,12,y,7);box(bx+7.03,8.3,CZ,.06,2.4,1.8,'#3a2a22');
+        for(const [ox,oz] of [[14,-14],[14,14],[-17,15],[-17,-15],[4,16],[4,-16]])sakura(CX+ox,CZ+oz);
+        bsign('CASTILLO DEL DRAGÓN BLANCO',CX+22.6,8.9,CZ,6.4,Math.PI/2,'#22272e');toro(CX+25.5,CZ-3.4);toro(CX+25.5,CZ+3.4);MMR.push([CX,CZ,46,46,'#e9e4d2']);MMR.push([bx,CZ,14,12,'#3b5560']);}
+      // Aguas termales
+      {const ox=-300,oz=-109.5;for(let i=0;i<22;i++){const a=i/22*TAU;box(ox+Math.cos(a)*7.4,.35,oz+Math.sin(a)*5.9,1.1+lr()*.8,.7+lr()*.5,1+lr()*.7,i%2?STONE:'#6f777c');}
+        for(let i=0;i<9;i++)box(ox+(lr()-.5)*10,1+lr()*1.6,oz+(lr()-.5)*7,.5+lr()*.5,.3,.5+lr()*.5,'#f4f8fa');
+        casa(-300,-96.8,7,5,-1,'#2f5d8a');claim(-300,-104,10,12);bsign('AGUAS TERMALES',-294.4,3.2,-99.5,3.4,Math.PI,'#1d5f7a');toro(-291.6,-105);toro(-308.4,-105);bench(-290,-110,true);}
+      // Bosque de bambú con un santuario escondido
+      {road(-305,25,-283,25,2.2,PAVE);torii(-296,25,true,3.4,3.7,RED);box(-309,.3,25,5,.6,5,'#a3a8ab');solid(-309,25,5,5,.6);box(-309.6,1.7,25,2.6,2.2,2.6,WOOD);box(-309.6,3,25,3.8,.3,3.8,TILE);box(-309.6,3.4,25,2.4,.5,2.4,TILE);box(-308.25,1.6,25,.06,1.2,1,'#f6f0dc');solid(-309.6,25,2.6,2.6,3.6,.6);toro(-305.6,22.6);toro(-305.6,27.4);claim(-309,25,3.4,3.4);
+        scatter(190,-325,-281,-8,58,.7,(x,z)=>{const h=5+lr()*3.4;box(x,h/2,z,.2,h,.2,lr()<.6?'#7fb069':'#93c47d');solid(x,z,.22,.22,h);box(x,h+.1,z,1.2,.5,1.2,'#5f9a55','leaves');box(x+.3,h-.8,z-.2,.8,.35,.8,'#69a66d','leaves');});MMR.push([-303,25,44,66,'#4d8f52']);}
+      // Gran torii en el mar con pasarela
+      {const tx=-240,zs=SHORE(tx)+13;for(let z=SHORE(tx)-5;z<zs-1;z+=1.5){box(tx,.38,z,2.4,.14,1.52,PLANK,'plank');solid(tx,z,2.4,1.5,.45,z>SHORE(tx)?.12:0);if((z|0)%3===0)for(const sg of [-1,1])box(tx+sg*1.1,-1,z,.2,3,.2,WOOD);}
+        box(tx,.38,zs+.6,6,.14,4,PLANK,'plank');solid(tx,zs+.6,6,4,.45,.12);
+        for(const sg of [-1,1]){box(tx+sg*5.5,3.5,zs+6,.9,13,.9,RED);solid(tx+sg*5.5,zs+6,.9,.9,10,-6);box(tx+sg*5.5,-.5,zs+6,1.4,2,1.4,TILE);}
+        box(tx,10.3,zs+6,14.6,.8,1,RED);box(tx,11,zs+6,16.4,.6,1.4,TILE);box(tx,8.4,zs+6,12.4,.5,.6,RED);box(tx,9.35,zs+6,1.4,1.3,.3,GOLD);toro(tx-1.9,zs+1.6);toro(tx+1.9,zs+1.6);MMR.push([tx,zs+6,14,2,'#c8473f']);}
+      // cerezos, flores y rocas por todo el valle
+      shore();
+      scatter(170,-326,-118,-128,63,3.2,(x,z)=>sakura(x,z));
+      scatter(260,-326,-116,-128,64,.5,(x,z)=>{const r=lr();if(r<.5)box(x,.16,z,.16,.32,.16,['#f3a2cb','#fbd0e0','#e9fbff','#ffd35c'][(r*40|0)%4]);else if(r<.8)box(x,.3,z,1+lr()*.6,.6,1+lr()*.6,'#f7b6cf');else box(x,.25,z,.9+lr()*.7,.5,.8+lr()*.6,STONE);});
+
+      // ====================== SELVA ESMERALDA (este) ======================
+      const jtree=(x,z,s)=>{const h=4+s*3+lr()*2,t=.5+s*.4,c=['#2f7a3f','#3a8f4a','#27693a'];box(x,h/2,z,t,h,t,'#5d4634','log');solid(x,z,t,t,h);
+        box(x,h+.6,z,3.4+s*2.5,1.6+s*.5,3.4+s*2.5,c[0],'leaves');box(x+.5,h+1.9+s*.3,z-.3,2.2+s*1.6,1.2,2.2+s*1.6,c[1],'leaves');box(x-1.1-s*.6,h-.5,z+.9,1.8+s,1,1.8+s,c[2],'leaves');
+        if(lr()<.6)box(x+t/2+.06,h*.55,z,.08,h*.75,.3,'#3f8f3a');if(s>1){box(x-t/2-.06,h*.6,z+.2,.08,h*.6,.3,'#3f8f3a');for(const sg of [-1,1])box(x+sg*(t/2+.5),.5,z,1,1-.0,.5,'#5d4634','log');}};
+      const hut=(x,z,y)=>{box(x,y+1.3,z,4,2.6,3.4,'#c9a66b');for(let k=-1;k<=1;k++)box(x+k*1.3,y+1.3,z+1.72,.1,2.6,.06,'#a3824f');box(x,y+2.75,z,5.2,.3,4.6,'#b8902c');box(x,y+3.15,z,4,.5,3.4,'#a57f27');box(x,y+3.6,z,2.4,.4,2,'#b8902c');box(x,y+1,z+1.73,1.1,2,.06,'#3a2a22');solid(x,z,4,3.4,y+3.8,y);};
+      // sendero desde el campamento y poblado sobre la laguna
+      road(97,1,196,1,2.4,DIRT);road(264,-4,300,-4,2.4,DIRT);road(266,-4,266,-52,2.4,DIRT);road(224,14,224,62,2.2,DIRT);road(226,40,298,40,2.2,DIRT);road(203,40,150,40,2.2,DIRT);road(165,40,165,36,2.2,DIRT);road(140,1,140,-60,2.2,DIRT);road(219,62,300,62,2.4,DIRT);road(285,62,285,66,2.4,DIRT);
+      torii(120,1,true,4.6,4.6,'#6b4a3a');bsign('SELVA ESMERALDA',119.5,3.8,1,4.2,-Math.PI/2,'#27693a');claim(120,1,1,3.5);
+      {deck(203,1,12,2.2);deck(213,-4,10,12);deck(222.5,-9,9,2.2);deck(231,-15,10,10);deck(239.5,-9,7,2.2);deck(247,-4,10,10);deck(256.5,-4,11,2.2);deck(230,-1,24,2.2);
+        hut(213,-6.2,.5);hut(231,-17.4,.5);hut(247,-6,.5);
+        for(const [x,z] of [[208.4,1.4],[217.6,1.4],[226.4,-10.4],[235.6,-10.4],[242.4,.6],[251.6,.6]]){box(x,1.4,z,.12,1.9,.12,WOOD);box(x,2.5,z,.36,.44,.36,'#fff0b1');box(x,2.76,z,.5,.1,.5,'#5d4634');}
+        box(219,.3,-25,1.4,.3,3.2,'#8a6a3a');box(219,.48,-25,1.1,.1,2.8,PLANK,'plank');box(250,.3,8,1.4,.3,3.2,'#b0463c');box(250,.48,8,1.1,.1,2.8,PLANK,'plank');
+        for(let i=0;i<16;i++){const x=200+lr()*59,z=-31+lr()*41;if(!used.some(u=>Math.abs(x-u[0])<u[2]+.6&&Math.abs(z-u[1])<u[3]+.6)){flat(x,z,1,1,'#4f9a5b',.0);if(lr()<.5)box(x,.1,z,.26,.16,.26,'#f3a2cb');}}
+        bsign('POBLADO DE LA LAGUNA',196.4,2.6,2.6,3.6,-Math.PI/2,'#27693a');box(196.4,1.1,2.6,.18,2.2,.18,WOOD);MMR.push([230,-8,58,26,'#967852']);}
+      bridge(213,40,13,true,2.6,PLANK);bridge(229.5,-70,10,true,2.6,PLANK);road(236,-70,264,-70,2.2,DIRT);road(223,-70,140,-70,2.2,DIRT);
+      // Pirámide del Jaguar: se sube por los escalones hasta el templo de la cima
+      {const PX=286,PZ=-74,n=16;for(let i=0;i<n;i++){const w=9+2.2*(n-1-i),h=(i+1)*.5;box(PX,h/2,PZ,w,h,w,i%2?'#9a9d8f':'#8d9084');solid(PX,PZ,w,w,h);
+          for(const [ax,az] of [[1,0],[-1,0],[0,1],[0,-1]])flat(PX+ax*(w/2-.55),PZ+az*(w/2-.55),ax?1.1:3.4,ax?3.4:1.1,'#c9c4a8',h+.013);
+          for(let k=0;k<3;k++){const a=lr()*4|0,o=(lr()-.5)*(w-4),e=w/2-.5;if(Math.abs(o)<2.4)continue;box(PX+(a===0?e:a===1?-e:o),h+.06,PZ+(a===2?e:a===3?-e:o),.9,.12,.9,'#3a8f4a');}}
+        claim(PX,PZ,22,22);const y=8;for(const sx of [-1,1])for(const sz of [-1,1]){box(PX+sx*2.8,y+1.6,PZ+sz*2.8,.8,3.2,.8,'#8d9084');solid(PX+sx*2.8,PZ+sz*2.8,.8,.8,y+3.2,y);}
+        box(PX,y+3.5,PZ,7.6,.6,7.6,'#9a9d8f');box(PX,y+4.1,PZ,5.6,.6,5.6,'#8d9084');box(PX,y+4.7,PZ,3,.6,3,'#9a9d8f');
+        box(PX,y+.3,PZ,2,.6,2,'#6f7c73');box(PX,y+1.3,PZ,1.2,1.4,1,GOLD);box(PX,y+2.3,PZ,1.4,.8,1.2,GOLD);for(const sg of [-1,1]){box(PX+sg*.5,y+2.9,PZ,.3,.4,.3,GOLD);box(PX+sg*.3,y+2.4,PZ+.61,.2,.2,.04,'#2f7a3f');}solid(PX,PZ,2,2,y+2.7,y);
+        for(const sg of [-1,1]){box(PX+sg*3.4,y+.5,PZ+3.4,.8,1,.8,'#6f7c73');box(PX+sg*3.4,y+1.2,PZ+3.4,.5,.5,.5,'#fff0b1');box(PX+sg*3.4,y+1.55,PZ+3.4,.3,.3,.3,'#ff9a3c');}
+        bsign('PIRÁMIDE DEL JAGUAR',264.9,2.6,-56,3.6,Math.PI,'#6b4a3a');box(264.9,1.1,-55.9,.18,2.2,.18,WOOD);MMR.push([PX,PZ,42,42,'#9a9d8f']);MMR.push([PX,PZ,9,9,'#e9c24a']);
+        for(const [ox,oz,hh] of [[-26,14,3.4],[-27.5,8,2],[-25,-22,4.2],[26,20,2.6],[24,-25,3.8]]){box(PX+ox,hh/2,PZ+oz,1.1,hh,1.1,'#9a9d8f');box(PX+ox,hh+.15,PZ+oz,1.5,.3,1.5,'#8d9084');solid(PX+ox,PZ+oz,1.1,1.1,hh);claim(PX+ox,PZ+oz,1,1);}}
+      // Ruinas y cabeza de piedra gigante
+      {const rx=140,rz=-74;flat(rx,rz,22,16,'#a7aa9a',.02);claim(rx,rz,12,9);for(let i=0;i<12;i++){const x=rx-9+(i%6)*3.6,z=rz+(i<6?-6:6),hh=1+lr()*4;box(x,hh/2,z,1,hh,1,'#9a9d8f');if(hh>3.6)box(x,hh+.2,z,1.5,.4,1.5,'#8d9084');solid(x,z,1,1,hh);if(lr()<.5)box(x+.5,hh*.5,z,.1,hh*.8,.4,'#3a8f4a');}
+        box(rx-9+1.8,5.2,rz-6,5,.6,1.3,'#8d9084');box(rx,2.6,rz,4,5.2,3.6,'#8d9084');box(rx,5.6,rz,4.6,.9,4,'#9a9d8f');box(rx,2.2,rz+1.9,1.2,2,.5,'#9a9d8f');for(const sg of [-1,1]){box(rx+sg*1,3.9,rz+1.82,.9,.5,.1,'#22272e');box(rx+sg*2.2,2.8,rz,.5,2,1.2,'#8d9084');}box(rx,1,rz+1.85,2,.3,.1,'#22272e');box(rx+1.2,5.9,rz+.6,2,.5,1.6,'#3a8f4a');solid(rx,rz,4,3.6,6);
+        bsign('RUINAS OLVIDADAS',rx,2.4,rz+8.4,3.4,0,'#6b4a3a');box(rx,1.1,rz+8.3,.18,2.2,.18,WOOD);MMR.push([rx,rz,22,16,'#a7aa9a']);}
+      // Casa del árbol: escalera de caracol alrededor del tronco gigante
+      {const tx=165,tz=30;box(tx,7,tz,2.6,14,2.6,'#5d4634','log');solid(tx,tz,2.6,2.6,14);claim(tx-3,tz,9,6);
+        box(tx,15,tz,12,2.6,12,'#2f7a3f','leaves');box(tx+1,17,tz-1,8,2,8,'#3a8f4a','leaves');box(tx-3,13.4,tz+2,6,1.4,6,'#27693a','leaves');
+        const ring=[[2.1,-2.1],[2.1,0],[2.1,2.1],[0,2.1],[-2.1,2.1],[-2.1,0],[-2.1,-2.1],[0,-2.1]];
+        for(let i=0;i<14;i++){const o=ring[(i+3)%8],h=.45*(i+1);box(tx+o[0],h-.07,tz+o[1],2.1,.14,2.1,PLANK,'plank');solid(tx+o[0],tz+o[1],2.1,2.1,h,Math.max(0,h-.35));}
+        const py=6.75;box(tx-6.6,py-.1,tz,7,.2,7,PLANK,'plank');solid(tx-6.6,tz,7,7,py,py-.36);hut(tx-7.4,tz-.6,py);for(const sx of [-1,1])for(const sz of [-1,1])box(tx-6.6+sx*3.3,py/2,tz+sz*3.3,.3,py,.3,'#5d4634','log');
+        for(const sz of [-1,1])box(tx-6.6,py+.9,tz+sz*3.4,7,.1,.1,'#5d4634');box(tx-10,py+.9,tz,.1,.1,7,'#5d4634');bsign('CASA DEL ÁRBOL',tx+1.2,2.4,tz+6.4,3,0,'#27693a');box(tx+1.2,1.1,tz+6.3,.18,2.2,.18,WOOD);}
+      // Cenote: pozo natural profundo de agua azul
+      {const cx=298.5,cz=43.5;for(let i=0;i<26;i++){const a=i/26*TAU;box(cx+Math.cos(a)*10.6,.5,cz+Math.sin(a)*10.4,1.6+lr(),1+lr()*.8,1.5+lr(),i%2?ROCK:ROCK2);}
+        for(let i=0;i<8;i++){const a=i/8*TAU+.3;box(cx+Math.cos(a)*9.4,.9,cz+Math.sin(a)*9.2,.1,2.4,.3,'#3f8f3a');}
+        box(cx-8.6,.25,cz,2.6,.14,1.6,PLANK,'plank');claim(cx,cz,12,12);bsign('CENOTE AZUL',cx-11.6,2.4,cz+3,2.8,-Math.PI/2,'#1d5f7a');box(cx-11.6,1.1,cz+3,.18,2.2,.18,WOOD);}
+      // Muelle largo de pescadores (costa este)
+      {const mx=285;for(let z=67;z<SHORE(mx)+26;z+=1.5){box(mx,.42,z,3,.14,1.52,PLANK,'plank');solid(mx,z,3,1.5,.5,z>SHORE(mx)?.12:0);if((z|0)%4===0)for(const sg of [-1,1])box(mx+sg*1.4,-1.4,z,.22,4,.22,WOOD);}
+        const ze=SHORE(mx)+27;box(mx,.42,ze+2,9,.14,6,PLANK,'plank');solid(mx,ze+2,9,6,.5,.12);hut(mx+2,ze+2.4,.5);box(mx-3,1,ze+.6,.12,1.2,.12,WOOD);box(mx-3,1.7,ze+1.6,.06,.06,2.2,WOOD);MMR.push([mx,(67+ze)/2,3,ze-67,'#967852']);}
+      // tótems, árboles gigantes, selva densa, helechos y flores
+      for(const [x,z] of [[124,5.4],[196,5],[262,-8.5],[226,36]]){for(let k=0;k<4;k++)box(x,.5+k,z,1,1,1,['#b0463c','#e9c24a','#2f7a8a','#5d4634'][k]);box(x,4.3,z,2.2,.5,.5,'#e9c24a');for(let k=0;k<4;k++)for(const sg of [-1,1])box(x+sg*.26,.6+k,z+.51,.2,.2,.04,'#22272e');solid(x,z,1,1,4.5);claim(x,z,1,1);}
+      shore();
+      scatter(34,122,324,-122,62,5.5,(x,z)=>jtree(x,z,3));
+      scatter(230,120,325,-124,63,2.6,(x,z)=>jtree(x,z,lr()<.3?1:0));
+      scatter(420,118,326,-126,64,.5,(x,z)=>{const r=lr();if(r<.45){box(x,.3,z,1.1+lr()*.8,.6,1.1+lr()*.8,r<.2?'#2f7a3f':'#3a8f4a','leaves');}else if(r<.75)box(x,.2,z,.18,.4,.18,['#e2504a','#ff9a3c','#b98cff','#ffd35c'][(r*40|0)%4]);else if(r<.9){box(x,.3,z,.2,.6,.2,'#e9dfc0');box(x,.7,z,.7,.3,.7,'#d8433b');}else box(x,.3,z,1+lr()*.8,.6,.9+lr()*.6,ROCK);});
+
+      // minimapa del mundo ampliado
+      CITY.mmExtra=(g,r)=>{g.fillStyle='#3f6b47';r(0,-48,690,236);g.fillStyle='#4f7a52';r(-226,-33,226,200);g.fillStyle='#2f5a38';r(226,-33,226,200);
+        g.fillStyle='#365a3c';g.beginPath();g.fill();
+        for(const m of MMR){g.fillStyle=m[4]||(m[2]*m[3]>300?'#d9cdb0':'#c9bd9c');r(m[0],m[1],m[2],m[3]);}
+        g.fillStyle='#3b9ecb';for(const l of LAKES)r((l.x0+l.x1)/2,(l.z0+Math.min(l.z1,96))/2,l.x1-l.x0,Math.min(l.z1,96)-l.z0);};
     }
     // --- Campamento del Bosque (claro del este): hoguera, tiendas y troncos para sentarse
     {
@@ -1170,7 +1373,7 @@ function cityGrassAt(x,z) {
     {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
     mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
   }
-  CITY.betaApply=on=>{for(const m of betaMeshes)m.count=on?m.userData.betaN:0;for(const m of pubMeshes)m.count=on?0:m.userData.betaN;for(const o of betaObjs)o.visible=!!on;
+  CITY.betaApply=on=>{for(const m of betaMeshes)m.count=on?m.userData.betaN:0;for(const m of pubMeshes)m.count=on?0:m.userData.betaN;for(const o of betaObjs)o.visible=!!on;for(const o of pubObjs)o.visible=!on;LAKES.on=!!on;if(CITY.bigGround)CITY.bigGround(!!on);
     for(const [list,want] of [[betaCols,!!on],[pubCols,!on]])for(const c of list){const i=COL.indexOf(c);if(want&&i<0)COL.push(c);else if(!want&&i>=0)COL.splice(i,1);}
     colMarkDirty();if(CITY.modelsReady&&typeof rebuildCityNav==='function')rebuildCityNav();};
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
@@ -1807,7 +2010,7 @@ function abyssClamp(v) {
   const lim = ABY_COR.hw - 1.2; if (abyNearPath(v.x, v.z)) { const p = abyPath(v.x, v.z); if (p.d <= lim) return v; if (p.d - lim < d - ABY.R) { const k = lim / p.d; v.x = p.x + (v.x - p.x) * k; v.z = p.z + (v.z - p.z) * k; return v; } }
   v.x = ABY.x + dx / d * ABY.R; v.z = ABY.z + dz / d * ABY.R; return v;
 }
-function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;if(z>600)return ABY_FLOOR(x,z);let g=(z>SHORE(x)+.2&&z<560&&Math.abs(x)<360)?seaFloor(x,z):0;const cols=colQuery(x,z,0.26);for(let i=0;i<cols.length;i++){const c=cols[i];if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);}return g;}
+function groundAt(x,z,footY=0){if(GUIDE_Y&&x>-40&&x<40&&z>-40&&z<40)return GUIDE_Y;if(z>600)return ABY_FLOOR(x,z);let g=(z>SHORE(x)+.2&&z<560&&Math.abs(x)<360)?seaFloor(x,z):0;if(LAKES.on){const lk=lakeAt(x,z);if(lk)g=Math.min(g,lakeFloor(lk,x,z));}const cols=colQuery(x,z,0.26);for(let i=0;i<cols.length;i++){const c=cols[i];if((!c.y0||footY>=c.y0-.15)&&Math.abs(x-c.x)<c.hx+.25&&Math.abs(z-c.z)<c.hz+.25)g=Math.max(g,c.h);}return g;}
 
 // ================= Partículas (bloquecitos) =================
 // Materiales toon, outlines y modelos de peleadores (ver js/graficos/materiales_peleador.js)
@@ -7235,7 +7438,7 @@ function updateProj(dt) {
     if (o.long) p.mesh.lookAt(p.pos.clone().add(p.vel)); else { p.mesh.rotation.x += dt * 10; p.mesh.rotation.z += dt * 7; }
     emit(p.pos.x, p.pos.y, p.pos.z, rand(-.5, .5), rand(-.5, .5), rand(-.5, .5), o.color, p.size * .5, .25, 0, 2);
     const abP = !!(p.owner && p.owner.abyss);
-    let boom = p.life <= 0 || p.pos.y < (abP ? ABY.y + .1 : .1) || groundAt(p.pos.x, p.pos.z) > p.pos.y || (!abP && Math.hypot(p.pos.x, p.pos.z) > ARENA + 1);
+    let boom = p.life <= 0 || p.pos.y < (abP ? ABY.y + .1 : .1) || groundAt(p.pos.x, p.pos.z) > p.pos.y || (!abP && outLand(p.pos.x, p.pos.z));
     if (!boom) for (const g of enemiesOf(p.owner)) {
       if (chestOf(g).distanceTo(p.pos) < .9 + p.size / 2 + (g.hitR || 0)) {
         if (o.onHit) o.onHit(g);
@@ -7266,7 +7469,7 @@ function updLoyal(p, i, dt) {
       if(loyalSpearHit(p,g,{dmg:o.dmg||8,kb:9,up:5,ragdoll:.7,dir:p.vel.clone(),color:o.color,hitstop:.05}))return;
       if(p.phase==='finish-wait')break;
     }
-    if(p.phase==='out'&&(p.life<=0||p.pos.y<.2||groundAt(p.pos.x,p.pos.z)>p.pos.y||Math.hypot(p.pos.x,p.pos.z)>ARENA+1)){
+    if(p.phase==='out'&&(p.life<=0||p.pos.y<.2||groundAt(p.pos.x,p.pos.z)>p.pos.y||outLand(p.pos.x,p.pos.z))){
       p.phase='back';p.set.clear();burst(p.pos,10,'#c9a94a',5,.15,.3);sfx('block',p.pos,.6);
     }
   }else{
@@ -7608,7 +7811,7 @@ const CITY_NAV=(()=>{
   const n=157,step=1.5,origin=-117,free=new Uint8Array(n*n);
   for(let z=0;z<n;z++)for(let x=0;x<n;x++){
     const wx=origin+x*step,wz=origin+z*step;
-    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
+    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !navCols().some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
   }
   return {n,step,origin,free};
 })();
@@ -7617,7 +7820,7 @@ function rebuildCityNav(){
   const {n,step,origin,free}=CITY_NAV;
   for(let z=0;z<n;z++)for(let x=0;x<n;x++){
     const wx=origin+x*step,wz=origin+z*step;
-    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !COL.some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
+    free[z*n+x]=Math.hypot(wx,wz)<CITY.bounds && (!inSea(wx,wz)||Math.abs(wx)<4.6) && !navCols().some(c=>(!c.y0||c.y0<1.9)&&Math.abs(wx-c.x)<c.hx+.65&&Math.abs(wz-c.z)<c.hz+.65)?1:0;
   }
 }
 const NAVBUF={c:new Float32Array(157*157),p:new Int32Array(157*157),k:new Uint8Array(157*157)},NAV_DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
@@ -7769,7 +7972,7 @@ function laserLeg(a, b, col, w = .2, dur = .25) {
   grp.add(o1, c1); grp.position.copy(a).lerp(b, .5); grp.lookAt(b);
   addFx(grp, dur, (g, k) => { const q = 1 - k * .8; g.scale.set(q, q, 1); o1.material.opacity = .6 * (1 - k); c1.material.opacity = 1 - k; }, () => { o1.geometry.dispose(); o1.material.dispose(); c1.geometry.dispose(); c1.material.dispose(); });
 }
-function clampArena(v, m = 2) { if (v.z > 560) return v; const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
+function clampArena(v, m = 2) { if (v.z > 560) return v; if (worldBig()) { v.x = clamp(v.x, -WORLD_BIG.hx + m, WORLD_BIG.hx - m); v.z = Math.max(v.z, WORLD_BIG.zn + m); return v; } const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
 function applyCtl(f, c, dt) {
   f.ctlJump = !!c.jump; f.ctlDown = !!c.down;
   if (f.mount) { mountUpdate(f, c, dt); return; }
@@ -7828,7 +8031,7 @@ function splashFx(f) {
 const UW = { k: 0, bub: 0 };
 function updateUnderwater(dt) {
   const cp = camera.position, p = G.player;
-  const under = G.state === 'play' && !G.cine && !(p && p.abyss) && cp.y < SEA_Y - .02 && cp.z > SHORE(cp.x) - 1;
+  const under = G.state === 'play' && !G.cine && !(p && p.abyss) && cp.y < SEA_Y - .02 && (cp.z > SHORE(cp.x) - 1 || !!lakeAt(cp.x, cp.z));
   UW.k += ((under ? 1 : 0) - UW.k) * Math.min(1, dt * 9);
   $('uw').style.opacity = UW.k.toFixed(3);
   if (UW.k > .01) {
@@ -7847,7 +8050,7 @@ function updateUnderwater(dt) {
 }
 const CULL = {
   fr: new THREE.Frustum(), m: new THREE.Matrix4(), sp: new THREE.Sphere(), dirty: true, range: 210,
-  groundBox: new THREE.Box3(new THREE.Vector3(-210, -2, -210), new THREE.Vector3(210, 1, 72)),
+  groundBox: new THREE.Box3(new THREE.Vector3(-345, -2, -210), new THREE.Vector3(345, 1, 72)),
   waterBox: new THREE.Box3(new THREE.Vector3(-420, -4, 65), new THREE.Vector3(420, 4, 580)),
   seaBox: new THREE.Box3(new THREE.Vector3(-230, -22, 64), new THREE.Vector3(230, 34, 340)),
   cityArenaBox: new THREE.Box3(new THREE.Vector3(-120, -2, -120), new THREE.Vector3(120, 6, 68)),
@@ -8998,8 +9201,8 @@ function physics(f, dt) {
   if (f.frozen > 0) { f.vel.x = f.vel.z = 0; }
   { // ¿está en aguas hondas? (no sobre el muelle ni en la orilla)
     const gz = f.onBoat != null ? f.onBoat : groundAt(f.pos.x, f.pos.z, f.pos.y), was = !!f.swim;   // a bordo del barco: la cubierta cuenta como suelo (no se nada)
-    f.swim = !f.abyss && f.alive && f.pos.z > SHORE(f.pos.x) + .2 && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
-    f.wade = !f.swim && !f.abyss && f.pos.z > SHORE(f.pos.x) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
+    f.swim = !f.abyss && f.alive && wetAt(f.pos.x, f.pos.z) && gz < SEA_Y - .9 && f.pos.y < SEA_Y + .3;
+    f.wade = !f.swim && !f.abyss && (f.pos.z > SHORE(f.pos.x) || !!lakeAt(f.pos.x, f.pos.z)) && gz < SEA_Y - .3 && f.pos.y < SEA_Y + .3;
     if (f.swim !== was && f.alive) { splashFx(f); if (f.isPlayer && f.swim && !G.swimHint) { G.swimHint = true; showBanner('NADANDO', '#7ad7ff', 'Mira abajo y avanza para bucear · Espacio sube · C baja'); } }
     if (f.swim) {
       const surf = SEA_Y - 1.2, up = f.ctlJump, dn = f.ctlDown;
@@ -9011,7 +9214,7 @@ function physics(f, dt) {
     }
     // aire: 20 s bajo el agua; sin aire, daño
     f.air = f.air == null ? 20 : f.air;
-    if (!f.abyss && f.alive && f.pos.y + 1.7 < SEA_Y - .05 && f.pos.z > SHORE(f.pos.x)) {
+    if (!f.abyss && f.alive && f.pos.y + 1.7 < SEA_Y - .05 && wetAt(f.pos.x, f.pos.z)) {
       f.air -= dt;
       if (f.air <= 0) { f.air = 0; f.airT = (f.airT || 0) + dt; if (f.airT > 1) { f.airT = 0; f.hp -= 4; popText(chestOf(f), '¡SIN AIRE!', '#7ad7ff', 18); if (f.hp <= 0 && f.alive) kill(f, f); } }
     } else f.air = Math.min(20, f.air + dt * 9);
@@ -9102,6 +9305,10 @@ function physics(f, dt) {
   const r = Math.hypot(f.pos.x, f.pos.z);
   if (f.abyss) abyssClamp(f.pos);
   else if (seaBounds(f.pos)) { /* zona del mar */ }
+  else if (worldBig()) {   // mundo ampliado: límite rectangular
+    if (Math.abs(f.pos.x) > WORLD_BIG.hx) { f.pos.x = Math.sign(f.pos.x) * WORLD_BIG.hx; f.vel.x = 0; }
+    if (f.pos.z < WORLD_BIG.zn) { f.pos.z = WORLD_BIG.zn; f.vel.z = Math.max(0, f.vel.z); }
+  }
   else if (r > ARENA - .5) {
     const nx = f.pos.x / r, nz = f.pos.z / r; f.pos.x = nx * (ARENA - .5); f.pos.z = nz * (ARENA - .5);
     const vn = f.vel.x * nx + f.vel.z * nz;
@@ -16548,7 +16755,8 @@ try { CFG_CINE.off = localStorage.getItem('bsb_nocine') === '1'; } catch (e) { }
   const nc = $('opt-nocine');
   if (nc) { nc.checked = CFG_CINE.off; nc.addEventListener('change', () => { CFG_CINE.off = nc.checked; try { localStorage.setItem('bsb_nocine', CFG_CINE.off ? '1' : '0'); } catch (e) { } if (CFG_CINE.off && G.cine) { G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine'); } }); }
 }
-const MM = { on: true, bg: null, bgW: 512, t: 0, cx: 0, cz: 16, half: 145, zoom: 2.0 };
+const MM = { on: true, bg: null, bgW: 512, t: 0, cx: 0, cz: 16, half: worldBig() ? 345 : 145, zoom: 2.0 };
+if (window.CF_BETA) CF_BETA.subscribe(on => { MM.half = on ? 345 : 145; MM.bgW = on ? 1024 : 512; MM.bg = null; });   // el mundo ampliado necesita un minimapa más ancho
 try {
   MM.on = localStorage.getItem('bsb_minimap') !== '0';
   const z0 = parseFloat(localStorage.getItem('bsb_mm_zoom'));
@@ -16584,6 +16792,7 @@ function mmBackground(W) {
   g.fillStyle = '#ff5252'; g.beginPath(); g.arc(mmX(-82, W), mmZ(152, W), 3.2 * k, 0, TAU); g.fill();
   g.fillStyle = '#dfc686'; g.beginPath(); g.arc(mmX(78, W), mmZ(144, W), 13 * k, 0, TAU); g.fill();
   g.fillStyle = '#388e3c'; g.beginPath(); g.arc(mmX(78, W), mmZ(144, W), 5 * k, 0, TAU); g.fill();
+  if (worldBig() && CITY.mmExtra) CITY.mmExtra(g, (x, z, w, d) => g.fillRect(mmX(x - w / 2, W), mmZ(z - d / 2, W), w * k, d * k));
   // centro pavimentado y calles
   g.fillStyle = '#4c545e'; g.beginPath(); g.arc(mmX(0, W), mmZ(0, W), CITY.core * k, 0, TAU); g.fill();
   g.fillStyle = '#2c3138';
