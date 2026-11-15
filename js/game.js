@@ -280,6 +280,7 @@ const SPAWN_POINTS = [
 ].map(([x,z],i) => ({ id: i + 1, x, z, yaw: Math.atan2(-x,-z) }));
 function cityGrassAt(x,z) {
   if(z>66)return false;   // paseo marítimo, playa y mar
+  if(CITY.noGrass&&CITY.noGrass.some(r=>x>r[0]&&x<r[1]&&z>r[2]&&z<r[3]))return false;   // caminos y plazas de los lugares nuevos
   return Math.hypot(x,z) > CITY.core || CITY.parks.some(p => Math.abs(x-p.x)<p.w/2-.4 && Math.abs(z-p.z)<p.d/2-.4);
 }
 {
@@ -288,13 +289,13 @@ function cityGrassAt(x,z) {
   const facadeColors=['#f0bf7b','#e49aab','#77beaa','#e9cd83','#b9a0db','#eda777','#88b8dc','#dda19b','#deca8b','#a9cd86','#87c8d0','#dcc080'];
   const batches = new Map(), matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), xyz = new V3(), size = new V3();
   // Vista privada (CF_BETA): lo que se construye con BETA_ON = true va en lotes aparte y solo lo ve el Owner hasta su lanzamiento (CITY.betaApply)
-  let BETA_ON = false; const betaCols = [], betaObjs = [], betaMeshes = [];
+  let BETA_ON = false; const betaCols = [], betaObjs = [], betaMeshes = [], pubCols = [], pubMeshes = [];   // BETA_ON = -1: solo para el público (lo que la novedad sustituye)
   const box = (x,y,z,w,h,d,color,tex=null,tower=null) => {
-    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44) + (BETA_ON ? ':beta' : '');   // un lote por color y por zona de 44 m
-    if (!batches.has(key)) batches.set(key, { color, tex, items: [], beta: BETA_ON });
+    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44) + (BETA_ON ? (BETA_ON < 0 ? ':pub' : ':beta') : '');   // un lote por color y por zona de 44 m
+    if (!batches.has(key)) batches.set(key, { color, tex, items: [], beta: BETA_ON > 0, pub: BETA_ON < 0 });
     batches.get(key).items.push([x,y,z,w,h,d,tower]);
   };
-  const solid = (x,z,w,d,h,y0=0,ceiling=false) => { const c = {x,z,hx:w/2,hz:d/2,h,y0,ceiling}; if (BETA_ON) betaCols.push(c); else COL.push(c); };
+  const solid = (x,z,w,d,h,y0=0,ceiling=false) => { const c = {x,z,hx:w/2,hz:d/2,h,y0,ceiling}; if (BETA_ON) (BETA_ON < 0 ? pubCols : betaCols).push(c); else COL.push(c); };
   const flat = (x,z,w,d,color,y=.013) => box(x,y,z,w,.018,d,color);
   const grass = BLOCK_TEX.grass.clone(); grass.needsUpdate = true;
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,280/B);
@@ -736,7 +737,7 @@ function cityGrassAt(x,z) {
   // Torre Aurora: el edificio más alto, con ascensor en el vestíbulo que lleva a la azotea y un pararrayos
   {
     const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA'),face=T.z<0?1:-1,rx=T.x,rz=T.z;
-    const gx=rx,gz=rz-face*(T.d/2-1.35),qx=rx,qz=rz+face*(T.d/2-2.6),roofY=T.h+.25;
+    const gx=rx,gz=rz-face*(T.d/2-1.35),qx=rx,qz=rz-face*(T.d/2-2.6),roofY=T.h+.25;
     const doorMat=new THREE.MeshLambertMaterial({color:0xb6bfc4,emissive:0x1b2024});
     const mkStation=(px,pz,dz,y0)=>{
       const st={px,pz,dx:px,dz,y0,open:0,target:0,panels:[],col:{x:px,z:dz,hx:1.4,hz:.15,h:y0+3.3,y0:y0||0,ceiling:false,nocam:true}};
@@ -744,11 +745,11 @@ function cityGrassAt(x,z) {
       COL.push(st.col);return st;
     };
     ELEVATORS.push({x:gx,z:gz,roofY,arrUp:{x:qx,z:qz},downX:qx,downZ:qz,arrDown:{x:gx,z:gz},ride:null,
-      st:[mkStation(gx,gz,rz-face*(T.d/2-3.2),0),mkStation(qx,qz,rz+face*(T.d/2-4.3),roofY)]});
+      st:[mkStation(gx,gz,rz-face*(T.d/2-3.2),0),mkStation(qx,qz,rz-face*(T.d/2-4.3),roofY)]});
     sign('▲ AZOTEA',rx,4.6,rz-face*3.6,2.2,face>0?0:Math.PI,'#1b2330');
     flat(rx,rz-face*(T.d/2-1.35),2.2,2.2,'#7ad7ff',.058);flat(rx,rz-face*(T.d/2-1.35),1.6,1.6,'#e9fbff',.07);        // plataforma del ascensor (planta baja)
-    box(rx,T.h+.38,rz+face*(T.d/2-2.6),2.2,.14,2.2,'#7ad7ff');box(rx,T.h+.47,rz+face*(T.d/2-2.6),1.6,.06,1.6,'#e9fbff');// plataforma de bajada (azotea)
-    sign('▼ BAJAR',rx,T.h+3.33,rz+face*(T.d/2-4.5),1.6,face>0?Math.PI:0,'#1b2330');
+    box(rx,T.h+.38,rz-face*(T.d/2-2.6),2.2,.14,2.2,'#7ad7ff');box(rx,T.h+.47,rz-face*(T.d/2-2.6),1.6,.06,1.6,'#e9fbff');// plataforma de bajada (azotea)
+    sign('▼ BAJAR',rx,T.h+3.33,rz-face*(T.d/2-4.5),1.6,face>0?0:Math.PI,'#1b2330');   // la caseta de la azotea queda justo encima de la cabina del vestíbulo: el ascensor sube en vertical
   }
   // Reloj de la estación, una referencia visible para orientarse.
   box(-13,7.5,-29,2.2,2.4,2.2,'#deca8b');solid(-13,-29,2.2,2.2,8.7);
@@ -805,6 +806,7 @@ function cityGrassAt(x,z) {
     }
   }
   const GARDEN={x:-90,z:28,r:14};
+  const CLAROS=[[-109,-70,-27,44],[77,101,-12,14],[-15,15,-108,-77]];   // [x0,x1,z0,z1] Barrio Sakura, Campamento y Lago: ahí el bosque solo lo ve el público
   // ===== Costa: paseo marítimo, playa, mar, bosque y adornos (todo determinista: igual para todos los jugadores) =====
   const rnd=(()=>{let q=20261031;return()=>(q=(q*1664525+1013904223)>>>0)/4294967296;})();
   flat(0,66,240,6,'#56616a');for(let x=-114;x<=114;x+=6)flat(x,66,2.4,.12,'#f6daa0',.04);
@@ -872,10 +874,12 @@ function cityGrassAt(x,z) {
     const x=gx+(rnd()-.5)*6,z=gz+(rnd()-.5)*6,r=Math.hypot(x,z);
     if(r<70||r>ARENA-6||z>60||rnd()<.2)continue;
     if(SPAWN_POINTS.some(q=>Math.hypot(q.x-x,q.z-z)<4.5))continue;
-    const claro=Math.hypot(x-GARDEN.x,z-GARDEN.z)<GARDEN.r;   // claro del Jardín de los Cerezos (se siguen pidiendo los mismos números al azar)
-    if(!claro)tree(x,z);
-    if(rnd()<.4&&!claro)box(x+1.6,.35,z+.8,1.1,.7,1.1,'#5f9a55','leaves');
-    if(rnd()<.15&&!claro)box(x-1.5,.3,z-1,1.2,.6,1,'#8c9195');
+    const claro=CLAROS.some(c=>x>c[0]&&x<c[1]&&z>c[2]&&z<c[3]);   // en los claros el árbol es "solo público" (se piden los mismos números al azar)
+    if(claro)BETA_ON=-1;
+    tree(x,z);
+    if(rnd()<.4)box(x+1.6,.35,z+.8,1.1,.7,1.1,'#5f9a55','leaves');
+    if(rnd()<.15)box(x-1.5,.3,z-1,1.2,.6,1,'#8c9195');
+    BETA_ON=false;
   }
   // adornos de la costa (modelos de Blockbench en ciudad/)
   const PR=[];
@@ -978,6 +982,120 @@ function cityGrassAt(x,z) {
       box(x,.4,z,.42,.8,.42,'#8c9195');box(x,1,z,.6,.42,.6,'#fff0b1');box(x,1.3,z,.82,.14,.82,'#6f777c');box(x,1.45,z,.3,.16,.3,'#6f777c');solid(x,z,.6,.6,1.5);}
     bench(JX+5.2,JZ-3.2);bench(JX-7.4,JZ+1,true);
     bsign('JARDÍN DE LOS CEREZOS',JX+11.85,3.05,JZ,3.6,Math.PI/2,'#7a2f3a');
+    CITY.noGrass=[[-93.2,-82.8,-4.7,4.7],[-89.8,-86.2,-18,17.4],[-83,-58,-1.7,1.7],[-105.7,-96.3,8.3,15.7],[-96,-93,-2.4,.4],[-96.2,-85.8,23.3,32.7],[-93.7,-82.3,-25,-16],[-104,-95,-5.5,3.5],
+      [81.3,96.7,-5.7,7.7],[61.8,81.4,-1.3,1.3],[-1.3,1.3,-85.2,-62.8],[-4.7,4.7,-90.8,-84.4],[-12.2,12.2,-104.7,-91.3]];
+    // --- Barrio Sakura: el jardín crece hasta ser un barrio entero (plaza, pagoda, santuario, calle de casitas, túnel de torii, jardín zen, bambú)
+    {
+      const DX=-88,DZ=0,RED='#c8473f',TILE='#2a2f3a',WOOD='#5a3d2e',CREAM='#efe6d0',STONE='#8c9195',PAVE='#d9cdb0',PAVE2='#c9bd9c',GOLD='#e9c24a';
+      const sakura=(x,z)=>{box(x,1.3,z,.5,2.6,.5,'#6b4a3a','log');solid(x,z,.5,.5,2.7);
+        box(x,3.4,z,3.1,1.6,3.1,'#f7b6cf');box(x+.25,4.45,z-.15,2.1,1,2.1,'#fbd0e0');box(x-.9,2.75,z+.8,1.3,.7,1.3,'#f39dbd');
+        for(let k=0;k<6;k++)flat(x+(lr()-.5)*5,z+(lr()-.5)*5,.16,.16,k%2?'#f7b6cf':'#fbd0e0',.05);};
+      const toro=(x,z)=>{box(x,.4,z,.42,.8,.42,STONE);box(x,1,z,.6,.42,.6,'#fff0b1');box(x,1.3,z,.82,.14,.82,'#6f777c');box(x,1.45,z,.3,.16,.3,'#6f777c');solid(x,z,.6,.6,1.5);};
+      const torii=(x,z,alongX,w,h,col)=>{   // alongX: se cruza caminando a lo largo de X
+        for(const sg of [-1,1]){const px=alongX?x:x+sg*w/2,pz=alongX?z+sg*w/2:z;box(px,h/2,pz,.4,h,.4,col);solid(px,pz,.4,.4,h);box(px,.15,pz,.62,.3,.62,TILE);}
+        box(x,h+.1,z,alongX?.45:w+1.6,.34,alongX?w+1.6:.45,col);box(x,h+.42,z,alongX?.62:w+2.4,.26,alongX?w+2.4:.62,TILE);box(x,h-.7,z,alongX?.3:w+.6,.24,alongX?w+.6:.3,col);};
+      const casa=(x,z,w,d,f,noren)=>{   // f: hacia dónde mira la fachada (+1 = +Z)
+        box(x,.15,z,w+.6,.3,d+.6,'#a3a8ab');box(x,1.75,z,w,2.9,d,CREAM);solid(x,z,w,d,4.6);
+        for(const sx of [-1,1])for(const sz of [-1,1])box(x+sx*(w/2-.1),1.75,z+sz*(d/2-.1),.28,2.95,.28,WOOD);
+        box(x,3.1,z,w+.1,.2,d+.1,WOOD);box(x,3.45,z,w+1.6,.3,d+1.6,TILE);box(x,3.85,z,w+.5,.5,d*.7,TILE);box(x,4.35,z,w+.2,.5,d*.36,TILE);box(x,4.68,z,w+.5,.16,.3,'#4a5563');
+        const fz=z+f*(d/2+.03);
+        box(x,1.1,fz,1.5,2.2,.06,'#3a2a22');box(x,1.95,fz+f*.05,1.7,.75,.05,noren);box(x,1.95,fz+f*.08,.5,.3,.03,'#fff8df');
+        for(const sx of [-1,1]){const wx=x+sx*(w/2-1);box(wx,1.7,fz,1.1,1.1,.05,'#f6f0dc');for(let k=-1;k<=1;k++)box(wx+k*.28,1.7,fz+f*.03,.05,1.1,.04,WOOD);box(wx,1.7,fz+f*.03,1.1,.05,.04,WOOD);}
+        box(x+w/2-.2,2.5,fz+f*.35,.36,.56,.36,'#e2504a');box(x+w/2-.2,2.84,fz+f*.35,.24,.08,.24,TILE);
+      };
+      // caminos y plaza (la plaza rodea el punto de aparición del oeste)
+      flat(DX,DZ,10,9,PAVE,.02);flat(DX,DZ,8.6,7.6,PAVE2,.026);flat(DX,DZ,7.4,6.4,PAVE,.03);
+      flat(DX,DZ-11,3.2,13,PAVE,.02);flat(DX,DZ+10.8,3,12.6,PAVE,.02);flat(-77.25,DZ,11.5,3,PAVE,.02);flat(-94.1,DZ-1,2.2,2.4,PAVE,.02);
+      for(let i=0;i<8;i++)flat(-70.4+i*1.5,DZ+(i%2?.4:-.4),1.05,1.05,PAVE,.03);                                   // losas hacia la ciudad
+      for(let zz=-17;zz<=-5;zz+=1.6)flat(DX,zz,3.2,.06,PAVE2,.026);for(let zz=5;zz<=17;zz+=1.6)flat(DX,zz,3,.06,PAVE2,.026);
+      // gran torii de entrada y cartel
+      torii(-71.4,DZ,true,6.2,6.4,RED);bsign('BARRIO SAKURA',-70.95,5.15,DZ,4.8,Math.PI/2,'#7a2f3a');
+      sakura(-68.6,DZ-4.6);sakura(-68.6,DZ+4.6);toro(-70.2,DZ-2.6);toro(-70.2,DZ+2.6);
+      // calle de casitas con farolillos colgados
+      casa(-80,-5.6,5,4.6,1,'#2f5d8a');casa(-75,-5.6,4,4.6,1,'#7a2f3a');casa(-80,5.6,5,4.6,-1,'#3f7a4f');casa(-75,5.6,4,4.6,-1,'#b8902c');
+      for(const lx of [-81.5,-77.5,-73.6]){box(lx,3.95,DZ,.05,.05,6.4,TILE);for(let i=-1;i<=1;i++){box(lx,3.6-(i===0?.14:0),DZ+i*1.7,.4,.5,.4,i?'#e2504a':'#fff0b1');box(lx,3.3-(i===0?.14:0),DZ+i*1.7,.18,.08,.18,GOLD);}}
+      // túnel de torii entre la plaza y el jardín
+      for(let i=0;i<6;i++)torii(DX,6.4+i*2,false,3.5,3.7,i%2?'#d9603f':RED);
+      // santuario al fondo del camino norte
+      {const sx=DX,sz=DZ-21;
+        box(sx,.3,sz,11,.6,7.5,'#a3a8ab');solid(sx,sz,11,7.5,.6);box(sx,.15,sz+4.15,4,.3,.8,'#a3a8ab');solid(sx,sz+4.15,4,.8,.3);
+        box(sx,2.3,sz-1,8,3.4,4,CREAM);solid(sx,sz-1,8,4,6.5);
+        for(const k of [-3.9,-1.3,1.3,3.9]){box(sx+k,2.3,sz+2.4,.36,3.4,.36,RED);solid(sx+k,sz+2.4,.36,.36,4);}
+        box(sx,4.15,sz+.2,10.6,.3,7.4,RED);box(sx,4.5,sz+.2,12,.34,8.6,TILE);box(sx,5,sz+.2,9.6,.6,6,TILE);box(sx,5.6,sz+.2,7.6,.6,3.4,TILE);box(sx,6.05,sz+.2,8.2,.2,.4,GOLD);
+        box(sx,1.6,sz+1.03,2,2,.06,'#3a2a22');for(const k of [-2.6,2.6])box(sx+k,2.4,sz+1.03,1.4,1.2,.05,'#f6f0dc');
+        box(sx,1,sz+2.2,1.5,.8,.8,WOOD);box(sx,1.42,sz+2.2,1.3,.06,.6,'#22272e');solid(sx,sz+2.2,1.5,.8,1.4);
+        box(sx,3.1,sz+2.7,.1,1.7,.1,'#e9dfc0');box(sx,3.9,sz+2.7,.42,.42,.42,GOLD);
+        for(const k of [-1,1]){box(sx+k*3.3,.5,sz+5.7,1,1,.8,STONE);box(sx+k*3.3,1.3,sz+5.6,.7,.7,.8,'#a3a8ab');box(sx+k*3.3,1.8,sz+5.85,.6,.5,.5,'#a3a8ab');solid(sx+k*3.3,sz+5.7,1,.8,2);}
+        bsign('SANTUARIO DEL ZORRO',sx,3.55,sz+2.62,3.4,0,'#7a2f3a');}
+      for(const zz of [-7,-10.5,-14])for(const sg of [-1,1])toro(DX+sg*2.4,zz);
+      // pagoda de cinco pisos: se ve desde toda la ciudad
+      {const px=DX-11.5,pz=DZ-1;
+        box(px,.25,pz,8.6,.5,8.6,'#a3a8ab');solid(px,pz,8.6,8.6,.5);box(px+4.7,.12,pz,.8,.25,2.4,'#a3a8ab');solid(px+4.7,pz,.8,2.4,.25);
+        let y=.5;for(let i=0;i<5;i++){const w=5.4-i*.7,h=i?2.2:3;
+          box(px,y+h/2,pz,w,h,w,i%2?'#f6efdc':CREAM);for(const sx of [-1,1])for(const sz of [-1,1])box(px+sx*(w/2-.08),y+h/2,pz+sz*(w/2-.08),.26,h,.26,RED);
+          box(px,y+h-.25,pz,w+.12,.18,w+.12,RED);if(i)for(const sx of [-1,1])box(px+sx*(w/2+.02),y+1,pz,.05,.9,1.1,'#3a2a22');
+          y+=h;box(px,y+.15,pz,w+2.6,.3,w+2.6,TILE);box(px,y+.42,pz,w+1.5,.26,w+1.5,'#39424e');
+          for(const sx of [-1,1])for(const sz of [-1,1])box(px+sx*(w/2+1.3),y+.36,pz+sz*(w/2+1.3),.3,.24,.3,GOLD);
+          y+=.55;}
+        box(px,y+1.5,pz,.22,3,.22,GOLD);for(let k=0;k<4;k++)box(px,y+.5+k*.6,pz,.74-k*.13,.12,.74-k*.13,GOLD);
+        solid(px,pz,5.4,5.4,y);box(px+2.73,1.6,pz,.06,2.2,1.5,'#3a2a22');toro(px+4.9,pz-2.6);toro(px+4.9,pz+2.6);}
+      // jardín zen (arena rastrillada y rocas)
+      {const zx=-101,zz=12;flat(zx,zz,9,7,'#e8dfc4',.03);
+        for(let k=-3;k<=3;k++)flat(zx,zz+k*.9,8.4,.07,'#d2c7a6',.036);
+        for(const [w,d,ox,oz] of [[9.3,.3,0,-3.5],[9.3,.3,0,3.5],[.3,7,-4.5,0],[.3,7,4.5,0]])box(zx+ox,.1,zz+oz,w,.2,d,WOOD);
+        for(const [ox,oz,w,h] of [[-2.2,-1,1.3,1],[1.8,1.2,1,.7],[2.6,.7,.6,.45],[-.4,1.9,.7,.5]]){flat(zx+ox,zz+oz,w+1,w+1,'#d2c7a6',.04);box(zx+ox,h/2,zz+oz,w,h,w*.85,STONE);solid(zx+ox,zz+oz,w,w*.85,h);}
+        bench(zx+6,zz,true);toro(zx+5.6,zz-4.2);}
+      // bosque de bambú
+      for(let i=0;i<22;i++){const x=-99.4+(lr()-.5)*9,z=-13.6+(lr()-.5)*7.6,h=5+lr()*2.8;
+        box(x,h/2,z,.2,h,.2,i%3?'#7fb069':'#93c47d');solid(x,z,.22,.22,h);box(x,h*.45,z,.26,.06,.26,'#5f8f4f');box(x,h+.1,z,1.2,.5,1.2,'#5f9a55','leaves');box(x+.3,h-.7,z-.2,.8,.35,.8,'#69a66d','leaves');}
+      // campana, puesto de comida, carpas koi y cerezos
+      {const bx=-77,bz=-14.5;box(bx,.2,bz,3.2,.4,3.2,'#a3a8ab');solid(bx,bz,3.2,3.2,.4);
+        for(const sx of [-1,1])for(const sz of [-1,1]){box(bx+sx*1.1,2,bz+sz*1.1,.28,3.2,.28,WOOD);solid(bx+sx*1.1,bz+sz*1.1,.28,.28,3.6);}
+        box(bx,3.7,bz,3.9,.26,3.9,TILE);box(bx,4.05,bz,2.6,.44,2.6,TILE);box(bx,4.4,bz,1.2,.3,1.2,TILE);box(bx,3.3,bz,2.4,.14,.14,WOOD);
+        box(bx,2.5,bz,.95,1.2,.95,'#b08d57');box(bx,1.86,bz,1.08,.12,1.08,'#8a6a3a');box(bx,3.16,bz,.3,.16,.3,'#8a6a3a');box(bx+1.25,2.5,bz,1.5,.16,.16,'#81654a','log');solid(bx,bz,.95,.95,3.2,1.8);}
+      {const yx=-94.6,yz=7.6;box(yx,.5,yz,2.8,1,.9,'#967852','plank');solid(yx,yz,2.8,.9,1.05);box(yx,1.03,yz,3,.07,1.1,WOOD);
+        for(const sx of [-1,1])for(const sz of [-1,1])box(yx+sx*1.4,1.3,yz+sz*.7,.1,2.6,.1,WOOD);
+        for(let k=0;k<6;k++)box(yx-1.5+k*.6+.3,2.66,yz,.6,.12,2,k%2?'#f6f0dc':'#d8433b');
+        for(const sx of [-1,1]){box(yx+sx*1.2,2.2,yz-.95,.3,.44,.3,'#e2504a');box(yx+sx*1.2,1.96,yz-.95,.14,.06,.14,GOLD);}
+        box(yx-.6,1.2,yz,.4,.28,.4,'#22272e');box(yx+.5,1.16,yz,.5,.2,.4,'#f6f0dc');box(yx,.3,yz-1.3,1.8,.6,.4,'#81654a','log');solid(yx,yz-1.3,1.8,.4,.6);}
+      {const kx=-92.3,kz=-3.9;box(kx,3.6,kz,.16,7.2,.16,'#b6bfc4');solid(kx,kz,.2,.2,7.2);box(kx,7.3,kz,.34,.2,.34,GOLD);
+        ['#2f5d8a','#d8433b','#f39dbd'].forEach((c,k)=>{box(kx+1,6.5-k*.95,kz,1.6,.42,.3,c);box(kx+1.95,6.5-k*.95,kz,.3,.6,.3,c);box(kx+.36,6.56-k*.95,kz+.16,.12,.12,.04,'#fff8df');});}
+      for(const [x,z] of [[-84,-11.8],[-92.6,-9.6],[-92.3,13],[-83.8,12.4],[-96,5.4],[-82.4,-16.4]])sakura(x,z);
+      bench(DX+3.9,DZ-3.3);bench(DX-3.9,DZ+3.3);
+    }
+    // --- Campamento del Bosque (claro del este): hoguera, tiendas y troncos para sentarse
+    {
+      const CX=91,CZ=2.6,DIRT='#b9a27a';
+      flat(89,1,15,13,DIRT,.016);flat(70.5,0,17,2.2,DIRT,.016);
+      for(let i=0;i<8;i++){const a=i/8*TAU;box(CX+Math.cos(a)*.85,.14,CZ+Math.sin(a)*.85,.42,.28,.42,i%2?'#8c9195':'#a3a8ab');}
+      box(CX,.2,CZ,1.1,.2,.22,'#6b4a3a','log');box(CX,.2,CZ,.22,.2,1.1,'#6b4a3a','log');box(CX,.55,CZ,.5,.6,.5,'#ff9a3c');box(CX,.95,CZ,.3,.5,.3,'#fff0b1');box(CX+.12,.4,CZ-.1,.7,.3,.7,'#e2504a');solid(CX,CZ,1.9,1.9,.5);
+      CITY.campfire={x:CX,z:CZ};
+      for(const [ox,oz,t] of [[0,2.6,0],[0,-2.6,0],[2.6,0,1]]){const w=t?.55:2.2,d=t?2.2:.55;box(CX+ox,.28,CZ+oz,w,.56,d,'#81654a','log');solid(CX+ox,CZ+oz,w,d,.56);}
+      const tent=(x,z,c,c2)=>{for(let i=0;i<5;i++)box(x,.25+i*.5,z,3-i*.62,.5,3.4,i%2?c2:c);box(x,.9,z+1.72,1,1.5,.05,'#22272e');solid(x,z,3,3.4,2.5);};
+      tent(95.5,-4.4,'#d8433b','#b0463c');tent(84.6,7.2,'#3f7a4f','#356a44');
+      box(86.2,1.5,-3.6,.16,3,.16,'#5a3d2e');box(86.2,3.1,-3.6,.42,.5,.42,'#fff0b1');box(86.2,3.42,-3.6,.56,.12,.56,'#2a2f3a');solid(86.2,-3.6,.2,.2,3.4);
+      box(96.6,.4,5.2,.9,.8,.9,'#967852','plank');box(96.4,1.1,5.3,.7,.6,.7,'#967852','plank');box(95.5,.3,5.6,.8,.6,.8,'#81654a','log');solid(96.3,5.3,1.9,1.1,1.4);
+      box(80.6,1.1,-2,.18,2.2,.18,'#5a3d2e');solid(80.6,-2,.2,.2,2.4);bsign('CAMPAMENTO DEL BOSQUE',80.5,2.5,-2,3.4,-Math.PI/2,'#3f5a3a');
+      for(let i=0;i<14;i++){const x=62.5+lr()*16,z=(lr()<.5?-1:1)*(1.5+lr()*.8);box(x,.16,z,.16,.32,.16,['#f3a2cb','#ffd35c','#e9fbff'][i%3]);}
+    }
+    // --- Lago Aurora (claro del norte): lago con embarcadero, bote y mirador
+    {
+      const LX=0,LZ=-98,DIRT='#b9a27a';
+      flat(0,-74,2.2,22,DIRT,.016);flat(0,-87.6,9,6,DIRT,.016);
+      flat(LX,LZ,24,13,'#3b86ad',.035);flat(LX,LZ,22,11.2,'#5fb8d6',.045);for(const [ox,oz,w] of [[-6,-2,2.2],[5,1.6,1.6],[-1,3,1.2],[8,-3.4,1.8]])flat(LX+ox,LZ+oz,w,.5,'#e8f7ff',.055);
+      for(let i=0;i<26;i++){const a=i/26*TAU;box(LX+Math.cos(a)*12.3,.16,LZ+Math.sin(a)*6.9,.8+lr()*.6,.32,.7+lr()*.5,i%3?'#8c9195':'#a3a8ab');}
+      for(const [ox,oz] of [[-7,2.4],[-4.4,-3.2],[6.6,-1.4],[3,3.4],[9,2.2],[-9,-1.2]]){flat(LX+ox,LZ+oz,.9,.9,'#4f9a5b',.06);if(lr()<.6)box(LX+ox,.12,LZ+oz,.24,.14,.24,'#f3a2cb');}
+      for(let zz=-91.6;zz>=-97.2;zz-=.8){box(0,.22,zz,2.2,.1,.74,'#967852','plank');}solid(0,-94.4,2.2,6.4,.27);for(const sg of [-1,1])for(const zz of [-92,-97])box(sg*1.1,.4,zz,.2,.9,.2,'#5a3d2e');
+      box(3.4,.22,-96.4,1.3,.3,2.8,'#b0463c');box(3.4,.4,-96.4,1,.1,2.4,'#967852','plank');box(3.4,.5,-96.4,1.2,.08,.3,'#5a3d2e');
+      for(const [ox,oz] of [[-10.6,4.6],[10.4,4.8],[-11.6,-4],[11.2,-4.4]])for(let k=0;k<4;k++)box(LX+ox+(lr()-.5)*1.2,.6,LZ+oz+(lr()-.5)*1.2,.1,1.2+lr()*.5,.1,k%2?'#7fb069':'#b08d57');
+      {const gx=8.6,gz=-86.6;box(gx,.2,gz,4.6,.4,4.6,'#a3a8ab');solid(gx,gz,4.6,4.6,.4);
+        for(const sx of [-1,1])for(const sz of [-1,1]){box(gx+sx*1.9,2,gz+sz*1.9,.26,3.2,.26,'#f6f3ec');solid(gx+sx*1.9,gz+sz*1.9,.26,.26,3.6);}
+        box(gx,3.7,gz,5.4,.26,5.4,'#577d7d');box(gx,4.05,gz,3.8,.44,3.8,'#577d7d');box(gx,4.45,gz,2,.36,2,'#577d7d');box(gx,4.8,gz,.4,.4,.4,'#e9c24a');
+        box(gx+1.9,.95,gz,.14,.12,3.6,'#f6f3ec');box(gx,.95,gz-1.9,3.6,.12,.14,'#f6f3ec');box(gx,.72,gz+.2,1.8,.14,.6,'#967852','plank');solid(gx,gz+.2,1.8,.6,.8,.4);}
+      box(-3.2,1.1,-84.4,.18,2.2,.18,'#5a3d2e');solid(-3.2,-84.4,.2,.2,2.4);bsign('LAGO AURORA',-3.2,2.5,-84.3,3,0,'#1d5f7a');
+      bench(-6.4,-89.4);box(-8.6,1.5,-88,.16,3,.16,'#435766');box(-8.6,3.1,-88,.42,.5,.42,'#fff0b1');solid(-8.6,-88,.2,.2,3.4);
+      for(let i=0;i<14;i++){const z=-63.5-lr()*19,x=(lr()<.5?-1:1)*(1.5+lr()*.8);box(x,.16,z,.16,.32,.16,['#f3a2cb','#ffd35c','#e9fbff'][i%3]);}
+    }
     // --- Farolillos colgados sobre las cuatro entradas de la plaza (solo adorno: quedan por encima de las cabezas)
     for(const [ax,az,alongX] of [[0,-11.4,1],[0,11.4,1],[-11.4,0,0],[11.4,0,0]]){
       box(ax,5.3,az,alongX?10.8:.05,.05,alongX?.05:10.8,'#2a3b4a');
@@ -1001,7 +1119,7 @@ function cityGrassAt(x,z) {
     {const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA');
       if(T){const fc=T.z<0?1:-1;bsign('ASCENSOR A LA AZOTEA',T.x,6.9,T.z+fc*(T.d/2+.95),6.4,fc>0?0:Math.PI,'#1b2330');
         const beam=new THREE.Mesh(new THREE.BoxGeometry(.7,18,.7),new THREE.MeshBasicMaterial({color:0x7ad7ff,transparent:true,opacity:.2,depthWrite:false,fog:false}));
-        beam.position.set(T.x,T.h+3.9+9,T.z+fc*(T.d/2-2.6));beam.visible=false;scene.add(beam);betaObjs.push(beam);}}
+        beam.position.set(T.x,T.h+3.9+9,T.z-fc*(T.d/2-2.6));beam.visible=false;scene.add(beam);betaObjs.push(beam);}}
   }
   BETA_ON=false;
   // Contornos de arquitectura: líneas sobrias que acentúan la silueta del barrio.
@@ -1045,14 +1163,15 @@ function cityGrassAt(x,z) {
     if(['#77b3c6','#7fb5c5','#aac5d1'].includes(batch.color))CITY.windowMaterials.push(mat);
     if(batch.color==='#fff0b1')CITY.lampMaterials.push(mat);
     const mesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat,batch.items.length);
-    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);const tower=p.pop();if(tower)tower.parts.push({mesh,index:i});if(!road&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color,isBuilding:true});});
+    batch.items.forEach((p,i)=>{matrix.compose(xyz.set(p[0],p[1],p[2]),rotation,size.set(p[3],p[4],p[5]));mesh.setMatrixAt(i,matrix);const tower=p.pop();if(tower)tower.parts.push({mesh,index:i});if(!road&&!batch.beta&&!batch.pub&&p[4]>.15&&p[4]<70&&Math.max(p[3],p[5])<45&&p[3]*p[4]*p[5]<=7000)(window.DESTR||(window.DESTR=[])).push({m:mesh,i,p,col:batch.color,isBuilding:true});});
     cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;scene.add(mesh);
     if(batch.beta){mesh.userData.betaN=batch.items.length;mesh.count=0;betaMeshes.push(mesh);}
+    if(batch.pub){mesh.userData.betaN=batch.items.length;pubMeshes.push(mesh);}
     {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
     mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
   }
-  CITY.betaApply=on=>{for(const m of betaMeshes)m.count=on?m.userData.betaN:0;for(const o of betaObjs)o.visible=!!on;
-    for(const c of betaCols){const i=COL.indexOf(c);if(on&&i<0)COL.push(c);else if(!on&&i>=0)COL.splice(i,1);}
+  CITY.betaApply=on=>{for(const m of betaMeshes)m.count=on?m.userData.betaN:0;for(const m of pubMeshes)m.count=on?0:m.userData.betaN;for(const o of betaObjs)o.visible=!!on;
+    for(const [list,want] of [[betaCols,!!on],[pubCols,!on]])for(const c of list){const i=COL.indexOf(c);if(want&&i<0)COL.push(c);else if(!want&&i>=0)COL.splice(i,1);}
     colMarkDirty();if(CITY.modelsReady&&typeof rebuildCityNav==='function')rebuildCityNav();};
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
   for(let i=0;i<16;i++){
