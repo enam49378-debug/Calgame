@@ -137,7 +137,7 @@ window.COL = COL; window.CLOUDS = CLOUDS;
 window.mostrarColisiones = () => { if (window._colVis) { scene.remove(window._colVis); window._colVis = null; return 'ocultas'; } const pts = [], p = (x, y, z) => pts.push(x, y, z);
   for (const c of COL) { const y0 = c.y0 || 0, y1 = c.h || 1, x0 = c.x - c.hx, x1 = c.x + c.hx, z0 = c.z - c.hz, z1 = c.z + c.hz; for (const [a, b] of [[[x0, z0], [x1, z0]], [[x1, z0], [x1, z1]], [[x1, z1], [x0, z1]], [[x0, z1], [x0, z0]]]) { p(a[0], y0, a[1]); p(b[0], y0, b[1]); p(a[0], y1, a[1]); p(b[0], y1, b[1]); p(a[0], y0, a[1]); p(a[0], y1, a[1]); } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x00ff66, depthTest: false })); l.renderOrder = 999; l.frustumCulled = false; scene.add(l); window._colVis = l; return COL.length + ' cajas'; };
-const CITY = { name: 'Ciudad Aurora', buildings: [], skyline: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], core: 62, bounds: 116 };
+const CITY = { name: 'Ciudad Aurora', buildings: [], skyline: [], parks: [], interiors: [], lamps: [], windowMaterials: [], wetMaterials: [], lampMaterials: [], signMaterials: [], bbEmissiveMaterials: [], core: 62, bounds: 116 };
 // Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
 const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
 const inSea = (x, z) => z > SHORE(x) - 1.2;
@@ -598,7 +598,7 @@ function cityGrassAt(x,z) {
       }
       const variants=new Map();
       return {map, material(alpha){
-        if(!variants.has(alpha))variants.set(alpha,cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:emission?0xffffff:0,emissiveMap:emission,...CF_TEXTURES.alphaOptions(alpha)}),{cut:true}));
+        if(!variants.has(alpha)){const m=cityAnimeMaterial(new THREE.MeshToonMaterial({map,gradientMap:CITY_GRAD,emissive:emission?0xffffff:0,emissiveMap:emission,...CF_TEXTURES.alphaOptions(alpha)}),{cut:true});if(emission)CITY.bbEmissiveMaterials.push(m);variants.set(alpha,m);}
         return variants.get(alpha);
       }};
     }));
@@ -1225,18 +1225,34 @@ function setCityWeather(mode){if(mode!=='auto'&&!WX_PRESETS[mode])return;if(atmo
     if(!road||COL.some(c=>Math.abs(x-c.x)<c.hx+2&&Math.abs(z-c.z)<c.hz+2)||SPAWN_POINTS.some(p=>Math.hypot(x-p.x,z-p.z)<2.5))continue;
     puddles.push([x,z,.7+wxRandomValue()*1.5,.35+wxRandomValue()*.75,wxRandomValue()*TAU]);
   }
-  WX.puddleUniforms={uTime:shared.uTime,uNight:shared.uNight,uWet:{value:0},uSky:{value:WX.skyHorizon}};
+  WX.puddleUniforms={uTime:shared.uTime,uNight:shared.uNight,uBeta:ZZZ_U.beta,uSunset:ZZZ_U.sunset,uWet:{value:0},uSky:{value:WX.skyHorizon}};
   const puddleMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:WX.puddleUniforms,
     vertexShader:'varying vec2 vUv;varying vec3 vWorld;void main(){vUv=uv;vec4 p=modelMatrix*instanceMatrix*vec4(position,1.);vWorld=p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}',
-    fragmentShader:`varying vec2 vUv;varying vec3 vWorld;uniform float uTime,uWet,uNight;uniform vec3 uSky;
+    fragmentShader:`varying vec2 vUv;varying vec3 vWorld;uniform float uTime,uWet,uNight,uBeta,uSunset;uniform vec3 uSky;
       void main(){vec2 p=(vUv-.5)*2.;float a=atan(p.y,p.x);float boundary=.82+sin(a*5.+vWorld.x)*.08+sin(a*9.)*.035;
-        float edge=1.-smoothstep(boundary-.1,boundary,length(p));
-        float wave=sin(vWorld.x*12.+uTime*2.)*sin(vWorld.z*9.-uTime*1.6)*.018;
-        vec3 view=normalize(cameraPosition-vWorld);float fresnel=pow(1.-max(0.,view.y),3.);
-        float light=pow(max(0.,1.-abs(p.x+wave*2.)*.9),12.)*(.35+.65*sin(p.y*30.+wave*15.+uTime*.25)*sin(p.y*30.+wave*15.+uTime*.25));
-        vec3 c=mix(vec3(.15,.24,.3),uSky*.65+.12,.55+fresnel*.35);
-        c+=vec3(.85,.5,.19)*light*uNight*.45;c+=vec3(.15,.25,.3)*light*(1.-uNight)*.35;
-        gl_FragColor=vec4(c,edge*uWet*(.32+fresnel*.4));}`
+        float dist=length(p);float edge=1.-smoothstep(boundary-.1,boundary,dist);
+        if(uBeta>.5){
+          float ring1=sin(dist*24.-uTime*7.5+vWorld.x*3.1);
+          float ring2=sin(length(p-vec2(.32,-.26))*28.-uTime*8.2+vWorld.z*2.7);
+          float ripple=(ring1*.55+ring2*.45)*smoothstep(.75,.1,dist)*.035;
+          vec3 view=normalize(cameraPosition-vWorld);float fresnel=pow(1.-max(0.,view.y),2.6);
+          float streak=pow(max(0.,1.-abs(p.x+ripple*3.)*.82),9.)*(.45+.55*sin(p.y*24.+ripple*22.+uTime*.6));
+          vec3 skyRefl=mix(uSky*.78+.08,mix(vec3(.07,.13,.28),vec3(.16,.30,.58),fresnel),uNight);
+          skyRefl=mix(skyRefl,vec3(.96,.52,.38),uSunset*.45*(1.-uNight));
+          vec3 neonCol=mix(vec3(.32,.86,1.),vec3(1.,.64,.30),step(0.,sin(vWorld.x*1.7+vWorld.z*1.3)));
+          neonCol=mix(neonCol,vec3(1.,.36,.72),smoothstep(.5,1.,sin(vWorld.z*2.3)*.5+.5)*.45);
+          vec3 c=mix(vec3(.08,.12,.22),skyRefl,.52+fresnel*.46);
+          c+=neonCol*streak*(.22+uNight*.72+.30*uSunset);
+          c+=vec3(.24,.38,.58)*smoothstep(boundary-.14,boundary-.03,dist)*(.35+fresnel*.4);
+          gl_FragColor=vec4(c,edge*uWet*(.42+fresnel*.46));
+        }else{
+          float wave=sin(vWorld.x*12.+uTime*2.)*sin(vWorld.z*9.-uTime*1.6)*.018;
+          vec3 view=normalize(cameraPosition-vWorld);float fresnel=pow(1.-max(0.,view.y),3.);
+          float light=pow(max(0.,1.-abs(p.x+wave*2.)*.9),12.)*(.35+.65*sin(p.y*30.+wave*15.+uTime*.25)*sin(p.y*30.+wave*15.+uTime*.25));
+          vec3 c=mix(vec3(.15,.24,.3),uSky*.65+.12,.55+fresnel*.35);
+          c+=vec3(.85,.5,.19)*light*uNight*.45;c+=vec3(.15,.25,.3)*light*(1.-uNight)*.35;
+          gl_FragColor=vec4(c,edge*uWet*(.32+fresnel*.4));
+        }}`
   });
   WX.puddles=add(new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1),puddleMat,puddles.length));
   const matrix=new THREE.Matrix4(),quat=new THREE.Quaternion(),pos=new V3(),scale=new V3();
@@ -1316,12 +1332,24 @@ function updateCityWeather(dt,instant=false){
   WX.rainMesh.visible=WX.splashes.visible=WX.drops.visible=visible&&WX.rain>.015;WX.puddles.visible=!blocked&&WX.wet>.015;
   WX.sky.visible=WX.sunGlow.visible=!blocked;WX.stars.visible=!blocked&&night>.1;WX.moon.visible=!blocked&&night>.05;
   WX.stars.material.uniforms.uOpacity.value=night*(1-WX.cloud)*.85;WX.stars.material.uniforms.uTime.value=WX.time;
+  const betaNow=ZZZ_U.beta.value>.5;
   const lights=(night*.95+WX.cloud*.22)*(blocked?.12:1);
-  for(const m of CITY.windowMaterials){m.emissive.set(0xffc57c).multiplyScalar(lights*(zzz?.88:.65));}
-  for(const m of CITY.signMaterials){const se=(zzz?.22:.13)+lights*(zzz?.86:.65);m.emissive.setRGB(se,se,se);}
-  for(const m of CITY.lampMaterials){m.emissive.set(0xffd095).multiplyScalar(lights*(zzz?1.75:1.4));}
-  for(const m of CITY.wetMaterials){m.shininess=(zzz?18:8)+WX.wet*95;m.specular.setRGB((zzz?.14:.08)+WX.wet*.28,(zzz?.16:.10)+WX.wet*.32,(zzz?.22:.12)+WX.wet*.38);}
-  WX.lampPoolMat.opacity=blocked?0:lights*((zzz?.28:.2)+WX.wet*.16);WX.lampHaloMat.opacity=blocked?0:lights*((zzz?.32:.24)+WX.rain*.17);
+  if(betaNow&&zzz){
+    const bbEm=(.44+lights*.88)*(blocked?.35:1);
+    for(const m of CITY.bbEmissiveMaterials){m.emissive.setRGB(bbEm,bbEm*(.97+night*.02),bbEm*(.95+night*.06));}
+    for(const m of CITY.windowMaterials){m.emissive.set(0xffcf88).multiplyScalar(lights*1.12);}
+    for(const m of CITY.signMaterials){const se=.20+lights*1.12;m.emissive.setRGB(se,se,se*1.04);}
+    for(const m of CITY.lampMaterials){m.emissive.set(0xffd699).multiplyScalar(lights*2.15);}
+    for(const m of CITY.wetMaterials){m.shininess=20+WX.wet*125;m.specular.setRGB(.14+WX.wet*.38,.17+WX.wet*.44,.24+WX.wet*.54);}
+    WX.lampPoolMat.opacity=blocked?0:lights*(.34+WX.wet*.22);WX.lampHaloMat.opacity=blocked?0:lights*(.38+WX.rain*.20);
+  }else{
+    for(const m of CITY.bbEmissiveMaterials){m.emissive.setHex(0xffffff);}
+    for(const m of CITY.windowMaterials){m.emissive.set(0xffc57c).multiplyScalar(lights*(zzz?.88:.65));}
+    for(const m of CITY.signMaterials){const se=(zzz?.22:.13)+lights*(zzz?.86:.65);m.emissive.setRGB(se,se,se);}
+    for(const m of CITY.lampMaterials){m.emissive.set(0xffd095).multiplyScalar(lights*(zzz?1.75:1.4));}
+    for(const m of CITY.wetMaterials){m.shininess=(zzz?18:8)+WX.wet*95;m.specular.setRGB((zzz?.14:.08)+WX.wet*.28,(zzz?.16:.10)+WX.wet*.32,(zzz?.22:.12)+WX.wet*.38);}
+    WX.lampPoolMat.opacity=blocked?0:lights*((zzz?.28:.2)+WX.wet*.16);WX.lampHaloMat.opacity=blocked?0:lights*((zzz?.32:.24)+WX.rain*.17);
+  }
   // Se reasignan las luces más próximas sin crear objetos por cuadro.
   const lamps=CITY.lamps.slice().sort((a,b)=>(a.x-focus.x)**2+(a.z-focus.z)**2-((b.x-focus.x)**2+(b.z-focus.z)**2));
   WX.lampLights.forEach((light,i)=>{light.visible=!wxLite()||i<2;const p=lamps[i];light.position.set(p.x,3.45,p.z);light.intensity=blocked?0:lights*(zzz?2.3:1.8);});

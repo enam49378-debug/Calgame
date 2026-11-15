@@ -266,7 +266,16 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
           vec3 roadGraphite=mix(vec3(rGray)*.92,gl_FragColor.rgb,.48);
           gl_FragColor.rgb=mix(gl_FragColor.rgb,roadGraphite,zzzRoad*.55);
           vec3 zzzSkyMix=mix(uZzzSky*.75,vec3(.18,.32,.56),uZzzNight*.72);
-          gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*.9+zzzSkyMix*.34,zzzRoad*zzzFres*(.28+uZzzWet*.55));
+          if(uZzzBeta>.5){
+            float zDamp=smoothstep(-.18,.58,sin(vCutPos.x*.28+sin(vCutPos.z*.21))*cos(vCutPos.z*.31));
+            float zRainDamp=uZzzWet*(.42+.68*zDamp);
+            gl_FragColor.rgb*=mix(1.,.74,zzzRoad*zRainDamp);
+            vec3 zNeonBand=mix(zzzSkyMix,mix(uZzzRim,uZzzWarm,.38+.28*sin(vCutPos.x*.42+vCutPos.z*.37)),clamp(uZzzNight*.85+uZzzSunset*.45,0.,1.));
+            float zRoadShine=zzzRoad*zzzFres*(.22+zRainDamp*(.68+uZzzNight*.45));
+            gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*.86+zNeonBand*.44,clamp(zRoadShine,0.,.82));
+          }else{
+            gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*.9+zzzSkyMix*.34,zzzRoad*zzzFres*(.28+uZzzWet*.55));
+          }
         }
         ${phong?`float cityRim=pow(1.-clamp(dot(normalize(vNormal),normalize(vViewPosition)),0.,1.),uZzz>.5?2.5:2.8);
         vec3 cRimC=mix(vec3(.55,.76,1.),mix(uZzzRim,uZzzWarm,.35),uZzz);
@@ -292,7 +301,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
         #include <fog_fragment>
       `);
     };
-    material.customProgramCacheKey=()=> 'zenless-city-v6'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
+    material.customProgramCacheKey=()=> 'zenless-city-v7'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
   }
 
   const HEMI = scene.children.find(o => o.isHemisphereLight);
