@@ -53,26 +53,47 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
             uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
             uSharp: { value: (() => { try { const v = parseFloat(localStorage.getItem('bsb_sharp')); return v >= 0 && v <= 2 ? v : 0.9; } catch (e) { return 0.9; } })() },
             uZzz: ZZZ_U.on,
+            uBeta: ZZZ_U.beta,
             uImpact: ZZZ_U.impact,
             uImpactCol: ZZZ_U.impactCol,
             uNight: ZZZ_U.night,
+            uSunset: ZZZ_U.sunset,
           },
           vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uTexel; uniform float uSharp, uZzz, uImpact, uNight; uniform vec3 uImpactCol; varying vec2 vUv;
+          fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uTexel; uniform float uSharp, uZzz, uBeta, uImpact, uNight, uSunset; uniform vec3 uImpactCol; varying vec2 vUv;
             void main(){
               vec3 c = texture2D(tDiffuse, vUv).rgb;
               vec3 nb = texture2D(tDiffuse, vUv + vec2(uTexel.x, 0.)).rgb + texture2D(tDiffuse, vUv - vec2(uTexel.x, 0.)).rgb + texture2D(tDiffuse, vUv + vec2(0., uTexel.y)).rgb + texture2D(tDiffuse, vUv - vec2(0., uTexel.y)).rgb;
-              c = clamp(c + (c - nb * .25) * uSharp, 0., 1.);
+              vec3 sharpD = (c - nb * .25) * uSharp;
+              if (uBeta > .5) sharpD = clamp(sharpD, vec3(-.14), vec3(.14));
+              c = clamp(c + sharpD, 0., 1.);
               float l = dot(c, vec3(.299, .587, .114));
               if (uZzz > .5) {
-                // Zenless Urbano: sombras índigo sutiles, luces limpias y vibrancia selectiva sin azular el asfalto
-                c = mix(c * vec3(.93, .95, 1.06), c * vec3(1.05, 1.02, .95), smoothstep(.20, .80, l));
-                c = clamp(c, 0., 1.);
-                c = mix(c, c * c * (3.0 - 2.0 * c), .18);
-                float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx - mn;
-                float vib = 1.10 + (1.0 - smoothstep(.15, .75, sat)) * .16;
-                float g = dot(c, vec3(.299, .587, .114));
-                c = max(vec3(0.), mix(vec3(g), c, vib));
+                if (uBeta > .5) {
+                  // Zenless Urbano Paso 3: shadow-lift nocturno/crepúsculo, protección de altas luces y vibrancia selectiva sin ensuciar el asfalto
+                  vec3 zShDay = vec3(.93, .95, 1.06), zShSun = vec3(.91, .88, 1.09), zShNight = vec3(.89, .95, 1.11);
+                  vec3 zHiDay = vec3(1.05, 1.02, .95), zHiSun = vec3(1.09, .99, .91), zHiNight = vec3(.95, 1.02, 1.08);
+                  vec3 zSh = mix(mix(zShDay, zShSun, uSunset * .85), zShNight, uNight * .85);
+                  vec3 zHi = mix(mix(zHiDay, zHiSun, uSunset * .85), zHiNight, uNight * .70);
+                  c = mix(c * zSh, c * zHi, smoothstep(.18, .82, l));
+                  c = mix(c, c / (c * .14 + .88), smoothstep(.62, 1., l) * .55);
+                  c = clamp(c, 0., 1.);
+                  c = mix(c, c * c * (3.0 - 2.0 * c), .15);
+                  c += vec3(.009, .012, .022) * (1. - smoothstep(.04, .34, l)) * (.55 + uNight * .45);
+                  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx - mn;
+                  float vib = 1.0 + smoothstep(.04, .22, sat) * (1.0 - smoothstep(.26, .80, sat)) * .22;
+                  float g = dot(c, vec3(.299, .587, .114));
+                  c = max(vec3(0.), mix(vec3(g), c, vib));
+                } else {
+                  // Zenless Urbano público: sombras índigo sutiles, luces limpias y vibrancia selectiva sin azular el asfalto
+                  c = mix(c * vec3(.93, .95, 1.06), c * vec3(1.05, 1.02, .95), smoothstep(.20, .80, l));
+                  c = clamp(c, 0., 1.);
+                  c = mix(c, c * c * (3.0 - 2.0 * c), .18);
+                  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx - mn;
+                  float vib = 1.10 + (1.0 - smoothstep(.15, .75, sat)) * .16;
+                  float g = dot(c, vec3(.299, .587, .114));
+                  c = max(vec3(0.), mix(vec3(g), c, vib));
+                }
                 if (uImpact > .01) {
                   float impK = smoothstep(.32, .85, uImpact);
                   float ink = step(.46, dot(c, vec3(.299, .587, .114)));
@@ -424,13 +445,33 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       const target = renderer.getRenderTarget(), autoClear = renderer.autoClear, alpha = renderer.getClearAlpha(), color = renderer.getClearColor(new THREE.Color());
       let completed = false;
       try {
+        if (bloomPass && GFX_CFG.bloom !== 'off' && ZZZ_U.beta.value > 0.5 && ZZZ_U.on.value > 0.5) {
+          if (inStudio) {
+            bloomPass.strength = 0.14;
+            bloomPass.radius = 0.22;
+            bloomPass.threshold = 0.92;
+          } else {
+            const dusk = Math.max(ZZZ_U.night.value, ZZZ_U.sunset.value * 0.65);
+            if (GFX_CFG.bloom === 'anime') {
+              bloomPass.strength = 0.18 + dusk * 0.11;
+              bloomPass.radius = 0.26 + dusk * 0.12;
+              bloomPass.threshold = 0.91 - dusk * 0.14;
+            } else if (GFX_CFG.bloom === 'subtle') {
+              bloomPass.strength = 0.09 + dusk * 0.06;
+              bloomPass.radius = 0.18 + dusk * 0.08;
+              bloomPass.threshold = 0.95 - dusk * 0.10;
+            }
+          }
+        }
         if (gradePass && gradePass.uniforms) {
           const u = gradePass.uniforms, db = renderer.getDrawingBufferSize(_v2s);
           if (u.uTexel?.value?.set) u.uTexel.value.set(1 / Math.max(1, db.x), 1 / Math.max(1, db.y));
           if (u.uZzz) u.uZzz.value = ZZZ_U.on.value;
+          if (u.uBeta) u.uBeta.value = ZZZ_U.beta.value;
           if (u.uImpact) u.uImpact.value = ZZZ_U.impact.value;
           if (u.uImpactCol?.value?.copy) u.uImpactCol.value.copy(ZZZ_U.impactCol.value);
           if (u.uNight) u.uNight.value = ZZZ_U.night.value;
+          if (u.uSunset) u.uSunset.value = ZZZ_U.sunset.value;
         }
         renderPass.scene = sc; renderPass.camera = cm; composer.render(); completed = true;
       } catch (error) { reportFrameError('imagen:shaders', error); GFX.post = false; }

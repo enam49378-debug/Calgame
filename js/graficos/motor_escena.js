@@ -217,8 +217,10 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
     material.onBeforeCompile=shader=>{
       Object.assign(shader.uniforms, {
         uZzz: ZZZ_U.on,
+        uZzzBeta: ZZZ_U.beta,
         uZzzWet: ZZZ_U.wet,
         uZzzNight: ZZZ_U.night,
+        uZzzSunset: ZZZ_U.sunset,
         uZzzSky: ZZZ_U.skyCol,
         uZzzShadow: ZZZ_U.shadowTint,
         uZzzRim: ZZZ_U.rimCol,
@@ -243,7 +245,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
       shader.fragmentShader=shader.fragmentShader
         .replace('#include <common>',`#include <common>
   varying vec3 vCutPos;varying vec3 vZzzWNorm;
-  uniform float uZzz;uniform float uZzzWet;uniform float uZzzNight;
+  uniform float uZzz;uniform float uZzzBeta;uniform float uZzzWet;uniform float uZzzNight;uniform float uZzzSunset;
   uniform vec3 uZzzSky;uniform vec3 uZzzShadow;uniform vec3 uZzzRim;uniform vec3 uZzzWarm;
   ${cut?'uniform vec3 uCutCam;uniform vec3 uCutPl;uniform float uCutOn;':''}`);
       if(cut)shader.fragmentShader=shader.fragmentShader.replace('void main() {','void main() {\n'+CUT_GLSL);
@@ -273,10 +275,24 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
         gl_FragColor.rgb=(gl_FragColor.rgb-.5)*(uZzz>.5?1.08:1.06)+.5;
         float cityGray=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
         gl_FragColor.rgb=max(vec3(0.),mix(vec3(cityGray),gl_FragColor.rgb,uZzz>.5?1.18:1.15));
+        if(uZzz>.5&&uZzzBeta>.5){
+          float zDist=length(cameraPosition-vCutPos);
+          float zDistK=smoothstep(28.,128.,zDist);
+          float zHeightK=mix(.36,1.,exp(-max(0.,vCutPos.y+.4)*.052));
+          float zFogK=zDistK*zHeightK*mix(.34,.44,uZzzNight);
+          vec3 zDayHaze=mix(uZzzSky,vec3(.74,.90,1.05),.36);
+          vec3 zSunHaze=mix(vec3(1.,.58,.46),vec3(.76,.46,.78),.34);
+          vec3 zNightHaze=mix(vec3(.07,.13,.28),vec3(.13,.27,.52),.42);
+          vec3 zHazeCol=mix(zDayHaze,zSunHaze,uZzzSunset*.88);
+          zHazeCol=mix(zHazeCol,zNightHaze,uZzzNight);
+          float zMidLum=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(vec3(zMidLum),gl_FragColor.rgb,.84),zDistK*.24);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,zHazeCol,zFogK);
+        }
         #include <fog_fragment>
       `);
     };
-    material.customProgramCacheKey=()=> 'zenless-city-v5'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
+    material.customProgramCacheKey=()=> 'zenless-city-v6'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
   }
 
   const HEMI = scene.children.find(o => o.isHemisphereLight);
