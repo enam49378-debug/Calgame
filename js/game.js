@@ -1308,6 +1308,12 @@ function updateCityWeather(dt,instant=false){
   WX.skyHorizon.lerp(_c.set(night>.5?(zzz?0x1a2648:0x2b3c50):0x8e9da7),WX.cloud*.8);
   WX.skyHorizon.lerp(_c.set(night>.5?(zzz?0x28365c:0x65718b):0xc3d6db),WX.fogAmount*(zzz&&night>.5?.18:.28));
   { const ap = G.apoc || 0; if (ap > .003) { WX.skyTop.lerp(_c.set(0x4a0606), ap * .88); WX.skyHorizon.lerp(_c.set(0xff4a1c), ap * .9); } }   // G.apoc: el cielo se vuelve rojo (Ojo del Cosmos de Redbird)
+  const betaNow=ZZZ_U.beta.value>.5;
+  if(betaNow&&zzz&&night>.01){
+    const nk=night*night*.42;
+    WX.skyTop.lerp(_c.set(0x04091a),nk);
+    WX.skyHorizon.lerp(_c.set(0x0c142a),nk*.85);
+  }
   const blocked=!!G.grade||STAGE.on,visible=G.state==='play'&&!blocked;
   WX.sky.material.uniforms.uTop.value.copy(WX.skyTop);WX.sky.material.uniforms.uHorizon.value.copy(WX.skyHorizon);
   WX.sky.material.uniforms.uLow.value.copy(WX.skyHorizon).multiplyScalar(.8);
@@ -1332,7 +1338,6 @@ function updateCityWeather(dt,instant=false){
   WX.rainMesh.visible=WX.splashes.visible=WX.drops.visible=visible&&WX.rain>.015;WX.puddles.visible=!blocked&&WX.wet>.015;
   WX.sky.visible=WX.sunGlow.visible=!blocked;WX.stars.visible=!blocked&&night>.1;WX.moon.visible=!blocked&&night>.05;
   WX.stars.material.uniforms.uOpacity.value=night*(1-WX.cloud)*.85;WX.stars.material.uniforms.uTime.value=WX.time;
-  const betaNow=ZZZ_U.beta.value>.5;
   const lights=(night*.95+WX.cloud*.22)*(blocked?.12:1);
   if(betaNow&&zzz){
     const bbEm=(.44+lights*.88)*(blocked?.35:1);
@@ -1360,14 +1365,14 @@ function updateCityWeather(dt,instant=false){
     scene.background.copy(WX.skyHorizon);scene.fog.color.copy(WX.skyHorizon);scene.fog.near=Math.max(15,(zzz?88:75)-WX.fogAmount*65*WX.fogStrength);scene.fog.far=Math.max(zzz?70:45,(zzz?280:260)-WX.fogAmount*180*WX.fogStrength);
     if(beta){
       const daySunFade=THREE.MathUtils.smoothstep(height,-0.02,0.14),moonCastFade=THREE.MathUtils.smoothstep(-height,0.08,0.24);
-      HEMI.color.set(zzz?0x4b68b4:0x7b92c1).lerp(_c.set(zzz?0xd4efff:0xe4f1ff),day);HEMI.groundColor.set(zzz?0x131930:0x26394d).lerp(_c.set(zzz?0x3b4462:0x657c54),day);
-      HEMI.intensity=(zzz?(.21+day*.33):(.51+day*.12))+WX.flash*.25;
+      HEMI.color.set(zzz?0x415ca6:0x7b92c1).lerp(_c.set(zzz?0xd4efff:0xe4f1ff),day);HEMI.groundColor.set(zzz?0x0f152a:0x26394d).lerp(_c.set(zzz?0x3b4462:0x657c54),day);
+      HEMI.intensity=(zzz?(.15+day*.39):(.51+day*.12))+WX.flash*.25;
       sun.color.set(zzz?0xfff3d8:0xfff0d0).lerp(_c.set(zzz?0xff9d66:0xffaf78),sunset*.78).lerp(_c.set(0x8ab4ff),moonCastFade);
       const daySunI=Math.sqrt(Math.max(0,height))*daySunFade*(zzz?.94:.69)*(1-WX.cloud*.6);
-      const moonShadowI=night*moonCastFade*(zzz?.28:.18)*(1-WX.cloud*.45);
+      const moonShadowI=night*moonCastFade*(zzz?.23:.18)*(1-WX.cloud*.45);
       sun.intensity=daySunI+moonShadowI+WX.flash;
-      WX.moonLight.intensity=night*(zzz?(.46-.24*moonCastFade):(.36-.14*moonCastFade))*(1-WX.cloud*.45);
-      WX.fillLight.intensity=night*(zzz?.28:.19);WX.fillLight.position.copy(camera.position).add(new V3(0,4,0));WX.fillLight.target.position.copy(focus);
+      WX.moonLight.intensity=night*(zzz?(.38-.18*moonCastFade):(.36-.14*moonCastFade))*(1-WX.cloud*.45);
+      WX.fillLight.intensity=night*(zzz?.22:.19);WX.fillLight.position.copy(camera.position).add(new V3(0,4,0));WX.fillLight.target.position.copy(focus);
       WX.moonLight.position.set(-Math.cos(a)*45,Math.max(12,-height*65),-22);
       CITY.sunDisc.position.copy(SUN_DIR).multiplyScalar(245);CITY.sunDisc.lookAt(0,0,0);
       CITY.sunDisc.material.color.set(0xfff4c4).lerp(_c.set(0xffa26f),sunset);CITY.sunDisc.visible=false;   // el sol se dibuja redondo en el cielo

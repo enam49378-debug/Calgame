@@ -291,7 +291,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
           float zFogK=zDistK*zHeightK*mix(.34,.44,uZzzNight);
           vec3 zDayHaze=mix(uZzzSky,vec3(.74,.90,1.05),.36);
           vec3 zSunHaze=mix(vec3(1.,.58,.46),vec3(.76,.46,.78),.34);
-          vec3 zNightHaze=mix(vec3(.07,.13,.28),vec3(.13,.27,.52),.42);
+          vec3 zNightHaze=mix(vec3(.04,.08,.19),vec3(.09,.19,.38),.38);
           vec3 zHazeCol=mix(zDayHaze,zSunHaze,uZzzSunset*.88);
           zHazeCol=mix(zHazeCol,zNightHaze,uZzzNight);
           float zMidLum=dot(gl_FragColor.rgb,vec3(.299,.587,.114));
@@ -301,7 +301,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
         #include <fog_fragment>
       `);
     };
-    material.customProgramCacheKey=()=> 'zenless-city-v7'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
+    material.customProgramCacheKey=()=> 'zenless-city-v8'+(cut?'-cut':'')+(toon?'-t':phong?'-p':'');return material;
   }
 
   const HEMI = scene.children.find(o => o.isHemisphereLight);

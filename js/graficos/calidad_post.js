@@ -71,15 +71,15 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
               if (uZzz > .5) {
                 if (uBeta > .5) {
                   // Zenless Urbano Paso 3: shadow-lift nocturno/crepúsculo, protección de altas luces y vibrancia selectiva sin ensuciar el asfalto
-                  vec3 zShDay = vec3(.93, .95, 1.06), zShSun = vec3(.91, .88, 1.09), zShNight = vec3(.89, .95, 1.11);
-                  vec3 zHiDay = vec3(1.05, 1.02, .95), zHiSun = vec3(1.09, .99, .91), zHiNight = vec3(.95, 1.02, 1.08);
+                  vec3 zShDay = vec3(.93, .95, 1.06), zShSun = vec3(.91, .88, 1.09), zShNight = vec3(.81, .88, 1.06);
+                  vec3 zHiDay = vec3(1.05, 1.02, .95), zHiSun = vec3(1.09, .99, .91), zHiNight = vec3(.92, .99, 1.06);
                   vec3 zSh = mix(mix(zShDay, zShSun, uSunset * .85), zShNight, uNight * .85);
                   vec3 zHi = mix(mix(zHiDay, zHiSun, uSunset * .85), zHiNight, uNight * .70);
                   c = mix(c * zSh, c * zHi, smoothstep(.18, .82, l));
                   c = mix(c, c / (c * .14 + .88), smoothstep(.62, 1., l) * .55);
                   c = clamp(c, 0., 1.);
                   c = mix(c, c * c * (3.0 - 2.0 * c), .15);
-                  c += vec3(.009, .012, .022) * (1. - smoothstep(.04, .34, l)) * (.55 + uNight * .45);
+                  c += vec3(.006, .009, .018) * (1. - smoothstep(.04, .34, l)) * (.55 + uNight * .12);
                   float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx - mn;
                   float vib = 1.0 + smoothstep(.04, .22, sat) * (1.0 - smoothstep(.26, .80, sat)) * .22;
                   float g = dot(c, vec3(.299, .587, .114));
