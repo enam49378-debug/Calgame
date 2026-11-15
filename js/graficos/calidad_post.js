@@ -460,9 +460,15 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       try {
         if (bloomPass && GFX_CFG.bloom !== 'off' && ZZZ_U.beta.value > 0.5 && ZZZ_U.on.value > 0.5) {
           if (inStudio) {
-            bloomPass.strength = 0.14;
-            bloomPass.radius = 0.22;
-            bloomPass.threshold = 0.92;
+            if (GFX_CFG.bloom === 'anime') {
+              bloomPass.strength = 0.22;
+              bloomPass.radius = 0.28;
+              bloomPass.threshold = 0.84;
+            } else {
+              bloomPass.strength = 0.14;
+              bloomPass.radius = 0.22;
+              bloomPass.threshold = 0.92;
+            }
           } else {
             const dusk = Math.max(ZZZ_U.night.value, ZZZ_U.sunset.value * 0.65);
             if (GFX_CFG.bloom === 'anime') {
@@ -504,11 +510,15 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
   const PCAMS = [0, 1, 2].map(() => new THREE.PerspectiveCamera(35, 1, .05, 200));
   const PANEL_CUTS = [0, .36, .68, 1];
   function renderPanels(c) {
-    const STAGE = dep.getSTAGE(), SHOTS = dep.getSHOTS(), PX = dep.PX;
+    const STAGE = dep.getSTAGE(), SHOTS = dep.getSHOTS(), PX = dep.PX, beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
     const f = c.f, P = f.pos, F = fwd(f.yaw), R = rightOf(f.yaw), k = clamp((c.t - SHOTS[0]) / (SHOTS[1] - SHOTS[0]), 0, 1), W = innerWidth, H = innerHeight, sc = STAGE.on ? STAGE.scene : scene;
     const detail = f.spear ? f.spear.localToWorld(new V3(0, 0, 8 * PX)) : f.model.eyes ? f.model.eyes.getWorldPosition(new V3()) : f.model.armR.localToWorld(new V3(0, -10 * PX, 0));
     const hc = f.model.head.localToWorld(new V3(0, 4 * PX, 0)), cc = f.model.torso.localToWorld(new V3(0, 6 * PX, 0));
-    const set = [
+    const set = beta ? [
+      cm => { cm.fov = 31; cm.position.set(hc.x + F.x * (1.62 - k * .32) + R.x * .34, hc.y + .06, hc.z + F.z * (1.62 - k * .32) + R.z * .34); cm.lookAt(hc); cm.rotateZ(.085); },
+      cm => { const D = fwd(f.yaw - .78 - k * .28); cm.fov = 48; cm.position.set(P.x + D.x * 4.05, P.y + .15, P.z + D.z * 4.05); cm.lookAt(cc); cm.rotateZ(-.13); },
+      cm => { const D = fwd(f.yaw + .94); cm.fov = 28; cm.position.set(detail.x + D.x * (.94 - k * .24), detail.y + .12, detail.z + D.z * (.94 - k * .24)); cm.lookAt(detail); cm.rotateZ(.15); },
+    ] : [
       cm => { cm.fov = 34; cm.position.set(hc.x + F.x * (1.75 - k * .3) + R.x * .35, hc.y + .08, hc.z + F.z * (1.75 - k * .3) + R.z * .35); cm.lookAt(hc); cm.rotateZ(.06); },
       cm => { const D = fwd(f.yaw - .75 - k * .25); cm.fov = 50; cm.position.set(P.x + D.x * 4.2, P.y + .2, P.z + D.z * 4.2); cm.lookAt(cc); cm.rotateZ(-.1); },
       cm => { const D = fwd(f.yaw + .9); cm.fov = 30; cm.position.set(detail.x + D.x * (1.0 - k * .25), detail.y + .15, detail.z + D.z * (1.0 - k * .25)); cm.lookAt(detail); cm.rotateZ(.12); },
@@ -522,7 +532,23 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
     } finally { renderer.setScissorTest(false); renderer.setViewport(0, 0, W, H); }
   }
   function drawPanelBorders() {
-    const w = LC.width, h = LC.height, sl = h * .06;
+    const G = dep.getG(), beta = ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+    const w = LC.width, h = LC.height, sl = h * (beta ? .09 : .06);
+    if (beta) {
+      const col = (G.cine && G.cine.f && G.cine.f.ch && G.cine.f.ch.color) || '#d7ff2f';
+      LG.save();
+      LG.strokeStyle = '#06080f'; LG.lineWidth = 10; LG.strokeRect(0, 0, w, h);
+      LG.strokeStyle = col; LG.lineWidth = 2.5; LG.strokeRect(5, 5, w - 10, h - 10);
+      for (let i = 1; i < 3; i++) {
+        const x = PANEL_CUTS[i] * w;
+        LG.fillStyle = '#06080f'; LG.beginPath(); LG.moveTo(x - 13 + sl, 0); LG.lineTo(x + 13 + sl, 0); LG.lineTo(x + 13 - sl, h); LG.lineTo(x - 13 - sl, h); LG.closePath(); LG.fill();
+        LG.strokeStyle = '#ffffff'; LG.lineWidth = 3; LG.beginPath(); LG.moveTo(x - 15 + sl, 0); LG.lineTo(x - 15 - sl, h); LG.moveTo(x + 15 + sl, 0); LG.lineTo(x + 15 - sl, h); LG.stroke();
+        LG.strokeStyle = col; LG.lineWidth = 3; LG.beginPath(); LG.moveTo(x + sl, 0); LG.lineTo(x - sl, h); LG.stroke();
+      }
+      LG.restore();
+      linesDrawn = true;
+      return;
+    }
     for (let i = 1; i < 3; i++) {
       const x = PANEL_CUTS[i] * w;
       LG.fillStyle = '#000'; LG.beginPath(); LG.moveTo(x - 10 + sl, 0); LG.lineTo(x + 10 + sl, 0); LG.lineTo(x + 10 - sl, h); LG.lineTo(x - 10 - sl, h); LG.closePath(); LG.fill();

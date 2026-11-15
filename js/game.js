@@ -1458,7 +1458,7 @@ scene.add(CINE_RIM, CINE_KEY);
 const SHOTS = [.5, 1.0, 1.6];
 // Escenario estilizado de ulti y gradación cinemática (ver js/graficos/escenario_ulti.js)
 const { STAGE, initStage, stageEnter, stageExit, updateStage, cineGrade } = CF_GRAFICOS.crearEscenarioUlti({
-  scene, sun, HEMI, CINE_RIM, CINE_KEY, BLOCK_TEX, rand, TAU,
+  scene, sun, HEMI, CINE_RIM, CINE_KEY, BLOCK_TEX, rand, TAU, ZZZ_U,
   glowMat: (...a) => glowMat(...a),
   buildSpear: (...a) => buildSpear(...a),
   get Parts() { return Parts; },
@@ -9262,17 +9262,26 @@ function updateCamera(dt) {
 const SH = { scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(36, innerWidth / innerHeight, .1, 100), fig: null, t: 0, kf: null, kfT: 0, drop: 0, landed: true, flourT: 7, camZ: 9, bg: document.createElement('canvas') };
 {
   const s = SH.scene; s.background = new THREE.Color(0x07080d); s.fog = new THREE.Fog(0x07080d, 9, 22);
-  s.add(new THREE.HemisphereLight(0xbfc8ff, 0x101018, .55));
+  SH.hemi = new THREE.HemisphereLight(0xbfc8ff, 0x101018, .55); s.add(SH.hemi);
   const key = new THREE.DirectionalLight(0xffffff, .95); key.position.set(2.5, 5, 5); key.castShadow = true; SH.key = key;
   key.shadow.mapSize.set(1024, 1024); Object.assign(key.shadow.camera, { left: -3, right: 3, top: 4, bottom: -2, far: 20 }); s.add(key);
   SH.rim = new THREE.DirectionalLight(0xff4d4d, .8); SH.rim.position.set(-3, 3, -4); s.add(SH.rim);
   SH.rim2 = new THREE.PointLight(0xff4d4d, .55, 6); SH.rim2.position.set(0, .3, 1.2); s.add(SH.rim2);
+  SH.coolRim = new THREE.DirectionalLight(0x64d8ff, 0); SH.coolRim.position.set(3.4, 2.8, -3.5); s.add(SH.coolRim);
   const plat = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.65, .2, 6), new THREE.MeshLambertMaterial({ color: 0x17181f }));
   plat.position.y = 0; plat.receiveShadow = true; s.add(plat);
   SH.ring = new THREE.Mesh(new THREE.RingGeometry(1.52, 1.74, 32), glowMat('#ff4d4d', 1.0)); SH.ring.rotation.x = -Math.PI / 2; SH.ring.position.y = .12; s.add(SH.ring);
   // Anillo de energía exterior pulsante en el selector
   SH.ring2 = new THREE.Mesh(new THREE.RingGeometry(1.82, 1.94, 32), glowMat('#4fc3ff', .7)); SH.ring2.rotation.x = -Math.PI / 2; SH.ring2.position.y = .08; s.add(SH.ring2);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshLambertMaterial({ map: pixTex(32, 32, g => { g.fillStyle = '#0c0d14'; g.fillRect(0, 0, 32, 32); g.fillStyle = '#171927'; g.fillRect(0, 0, 32, 1); g.fillRect(0, 0, 1, 32); }) }));
+  const glowC = document.createElement('canvas'); glowC.width = glowC.height = 64;
+  { const gg = glowC.getContext('2d'), gr = gg.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,.85)'); gr.addColorStop(.5, 'rgba(255,255,255,.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); gg.fillStyle = gr; gg.fillRect(0, 0, 64, 64); }
+  SH.floorGlow = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 7.2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowC), color: 0xff4d4d, transparent: true, opacity: .38, depthWrite: false, blending: THREE.AdditiveBlending }));
+  SH.floorGlow.rotation.x = -Math.PI / 2; SH.floorGlow.position.y = -.08; SH.floorGlow.visible = false; s.add(SH.floorGlow);
+  SH.floorMat = new THREE.MeshPhongMaterial({
+    map: pixTex(32, 32, g => { g.fillStyle = '#0c0d14'; g.fillRect(0, 0, 32, 32); g.fillStyle = '#171927'; g.fillRect(0, 0, 32, 1); g.fillRect(0, 0, 1, 32); }),
+    shininess: 0, specular: 0x000000
+  });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), SH.floorMat);
   floor.material.map.wrapS = floor.material.map.wrapT = THREE.RepeatWrapping; floor.material.map.repeat.set(20, 20);
   floor.rotation.x = -Math.PI / 2; floor.position.y = -.1; floor.receiveShadow = true; s.add(floor);
   SH.bg.width = 1024; SH.bg.height = 512;
@@ -9281,20 +9290,42 @@ const SH = { scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(36, inne
   back.position.set(1, 3.6, -5); s.add(back);
   SH.parts = new Parts(s, 500);
 }
+function syncStudioBeta(ch) {
+  const beta = typeof ZZZ_U !== 'undefined' && ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+  if (SH.hemi) SH.hemi.intensity = beta ? .42 : .55;
+  if (SH.rim) SH.rim.intensity = beta ? 1.05 : .8;
+  if (SH.rim2) SH.rim2.intensity = beta ? .85 : .55;
+  if (SH.coolRim) SH.coolRim.intensity = beta ? .72 : 0;
+  if (SH.floorMat) {
+    SH.floorMat.shininess = beta ? 92 : 0;
+    if (beta) SH.floorMat.specular.setHex(0x283962); else SH.floorMat.specular.setHex(0x000000);
+  }
+  if (SH.floorGlow) {
+    SH.floorGlow.visible = beta;
+    if (ch && ch.color) SH.floorGlow.material.color.set(ch.color);
+  }
+  if (ch) drawBackdrop(ch);
+}
 function drawBackdrop(ch) {
-  const g = SH.bg.getContext('2d'), w = 1024, h = 512;
-  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0c0d16'); gr.addColorStop(1, '#05060a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-  g.save(); g.globalAlpha = .16; g.fillStyle = ch.color;
+  const g = SH.bg.getContext('2d'), w = 1024, h = 512, beta = typeof ZZZ_U !== 'undefined' && ZZZ_U.beta.value > .5 && ZZZ_U.on.value > .5;
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, beta ? '#0e1120' : '#0c0d16'); gr.addColorStop(1, '#05060a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  if (beta) {
+    const rg = g.createRadialGradient(w * .52, h * .54, 18, w * .52, h * .54, 340);
+    rg.addColorStop(0, ch.color); rg.addColorStop(.55, ch.color); rg.addColorStop(1, 'rgba(5,6,10,0)');
+    g.save(); g.globalAlpha = .22; g.fillStyle = rg; g.fillRect(0, 0, w, h); g.restore();
+  }
+  g.save(); g.globalAlpha = beta ? .20 : .16; g.fillStyle = ch.color;
   for (let x = -h; x < w + h; x += 90) { g.beginPath(); g.moveTo(x, h); g.lineTo(x + 36, h); g.lineTo(x + 36 + h * .6, 0); g.lineTo(x + h * .6, 0); g.closePath(); g.fill(); }
   g.restore();
   g.save(); g.translate(w * .5, h * .62); g.rotate(-.08);
   g.font = '260px Anton, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.globalAlpha = .9; g.lineWidth = 4; g.strokeStyle = ch.color; g.strokeText(ch.name.toUpperCase(), 0, 0);
-  g.globalAlpha = .08; g.fillStyle = ch.color; g.fillText(ch.name.toUpperCase(), 0, 0);
+  g.globalAlpha = beta ? .95 : .9; g.lineWidth = beta ? 5 : 4; g.strokeStyle = ch.color; g.strokeText(ch.name.toUpperCase(), 0, 0);
+  g.globalAlpha = beta ? .12 : .08; g.fillStyle = ch.color; g.fillText(ch.name.toUpperCase(), 0, 0);
   g.restore();
-  g.globalAlpha = .1; g.fillStyle = '#ffffff'; g.font = '700 22px "Chakra Petch", sans-serif';
-  for (let y = 40; y < h; y += 70) g.fillText('CALFIGHT // ' + ch.role + ' // ' + ch.title.toUpperCase() + ' // ', (y * 3) % 200 - 200, y);
-  g.globalAlpha = .25; g.fillStyle = ch.color;
+  g.globalAlpha = beta ? .15 : .1; g.fillStyle = '#ffffff'; g.font = '700 22px "Chakra Petch", sans-serif';
+  const lineTxt = beta ? ('AGENT PROFILE // ' + ch.role + ' // ' + ch.title.toUpperCase() + ' // ') : ('CALFIGHT // ' + ch.role + ' // ' + ch.title.toUpperCase() + ' // ');
+  for (let y = 40; y < h; y += 70) g.fillText(lineTxt, (y * 3) % 200 - 200, y);
+  g.globalAlpha = beta ? .34 : .25; g.fillStyle = ch.color;
   for (let i = 0; i < 14; i++) for (let j = 0; j < 8; j++) { g.beginPath(); g.arc(w - 40 - i * 18, 30 + j * 18, Math.max(.5, 6 - i * .45), 0, TAU); g.fill(); }
   g.globalAlpha = 1; SH.bgTex.needsUpdate = true;
 }
@@ -9310,7 +9341,7 @@ function showSelect(id, quiet) {
   model.root.position.set(0, 4, 0); model.root.rotation.y = .35;
   SH.drop = 0; SH.landed = false; SH.kf = null; SH.track = null; SH.camZ = quiet ? 5 : 8; SH.flourT = rand(6, 8);
   SH.rim.color.set(ch.color); SH.rim2.color.set(ch.color); SH.ring.material.color.set(ch.color); if(SH.ring2) SH.ring2.material.color.set(ch.color);
-  drawBackdrop(ch);
+  syncStudioBeta(ch);
   const menu = $('menu'); menu.style.setProperty('--c', ch.color);
   $('crole').textContent = ch.role; $('cname').textContent = ch.name.toUpperCase(); $('cname').classList.toggle('long', ch.name.length > 9); $('ctitle').textContent = ch.title.toUpperCase(); $('cdesc').textContent = ch.desc;
   const st = $('cstats'); st.innerHTML = '';
@@ -9375,7 +9406,13 @@ function updateShow(dt) {
   SH.parts.update(dt);
   SH.bgTex.offset.x += dt * .012;
   SH.ring.rotation.z += dt * .4; if(SH.ring2) SH.ring2.rotation.z -= dt * .25;
-  SH.key.intensity += ((SH.faceZoom ? .5 : .95) - SH.key.intensity) * Math.min(1, dt * 4);   // de cerca la cara se quema con la luz principal
+  if (SH.floorGlow && SH.floorGlow.visible) {
+    const gp = 1 + Math.sin(SH.t * 2.4) * .05;
+    SH.floorGlow.scale.set(gp, gp, 1);
+    SH.floorGlow.material.opacity = .36 + Math.sin(SH.t * 2.4) * .08;
+  }
+  const keyWant = SH.faceZoom ? .5 : (ZZZ_U.beta.value > .5 ? 1.08 : .95);
+  SH.key.intensity += (keyWant - SH.key.intensity) * Math.min(1, dt * 4);   // de cerca la cara se quema con la luz principal
   SH.camZ += ((SH.faceZoom ? 3.1 : 5.5) - SH.camZ) * Math.min(1, dt * 3.5);
   const ox = SH.faceZoom ? (innerWidth > 820 ? .7 : 0) : (innerWidth > 820 ? 1.0 : 0);
   SH.cam.position.set(ox + Math.sin(SH.t * .3) * .15, SH.faceZoom ? 1.78 : 1.4, SH.camZ);
@@ -12143,6 +12180,7 @@ function syncOwnerBeta(forceApply = false) {
   if (typeof ZZZ_U !== 'undefined') ZZZ_U.beta.value = want;
   if (typeof document !== 'undefined' && document.body) document.body.classList.toggle('cf-beta', want > 0.5);
   if (want !== prev || forceApply) {
+    try { if (typeof syncStudioBeta === 'function') syncStudioBeta(typeof SH !== 'undefined' && SH.fig ? SH.fig.ch : null); } catch (e) {}
     try { if (typeof gfxApply === 'function') gfxApply(false); } catch (e) {}
     for (const fn of _betaSubs) { try { fn(want > 0.5); } catch (e) {} }
   } else {
