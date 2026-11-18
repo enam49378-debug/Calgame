@@ -203,13 +203,20 @@ function addPropCull(mesh, x, y, z, radius, rangeMul = 1, canShadow = false) {
 // Costa: el mar queda al sur (z grande). SHORE(x) es la z de la orilla en cada x; inSea() dice si un punto ya es mar.
 const SHORE = x => 96 + 3.5 * Math.sin(x * .045) + 2 * Math.sin(x * .11 + 1);
 const inSea = (x, z) => z > SHORE(x) - 1.2;
-// Mundo ampliado (vista privada CF_BETA): fuera del círculo de la ciudad hay biomas. El límite pasa a ser un rectángulo.
-const WORLD_BIG = { hx: 326, zn: -132 };
+// Mundo ampliado y mapas independientes (vista privada CF_BETA). Cada mapa tiene su propio rectángulo jugable (b), su minimapa (mm) y sus cosas;
+// al cambiar de mapa (js/mapas.js) lo del otro desaparece. Sin la vista privada solo existe el mapa A con el círculo de siempre.
 const worldBig = () => !!(window.CF_BETA && window.CF_BETA.on);
-const outLand = (x, z, m = 1) => worldBig() ? (Math.abs(x) > WORLD_BIG.hx + m || z < WORLD_BIG.zn - m) : Math.hypot(x, z) > ARENA + m;
+const MAPS = {
+  A: { id: 'A', name: 'Ciudad Aurora y Selva Esmeralda', short: 'SELVA ESMERALDA', sub: 'Ciudad, mar, abismo y selva', col: '#3ddc84', b: { x0: -118, x1: 326, z0: -132, zs: 545 }, mm: { cx: 104, cz: 40, half: 240 }, hour: 11 },
+  B: { id: 'B', name: 'Valle Sakura', short: 'VALLE SAKURA', sub: 'Aldeas, castillo, ríos y cerezos', col: '#f7a1c4', b: { x0: -338, x1: -60, z0: -132, zs: 126 }, mm: { cx: -199, cz: -3, half: 150 }, hour: 17.4 }
+};
+const MAPCUR = { id: 'A' };
+const TRAVEL = { on: false, freeze: false, lock: false };
+const mapNow = () => MAPS[worldBig() ? MAPCUR.id : 'A'];
+const outLand = (x, z, m = 1) => { if (!worldBig()) return Math.hypot(x, z) > ARENA + m; const b = mapNow().b; return x < b.x0 - m || x > b.x1 + m || z < b.z0 - m; };
 // Agua tierra adentro (ríos, lagos): rectángulos {x0,x1,z0,z1,d}. Se nada igual que en el mar. LAKES.on lo enciende la vista privada.
 const LAKES = [];
-function lakeAt(x, z) { if (!LAKES.on) return null; for (let i = 0; i < LAKES.length; i++) { const l = LAKES[i]; if (x > l.x0 && x < l.x1 && z > l.z0 && z < l.z1) return l; } return null; }
+function lakeAt(x, z) { if (!LAKES.on) return null; for (let i = 0; i < LAKES.length; i++) { const l = LAKES[i]; if (l.map !== MAPCUR.id) continue; if (x > l.x0 && x < l.x1 && z > l.z0 && z < l.z1) return l; } return null; }
 function lakeFloor(l, x, z) {   // orilla en pendiente; donde un tramo toca otro tramo (o el mar) no hay orilla
   let m = 9;
   if (!lakeAt(l.x0 - .5, z)) m = Math.min(m, x - l.x0); if (!lakeAt(l.x1 + .5, z)) m = Math.min(m, l.x1 - x);
@@ -289,6 +296,9 @@ const MAPED = (() => {
     CITY_PLAN.push(plan); MAP_ITEMS.push({ key: a.id, kind: 'b', model: f.model, label: '', ox: a.x, oz: a.z, ory: 0, x: a.x, z: a.z, ry: 0, w: f.w, d: f.d, h: f.h, color: f.color, plan, added: true, from: a.from });
   }
 }
+// Puntos de aparición de los mapas ampliados (vista privada). Los de la Selva se suman a los de la ciudad.
+const JUNGLE_SPAWNS = [[112,-3],[128,12],[135,-18],[152,12],[160,-12],[178,-28],[188,10],[175,58],[185,28],[240,35],[255,52],[245,76],[275,12],[300,20],[270,-30],[250,-62],[190,-60],[150,-45],[118,-50],[120,40]].map(([x,z],i) => ({ id: 100 + i, x, z, yaw: Math.atan2(104 - x, 20 - z) }));
+const JAPAN_SPAWNS = [[-88,2],[-76,0],[-88,-10],[-110,-4],[-125,-6],[-140,10],[-165,-14],[-195,-12],[-188,-20],[-198,-45],[-130,50],[-135,38],[-210,10],[-225,5],[-255,0],[-240,-20],[-232,-40],[-255,-100],[-190,-100]].map(([x,z],i) => ({ id: 200 + i, x, z, yaw: Math.atan2(-199 - x, -3 - z) }));
 const SPAWN_POINTS = [
   [0,-33], [33,0], [0,33], [-33,0], [-22,-29], [22,29], [-29,22], [29,-22],
   [-22,10], [22,-10], [-22,-3], [22,3], [0,-9], [9,0], [0,9], [-9,0],
@@ -305,13 +315,13 @@ function cityGrassAt(x,z) {
   const facadeColors=['#f0bf7b','#e49aab','#77beaa','#e9cd83','#b9a0db','#eda777','#88b8dc','#dda19b','#deca8b','#a9cd86','#87c8d0','#dcc080'];
   const batches = new Map(), matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), xyz = new V3(), size = new V3();
   // Vista privada (CF_BETA): lo que se construye con BETA_ON = true va en lotes aparte y solo lo ve el Owner hasta su lanzamiento (CITY.betaApply)
-  let BETA_ON = false; const betaCols = [], betaObjs = [], betaMeshes = [], pubCols = [], pubMeshes = [], pubObjs = [];   // BETA_ON = -1: solo para el público (lo que la novedad sustituye)
+  let BETA_ON = false, MAPTAG = 'A'; const betaCols = [], betaObjs = [], betaMeshes = [], pubCols = [], pubMeshes = [], pubObjs = [];   // MAPTAG: a qué mapa pertenece lo que se construye ('B' = Valle Sakura)   // BETA_ON = -1: solo para el público (lo que la novedad sustituye)
   const box = (x,y,z,w,h,d,color,tex=null,tower=null) => {
-    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44) + (BETA_ON ? (BETA_ON < 0 ? ':pub' : ':beta') : '');   // un lote por color y por zona de 44 m
-    if (!batches.has(key)) batches.set(key, { color, tex, items: [], beta: BETA_ON > 0, pub: BETA_ON < 0 });
+    const key = color + ':' + (tex || '') + ':' + Math.floor(x / 44) + ',' + Math.floor(z / 44) + (BETA_ON ? (BETA_ON < 0 ? ':pub' : ':beta') : '') + (MAPTAG === 'B' ? ':mB' : '');   // un lote por color y por zona de 44 m
+    if (!batches.has(key)) batches.set(key, { color, tex, items: [], beta: BETA_ON > 0, pub: BETA_ON < 0, map: MAPTAG });
     batches.get(key).items.push([x,y,z,w,h,d,tower]);
   };
-  const solid = (x,z,w,d,h,y0=0,ceiling=false) => { const c = {x,z,hx:w/2,hz:d/2,h,y0,ceiling}; if (BETA_ON) (BETA_ON < 0 ? pubCols : betaCols).push(c); else COL.push(c); };
+  const solid = (x,z,w,d,h,y0=0,ceiling=false) => { const c = {x,z,hx:w/2,hz:d/2,h,y0,ceiling,map:MAPTAG,bm:BETA_ON?1:0}; if (BETA_ON) (BETA_ON < 0 ? pubCols : betaCols).push(c); else COL.push(c); };
   const flat = (x,z,w,d,color,y=.013) => box(x,y,z,w,.018,d,color);
   const grass = BLOCK_TEX.grass.clone(); grass.needsUpdate = true;
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping; grass.repeat.set(420/B,280/B);
@@ -319,23 +329,24 @@ function cityGrassAt(x,z) {
   ground.rotation.x=-Math.PI/2; ground.position.y=-.15; ground.position.z=-70; ground.receiveShadow=true; ground.frustumCulled=false; scene.add(ground); CITY.ground=ground;
   // Mundo ampliado: el suelo pasa a ser una rejilla de 3 m que deja huecos donde hay ríos y lagos, con un tinte suave por bioma
   CITY.bigGround=on=>{
+    const id=MAPCUR.id;
     if(!CITY.groundGeoPub)CITY.groundGeoPub=ground.geometry;
-    if(on&&!CITY.groundGeoBig){
+    CITY.gBig=CITY.gBig||{};CITY.lakeW=CITY.lakeW||{};
+    if(on&&!CITY.gBig[id]){
       const P=[],U=[],C=[],I=[];let n=0;
-      const tint=x=>{const w=clamp((-x-112)/22,0,1),e=clamp((x-112)/22,0,1);return [1-.34*e+.0*w,1-.1*e,1-.3*e-.06*w];};
+      const tint=x=>{const e=id==='A'?clamp((x-112)/22,0,1):0;return id==='A'?[1-.34*e,1-.1*e,1-.3*e]:[1,.97,.94];};
       for(let x=-339;x<339;x+=3)for(let z=-168;z<69;z+=3){
-        if(LAKES.some(l=>x+1.5>l.x0&&x+1.5<l.x1&&z+1.5>l.z0&&z+1.5<l.z1))continue;
+        if(LAKES.some(l=>l.map===id&&x+1.5>l.x0&&x+1.5<l.x1&&z+1.5>l.z0&&z+1.5<l.z1))continue;
         for(const [dx,dz] of [[0,0],[3,0],[0,3],[3,3]]){const X=x+dx,Z=z+dz;P.push(X,-(Z+70),0);U.push((X+210)/420,(Z+210)/280);const t=tint(X);C.push(t[0],t[1],t[2]);}
         I.push(n,n+2,n+1,n+1,n+2,n+3);n+=4;}
-      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();CITY.groundGeoBig=g;
-      // superficie del agua de ríos y lagos (mismo material que el mar)
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();CITY.gBig[id]=g;
       const WP=[],WI=[];let k=0;
-      for(const l of LAKES){const z1=Math.min(l.z1,67);if(z1<=l.z0)continue;WP.push(l.x0,SEA_Y,l.z0,l.x1,SEA_Y,l.z0,l.x0,SEA_Y,z1,l.x1,SEA_Y,z1);WI.push(k,k+2,k+1,k+1,k+2,k+3);k+=4;}
+      for(const l of LAKES){if(l.map!==id)continue;const z1=Math.min(l.z1,67);if(z1<=l.z0)continue;WP.push(l.x0,SEA_Y,l.z0,l.x1,SEA_Y,l.z0,l.x0,SEA_Y,z1,l.x1,SEA_Y,z1);WI.push(k,k+2,k+1,k+1,k+2,k+3);k+=4;}
       const wg=new THREE.BufferGeometry();wg.setAttribute('position',new THREE.Float32BufferAttribute(WP,3));wg.setAttribute('uv',new THREE.Float32BufferAttribute(WP.filter((_,i)=>i%3!==1).map(v=>v/8),2));wg.setIndex(WI);wg.computeVertexNormals();
-      const wm=new THREE.Mesh(wg,new THREE.MeshPhongMaterial({color:0x2f9bd1,transparent:true,opacity:.8,shininess:90,specular:0x9fd8ff,side:THREE.DoubleSide}));wm.frustumCulled=false;wm.renderOrder=-4;scene.add(wm);CITY.lakeWater=wm;
+      const wm=new THREE.Mesh(wg,new THREE.MeshPhongMaterial({color:0x2f9bd1,transparent:true,opacity:.8,shininess:90,specular:0x9fd8ff,side:THREE.DoubleSide}));wm.frustumCulled=false;wm.renderOrder=-4;wm.visible=false;scene.add(wm);CITY.lakeW[id]=wm;
     }
-    ground.geometry=on?CITY.groundGeoBig:CITY.groundGeoPub;ground.material.vertexColors=!!on;ground.material.needsUpdate=true;
-    if(CITY.lakeWater)CITY.lakeWater.visible=!!on;
+    ground.geometry=on?CITY.gBig[id]:CITY.groundGeoPub;ground.material.vertexColors=!!on;ground.material.needsUpdate=true;
+    for(const k in CITY.lakeW)CITY.lakeW[k].visible=!!on&&k===id;
   };
   const paving = pixTex(32,32,g=>{
     noiseRect(g,0,0,32,32,'#8c999f',8); g.fillStyle='#919da5';
@@ -864,7 +875,7 @@ function cityGrassAt(x,z) {
     const pos=[],uvs=[],idx=[];let k=0;
     for(let x=x0;x<=x1;x+=step){pos.push(x,y,zN(x),x,y,zS(x));uvs.push(x/uv,zN(x)/uv,x/uv,zS(x)/uv);if(k>0){const q=(k-1)*2;idx.push(q,q+1,q+2,q+1,q+3,q+2);}k++;}
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geo.setIndex(idx);geo.computeVertexNormals();
-    const m=new THREE.Mesh(geo,mat);m.receiveShadow=true;scene.add(m);if(pub)pubObjs.push(m);else addPropCull(m,(x0+x1)/2,y,83,(x1-x0)/2+8,1.35);return m;
+    const m=new THREE.Mesh(geo,mat);m.receiveShadow=true;m.userData.mapAll=true;scene.add(m);if(pub)pubObjs.push(m);else addPropCull(m,(x0+x1)/2,y,83,(x1-x0)/2+8,1.35);return m;
   };
   {const sandM=cityAnimeMaterial(new THREE.MeshLambertMaterial({map:sandTex})),wetM=cityAnimeMaterial(new THREE.MeshLambertMaterial({map:wetTex}));
     // la playa llega a los lados del mundo; en las dos desembocaduras de los ríos (vista privada) la arena solo la ve el público
@@ -994,12 +1005,12 @@ function cityGrassAt(x,z) {
     }
   }
   // ===== Lugares con encanto (vista privada CF_BETA hasta su lanzamiento): jardín de cerezos, farolillos, gato de la suerte, arco del muelle =====
-  BETA_ON=true;
+  BETA_ON=true;MAPTAG='B';
   {
     const bsign=(text,x,y,z,w,ry,color)=>{
       const texture=pixTex(256,64,g=>{g.fillStyle=color;g.fillRect(0,0,256,64);g.strokeStyle='#eae7cf';g.lineWidth=4;g.strokeRect(5,5,246,54);g.fillStyle='#fff8df';g.textAlign='center';g.textBaseline='middle';g.font='bold 26px sans-serif';g.fillText(text,128,34,232);});
       const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,w/4),new THREE.MeshLambertMaterial({map:texture}));cityAnimeMaterial(mesh.material);mesh.material.emissiveMap=texture;CITY.signMaterials.push(mesh.material);
-      mesh.position.set(x,y,z);mesh.rotation.y=ry;mesh.visible=false;scene.add(mesh);betaObjs.push(mesh);
+      mesh.position.set(x,y,z);mesh.rotation.y=ry;mesh.visible=false;mesh.userData.map=MAPTAG;scene.add(mesh);betaObjs.push(mesh);
     };
     let lq=77123;const lr=()=>(lq=(lq*1664525+1013904223)>>>0)/4294967296;   // azar propio: no toca el del resto del mapa
     // --- Jardín de los Cerezos (claro del bosque, al oeste)
@@ -1106,8 +1117,8 @@ function cityGrassAt(x,z) {
       // =====================================================================================================================
       // BIOMAS DEL MUNDO AMPLIADO (vista privada): Valle Sakura al oeste y Selva Esmeralda al este, con ríos y lagos nadables
       // =====================================================================================================================
-      const PLANK='#967852',ROCK='#7d8a80',ROCK2='#6f7c73',WATERFALL='#bfe8f5',DIRT='#b9a27a',MMR=[];
-      const lake=(x0,x1,z0,z1,d)=>{LAKES.push({x0,x1,z0,z1,d});const zc=Math.min(z1,SHORE((x0+x1)/2)+8);box((x0+x1)/2,-d-1.5,(z0+zc)/2,x1-x0+2,3,zc-z0+2,'#5f8fa3');};
+      const PLANK='#967852',ROCK='#7d8a80',ROCK2='#6f7c73',WATERFALL='#bfe8f5',DIRT='#b9a27a',MMR=Object.assign([],{push(...a){for(const m of a){m.map=MAPTAG;Array.prototype.push.call(this,m);}return this.length;}});
+      const lake=(x0,x1,z0,z1,d)=>{LAKES.push({x0,x1,z0,z1,d,map:x1<-60?'B':'A'});const zc=Math.min(z1,SHORE((x0+x1)/2)+8);box((x0+x1)/2,-d-1.5,(z0+zc)/2,x1-x0+2,3,zc-z0+2,'#5f8fa3');};
       const inW=(x,z,m=0)=>LAKES.some(l=>x>l.x0-m&&x<l.x1+m&&z>l.z0-m&&z<l.z1+m);
       const used=[],claim=(x,z,hw,hd)=>used.push([x,z,hw,hd]);
       const free=(x,z,r)=>!inW(x,z,r)&&!used.some(u=>Math.abs(x-u[0])<u[2]+r&&Math.abs(z-u[1])<u[3]+r);
@@ -1117,7 +1128,8 @@ function cityGrassAt(x,z) {
         for(let a=a0;a<a1;a+=6){const b=Math.min(a+6,a1),m=(a+b)/2,px=ax?m:cx,pz=ax?cz:m;if(inW(px,pz,-.5))continue;flat(px,pz,ax?b-a+.02:w,ax?w:b-a+.02,col,.022);}
         claim(cx,cz,W/2+.4,D/2+.4);MMR.push([cx,cz,W,D]);};
       const mesa=(x,z,w,d,n,c1,c2)=>{for(let i=0;i<n;i++){const g=(n-1-i)*2.4,h=(i+1)*.5;box(x,h/2,z,w+g,h,d+g,i%2?c1:c2);solid(x,z,w+g,d+g,h);}claim(x,z,(w+(n-1)*2.4)/2+1,(d+(n-1)*2.4)/2+1);};
-      const mount=(x,z,w,h,c=ROCK)=>{for(let i=0;i<4;i++){const k=1-i*.22;box(x+(lr()-.5)*w*.1,h*(i+.5)/4,z+(lr()-.5)*w*.1,w*k,h/4+.04,w*k,i===3&&h>22?'#f1f5f7':(i%2?c:ROCK2));}solid(x,z,w,w,h);claim(x,z,w/2,w/2);};
+      const mount0=(x,z,w,h,c=ROCK)=>{for(let i=0;i<4;i++){const k=1-i*.22;box(x+(lr()-.5)*w*.1,h*(i+.5)/4,z+(lr()-.5)*w*.1,w*k,h/4+.04,w*k,i===3&&h>22?'#f1f5f7':(i%2?c:ROCK2));}solid(x,z,w,w,h);claim(x,z,w/2,w/2);};
+      const mount=(x,z,w,h,c=ROCK)=>{const s0=lq,p0=MAPTAG;for(const t of (x<-118?['B']:x>-60?['A']:['A','B'])){lq=s0;MAPTAG=t;mount0(x,z,w,h,c);}MAPTAG=p0;};   // en la franja intermedia hay una copia por mapa
       const deck=(x,z,w,d,h=.5,post=1)=>{box(x,h-.08,z,w,.16,d,PLANK,'plank');solid(x,z,w,d,h,.12);if(post)for(const sx of [-1,1])for(const sz of [-1,1])box(x+sx*(w/2-.3),h/2-1.6,z+sz*(d/2-.3),.26,h+3.2,.26,WOOD);claim(x,z,w/2,d/2);};
       const bridge=(x,z,len,alongX,w=3.2,col=RED)=>{const n=Math.max(5,Math.round(len/1.5)+2),L=n*1.5;
         for(let i=0;i<n;i++){const t=(i+.5)/n,h=.25+1*Math.sin(Math.PI*t),o=-L/2+(i+.5)*1.5,bx=alongX?x+o:x,bz=alongX?z:z+o;
@@ -1137,13 +1149,14 @@ function cityGrassAt(x,z) {
       // ---------- montañas del borde y cascadas ----------
       for(let x=-330;x<=330;x+=19){if((x>-236&&x<-188)||(x>198&&x<262))continue;mount(x+(lr()-.5)*6,-150+lr()*6,22+lr()*9,13+lr()*24);}
       for(let z=-128;z<=58;z+=20){mount(-341-lr()*3,z+(lr()-.5)*6,22+lr()*6,11+lr()*18);mount(341+lr()*3,z+(lr()-.5)*6,22+lr()*6,11+lr()*18);}
-      {const cx=-211.5;box(cx,7,-141,44,14,20,ROCK);box(cx-9,9.5,-143,18,19,16,ROCK2);box(cx+11,8.5,-144,16,17,14,ROCK2);box(cx,16.5,-146,22,5,10,'#f1f5f7');solid(cx,-141,44,20,14);claim(cx,-141,22,10);
+      MAPTAG='B';{const cx=-211.5;box(cx,7,-141,44,14,20,ROCK);box(cx-9,9.5,-143,18,19,16,ROCK2);box(cx+11,8.5,-144,16,17,14,ROCK2);box(cx,16.5,-146,22,5,10,'#f1f5f7');solid(cx,-141,44,20,14);claim(cx,-141,22,10);
         box(cx,7,-130.8,7.4,14,.5,WATERFALL);box(cx-1.4,7,-130.6,1.2,14,.3,'#e9fbff');box(cx+2,7,-130.6,.8,14,.3,'#e9fbff');for(let k=0;k<7;k++)box(cx-3.4+k*1.1,.2,-129.6-(k%2)*.5,1,.5,1,'#e9fbff');
         box(cx,36,-196,90,72,60,'#8a96a3');box(cx,58,-196,62,30,44,'#a9b4bf');box(cx,76,-196,36,14,28,'#f1f5f7');}   // monte nevado al fondo
-      {const cx=229.5;box(cx,8,-139,58,16,26,ROCK);box(cx-14,11,-142,22,22,18,ROCK2);box(cx+15,10,-143,20,20,16,ROCK2);box(cx,16.3,-139,58,.6,26,'#3a8f4a');solid(cx,-139,58,26,16);claim(cx,-139,29,13);
+      MAPTAG='A';{const cx=229.5;box(cx,8,-139,58,16,26,ROCK);box(cx-14,11,-142,22,22,18,ROCK2);box(cx+15,10,-143,20,20,16,ROCK2);box(cx,16.3,-139,58,.6,26,'#3a8f4a');solid(cx,-139,58,26,16);claim(cx,-139,29,13);
         box(cx,8,-125.8,8.6,16,.5,WATERFALL);box(cx-2,8,-125.6,1.3,16,.3,'#e9fbff');box(cx+2.6,8,-125.6,.9,16,.3,'#e9fbff');for(let k=0;k<8;k++)box(cx-3.9+k*1.1,.2,-124.6-(k%2)*.5,1,.5,1,'#e9fbff');}
 
       // ====================== VALLE SAKURA (oeste) ======================
+      MAPTAG='B';
       // caminos
       road(-93,-7.5,-166,-7.5,2.8,PAVE);road(-179,-7.5,-232,-7.5,2.8,PAVE);road(-232,-7.5,-232,-63,2.8,PAVE);road(-232,-63,-241,-63,2.8,PAVE);
       road(-190,-7.5,-190,-27,2.4,PAVE);road(-190,-42,-190,-90,2.4,PAVE);road(-190,-90,-204,-90,2.4,PAVE);road(-219,-90,-234,-90,2.4,PAVE);road(-234,-90,-234,-101,2.4,PAVE);road(-234,-101,-292,-101,2.4,PAVE);
@@ -1211,6 +1224,7 @@ function cityGrassAt(x,z) {
       scatter(260,-326,-116,-128,64,.5,(x,z)=>{const r=lr();if(r<.5)box(x,.16,z,.16,.32,.16,['#f3a2cb','#fbd0e0','#e9fbff','#ffd35c'][(r*40|0)%4]);else if(r<.8)box(x,.3,z,1+lr()*.6,.6,1+lr()*.6,'#f7b6cf');else box(x,.25,z,.9+lr()*.7,.5,.8+lr()*.6,STONE);});
 
       // ====================== SELVA ESMERALDA (este) ======================
+      MAPTAG='A';
       const jtree=(x,z,s)=>{const h=4+s*3+lr()*2,t=.5+s*.4,c=['#2f7a3f','#3a8f4a','#27693a'];box(x,h/2,z,t,h,t,'#5d4634','log');solid(x,z,t,t,h);
         box(x,h+.6,z,3.4+s*2.5,1.6+s*.5,3.4+s*2.5,c[0],'leaves');box(x+.5,h+1.9+s*.3,z-.3,2.2+s*1.6,1.2,2.2+s*1.6,c[1],'leaves');box(x-1.1-s*.6,h-.5,z+.9,1.8+s,1,1.8+s,c[2],'leaves');
         if(lr()<.6)box(x+t/2+.06,h*.55,z,.08,h*.75,.3,'#3f8f3a');if(s>1){box(x-t/2-.06,h*.6,z+.2,.08,h*.6,.3,'#3f8f3a');for(const sg of [-1,1])box(x+sg*(t/2+.5),.5,z,1,1-.0,.5,'#5d4634','log');}};
@@ -1260,11 +1274,13 @@ function cityGrassAt(x,z) {
       scatter(230,120,325,-124,63,2.6,(x,z)=>jtree(x,z,lr()<.3?1:0));
       scatter(420,118,326,-126,64,.5,(x,z)=>{const r=lr();if(r<.45){box(x,.3,z,1.1+lr()*.8,.6,1.1+lr()*.8,r<.2?'#2f7a3f':'#3a8f4a','leaves');}else if(r<.75)box(x,.2,z,.18,.4,.18,['#e2504a','#ff9a3c','#b98cff','#ffd35c'][(r*40|0)%4]);else if(r<.9){box(x,.3,z,.2,.6,.2,'#e9dfc0');box(x,.7,z,.7,.3,.7,'#d8433b');}else box(x,.3,z,1+lr()*.8,.6,.9+lr()*.6,ROCK);});
 
+      // muros de montañas en los lados que cierran cada mapa
+      for(let z=-136;z<=70;z+=21){const q=lq;MAPTAG='B';lq=q;mount0(-48+(lr()-.5)*4,z,24+lr()*8,12+lr()*18);MAPTAG='A';lq=q+1;mount0(-136+(lr()-.5)*4,z,24+lr()*8,12+lr()*18);}
+      MAPTAG='A';
       // minimapa del mundo ampliado
-      CITY.mmExtra=(g,r)=>{g.fillStyle='#3f6b47';r(0,-48,690,236);g.fillStyle='#4f7a52';r(-226,-33,226,200);g.fillStyle='#2f5a38';r(226,-33,226,200);
-        g.fillStyle='#365a3c';g.beginPath();g.fill();
-        for(const m of MMR){g.fillStyle=m[4]||(m[2]*m[3]>300?'#d9cdb0':'#c9bd9c');r(m[0],m[1],m[2],m[3]);}
-        g.fillStyle='#3b9ecb';for(const l of LAKES)r((l.x0+l.x1)/2,(l.z0+Math.min(l.z1,96))/2,l.x1-l.x0,Math.min(l.z1,96)-l.z0);};
+      CITY.mmExtra=(g,r)=>{const id=MAPCUR.id;g.fillStyle=id==='A'?'#2f5a38':'#4f7a52';r(id==='A'?226:-199,-33,id==='A'?226:280,200);
+        for(const m of MMR){if(m.map!==id)continue;g.fillStyle=m[4]||(m[2]*m[3]>300?'#d9cdb0':'#c9bd9c');r(m[0],m[1],m[2],m[3]);}
+        g.fillStyle='#3b9ecb';for(const l of LAKES)if(l.map===id)r((l.x0+l.x1)/2,(l.z0+Math.min(l.z1,96))/2,l.x1-l.x0,Math.min(l.z1,96)-l.z0);};
     }
     // --- Campamento del Bosque (claro del este): hoguera, tiendas y troncos para sentarse
     {
@@ -1322,9 +1338,9 @@ function cityGrassAt(x,z) {
     {const T=CITY_PLAN.find(b=>b.label==='TORRE AURORA');
       if(T){const fc=T.z<0?1:-1;bsign('ASCENSOR A LA AZOTEA',T.x,6.9,T.z+fc*(T.d/2+.95),6.4,fc>0?0:Math.PI,'#1b2330');
         const beam=new THREE.Mesh(new THREE.BoxGeometry(.7,18,.7),new THREE.MeshBasicMaterial({color:0x7ad7ff,transparent:true,opacity:.2,depthWrite:false,fog:false}));
-        beam.position.set(T.x,T.h+3.9+9,T.z-fc*(T.d/2-2.6));beam.visible=false;scene.add(beam);betaObjs.push(beam);}}
+        beam.position.set(T.x,T.h+3.9+9,T.z-fc*(T.d/2-2.6));beam.visible=false;beam.userData.map=MAPTAG;scene.add(beam);betaObjs.push(beam);}}
   }
-  BETA_ON=false;
+  BETA_ON=false;MAPTAG='A';
   // Contornos de arquitectura: líneas sobrias que acentúan la silueta del barrio.
   const edgePositions=[];
   for(const b of CITY.buildings){
@@ -1370,12 +1386,23 @@ function cityGrassAt(x,z) {
     cityAnimeMaterial(mat);mesh.castShadow=true;mesh.receiveShadow=true;mesh.updateMatrix();mesh.matrixAutoUpdate=false;mesh.frustumCulled=false;scene.add(mesh);
     if(batch.beta){mesh.userData.betaN=batch.items.length;mesh.count=0;betaMeshes.push(mesh);}
     if(batch.pub){mesh.userData.betaN=batch.items.length;pubMeshes.push(mesh);}
+    mesh.userData.map=batch.map;
     {let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;for(const p of batch.items){x0=Math.min(x0,p[0]-p[3]/2);x1=Math.max(x1,p[0]+p[3]/2);y0=Math.min(y0,p[1]-p[4]/2);y1=Math.max(y1,p[1]+p[4]/2);z0=Math.min(z0,p[2]-p[5]/2);z1=Math.max(z1,p[2]+p[5]/2);}
     mesh.userData.cull=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2);(CITY.cull||(CITY.cull=[])).push(mesh);}
   }
-  CITY.betaApply=on=>{for(const m of betaMeshes)m.count=on?m.userData.betaN:0;for(const m of pubMeshes)m.count=on?0:m.userData.betaN;for(const o of betaObjs)o.visible=!!on;for(const o of pubObjs)o.visible=!on;LAKES.on=!!on;if(CITY.bigGround)CITY.bigGround(!!on);
-    for(const [list,want] of [[betaCols,!!on],[pubCols,!on]])for(const c of list){const i=COL.indexOf(c);if(want&&i<0)COL.push(c);else if(!want&&i>=0)COL.splice(i,1);}
-    colMarkDirty();if(CITY.modelsReady&&typeof rebuildCityNav==='function')rebuildCityNav();};
+  CITY.betaApply=on=>{
+    const id=MAPCUR.id;
+    for(const m of betaMeshes)m.count=(on&&m.userData.map===id)?m.userData.betaN:0;
+    for(const m of pubMeshes)m.count=on?0:m.userData.betaN;
+    for(const o of betaObjs)o.visible=!!on&&o.userData.map===id;
+    for(const o of pubObjs)o.visible=!on;
+    LAKES.on=!!on;if(CITY.bigGround)CITY.bigGround(!!on);
+    // lo del otro mapa sale de las colisiones: las de la ciudad (sin etiqueta) se guardan mientras se está en el Valle
+    const baseOff=!!on&&id==='B';
+    if(baseOff&&!CITY.colStash){CITY.colStash=COL.filter(c=>!c.bm&&c.map!=='B');const st=new Set(CITY.colStash);let j=0;for(let i=0;i<COL.length;i++)if(!st.has(COL[i]))COL[j++]=COL[i];COL.length=j;}
+    else if(!baseOff&&CITY.colStash){for(const c of CITY.colStash)COL.push(c);CITY.colStash=null;}
+    for(const [list,want] of [[betaCols,c=>!!on&&c.map===id],[pubCols,()=>!on]])for(const c of list){const i=COL.indexOf(c),w=want(c);if(w&&i<0)COL.push(c);else if(!w&&i>=0)COL.splice(i,1);}
+    colMarkDirty();if(CITY.modelsReady&&typeof rebuildCityNav==='function')rebuildCityNav();CULL.dirty=true;};
   const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
   for(let i=0;i<16;i++){
     const c=new THREE.Mesh(new THREE.BoxGeometry(14+(i%4)*3,2,8+(i%3)*2),cloudMat);
@@ -1419,7 +1446,9 @@ const ROOM_ATMOSPHERE = (() => {
   const round=v=>Math.round(v*1000)/1000;
   function hash(text){let n=2166136261;for(const c of String(text))n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;}
   function random(s){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296;}
-  function kind(s){if(s.mode!=='auto')return s.mode;const seq=[['clear',80],['cloudy',50],['drizzle',65],['rain',85],['storm',85],['fog',70],['densefog',60],['wind',55],['snow',80],['blizzard',65]];let t=s.elapsed%695;for(const [k,d]of seq){if(t<d)return k;t-=d;}return 'clear';}
+  const ATM_SEQ={A:[['clear',80],['cloudy',50],['drizzle',65],['rain',85],['storm',85],['fog',70],['densefog',60],['wind',55],['snow',80],['blizzard',65]],
+    B:[['clear',70],['cloudy',45],['drizzle',60],['fog',75],['snow',80],['clear',65],['wind',50],['densefog',45]]};   // cada mapa tiene su propio ciclo de clima (el Valle: sin tormentas, con niebla y nieve suave)
+  function kind(s){if(s.mode!=='auto')return s.mode;const seq=ATM_SEQ[(window.CF_BETA&&window.CF_BETA.on&&MAPCUR.id==='B')?'B':'A'];let tot=0;for(const q of seq)tot+=q[1];let t=s.elapsed%tot;for(const [k,d]of seq){if(t<d)return k;t-=d;}return 'clear';}
   function create(seed=8197){return {v:3,t:0,hour:11,cycle:true,mode:'auto',elapsed:0,rain:0,cloud:.04,fog:.08,snow:0,wind:.2,wet:0,fogStrength:1.15,seed:seed>>>0,rng:seed>>>0,seq:0,nextStrike:12,strikes:[]};}
   function command(s,c){
     if(!c||typeof c!=='object')return false;
@@ -1796,7 +1825,7 @@ function updateCityWeather(dt,instant=false){
     WX.skyTop.lerp(_c.set(0x04091a),nk);
     WX.skyHorizon.lerp(_c.set(0x0c142a),nk*.85);
   }
-  const blocked=!!G.grade||STAGE.on,visible=G.state==='play'&&!blocked;
+  const blocked=!!G.grade||STAGE.on,visible=G.state==='play'&&!blocked,lampB=blocked||(worldBig()&&MAPCUR.id==='B');
   WX.sky.material.uniforms.uTop.value.copy(WX.skyTop);WX.sky.material.uniforms.uHorizon.value.copy(WX.skyHorizon);
   WX.sky.material.uniforms.uLow.value.copy(WX.skyHorizon).multiplyScalar(.8);
   WX.sky.material.uniforms.uCloud.value=WX.cloud;WX.sky.material.uniforms.uTime.value=WX.time;
@@ -1833,17 +1862,17 @@ function updateCityWeather(dt,instant=false){
       for(const m of CITY.signMaterials){const se=.20+lights*1.12;m.emissive.setRGB(se,se,se*1.04);}
       for(const m of CITY.lampMaterials){m.emissive.set(0xffd699).multiplyScalar(lights*2.15);}
       for(const m of CITY.wetMaterials){m.shininess=20+WX.wet*125;m.specular.setRGB(.14+WX.wet*.38,.17+WX.wet*.44,.24+WX.wet*.54);}
-      WX.lampPoolMat.opacity=blocked?0:lights*(.34+WX.wet*.22);WX.lampHaloMat.opacity=blocked?0:lights*(.38+WX.rain*.20);
+      WX.lampPoolMat.opacity=lampB?0:lights*(.34+WX.wet*.22);WX.lampHaloMat.opacity=lampB?0:lights*(.38+WX.rain*.20);
     }else{
       for(const m of CITY.bbEmissiveMaterials){m.emissive.setHex(0xffffff);}
       for(const m of CITY.windowMaterials){m.emissive.set(0xffc57c).multiplyScalar(lights*(zzz?.88:.65));}
       for(const m of CITY.signMaterials){const se=(zzz?.22:.13)+lights*(zzz?.86:.65);m.emissive.setRGB(se,se,se);}
       for(const m of CITY.lampMaterials){m.emissive.set(0xffd095).multiplyScalar(lights*(zzz?1.75:1.4));}
       for(const m of CITY.wetMaterials){m.shininess=(zzz?18:8)+WX.wet*95;m.specular.setRGB((zzz?.14:.08)+WX.wet*.28,(zzz?.16:.10)+WX.wet*.32,(zzz?.22:.12)+WX.wet*.38);}
-      WX.lampPoolMat.opacity=blocked?0:lights*((zzz?.28:.2)+WX.wet*.16);WX.lampHaloMat.opacity=blocked?0:lights*((zzz?.32:.24)+WX.rain*.17);
+      WX.lampPoolMat.opacity=lampB?0:lights*((zzz?.28:.2)+WX.wet*.16);WX.lampHaloMat.opacity=lampB?0:lights*((zzz?.32:.24)+WX.rain*.17);
     }
   }else if(betaNow&&zzz){
-    WX.lampHaloMat.opacity=blocked?0:lights*(.38+WX.rain*.20);
+    WX.lampHaloMat.opacity=lampB?0:lights*(.38+WX.rain*.20);
   }
   // Se reasignan las luces más próximas sin crear objetos ni ordenar todo el arreglo por cuadro.
   const kL=WX.lampLights.length;
@@ -5383,19 +5412,29 @@ function kill(v, k) {
   if (v.isPlayer && G.mp) NET.ko = { n: v.deaths, by: k && k.remote ? k.peer : '' };
   if (G.state === 'play' && !G.mp && k && k.kills >= G.goal) later(1.2, () => endMatch(k));
 }
+function spawnsNow() { return !worldBig() ? SPAWN_POINTS : MAPCUR.id === 'B' ? JAPAN_SPAWNS : SPAWN_POINTS.concat(JUNGLE_SPAWNS).filter(p => p.x > -100); }
+// Cambia el mapa activo: lo del otro mapa se oculta (visual y colisiones), el minimapa, el clima y el suelo siguen al nuevo
+function setMapNow(id) {
+  if (!MAPS[id]) return;
+  MAPCUR.id = worldBig() ? id : 'A';
+  if (CITY.betaApply) CITY.betaApply(worldBig());
+  mmApply(); CULL.dirty = true;
+  for (const f of G.fighters) if (f.ai) { f.ai.cityPath = null; f.ai.cityThink = 0; }
+}
 function respawn(f) {
   f.reset(); f.iframes = 2;
   if (f.abyss && window.CF_ABISMO && CF_ABISMO.locked()) { CF_ABISMO.respawnIn(f); if (f.isPlayer) $('death').classList.add('hidden'); return; }
   if (f.home) { f.pos.copy(f.home); f.onGround = true; f.iframes = .5; burst(chestOf(f), 20, f.ch.color, 6, .2, .6, -.2); return; }
   let best = null, score = -Infinity;
-  for (const p of SPAWN_POINTS) {
+  const SP = spawnsNow();
+  for (const p of SP) {
     if (groundAt(p.x,p.z) > .1) continue;
     let distance = 80;
     for (const g of G.fighters) if (g !== f && g.alive && !g.dummy) distance = Math.min(distance, Math.hypot(g.pos.x-p.x,g.pos.z-p.z));
     const value = distance + (p.id !== f.spawnId ? .8 : -3) + Math.random() * .3;
     if (value > score) { score = value; best = p; }
   }
-  best = best || SPAWN_POINTS[0];
+  best = best || SP[0];
   f.spawnId = best.id; f.pos.set(best.x,0,best.z); f.onGround = true;
   f.yaw = best.yaw; f.prevYaw = f.yaw;
   if (f.ai) { f.ai.cityPath=null; f.ai.cityThink=0; }
@@ -7767,6 +7806,7 @@ function isBindShift(code) {
 }
 
 function playerCtl() {
+  if (TRAVEL.lock) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };   // portales: sin control
   if (G.viewer) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   if (G.paused || roomInputBlocked()) return { mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false };
   const c = { mx: 0, mz: 0, jump: !!keys[BINDS.jump], dash: pressed.has(BINDS.dash), m1: mouse.left, block: !!keys[BINDS.block], skill: -1, ult: pressed.has(BINDS.ult), down: !!keys.KeyC, up: !!keys[BINDS.jump] };
@@ -7861,6 +7901,7 @@ function cityRoute(from,to){
 }
 function citySteer(f,target,c,dt){
   const ai=f.ai;if(!ai||f.action&&f.action.noControl||f.grabbed)return;
+  if(worldBig()&&(Math.abs(f.pos.x)>112||Math.abs(f.pos.z)>112||Math.abs(target.pos.x)>112||Math.abs(target.pos.z)>112)){ai.cityPath=null;return;}   // los biomas no tienen cuadrícula de rutas: se va recto
   if(citySegment(f.pos,target.pos)>.999){ai.cityPath=null;return;}
   ai.cityThink=(ai.cityThink||0)-dt;
   if(!ai.cityPath||ai.cityThink<=0){const T=target.pos;if(!ai.cityPath||!ai.cityTo||ai.cityPath.length<2||Math.hypot(T.x-ai.cityTo.x,T.z-ai.cityTo.z)>2.5||(ai.cityN=(ai.cityN||0)+1)%4===0){ai.cityPath=cityRoute(f.pos,T);ai.cityTo={x:T.x,z:T.z};}ai.cityThink=.9;}
@@ -7972,7 +8013,7 @@ function laserLeg(a, b, col, w = .2, dur = .25) {
   grp.add(o1, c1); grp.position.copy(a).lerp(b, .5); grp.lookAt(b);
   addFx(grp, dur, (g, k) => { const q = 1 - k * .8; g.scale.set(q, q, 1); o1.material.opacity = .6 * (1 - k); c1.material.opacity = 1 - k; }, () => { o1.geometry.dispose(); o1.material.dispose(); c1.geometry.dispose(); c1.material.dispose(); });
 }
-function clampArena(v, m = 2) { if (v.z > 560) return v; if (worldBig()) { v.x = clamp(v.x, -WORLD_BIG.hx + m, WORLD_BIG.hx - m); v.z = Math.max(v.z, WORLD_BIG.zn + m); return v; } const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
+function clampArena(v, m = 2) { if (v.z > 560) return v; if (worldBig()) { const b = mapNow().b; v.x = clamp(v.x, b.x0 + m, b.x1 - m); v.z = Math.max(v.z, b.z0 + m); return v; } const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
 function applyCtl(f, c, dt) {
   f.ctlJump = !!c.jump; f.ctlDown = !!c.down;
   if (f.mount) { mountUpdate(f, c, dt); return; }
@@ -8058,7 +8099,17 @@ const CULL = {
   last: { x: 1e9, y: 1e9, z: 1e9, qx: 0, qy: 0, qz: 0, qw: 1, sx: 1e9, sz: 1e9, lvl: -1, sh: '', beta: -1, bbmN: -1, me: false, lod: false, outZ: -1 }
 };
 // no se dibuja lo que queda fuera de distancia o fuera de la cámara (frustum + zona + LOD instanciado + dirty-check)
-function cityCull() {
+function cityCull() { cityCull0(); if (CULL.fresh) { CULL.fresh = false; mapGate(); } }
+// En el Valle Sakura todo lo de la ciudad, el mar profundo y el abismo desaparece (se vuelve a ver al regresar al otro mapa)
+function mapGate() {
+  if (!worldBig() || MAPCUR.id !== 'B') return;
+  if (CITY.cull) for (const m of CITY.cull) if (m.userData.map !== 'B') m.visible = false;
+  if (CITY.bldgLod) CITY.bldgLod.mesh.visible = false;
+  if (window.BBM) for (const m of window.BBM) if (m && m.position.x > -58) m.visible = false;
+  if (CITY.propsCull) for (const m of CITY.propsCull) if (!m.userData.mapAll && m.userData.propCull.center.x > -58) m.visible = false;
+  for (const o of [CITY.edges, CITY.grassMesh, CITY.flowerMesh, MALL_BB.root, SEA.root]) if (o) o.visible = false;
+}
+function cityCull0() {
   if (!CITY.cull) return;
   const cp = camera.position, cq = camera.quaternion;
   const outZone = (cp.z > 560 || cp.y < -45 || cp.y > 480) ? 1 : 0;
@@ -8075,7 +8126,7 @@ function cityCull() {
     const dsSq = (shTx - L.sx) ** 2 + (shTz - L.sz) ** 2;
     if (dpSq < 0.015 && dq < 0.0025 && dsSq < 0.09) return;
   }
-  CULL.dirty = false;
+  CULL.dirty = false; CULL.fresh = true;
   L.x = cp.x; L.y = cp.y; L.z = cp.z;
   L.qx = cq.x; L.qy = cq.y; L.qz = cq.z; L.qw = cq.w;
   L.sx = shTx; L.sz = shTz;
@@ -8554,7 +8605,7 @@ function updateSeaLife(dt, t, cp) {
   const L = SEA.life; if (!L) return;
   // temporizador de eventos y cuenta atras de los activos
   for (const k in SEA.ev) if (SEA.ev[k] > 0) SEA.ev[k] = Math.max(0, SEA.ev[k] - dt);
-  if (SEA.eventsAuto && G.state === 'play') { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && (krakenBlocked() || (window.CF_ABISMO && CF_ABISMO.sim)))); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
+  if (SEA.eventsAuto && G.state === 'play' && !(worldBig() && MAPCUR.id === 'B')) { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && (krakenBlocked() || (window.CF_ABISMO && CF_ABISMO.sim)))); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
   const glow = SEA.ev.glow > 0 ? 1 + .8 * Math.min(1, SEA.ev.glow / 4, (SEA_EVENTS.glow.dur - SEA.ev.glow) / 3 + .2) : 1;
   const near = (x, z, R) => (x - cp.x) * (x - cp.x) + (z - cp.z) * (z - cp.z) < R * R;
   for (const a of L.mantas) {
@@ -9191,7 +9242,8 @@ function updateMallBillboard(dt) {
 }
 function seaBounds(v) {   // el mar y la costa: caja ancha en vez del círculo de la ciudad
   if (v.z <= 66 || Math.abs(v.x) > 355) return false;
-  v.x = clamp(v.x, -348, 348); v.z = Math.min(v.z, 545); return true;   // el mar es mucho mas grande
+  const b = worldBig() ? mapNow().b : { x0: -348, x1: 348, zs: 545 };
+  v.x = clamp(v.x, b.x0, b.x1); v.z = Math.min(v.z, b.zs); return true;   // el mar es mucho mas grande
 }
 function physics(f, dt) {
   if (f.mount && (f.mount.phase === 'climb' || f.mount.phase === 'ride')) { f.vel.set(0, 0, 0); f.onGround = true; return; }
@@ -9305,9 +9357,10 @@ function physics(f, dt) {
   const r = Math.hypot(f.pos.x, f.pos.z);
   if (f.abyss) abyssClamp(f.pos);
   else if (seaBounds(f.pos)) { /* zona del mar */ }
-  else if (worldBig()) {   // mundo ampliado: límite rectangular
-    if (Math.abs(f.pos.x) > WORLD_BIG.hx) { f.pos.x = Math.sign(f.pos.x) * WORLD_BIG.hx; f.vel.x = 0; }
-    if (f.pos.z < WORLD_BIG.zn) { f.pos.z = WORLD_BIG.zn; f.vel.z = Math.max(0, f.vel.z); }
+  else if (worldBig()) {   // mundo ampliado: límite rectangular del mapa actual
+    const b = mapNow().b;
+    if (f.pos.x < b.x0) { f.pos.x = b.x0; f.vel.x = Math.max(0, f.vel.x); } else if (f.pos.x > b.x1) { f.pos.x = b.x1; f.vel.x = Math.min(0, f.vel.x); }
+    if (f.pos.z < b.z0) { f.pos.z = b.z0; f.vel.z = Math.max(0, f.vel.z); }
   }
   else if (r > ARENA - .5) {
     const nx = f.pos.x / r, nz = f.pos.z / r; f.pos.x = nx * (ARENA - .5); f.pos.z = nz * (ARENA - .5);
@@ -10266,6 +10319,7 @@ async function startMatch() {
   if (G.mode === 'mp' && !NET.named && !(await joinRoom())) { unlock(); openTab('cfg'); return; }
   G.mp = G.mode === 'mp' || !!NET.named;
   NET.ko = null; NET.act = null; NET.acts = []; NET.hitsOut = [];
+  if (MAPCUR.id !== 'A') setMapNow('A'); if (CF_A.MAPAS) CF_A.MAPAS.reset();
   stageExit(); clearFighters(); destRestore(true); rulesStart(); G.state = 'play'; G.over = false; G.paused = false; G.combo = 0; G.comboDmg = 0; G.lastHitDmg = 0; G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine'); document.body.classList.add('has-match'); syncFriendsBtnPlace();
   G.bots = +$('nbots').value; G.goal = +$('goalsel').value;
   G.baseLvl = +$('lvl').value; G.botLvl = G.baseLvl; G.auto = $('auto').checked; G.balT = 12; G.winPK = 0; G.winPD = 0;
@@ -10542,6 +10596,8 @@ const CF_A = (() => {
     get MAP_ITEMS() { return MAP_ITEMS; },
     get MAPED() { return MAPED; },
     get SPAWN_POINTS() { return SPAWN_POINTS; },
+    get MAPS() { return MAPS; }, get MAPCUR() { return MAPCUR; }, get TRAVEL() { return TRAVEL; }, get LAKES() { return LAKES; },
+    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction,
     cityGrassAt,
     get ROOM_ATMOSPHERE() { return ROOM_ATMOSPHERE; },
     get WX() { return WX; },
@@ -16755,8 +16811,9 @@ try { CFG_CINE.off = localStorage.getItem('bsb_nocine') === '1'; } catch (e) { }
   const nc = $('opt-nocine');
   if (nc) { nc.checked = CFG_CINE.off; nc.addEventListener('change', () => { CFG_CINE.off = nc.checked; try { localStorage.setItem('bsb_nocine', CFG_CINE.off ? '1' : '0'); } catch (e) { } if (CFG_CINE.off && G.cine) { G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine'); } }); }
 }
-const MM = { on: true, bg: null, bgW: 512, t: 0, cx: 0, cz: 16, half: worldBig() ? 345 : 145, zoom: 2.0 };
-if (window.CF_BETA) CF_BETA.subscribe(on => { MM.half = on ? 345 : 145; MM.bgW = on ? 1024 : 512; MM.bg = null; });   // el mundo ampliado necesita un minimapa más ancho
+const MM = { on: true, bg: null, bgW: 512, t: 0, cx: 0, cz: 16, half: 145, zoom: 2.0 };
+function mmApply() { const m = worldBig() ? mapNow().mm : { cx: 0, cz: 16, half: 145 }; MM.cx = m.cx; MM.cz = m.cz; MM.half = m.half; MM.bgW = worldBig() ? 1024 : 512; MM.bg = null; }   // el minimapa sigue al mapa actual
+mmApply(); if (window.CF_BETA) CF_BETA.subscribe(() => mmApply());
 try {
   MM.on = localStorage.getItem('bsb_minimap') !== '0';
   const z0 = parseFloat(localStorage.getItem('bsb_mm_zoom'));
@@ -16787,12 +16844,16 @@ function mmBackground(W) {
     g.fillStyle = '#c9b27a'; g.fillRect(px, sz - 7 * k, 1, 7 * k + 1);
     g.fillStyle = '#25638c'; g.fillRect(px, sz, 1, W - sz);
   }
+  const mmB = worldBig() && MAPCUR.id === 'B';
+  if (!mmB) {
   // Islas del mar en el minimapa
   g.fillStyle = '#727984'; g.beginPath(); g.arc(mmX(-82, W), mmZ(152, W), 12 * k, 0, TAU); g.fill();
   g.fillStyle = '#ff5252'; g.beginPath(); g.arc(mmX(-82, W), mmZ(152, W), 3.2 * k, 0, TAU); g.fill();
   g.fillStyle = '#dfc686'; g.beginPath(); g.arc(mmX(78, W), mmZ(144, W), 13 * k, 0, TAU); g.fill();
   g.fillStyle = '#388e3c'; g.beginPath(); g.arc(mmX(78, W), mmZ(144, W), 5 * k, 0, TAU); g.fill();
+  }
   if (worldBig() && CITY.mmExtra) CITY.mmExtra(g, (x, z, w, d) => g.fillRect(mmX(x - w / 2, W), mmZ(z - d / 2, W), w * k, d * k));
+  if (!mmB) {
   // centro pavimentado y calles
   g.fillStyle = '#4c545e'; g.beginPath(); g.arc(mmX(0, W), mmZ(0, W), CITY.core * k, 0, TAU); g.fill();
   g.fillStyle = '#2c3138';
@@ -16807,6 +16868,7 @@ function mmBackground(W) {
     g.strokeStyle = '#0009'; g.lineWidth = 1; g.strokeRect(mmX(b.x - b.w / 2, W) + .5, mmZ(b.z - b.d / 2, W) + .5, b.w * k - 1, b.d * k - 1);
   }
   g.strokeStyle = '#ffffff22'; g.lineWidth = 2; g.beginPath(); g.arc(mmX(0, W), mmZ(0, W), CITY.bounds * k, 0, TAU); g.stroke();
+  }
   return c;
 }
 function mmDraw() {
@@ -17269,14 +17331,15 @@ function loop(now){
   if(G.cine&&!G.paused)frameTask('cinematica',()=>updateCine(rdt));
   else{
     let dt=rdt*(G.slowT>0?.3:1);if(G.slowT>0)G.slowT-=rdt;
-    if((G.paused&&!G.mp)||G.over)dt=0;if(G.viewer)dt*=VW.play?VW.speed:0;
+    if((G.paused&&!G.mp)||G.over||TRAVEL.freeze)dt=0;if(G.viewer)dt*=VW.play?VW.speed:0;
     if(G.hitstop>0){G.hitstop-=rdt*(G.viewer?(VW.play?VW.speed:0):1);dt=0;}
     if(dt>0)frameTask('simulacion',()=>step(dt),()=>pressed.clear());
     if(G.viewer)frameTask('visor',()=>vTick(dt));else if(G.paused)pressed.clear();
   }
+  if(CF_A.MAPAS)frameTask('mapas',()=>CF_A.MAPAS.tick(rdt));
   if(G.mp)frameTask('red',()=>guideNet(rdt));
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
-  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});frameTask('cielo',skyFollow);frameTask('rayos_sol',()=>updateGodRays());
+  frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});if(TRAVEL.on&&CF_A.MAPAS)frameTask('mapas:camara',()=>CF_A.MAPAS.cam(rdt));frameTask('cielo',skyFollow);frameTask('rayos_sol',()=>updateGodRays());
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
   frameTask('culling',()=>cityCull());frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('cartel_mall',()=>updateMallBillboard(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
