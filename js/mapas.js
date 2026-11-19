@@ -20,7 +20,7 @@
     };
     // colores de cada universo: [oscuro, medio, brillante]
     const PAL = { A: ['#0b2a73', '#2fb6ff', '#ffd36b'], J: ['#04301c', '#27e08a', '#e2ff70'], B: ['#3a0f4f', '#ff74c4', '#ffe3f4'] };
-    const R = { t: 0, warned: -1, ev: null, evT: 70, chipT: 0 };
+    const R = { t: 0, warned: -1, ev: null, evT: 70, chipT: 0, off: false };
     const T = { phase: '', t: 0, from: 'A', to: 'B', list: [], fx: null, swapped: false, spawns: null, exitP: null, saved: null, extras: [], fov: 0 };
     const col3 = id => new THREE.Color(MAPS[id].col);
     const pal = (id, i) => new THREE.Color(PAL[id][i]);
@@ -322,7 +322,7 @@
       R.chipT -= dt; if (R.chipT > 0) return; R.chipT = .25;
       const on = worldBig() && G.state === 'play' && !TRAVEL.on && !G.over; CH.classList.toggle('on', on); if (!on) return;
       const rem = EVERY - R.t; CH.style.setProperty('--mc', MAPS[MAPCUR.id].col);
-      CH.textContent = MAPS[MAPCUR.id].short + (R.ev ? '  ·  ' + R.ev.e.n.toUpperCase() : '') + '  ·  PORTAL EN ' + fmt(rem); CH.classList.toggle('hot', rem <= 10);
+      CH.textContent = MAPS[MAPCUR.id].short + (R.ev ? '  ·  ' + R.ev.e.n.toUpperCase() : '') + (R.off ? '  ·  PORTAL PAUSADO' : '  ·  PORTAL EN ' + fmt(rem)); CH.classList.toggle('hot', !R.off && rem <= 10);
     }
     function tick(dt) {
       if (!worldBig()) { if (TRAVEL.on) abort(); if (MAPCUR.id !== 'A') setMapNow('A'); CH.classList.remove('on'); return; }
@@ -333,12 +333,15 @@
         return;
       }
       if (G.paused || G.over || G.mp || G.cine) { updateChip(0); return; }
-      R.t += dt; eventsTick(dt); updateChip(dt);
+      if (!R.off) R.t += dt; eventsTick(dt); updateChip(dt);
       const rem = EVERY - R.t, sec = Math.ceil(rem);
-      if (rem <= 10 && sec !== R.warned && sec > 0) { R.warned = sec; if (sec === 10) showBanner('PORTAL EN 10 s', MAPS[MAPCUR.id].col, 'El mapa está a punto de cambiar'); else snd('chime', G.player && G.player.pos, .35); }
-      if (R.t >= EVERY && G.player && G.player.alive) begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]);
+      if (!R.off && rem <= 10 && sec !== R.warned && sec > 0) { R.warned = sec; if (sec === 10) showBanner('PORTAL EN 10 s', MAPS[MAPCUR.id].col, 'El mapa está a punto de cambiar'); else snd('chime', G.player && G.player.pos, .35); }
+      if (!R.off && R.t >= EVERY && G.player && G.player.alive) begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]);
     }
     function reset() { if (TRAVEL.on) abort(); R.t = 0; R.warned = -1; R.ev = null; R.evT = 70; }
-    A.MAPAS = { tick, cam(dt) { if (T.phase === 'tunnel') tunnelCam(dt); camFx(dt); }, reset, begin, every(s) { EVERY = Math.max(20, +s || 300); R.t = 0; }, state: () => ({ phase: T.phase, t: T.t, map: MAPCUR.id, left: EVERY - R.t }) };
+    window.CF_A_MAPAS = null;
+    A.MAPAS = { tick, cam(dt) { if (T.phase === 'tunnel') tunnelCam(dt); camFx(dt); }, reset, begin, every(s) { EVERY = Math.max(20, +s || 300); R.t = 0; }, pause(v) { R.off = v == null ? !R.off : !!v; return R.off; }, ids: ORDER,
+      next() { return begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]); }, state: () => ({ phase: T.phase, t: T.t, map: MAPCUR.id, left: EVERY - R.t, paused: R.off, every: EVERY }) };
+    window.CF_A_MAPAS = A.MAPAS;   // la consola del owner (js/owner.js) lo usa para lanzar el portal
   }
 });

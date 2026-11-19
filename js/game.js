@@ -335,10 +335,10 @@ function cityGrassAt(x,z) {
     CITY.gBig=CITY.gBig||{};CITY.lakeW=CITY.lakeW||{};
     if(on&&id!=='A'&&!CITY.gBig[id]){
       const P=[],U=[],C=[],I=[];let n=0;
-      const tint=x=>id==='J'?[.72,.92,.7]:[1,.97,.94];
+      const tint=(x,z)=>{const n=Math.sin(x*.045+1.3)*Math.sin(z*.05+.7)*.5+Math.sin(x*.12+z*.09)*.25+Math.sin(x*.31-z*.27)*.1,v=1+n*.2,b=id==='J'?[.72,.92,.7]:[1,.97,.94];return [clamp(b[0]*v*(1-n*.05),0,1.2),clamp(b[1]*v,0,1.2),clamp(b[2]*v*(1+n*.06),0,1.2)];};
       for(let x=-339;x<339;x+=3)for(let z=-168;z<69;z+=3){
         if(LAKES.some(l=>l.map===id&&x+1.5>l.x0&&x+1.5<l.x1&&z+1.5>l.z0&&z+1.5<l.z1))continue;
-        for(const [dx,dz] of [[0,0],[3,0],[0,3],[3,3]]){const X=x+dx,Z=z+dz;P.push(X,-(Z+70),0);U.push((X+210)/420,(Z+210)/280);const t=tint(X);C.push(t[0],t[1],t[2]);}
+        for(const [dx,dz] of [[0,0],[3,0],[0,3],[3,3]]){const X=x+dx,Z=z+dz;P.push(X,-(Z+70),0);U.push((X+210)/420,(Z+210)/280);const t=tint(X,Z);C.push(t[0],t[1],t[2]);}
         I.push(n,n+2,n+1,n+1,n+2,n+3);n+=4;}
       const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(I);g.computeVertexNormals();CITY.gBig[id]=g;
       const WP=[],WI=[];let k=0;
@@ -1220,6 +1220,37 @@ function cityGrassAt(x,z) {
         for(const sg of [-1,1]){box(tx+sg*5.5,3.5,zs+6,.9,13,.9,RED);solid(tx+sg*5.5,zs+6,.9,.9,10,-6);box(tx+sg*5.5,-.5,zs+6,1.4,2,1.4,TILE);}
         box(tx,10.3,zs+6,14.6,.8,1,RED);box(tx,11,zs+6,16.4,.6,1.4,TILE);box(tx,8.4,zs+6,12.4,.5,.6,RED);box(tx,9.35,zs+6,1.4,1.3,.3,GOLD);toro(tx-1.9,zs+1.6);toro(tx+1.9,zs+1.6);MMR.push([tx,zs+6,14,2,'#c8473f']);}
       // cerezos, flores y rocas por todo el valle
+      // =====================================================================================================================
+      // MÁS VIDA: vegetación, colinas, estanques y rincones para que ningún mapa se sienta vacío
+      // =====================================================================================================================
+      for(const q of JUNGLE_SPAWNS.concat(JAPAN_SPAWNS))claim(q.x,q.z,3.2,3.2);   // que nada nuevo caiga encima de un punto de aparición
+      const pick3=a=>a[lr()*a.length|0];
+      const hill=(x,z,w,d,n,c1,c2)=>{if(!free(x,z,Math.max(w,d)/2+n*1.3+1))return;mesa(x,z,w,d,n,c1,c2);};
+      const bush=(x,z,cols)=>{box(x,.4,z,1.1+lr()*.9,.8,.9+lr()*.8,pick3(cols),'leaves');};
+      const rock=(x,z)=>{const w=.8+lr()*1.7;box(x,w*.3,z,w,w*.6,w*.8,lr()<.5?STONE:ROCK2);solid(x,z,w,w*.8,w*.6);};
+      const logs=(x,z)=>{const a=lr()<.5,w=a?2.6:.6,d=a?.6:2.6;box(x,.3,z,w,.6,d,'#6b4a3a','log');solid(x,z,w,d,.6);if(lr()<.5)box(x+(a?.6:0),.68,z+(a?0:.6),.5,.16,.5,'#d8433b');};
+      const pond=(x0,x1,z0,z1,d)=>{lake(x0,x1,z0,z1,d);claim((x0+x1)/2,(z0+z1)/2,(x1-x0)/2+1,(z1-z0)/2+1);
+        for(let x=x0;x<=x1;x+=2.2)for(const zz of [z0-.8,z1+.8]){if(lr()<.5)box(x,.16,zz,.7+lr()*.6,.32,.6+lr()*.5,lr()<.5?STONE:'#a3a8ab');else if(lr()<.4)for(let k=0;k<3;k++)box(x+(lr()-.5)*.8,.55,zz+(lr()-.5)*.8,.09,1.1+lr()*.5,.09,k%2?'#7fb069':'#b08d57');}
+        for(let z=z0;z<=z1;z+=2.2)for(const xx of [x0-.8,x1+.8])if(lr()<.5)box(xx,.16,z,.7+lr()*.6,.32,.6+lr()*.5,lr()<.5?STONE:'#a3a8ab');};
+
+      // ---------- rincones grandes ----------
+      MAPTAG='B';
+      const hallTop=(x,z,y)=>{box(x,y+1.6,z,6,3.2,5,CREAM);solid(x,z,6,5,y+3.2,y);for(const sx of [-1,1])box(x+sx*2.7,y+1.6,z+2.55,.4,3.2,.2,RED);
+        box(x,y+3.4,z,8.4,.35,7.4,TILE);box(x,y+3.9,z,6.2,.5,5,TILE);box(x,y+4.4,z,3.6,.5,2.6,TILE);box(x,y+4.78,z,4.2,.14,.4,GOLD);box(x,y+1,z+2.53,1.4,2,.06,'#3a2a22');
+        for(const sx of [-1,1]){box(x+sx*4.4,y+.5,z+3.4,.7,1,.7,STONE);box(x+sx*4.4,y+1.2,z+3.4,.5,.5,.5,'#fff0b1');}};
+      const templeHill=(x,z)=>{hill(x,z,12,12,8,'#8fcf6a','#7bc05c');hallTop(x,z,4);for(let i=0;i<5;i++)torii(x,z+17+i*3.4,false,3.6,3.8,i%2?'#d9603f':RED);flat(x,z+23,3,18,PAVE,.02);
+        for(const [ox,oz] of [[-9,10],[9,10],[-8,-9],[8,-9]])sakura(x+ox*1.3,z+oz*1.3);claim(x,z+8,16,28);MMR.push([x,z+8,28,36,'#c9bd9c']);};
+      const bmarket=(x,z)=>{const cs=['#d8433b','#2f5d8a','#3f7a4f','#e9c24a','#7a2f3a'];for(let i=0;i<4;i++)for(const sz of [-1,1])puesto(x+i*4.4,z+sz*3.3,pick3(cs));
+        for(let k=0;k<10;k++){const cx=x+lr()*14,cz=z+(lr()-.5)*3.4;box(cx,.4,cz,.8,.8,.8,'#a57f27');solid(cx,cz,.8,.8,.8);}
+        box(x+6.6,4.2,z,14,.05,.05,'#2a3b4a');for(let i=0;i<7;i++){box(x+i*2.2,3.85,z,.4,.5,.4,i%2?'#fff0b1':'#e2504a');}flat(x+6.6,z,15,9,DIRT,.02);claim(x+6.6,z,9,6.5);MMR.push([x+6.6,z,15,9,'#b9a27a']);};
+      const teaGarden=(x,z)=>{casa(x,z,6,5,1,'#7a2f3a');flat(x,z+7,10,8,'#e8dfc4',.03);for(let k=-3;k<=3;k++)flat(x,z+7+k*.9,9.4,.07,'#d2c7a6',.036);
+        for(const [ox,oz,w,h] of [[-2,6,1.2,.9],[2.2,8,1,.7]]){box(x+ox,h/2,z+oz,w,h,w*.85,STONE);solid(x+ox,z+oz,w,w*.85,h);}bench(x+6,z+7,true);sakura(x-6,z+3);sakura(x+7,z-3);toro(x-4,z+11);toro(x+4,z+11);claim(x,z+5,9,9);};
+      const placeN=(n,x0,x1,z0,z1,ok,fn)=>{for(let t=0;t<600&&n>0;t++){const x=x0+lr()*(x1-x0),z=z0+lr()*(z1-z0);if(ok(x,z)){fn(x,z);n--;}}};   // coloca n rincones donde de verdad haya sitio
+      placeN(2,-322,-125,-124,40,(x,z)=>free(x,z,18)&&free(x,z+24,6),templeHill);
+      placeN(2,-322,-125,-124,50,(x,z)=>free(x+6.6,z,10),bmarket);
+      placeN(3,-322,-125,-124,50,(x,z)=>free(x,z+5,10),teaGarden);
+      scatter(300,-326,-118,-128,63,2.4,(x,z)=>flat(x,z,2+lr()*3.2,2+lr()*3.2,pick3(['#7fb86a','#9acb7a','#6aa85c','#b9a27a','#a8cf86']),.017));
+
       shore();
       scatter(170,-326,-118,-128,63,3.2,(x,z)=>sakura(x,z));
       scatter(260,-326,-116,-128,64,.5,(x,z)=>{const r=lr();if(r<.5)box(x,.16,z,.16,.32,.16,['#f3a2cb','#fbd0e0','#e9fbff','#ffd35c'][(r*40|0)%4]);else if(r<.8)box(x,.3,z,1+lr()*.6,.6,1+lr()*.6,'#f7b6cf');else box(x,.25,z,.9+lr()*.7,.5,.8+lr()*.6,STONE);});
@@ -1270,23 +1301,29 @@ function cityGrassAt(x,z) {
         const ze=SHORE(mx)+27;box(mx,.42,ze+2,9,.14,6,PLANK,'plank');solid(mx,ze+2,9,6,.5,.12);hut(mx+2,ze+2.4,.5);box(mx-3,1,ze+.6,.12,1.2,.12,WOOD);box(mx-3,1.7,ze+1.6,.06,.06,2.2,WOOD);MMR.push([mx,(67+ze)/2,3,ze-67,'#967852']);}
       // tótems, árboles gigantes, selva densa, helechos y flores
       for(const [x,z] of [[124,5.4],[196,5],[262,-8.5],[226,36]]){for(let k=0;k<4;k++)box(x,.5+k,z,1,1,1,['#b0463c','#e9c24a','#2f7a8a','#5d4634'][k]);box(x,4.3,z,2.2,.5,.5,'#e9c24a');for(let k=0;k<4;k++)for(const sg of [-1,1])box(x+sg*.26,.6+k,z+.51,.2,.2,.04,'#22272e');solid(x,z,1,1,4.5);claim(x,z,1,1);}
+      MAPTAG='J';
+      const sunTemple=(x,z)=>{mesa(x,z,10,10,5,'#c9c4a8','#b8b296');const y=2.5;
+        for(const sx of [-1,1])for(const sz of [-1,1]){box(x+sx*3.6,y+2,z+sz*3.6,.9,4,.9,'#b8b296');solid(x+sx*3.6,z+sz*3.6,.9,.9,y+4,y);}
+        box(x,y+4.3,z,9,.5,9,'#c9c4a8');box(x,y+4.8,z,6,.4,6,'#b8b296');box(x,y+.5,z,1.8,1,1.8,'#8d9084');solid(x,z,1.8,1.8,y+1,y);box(x,y+1.2,z,1,.4,1,'#6f7c73');box(x,y+1.6,z,.5,.5,.5,'#ff9a3c');box(x,y+2,z,.3,.5,.3,'#fff0b1');
+        box(x,y+3.2,z-4.3,2.4,2.4,.3,GOLD);box(x,y+3.2,z-4.1,1.6,1.6,.3,'#ffe27a');
+        for(let i=0;i<6;i++)for(const sx of [-1,1]){const cz=z+13+i*3.6,h=3+(i%2)*.8;box(x+sx*3.2,h/2,cz,.9,h,.9,'#b8b296');solid(x+sx*3.2,cz,.9,.9,h);if(lr()<.5)box(x+sx*3.2+.5,h/2,cz,.08,h*.8,.4,'#3a8f4a');}
+        flat(x,z+22,3.6,21,'#cfc9ae',.02);for(let i=0;i<10;i++)flat(x,z+14+i*2,2.4,.1,'#b8b296',.026);claim(x,z+10,12,26);MMR.push([x,z+10,20,40,'#b8b296']);};
+      const jmarket=(x,z)=>{const cs=['#d8433b','#3f7a4f','#e9c24a','#2f7a8a','#b98cff'];for(let i=0;i<4;i++)for(const sz of [-1,1])puesto(x+i*4.4,z+sz*3.3,pick3(cs));
+        for(let k=0;k<12;k++){const cx=x+lr()*14,cz=z+(lr()-.5)*3.4;if(lr()<.5){box(cx,.4,cz,.8,.8,.8,'#a57f27');solid(cx,cz,.8,.8,.8);}else{box(cx,.5,cz,.7,1,.7,'#8a5a2a');solid(cx,cz,.7,.7,1);}}
+        box(x+6.6,4.2,z,14,.05,.05,'#2a3b4a');for(let i=0;i<7;i++)box(x+i*2.2,3.85,z,.4,.5,.4,i%2?'#fff0b1':'#e2504a');flat(x+6.6,z,15,9,DIRT,.02);claim(x+6.6,z,9,6.5);MMR.push([x+6.6,z,15,9,'#b9a27a']);};
+      const mirador=(x,z)=>{hill(x,z,6,6,8,'#4f9a4a','#448f45');hut(x,z,4);box(x+2.6,4.6,z+2.6,.12,1.4,.12,WOOD);box(x+2.6,5.4,z+2.6,.5,.5,.5,'#ff9a3c');claim(x,z,12,12);};
+      const cabanas=(x,z)=>{for(let k=0;k<4;k++){const a=k/4*TAU+.4;deck(x+Math.cos(a)*8,z+Math.sin(a)*8,6,5,.5);hut(x+Math.cos(a)*8,z+Math.sin(a)*8,.5);}
+        for(let i=0;i<8;i++){const a=i/8*TAU;box(x+Math.cos(a)*1.1,.14,z+Math.sin(a)*1.1,.4,.28,.4,i%2?'#8c9195':'#a3a8ab');}box(x,.2,z,1,.2,.2,'#6b4a3a','log');box(x,.2,z,.2,.2,1,'#6b4a3a','log');box(x,.6,z,.4,.6,.4,'#ff9a3c');box(x,1,z,.25,.4,.25,'#fff0b1');solid(x,z,2,2,.5);
+        for(let k=0;k<4;k++){const a=k/4*TAU+.4+.78;logs(x+Math.cos(a)*3.2,z+Math.sin(a)*3.2);}claim(x,z,12,12);};
+      placeN(2,125,305,-118,40,(x,z)=>free(x,z,14)&&free(x,z+20,6),sunTemple);
+      placeN(2,125,305,-118,50,(x,z)=>free(x+6.6,z,10),jmarket);
+      placeN(2,125,320,-118,50,(x,z)=>free(x,z,10),mirador);
+      placeN(2,125,310,-118,50,(x,z)=>free(x,z,13),cabanas);
+      scatter(300,120,325,-126,64,2.4,(x,z)=>flat(x,z,2+lr()*3.2,2+lr()*3.2,pick3(['#3a8f4a','#2f7a3f','#4f8a45','#6b8f4a','#8a7a4a']),.017));
       shore();
       scatter(34,122,324,-122,62,5.5,(x,z)=>jtree(x,z,3));
       scatter(230,120,325,-124,63,2.6,(x,z)=>jtree(x,z,lr()<.3?1:0));
       scatter(420,118,326,-126,64,.5,(x,z)=>{const r=lr();if(r<.45){box(x,.3,z,1.1+lr()*.8,.6,1.1+lr()*.8,r<.2?'#2f7a3f':'#3a8f4a','leaves');}else if(r<.75)box(x,.2,z,.18,.4,.18,['#e2504a','#ff9a3c','#b98cff','#ffd35c'][(r*40|0)%4]);else if(r<.9){box(x,.3,z,.2,.6,.2,'#e9dfc0');box(x,.7,z,.7,.3,.7,'#d8433b');}else box(x,.3,z,1+lr()*.8,.6,.9+lr()*.6,ROCK);});
-
-      // =====================================================================================================================
-      // MÁS VIDA: vegetación, colinas, estanques y rincones para que ningún mapa se sienta vacío
-      // =====================================================================================================================
-      for(const q of JUNGLE_SPAWNS.concat(JAPAN_SPAWNS))claim(q.x,q.z,3.2,3.2);   // que nada nuevo caiga encima de un punto de aparición
-      const pick3=a=>a[lr()*a.length|0];
-      const hill=(x,z,w,d,n,c1,c2)=>{if(!free(x,z,Math.max(w,d)/2+n*1.3+1))return;mesa(x,z,w,d,n,c1,c2);};
-      const bush=(x,z,cols)=>{box(x,.4,z,1.1+lr()*.9,.8,.9+lr()*.8,pick3(cols),'leaves');};
-      const rock=(x,z)=>{const w=.8+lr()*1.7;box(x,w*.3,z,w,w*.6,w*.8,lr()<.5?STONE:ROCK2);solid(x,z,w,w*.8,w*.6);};
-      const logs=(x,z)=>{const a=lr()<.5,w=a?2.6:.6,d=a?.6:2.6;box(x,.3,z,w,.6,d,'#6b4a3a','log');solid(x,z,w,d,.6);if(lr()<.5)box(x+(a?.6:0),.68,z+(a?0:.6),.5,.16,.5,'#d8433b');};
-      const pond=(x0,x1,z0,z1,d)=>{lake(x0,x1,z0,z1,d);claim((x0+x1)/2,(z0+z1)/2,(x1-x0)/2+1,(z1-z0)/2+1);
-        for(let x=x0;x<=x1;x+=2.2)for(const zz of [z0-.8,z1+.8]){if(lr()<.5)box(x,.16,zz,.7+lr()*.6,.32,.6+lr()*.5,lr()<.5?STONE:'#a3a8ab');else if(lr()<.4)for(let k=0;k<3;k++)box(x+(lr()-.5)*.8,.55,zz+(lr()-.5)*.8,.09,1.1+lr()*.5,.09,k%2?'#7fb069':'#b08d57');}
-        for(let z=z0;z<=z1;z+=2.2)for(const xx of [x0-.8,x1+.8])if(lr()<.5)box(xx,.16,z,.7+lr()*.6,.32,.6+lr()*.5,lr()<.5?STONE:'#a3a8ab');};
 
       // ---------- Valle Sakura: más árboles de varias especies, flores, rocas y rincones ----------
       MAPTAG='B';
@@ -15803,9 +15840,23 @@ function titleStart(force) {
   $('menu').classList.add('hidden'); $('title').classList.remove('hidden', 'leaving'); renderer.setSize(innerWidth, innerHeight); if (composer) { composer.setPixelRatio && composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(GFX.post?innerWidth:16, GFX.post?innerHeight:16); }
    $('tchar').textContent = CHARS[G.charId].name.toUpperCase() + ' · ' + CHARS[G.charId].title.toUpperCase();
   TITLE.prev = { hour: WX.hour, cycle: WX.cycle, mode: WX.mode }; if (bloomPass) { TITLE.bloom = bloomPass.enabled; bloomPass.enabled = false; }   // sin bloom en el inicio: difuminaba las siluetas
-  WX.mode = 'clear'; WX.hour = 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado
-  titleBuild(); titleAudio(true);
+  WX.mode = 'clear'; WX.hour = (window.CF_BETA && window.CF_BETA.on) ? 17.35 : 17.8; WX.cycle = false; updateCityWeather(0, true);   // atardecer despejado (más dorado en la vista privada)
+  TITLE.graded = false; titleBuild(); titleAudio(true); titleGrade(true);
   const fl = $('tfall'); fl.className = 'black'; void fl.offsetWidth; setTimeout(() => { fl.className = 'fade'; }, 150);   // sale del negro
+}
+// Color e iluminación del inicio (vista privada): más saturación, luz cálida de contraluz, luz fría de relleno y gradación naranja/azul
+function titleGrade(on) {
+  const beta = !!(window.CF_BETA && window.CF_BETA.on), g = $('tgrade');
+  if (on && beta) {
+    renderer.domElement.style.filter = 'saturate(1.38) contrast(1.1) brightness(1.1)';
+    if (!TITLE.rim) { TITLE.rim = new THREE.PointLight(0xffa862, 3.4, 36, 1.5); TITLE.fill = new THREE.PointLight(0xa8ccff, 1.25, 18, 1.7); TITLE.top = new THREE.PointLight(0xffe2b0, 1.1, 22, 1.8); }
+    scene.add(TITLE.rim, TITLE.fill, TITLE.top);
+    if (!g) { const d = document.createElement('div'); d.id = 'tgrade'; $('title').insertBefore(d, $('title').firstChild); } else g.style.display = 'block';
+  } else {
+    renderer.domElement.style.filter = '';
+    if (TITLE.rim) scene.remove(TITLE.rim, TITLE.fill, TITLE.top);
+    if (g) g.style.display = 'none';
+  }
 }
 function titleBuild() {
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
@@ -15818,7 +15869,7 @@ function titleBuild() {
   TITLE.fig = fig; for (const j of JOINTS) fig.anim.x[j] = JDEF[j] || 0; TITLE.baseIdx = -1;
 }
 function titleFinish() {
-  if (!TITLE.on) return; TITLE.on = false; if (bloomPass && TITLE.bloom != null) bloomPass.enabled = TITLE.bloom;
+  if (!TITLE.on) return; TITLE.on = false; titleGrade(false); if (bloomPass && TITLE.bloom != null) bloomPass.enabled = TITLE.bloom;
   WX.mode = TITLE.prev.mode; WX.hour = TITLE.prev.hour; WX.cycle = TITLE.prev.cycle; updateCityWeather(0, true);
   if (TITLE.fig) { scene.remove(TITLE.fig.model.root); disposeModel(TITLE.fig.model); TITLE.fig = null; }
   if (TITLE.bang) { scene.remove(TITLE.bang); TITLE.bang = null; } $('tspeed').style.opacity = 0; titleSekzaEnd(); cameoEnd();
@@ -16373,6 +16424,7 @@ function bangSprite() {
 const outBack = k => { k = clamp(k, 0, 1); const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
 function titleUpdate(dt) {
   if (!TITLE.on || !TITLE.fig) return;
+  if (!TITLE.graded && window.CF_BETA && window.CF_BETA.on) { TITLE.graded = true; titleGrade(true); }   // la vista privada puede confirmarse un momento después de abrir el inicio
   TITLE.t += dt; const t = TITLE.t, f = TITLE.fig, x = f.anim.x, m = f.model, sd = CITY.sunDisc.position, br = Math.sin(t * 1.5), L = TITLE.lt;
   if (L != null) TITLE.lt += dt;
   let px, pz, back, side, ch0, lh0, fov;
@@ -16458,6 +16510,7 @@ function titleUpdate(dt) {
     TITLE.gullT=rand(7,14);
     if(WX.sound)playHtmlEffect(sndUrl(Math.random()<.5?'gull1':'gull2'),.22,'ambient','title');
   }
+  if (TITLE.rim && TITLE.rim.parent) { const sdv = CITY.sunDisc.position, d = new V3(sdv.x - px, 0, sdv.z - pz).normalize(); TITLE.rim.position.set(px + d.x * 3.6, gy + 2.4, pz + d.z * 3.6); TITLE.fill.position.set(camera.position.x, camera.position.y + .5, camera.position.z); TITLE.top.position.set(px, gy + 6, pz - d.z * 2); }
   if (L != null && L > .95) { TITLE.thud = false; titleFinish(); }
 }
 $('tplay').addEventListener('click', e => { e.stopPropagation(); titleLeave(); });
