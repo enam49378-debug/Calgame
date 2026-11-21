@@ -12,6 +12,13 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.11.0 · 2026-11-21 · Sala global
+- Botón nuevo en el menú de jugar: **SALA GLOBAL**. Te mete directo en una partida en línea con gente de todo el mundo, sin códigos.
+  - Son copias de la misma sala (`global-1`, `global-2`, ...) con hasta 10 jugadores cada una.
+  - Entra a la sala global que ya tiene más gente y todavía no está llena; si todas están llenas (o no hay ninguna), abre la siguiente.
+  - Las salas globales son públicas y siempre con bots que rellenan los lugares libres.
+- Las salas públicas y privadas con código siguen igual que antes.
+
 ## v1.10.1 · 2026-11-21 · Servidor de Oracle conectado
 - El juego en internet ya usa el servidor de salas de Oracle Cloud (São Paulo) en `https://167-234-237-155.sslip.io`. Es la dirección de `config/servidor.js`.
 - Si la IP pública de la máquina cambia (por ejemplo, al apagarla y encenderla), hay que actualizar esa dirección. Para evitarlo se puede reservar la IP.

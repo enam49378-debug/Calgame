@@ -12189,7 +12189,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.10.1';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.11.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 // SERVIDOR GLOBAL: si la pagina esta en un sitio y el servidor de salas en otro (por ejemplo la pagina en Vercel y el servidor en Oracle),
 // la direccion del servidor sale de config/servidor.js (window.CF_SERVIDOR) o de ?srv=https://... en el link. En localhost se usa el servidor local salvo que pongas ?srv=.
@@ -15884,6 +15884,17 @@ async function tmEnter(code, pub, btn, creator = true) {
   if (pub && creator) pubStart(); tmGo();
 }
 const tmJoin = (code, btn) => tmEnter(code, true, btn, false);
+// SALA GLOBAL: un boton que te mete en una partida en linea con lugar libre. Son copias de la misma sala (global-1, global-2...) con hasta 10 jugadores cada una:
+// entra a la que ya tiene mas gente y todavia no esta llena; si todas estan llenas (o no hay ninguna) abre la siguiente. Siempre con bots que rellenan los lugares.
+async function tmGlobal(btn) {
+  let list = []; try { const r = await fetch(SRV_BASE + '/bs-rooms', { cache: 'no-store' }); if (r.ok) list = await r.json(); } catch (e) { }
+  if (!Array.isArray(list)) list = [];
+  const open = list.filter(o => o && /^global-\d+$/.test(o.code) && (+o.n || 0) < (+o.max || 10)).sort((a, b) => (b.n || 0) - (a.n || 0))[0];
+  let code = open ? open.code : '';
+  if (!code) { const used = new Set(list.map(o => o && o.code)); let i = 1; while (used.has('global-' + i) && i < 99) i++; code = 'global-' + i; }
+  TM.bots = true;
+  return tmEnter(code, true, btn, !open);
+}
 // entrar con código: primero se pregunta al servidor quién creó la sala y cuánta gente hay (como en Among Us), y después se entra
 async function tmFind() {
   const code = cleanCode($('tm-jcode').value), card = $('tm-jcard'), go = $('tm-jgo'); $('tm-jcode').value = code; go.classList.add('hidden'); TM.found = null;
@@ -15904,7 +15915,7 @@ async function tmFind() {
 function tmWire() {
   $('tplay').addEventListener('click', e => { e.stopImmediatePropagation(); e.stopPropagation(); if (TITLE.on && TITLE.lt == null) tmOpen(); }, true);
   $('tm-x').addEventListener('click', tmClose);
-  $('tm-solo').addEventListener('click', () => tmView('solo-v')); $('tm-pub').addEventListener('click', () => tmView('public-v')); $('tm-new').addEventListener('click', () => tmView('create-v'));
+  $('tm-solo').addEventListener('click', () => tmView('solo-v')); $('tm-pub').addEventListener('click', () => tmView('public-v')); $('tm-new').addEventListener('click', () => tmView('create-v')); $('tm-global').addEventListener('click', () => tmGlobal($('tm-global')));
   document.querySelectorAll('[data-tmback]').forEach(b => b.addEventListener('click', () => tmView('home')));
   $('tm-nbots').addEventListener('input', () => { $('tm-nbots-o').textContent = $('tm-nbots').value; }); $('tm-lvl').addEventListener('input', () => { $('tm-lvl-o').textContent = $('tm-lvl').value; });
   $('tm-solo-go').addEventListener('click', () => {
