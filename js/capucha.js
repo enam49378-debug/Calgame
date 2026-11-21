@@ -56,7 +56,8 @@
       if (C.want > .5 && C.u < .4 && C.put <= 0 && C.uv > -1) { if (!C.putDone) { C.put = .6; C.putDone = true; } }
       if (C.want < .5) C.putDone = false;
       // ---- resorte de abrir/cerrar: rebota un poco al pasar de un estado al otro
-      C.uv += ((C.want - C.u) * 90 - C.uv * 10) * dt; C.u = clamp(C.u + C.uv * dt, -.25, 1.2);
+      C.uv += ((C.want - C.u) * 150 - C.uv * 24) * dt; C.u = clamp(C.u + C.uv * dt, 0, 1);   // sin rebote de tamaño: la capucha nunca se hace más grande que su modelo
+      if (typeof f.capU === 'number') { C.u = f.capU; C.uv = 0; }   // (solo para revisar poses)
       // ---- física: aceleración del cuerpo en su propio marco (adelante / lado / arriba)
       // el cambio de velocidad (lo que "sentiría" la tela) empuja la capucha en sentido contrario: se queda atrás al arrancar, se adelanta al frenar, rebota al caer
       const dx = f.vel.x - C.pv.x, dy = f.vel.y - C.pv.y, dz = f.vel.z - C.pv.z; C.pv.copy(f.vel);
@@ -72,9 +73,9 @@
       }
       const flutter = (Math.sin(T * 17 + 1) + Math.sin(T * 11.3)) * .5 * clamp(sp / 9, 0, 1) * .07 * loose;   // aletea al correr
       const lift = clamp(sp * .022, 0, .26) * loose;   // el viento la levanta
-      const u = C.u;
-      C.pivot.position.set(0, lerp(OFF.y, ON.y, u) * PX + C.by * PX * .5 * loose, lerp(OFF.z, ON.z, u) * PX);
-      C.pivot.rotation.set(lerp(OFF.rx, ON.rx, u) + (C.rx + lift + flutter) * (u > .5 ? .6 : 1), 0, C.rz);
+      const u = C.u, arc = Math.sin(Math.PI * u);   // al subir da un arco: sube y pasa por encima de la cabeza
+      C.pivot.position.set(0, (lerp(OFF.y, ON.y, u) + arc * 3.5) * PX + C.by * PX * .5 * loose, (lerp(OFF.z, ON.z, u) + arc * 1.2) * PX);
+      C.pivot.rotation.set(lerp(OFF.rx, ON.rx, u) + (C.rx + lift + flutter) * (1 - .85 * u), 0, C.rz * (1 - .7 * u));
       C.pivot.scale.set(lerp(OFF.sx, ON.sx, u), lerp(OFF.sy, ON.sy, u), lerp(OFF.sz, ON.sz, u));
       // cuello: sigue a la capucha con retraso
       C.bandA += ((C.rx * 1.3 + lift + flutter * 1.5) - C.bandA) * Math.min(1, dt * 12);
