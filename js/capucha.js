@@ -22,7 +22,7 @@
       g.computeVertexNormals(); g.rotateY(Math.PI); return g;
     }
     // poses (en píxeles, en el espacio de la cabeza: y hacia arriba, +z hacia el frente)
-    const ON = { y: 4, z: 0, rx: 0, sx: 1, sy: 1, sz: 1 };                 // cubre la cabeza
+    const ON = { y: 4.6, z: -.3, rx: 0, sx: .9, sy: .867, sz: 1.22 };   // ajustada a la cabeza de Javi (capa exterior de 10 px): 10,8 de ancho, 10,4 de alto y 11 de fondo
     const OFF = { y: 2.4, z: -7.2, rx: -Math.PI / 2, sx: .9, sy: .5, sz: .5 };   // doblada detrás del cuello
     const lerp = (a, b, k) => a + (b - a) * k;
 
