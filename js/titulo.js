@@ -37,8 +37,8 @@
       + 'body.tl #tset:hover,body.tl #tscene:hover{background:#ffd400;color:#000;border-color:#000;transform:translateY(-3px);box-shadow:0 5px 0 #000}'
       + 'body.tl #tset:active,body.tl #tscene:active{transform:translateY(0);box-shadow:0 1px 0 #000}'
       // Amigos dentro del panel (antes quedaba encima del disco)
-      + 'body.tl:has(#title:not(.hidden)) #friendsbtn{position:fixed;left:2.4vw;right:auto;top:' + TOP + ' + 200px);bottom:auto;width:' + W + ';animation:tlBtn .8s 1.2s ' + E + ' backwards}'
-      + 'body.tl:has(#title.leaving) #friendsbtn{opacity:0;transition:opacity .3s}'
+      + 'body.tl:not(.has-match):has(#title:not(.hidden)) #friendsbtn{position:fixed;left:2.4vw;right:auto;top:' + TOP + ' + 200px);bottom:auto;width:' + W + ';animation:tlBtn .8s 1.2s ' + E + ' backwards}'
+      + 'body.tl:not(.has-match):has(#title.leaving) #friendsbtn{opacity:0;transition:opacity .3s}'   // (solo en el titulo: dentro de la partida el boton Amigos debe verse)
       // Discord y disco
       + 'body.tl #dclink{left:2.4vw;top:auto;bottom:5vh;transform:none;animation:tlBtn .8s 1.25s ' + E + ' backwards;transition:background .2s,transform .25s ' + B + '}body.tl #dclink:hover{transform:scale(1.08)}'
       + 'body.tl #disco{left:auto;right:3vw;top:auto;bottom:6vh;flex-direction:row-reverse}body.tl #disco .pp{margin-left:0;margin-right:-14px;border-radius:6px 0 0 6px}body.tl #disco .pp div{padding:0 28px 0 16px;transform:translateX(12px)}body.tl #disco.open .pp div{transform:none}'

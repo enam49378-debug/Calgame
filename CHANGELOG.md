@@ -12,6 +12,18 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.13.0 · 2026-11-21 · Cielo, nubes, sombras y arreglos
+- **Arreglo: el botón Amigos no aparecía** dentro de la partida (la pantalla de título lo dejaba invisible). Ahora sale en la barra de arriba junto a Guía.
+- **Arreglo: el cielo rojo de Redbird (Ojo del Cosmos)** se veía como un disco rojo cortado porque la cúpula del cielo crecía más allá de lo que alcanza la cámara. Ahora no cambia de tamaño.
+- **Delay entre jugadores:** los ataques y habilidades de los demás ahora se muestran con el mismo retraso que su cuerpo (antes salían un poco adelantados y parecía que el jugador iba atrasado).
+- **Sombras:** cubren una zona más grande alrededor del jugador, así que de lejos ya no desaparecen tan pronto.
+- **Playa:** menos brillo en la arena y en objetos claros (menos bloom de día y arena un poco más oscura).
+- **Cielo y ciclo día/noche:**
+  - Las transiciones de color del cielo, la niebla y las nubes son continuas (antes cambiaban de golpe al pasar de día a noche).
+  - El atardecer y el amanecer duran más (unas 2 horas del juego en vez de 1).
+- **Nubes nuevas:** 30 racimos de bloques con base y bultos, más altas y repartidas por un área más grande. Cambian de color con la hora (blancas, rosadas al atardecer, azules de noche, grises con tormenta) y se mueven más rápido con viento.
+- Servidor: el instalador funciona también en máquinas ARM y ajusta el límite de memoria según la RAM.
+
 ## v1.12.2 · 2026-11-21 · Arreglo: conexión al servidor global
 - La política de seguridad de la página (CSP) bloqueaba las consultas al servidor de Oracle y por eso el juego no lo detectaba y seguía usando los relés. Ahora la dirección del servidor está permitida.
 - Si algún día cambia la dirección del servidor en `config/servidor.js`, también hay que ponerla en `connect-src` de `index.html`.

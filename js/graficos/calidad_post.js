@@ -238,8 +238,9 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       const mapDim = Math.min(crisp ? 2048 : prof.size, maxTex);
       renderer.shadowMap.type = prof.type;
       sun.shadow.mapSize.set(mapDim, mapDim);
+      const spanK = crisp ? 1.45 : 1.15;   // las sombras cubren una zona mas grande alrededor del jugador (antes de lejos desaparecian)
       Object.assign(sun.shadow.camera, {
-        left: -prof.span, right: prof.span, top: prof.span, bottom: -prof.span, near: prof.near, far: prof.far
+        left: -prof.span * spanK, right: prof.span * spanK, top: prof.span * spanK, bottom: -prof.span * spanK, near: prof.near, far: prof.far
       });
       sun.shadow.camera.updateProjectionMatrix();
       sun.shadow.bias = prof.bias;
@@ -518,9 +519,9 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
           } else {
             const dusk = Math.max(ZZZ_U.night.value, ZZZ_U.sunset.value * 0.65);
             if (GFX_CFG.bloom === 'anime') {
-              bloomPass.strength = 0.18 + dusk * 0.11;
-              bloomPass.radius = 0.26 + dusk * 0.12;
-              bloomPass.threshold = 0.91 - dusk * 0.14;
+              bloomPass.strength = 0.12 + dusk * 0.14;   // de dia menos brillo en arena y cosas claras; al atardecer y de noche sube
+              bloomPass.radius = 0.24 + dusk * 0.12;
+              bloomPass.threshold = 0.96 - dusk * 0.2;
             } else if (GFX_CFG.bloom === 'subtle') {
               bloomPass.strength = 0.09 + dusk * 0.06;
               bloomPass.radius = 0.18 + dusk * 0.08;

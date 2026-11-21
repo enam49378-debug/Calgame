@@ -310,7 +310,8 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
   function skyFollow(apoc = 0, night = 0) {
     const x = camera.position.x, z = camera.position.z;
     skyDome.position.set(x, 0, z);
-    skyDome.scale.setScalar(1 + apoc * .3);
+    // (antes el domo crecia con el cielo rojo de Redbird y pasaba del plano lejano de la camara: se veia un disco rojo cortado. Ahora no cambia de tamano)
+    skyDome.scale.setScalar(1);
     skyMat.color.setHex(night > .5 ? 0xffffff : 0xffffff).lerp(_c.set(0x7a1010), apoc * .78);
   }
 

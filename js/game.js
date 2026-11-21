@@ -869,7 +869,7 @@ function cityGrassAt(x,z) {
     box(x,1.9,70.2,.16,3.8,.16,'#435766');box(x,3.85,70.2,.55,.16,.55,'#435766');box(x,3.62,70.2,.38,.34,.38,'#fff0b1');solid(x,70.2,.22,.22,4);
   }
   // arena, arena mojada, fondo marino y el mar con olas
-  const sandTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#e8d29a',9);g.fillStyle='rgba(180,150,90,.18)';for(let i=0;i<22;i++)g.fillRect((i*7)%32,(i*13)%32,2,1);});
+  const sandTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#d6bd84',9);g.fillStyle='rgba(180,150,90,.18)';for(let i=0;i<22;i++)g.fillRect((i*7)%32,(i*13)%32,2,1);});
   sandTex.wrapS=sandTex.wrapT=THREE.RepeatWrapping;
   const wetTex=pixTex(32,32,g=>{noiseRect(g,0,0,32,32,'#bfa271',8);});wetTex.wrapS=wetTex.wrapT=THREE.RepeatWrapping;
   const strip=(x0,x1,step,zN,zS,y,mat,uv,pub)=>{
@@ -1502,10 +1502,19 @@ function cityGrassAt(x,z) {
     else if(!baseOff&&CITY.colStash){for(const c of CITY.colStash)COL.push(c);CITY.colStash=null;}
     for(const [list,want] of [[betaCols,c=>!!on&&c.map===id],[pubCols,c=>!on||(id==='A'&&c.own!=='A')]])for(const c of list){const i=COL.indexOf(c),w=want(c);if(w&&i<0)COL.push(c);else if(!w&&i>=0)COL.splice(i,1);}
     colMarkDirty();if(CITY.modelsReady&&typeof rebuildCityNav==='function')rebuildCityNav();CULL.dirty=true;};
-  const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false});
-  for(let i=0;i<16;i++){
-    const c=new THREE.Mesh(new THREE.BoxGeometry(14+(i%4)*3,2,8+(i%3)*2),cloudMat);
-    c.position.set(Math.cos(i*2.4)*110,48+(i%4)*3,Math.sin(i*2.4)*110);scene.add(c);CLOUDS.push(c);
+  // NUBES: racimos de bloques (base plana y varios bultos encima), mas altas y mas lejos; el color lo pone el clima (blanco de dia, rosado al atardecer, azul oscuro de noche, gris con tormenta)
+  const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,fog:false}),cloudBase=new THREE.MeshBasicMaterial({color:0xdfe6f0,transparent:true,opacity:.9,fog:false});
+  CITY.cloudMat=cloudMat;CITY.cloudBase=cloudBase;
+  for(let i=0;i<30;i++){
+    const g=new THREE.Group(),w=16+(i%5)*4,d=9+(i%3)*3,seed=i*7.13;
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(w,2.2,d),cloudBase));
+    for(let k=0;k<3+(i%3);k++){
+      const bw=w*(.28+((seed+k*3.7)%1)*.22),bd=d*(.4+((seed+k*5.1)%1)*.3),bh=2+((seed+k*2.3)%1)*2.6;
+      const top=new THREE.Mesh(new THREE.BoxGeometry(bw,bh,bd),cloudMat);
+      top.position.set((((seed+k*1.9)%1)-.5)*w*.7,1.0+bh/2,(((seed+k*4.3)%1)-.5)*d*.5);g.add(top);
+    }
+    const a=i*2.4+(i%2)*.7,r=60+((i*37)%190);
+    g.position.set(Math.cos(a)*r,52+(i%5)*4.5,Math.sin(a)*r);g.rotation.y=(i%4)*.4;scene.add(g);CLOUDS.push(g);
   }
   const sunQ=new THREE.Mesh(new THREE.PlaneGeometry(16,16),new THREE.MeshBasicMaterial({color:0xfff6c4,fog:false}));
   sunQ.position.set(120,140,70);sunQ.lookAt(0,0,0);scene.add(sunQ);CITY.sunDisc=sunQ;
@@ -1906,18 +1915,20 @@ function syncWeatherControls(){
   $('wx-hour').value=WX.hour;
 }
 // las cúpulas del cielo siguen a la cámara: si no, al alejarse del centro (orilla, mar) se veía la cúpula por fuera como una esfera gigante
+const _cB = new THREE.Color();   // color auxiliar para mezclar el cielo
 const _wxCache = { betaZzz: -1, blocked: -1, lights: -1, wet: -1, night: -1, cloud: -1, day: -1, zzz: -1, clk: '', fx: 1e9, fz: 1e9, lite: -1, bestIdx: [], bestDist: [] };
 function updateCityWeather(dt,instant=false){
   dt=Number.isFinite(dt)?Math.max(0,dt):0;
   advanceAtmosphere(dt,instant);
   const kind=WX.kind,target=WX_PRESETS[kind],zzz=ZZZ_U.on.value>.5;
-  const a=(WX.hour-6)/24*TAU,height=Math.sin(a),day=THREE.MathUtils.smoothstep(height,-.12,.26),night=1-day;
-  WX.night=night;const sunset=(1-THREE.MathUtils.smoothstep(Math.abs(height),.02,.38))*(1-WX.cloud*.75);
+  const a=(WX.hour-6)/24*TAU,height=Math.sin(a),day=THREE.MathUtils.smoothstep(height,-.2,.32),night=1-day;   // crepusculo mas largo: el paso de dia a noche (y al reves) dura unas 2 horas del juego en vez de 1
+  WX.night=night;const sunset=(1-THREE.MathUtils.smoothstep(Math.abs(height),.03,.46))*(1-WX.cloud*.75);
+  if(CITY.cloudMat){const cm=CITY.cloudMat,cb=CITY.cloudBase;cm.color.set(0xffffff).lerp(_c.set(0xffc9b0),sunset*.8).lerp(_c.set(0x4a5578),night).lerp(_c.set(0x8d98a3),WX.cloud*.65*(1-night*.5));cb.color.copy(cm.color).multiplyScalar(.84);cm.opacity=cb.opacity=.9-night*.22;}
   WX.skyTop.set(zzz?0x081330:0x0a1c42).lerp(_c.set(zzz?0x186ee8:0x1a72e8),day).lerp(_c.set(zzz?0x7b337f:0x6c3f82),sunset*.78);
   WX.skyHorizon.set(zzz?0x151e3d:0x1e2c48).lerp(_c.set(zzz?0x9ae2ff:0x9ee0ff),day).lerp(_c.set(zzz?0xff7b4d:0xff9452),sunset*.88);
-  WX.skyTop.lerp(_c.set(night>.5?(zzz?0x111a34:0x152137):0x526a80),WX.cloud*.83);
-  WX.skyHorizon.lerp(_c.set(night>.5?(zzz?0x1a2648:0x2b3c50):0x8e9da7),WX.cloud*.8);
-  WX.skyHorizon.lerp(_c.set(night>.5?(zzz?0x28365c:0x65718b):0xc3d6db),WX.fogAmount*(zzz&&night>.5?.18:.28));
+  WX.skyTop.lerp(_c.set(0x526a80).lerp(_cB.set(zzz?0x111a34:0x152137),night),WX.cloud*.83);   // mezclas continuas (antes habia un salto de color al pasar de dia a noche)
+  WX.skyHorizon.lerp(_c.set(0x8e9da7).lerp(_cB.set(zzz?0x1a2648:0x2b3c50),night),WX.cloud*.8);
+  WX.skyHorizon.lerp(_c.set(0xc3d6db).lerp(_cB.set(zzz?0x28365c:0x65718b),night),WX.fogAmount*(.28-(zzz?.1*THREE.MathUtils.smoothstep(night,.3,.7):0)));
   { const ap = G.apoc || 0; if (ap > .003) { WX.skyTop.lerp(_c.set(0x4a0606), ap * .88); WX.skyHorizon.lerp(_c.set(0xff4a1c), ap * .9); } }   // G.apoc: el cielo se vuelve rojo (Ojo del Cosmos de Redbird)
   const betaNow=ZZZ_U.beta.value>.5;
   if(betaNow&&zzz&&night>.01){
@@ -1932,7 +1943,7 @@ function updateCityWeather(dt,instant=false){
   SUN_DIR.set(Math.cos(a)*55,height*70,22).normalize();WX.sunsetK=sunset;WX.sunVis=THREE.MathUtils.smoothstep(height,-.06,.03);
   WX.sky.material.uniforms.uSunDir.value.copy(SUN_DIR);WX.sky.material.uniforms.uSunset.value=sunset;WX.sky.material.uniforms.uSunVis.value=WX.sunVis;
   ZZZ_U.night.value=night;ZZZ_U.sunset.value=sunset;ZZZ_U.wet.value=WX.wet;ZZZ_U.sunDir.value.copy(SUN_DIR);ZZZ_U.skyCol.value.copy(WX.skyHorizon);
-  ZZZ_U.rimCol.value.set(night>.5?0x4ee8ff:0x64d9ff).lerp(_c.set(0xff8ee0),sunset*.35);
+  ZZZ_U.rimCol.value.set(0x64d9ff).lerp(_c.set(0x4ee8ff),night).lerp(_c.set(0xff8ee0),sunset*.35);
   ZZZ_U.rimWarm.value.set(0xffc66d).lerp(_c.set(0xff7848),sunset*.7).lerp(_c.set(0xffb45a),night*.5);
   ZZZ_U.shadowTint.value.set(0x3a446e).lerp(_c.set(0x28305a),night*.6).lerp(_c.set(0x4d345c),sunset*.55);
   const focus=G.player?G.player.pos:camera.position,uniforms=WX.rainUniforms;
@@ -2042,7 +2053,7 @@ function updateCityWeather(dt,instant=false){
     if(instant||(zzz?1:0)!==_wxCache.zzz||Math.abs(day-_wxCache.day)>0.002||Math.abs(WX.cloud-_wxCache.cloud)>0.002){
       _wxCache.zzz=zzz?1:0;_wxCache.day=day;_wxCache.cloud=WX.cloud;
       const clOp=.75-WX.cloud*.22;
-      for(const cloud of CLOUDS){cloud.material.color.set(zzz?0x2f4166:0x3f526c).lerp(_c.set(0xf4f4ed),day);cloud.material.opacity=clOp;}
+      // (el color de las nubes ahora lo calcula arriba cloudMat/cloudBase en cada cuadro: dia, atardecer, noche y tormenta)
     }
   }else {WX.moonLight.intensity=0;WX.fillLight.intensity=0;}
   cityWeatherAudio(dt,visible&&!G.paused);
@@ -12189,7 +12200,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.12.2';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.13.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 // SERVIDOR GLOBAL: si la pagina esta en un sitio y el servidor de salas en otro (por ejemplo la pagina en Vercel y el servidor en Oracle),
 // la direccion del servidor sale de config/servidor.js (window.CF_SERVIDOR) o de ?srv=https://... en el link. En localhost se usa el servidor local salvo que pongas ?srv=.
@@ -14928,7 +14939,7 @@ function netTick(dt) {
       for (const a of list.slice().sort((x, y) => (x.s || 0) - (y.s || 0))) {
         const key = (a.ss || '') + ':' + a.s; if (seenA.has(key)) continue;
         seenA.add(key); if (seenA.size > 80) seenA.delete(seenA.values().next().value);
-        NET.lastAct[pe.peer] = a.s; replayAct(px, a);
+        NET.lastAct[pe.peer] = a.s; { const dl = clamp(((px.netIv || 40) * 1.8 + (px.netJit || 0) * 2.2) / 1000, .05, .16), pxx = px, aa = a; later(dl, () => { if (!pxx._disposed && NET.proxies.get(pxx.peer) === pxx) replayAct(pxx, aa); }); }   // los ataques de otros se ven con el mismo retraso que su cuerpo (antes salian adelantados)
       } }
     if (pr.ko && pr.ko.n !== NET.lastKo[pe.peer]) {
       NET.lastKo[pe.peer] = pr.ko.n;
@@ -17629,9 +17640,9 @@ function loop(now){
   {
     const cp = camera.position, outCloud = cp.z > 560 || cp.y < -45 || cp.y > 480, cloudRangeSq = (CULL.range * 1.45 + 65) ** 2;
     for (const c of CLOUDS) {
-      c.position.x += rdt * 1.5; if (c.position.x > 160) c.position.x = -160;
+      c.position.x += rdt * (1.2 + (WX.wind || 0) * 5); if (c.position.x > 270) c.position.x = -270;
       if (outCloud) { c.visible = false; continue; }
-      CULL.sp.center.copy(c.position); CULL.sp.radius = 12;
+      CULL.sp.center.copy(c.position); CULL.sp.radius = 18;
       c.visible = cp.distanceToSquared(c.position) < cloudRangeSq && CULL.fr.intersectsSphere(CULL.sp);
     }
   }
