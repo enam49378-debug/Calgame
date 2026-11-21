@@ -15,6 +15,8 @@
 - **Regla para TODA actualización futura** (gráficos, personajes, habilidades, mapas, modos o UI): cualquier novedad no lanzada al público debe ocultarse detrás de `CF_BETA.on` / `CF_BETA.subscribe(on => ...)` (en JS) o de la clase CSS `.cf-beta-only` (`body.cf-beta`).
 - **Quién ve las novedades**: automáticamente el **Owner** en la web publicada (al entrar con su sesión verificada `SOC.owner` o clave `DEV.on`, sin necesidad de abrir un servidor local manual) y quien ejecute el repo descargado de Git en local (`localhost` / `127.0.0.1` / `file:`). Para el resto de jugadores en la web pública permanece desactivado (`CF_BETA.on === false`).
 
+- **Estado actual:** `BETA_LANZADA = true` en `js/game.js` (21/11/2026): todo lo que estaba en la vista privada ya es público. La regla de arriba sigue valiendo para lo nuevo: si quieres volver a ocultar novedades, pon `BETA_LANZADA = false`.
+
 ## Reglas estrictas para ahorrar tokens
 - NUNCA leas ni imprimas el interior de archivos `.bbmodel`, `.png` o `.mp3`.
 - Si el usuario deja un archivo nuevo suelto en la raíz o en otra carpeta, muévelo con comandos de terminal (`move` / `mv`) a su carpeta correspondiente y conéctalo al código usando solo su nombre/ruta.

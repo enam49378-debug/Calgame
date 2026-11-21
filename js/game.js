@@ -13143,6 +13143,8 @@ $('audedbtn').addEventListener('click', () => { sfx('select'); aeOpen(); });
 const DEV = { on: false, p: { salt: 'e1223a6e5d5ce1833853cbce67103fe2', iter: 150000, hash: '21dda3739d45c30713ac3333f8a0a349d17115890e2d965a0f95c7a5d28e7e28' } };
 const IS_LOCAL_HOST = /^(localhost|127\.|\[::1\])/.test(location.hostname) || location.protocol === 'file:';
 let OWNER_BETA_PREF = true, OWNER_AUTHED = false;
+// LANZAMIENTO: con true, todo lo que estaba en la vista privada (CF_BETA) lo ve TODO el mundo. Para volver a ocultarlo a los jugadores, ponla en false.
+const BETA_LANZADA = true;
 const _betaSubs = new Set();
 function devHasLocalToken() {
   try { const d = JSON.parse(localStorage.getItem('bsb_dev') || 'null'); return !!(d && d.h === DEV.p.hash.slice(0, 16) && Date.now() - d.t < 30 * 864e5); } catch (e) { return false; }
@@ -13154,7 +13156,7 @@ function getOwnerBeta() {
   return typeof ZZZ_U !== 'undefined' && ZZZ_U.beta.value > 0.5;
 }
 function syncOwnerBeta(forceApply = false) {
-  const want = (isOwnerBetaAllowed() && OWNER_BETA_PREF) ? 1 : 0;
+  const want = (BETA_LANZADA || (isOwnerBetaAllowed() && OWNER_BETA_PREF)) ? 1 : 0;
   const prev = typeof ZZZ_U !== 'undefined' ? ZZZ_U.beta.value : want;
   if (typeof ZZZ_U !== 'undefined') ZZZ_U.beta.value = want;
   if (typeof document !== 'undefined' && document.body) document.body.classList.toggle('cf-beta', want > 0.5);
