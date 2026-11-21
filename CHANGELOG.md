@@ -12,6 +12,15 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.8.0 · 2026-11-21 · Bloqueo perfecto, Black Flash y embestida
+Inspirado en los battlegrounds de Roblox. Las ventanas de tiempo son una adaptación mía de lo que cuentan guías de la comunidad, no datos oficiales.
+- **Bloqueo perfecto:** si pulsas bloquear justo antes de recibir un golpe (ventana de 0,22 s desde que empiezas a bloquear), no recibes daño, el rival queda aturdido medio segundo y apareces con chispas rojas.
+  - Para evitar el abuso de tocar bloquear sin parar, hace falta haber soltado el bloqueo al menos 0,5 s antes.
+  - No funciona contra golpes que rompen la guardia.
+- **Black Flash:** después de un bloqueo perfecto, tu siguiente golpe básico (M1) que conecta es un Black Flash durante 4 s: 2,4 veces el daño, rompe la guardia y tira al rival, con rayos negros y rojos y marco de impacto negro.
+- **Embestida (dash de frente):** si el dash hacia adelante choca con un rival, le hace daño, lo aturde y lo arrastra mientras dura el dash. Si venías de tres golpes básicos (M1), lo manda rodando (*shove*).
+- La guía de controles incluye las tres cosas.
+
 ## v1.7.0 · 2026-11-21 · Técnicas de movimiento y cámara
 Inspirado en los battlegrounds de Roblox (The Strongest Battlegrounds). Referencias: rblxguide.com (guía de techs y de ragdoll cancel).
 - **Dash cancel:** si haces dash y usas una habilidad (o la ulti) enseguida, la habilidad corta el resto del dash y sale al instante.

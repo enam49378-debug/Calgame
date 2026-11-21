@@ -5343,6 +5343,13 @@ function applyHit0(att, t, o) {
         t.gbT = G.time; popText(chest, '¡GUARDIA ROTA!', '#ffd54f', 20); sfx('break', t.pos); burst(chest, 16, '#ffd54f', 8, .18, .4);
         impactStar(chest, '#ffd54f', 2.2, .3);
         stun = Math.max(stun, 1.1);
+      } else if (G.time - (t.blockT0 == null ? -9 : t.blockT0) <= PERFECT_BLOCK && G.time - (t.blockRelT == null ? -9 : t.blockRelT) > .5) {
+        // BLOQUEO PERFECTO: bloquear justo antes del golpe no recibe nada, castiga al que pego y el siguiente golpe basico sera un BLACK FLASH
+        t.critT = 4; t.blockHitT = .3; t.vel.x += dir.x * 1.5; t.vel.z += dir.z * 1.5;
+        if (att.alive && !att.remote && !att.isBoss && !att.cineLock && !att.grabbed) { if (att.action) endAction(att); att.stun = Math.max(att.stun, .5); }
+        popText(chest, 'BLOQUEO PERFECTO', '#7df9ff', 22); sfx('counter', t.pos); impactStar(chest, '#7df9ff', 2, .25); burst(chest, 14, '#7df9ff', 7, .16, .35); ringAt(new V3(t.pos.x, t.pos.y + .1, t.pos.z), '#7df9ff', 2.2, .35);
+        if (involved) { G.slowT = Math.max(G.slowT, .15); impactFrame('#7df9ff', .08); }
+        return 'blocked';
       } else {
         t.hp -= o.dmg * .12; t.vel.x += dir.x * 3; t.vel.z += dir.z * 3;
         t.ult = Math.min(100, t.ult + o.dmg * .5 * ULT_GAIN); att.ult = Math.min(100, att.ult + o.dmg * .2 * ULT_GAIN);
@@ -5620,10 +5627,13 @@ function doM1(f, upVariant) {
         if (def.eyeStab) { const a = front(f, .35, 1.72), b = front(f, 3.4, 1.4); slashLine(a, b, f.ch.color, .2, .16); slashLine(a, b, '#ffffff', .14, .06); sfx('zap', f.pos, .5); }
         if (def.twirl) startTwirl(f, 1, .32);
         if (!unarmed && bbSet(f.ch.id)) javiStrikeFx(f, fin, i);
-        const o = fin
+        let o = fin
           ? { dmg: 6, kb: upVariant ? 2 : 17, up: upVariant ? 15 : 6, ragdoll: upVariant ? 0 : 1.0, stun: upVariant ? .9 : 0 }
           : { dmg: 3.5, stun: .45, kb: 1.4 };
+        const bf = f.critT > 0;   // tras un bloqueo perfecto, el siguiente golpe basico que conecta es un BLACK FLASH: mas dano, rompe la guardia y tira al rival
+        if (bf) o = Object.assign({}, o, { dmg: o.dmg * 2.4, guardBreak: true, ragdoll: Math.max(o.ragdoll || 0, 1.0), kb: Math.max(o.kb || 0, 13), up: Math.max(o.up || 0, 6), stun: 0, hitstop: .16, shake: .7, color: '#ff2a2a', sound: 'heavy' });
         const n = hitArea(f, front(f, def.reach || 1.25, 1.1), def.r || 1.25, o);
+        if (bf && n) { f.critT = 0; blackFlashFx(f, front(f, def.reach || 1.25, 1.2)); }
         if (fin) worldDamage(front(f, 1.8, 1.1), 3.1, 1, 6, .9);
         f.destPow = .5;
         if (n && !f.onGround) f.vel.y = Math.max(f.vel.y, 2.4);
@@ -8122,7 +8132,35 @@ function clampArena(v, m = 2) { if (v.z > 560) return v; if (worldBig() && !mapN
 //   dash de lado (micro dash): el impulso es mas corto y rapido. Los golpes M1 NO cancelan el dash.
 // RAGDOLL CANCEL: en el suelo, tirado en ragdoll, un dash de lado o hacia atras te levanta al instante (una vez cada RC_CD segundos).
 //   Los golpes pesados de caida (noRC) lo impiden.
-const RC_CD = 30;
+const RC_CD = 30, PERFECT_BLOCK = .22;
+function blackFlashFx(f, p) {   // el rayo negro y rojo del Black Flash
+  popText(p, 'BLACK FLASH', '#ff2a2a', 30); impactFrame('#000000', .16); sphereFlash(p, '#000000', 2.4, .3); sphereFlash(p, '#ff2a2a', 3.2, .22);
+  for (let k = 0; k < 9; k++) { const a = rand(0, TAU), d = new V3(Math.cos(a), rand(-.4, .8), Math.sin(a)); slashLine(p.clone().addScaledVector(d, .3), p.clone().addScaledVector(d, rand(2.6, 4.2)), k % 2 ? '#ff2a2a' : '#000000', .26, .14); }
+  burst(p, 30, '#ff2a2a', 11, .22, .6, .1); burst(p, 20, '#0a0a0a', 9, .26, .6, .1); ringAt(new V3(p.x, p.y - .8, p.z), '#ff2a2a', 4.2, .4); sfx('boom', p, .7); sfx('counter', p, .8);
+  if (f.isPlayer) { G.slowT = Math.max(G.slowT, .35); G.fovKick = Math.max(G.fovKick, 9); }
+}
+// DASH DE FRENTE: si el dash conecta con un rival, le hace dano y lo arrastra con el dash. Si venias de tres golpes basicos (M1) lo manda rodando (shove).
+function dashFrontHit(f, dt) {
+  if (f.remote) return;
+  const C = f.dashCarry;
+  if (C) { if (C.g.alive && !C.g.remote && C.g.ragdoll <= 0) { C.g.vel.x = f.vel.x * .95; C.g.vel.z = f.vel.z * .95; } return; }   // arrastra a quien alcanzo mientras dura el dash
+  if (f.dashHit) return;
+  const F = fwd(f.yaw);
+  for (const g of enemiesOf(f)) {
+    if (!g.alive || g.iframes > 0 || g.ragdoll > 0 || Math.abs(g.pos.y - f.pos.y) > 1.8) continue;
+    const dx = g.pos.x - f.pos.x, dz = g.pos.z - f.pos.z, d = Math.hypot(dx, dz);
+    if (d > 1.7 || (dx * F.x + dz * F.z) / (d || 1) < .3) continue;
+    f.dashHit = true;
+    const shove = f.comboIdx >= 3 && G.time - (f.lastAtkT || -9) < 1.3;
+    const r = applyHit(f, g, shove ? { dmg: 5, ragdoll: .8, kb: 12, up: 2, dir: F, color: f.ch.color, hitstop: .07, shake: .3 } : { dmg: 3.5, stun: .45, kb: g.remote ? 9 : 0, dir: F, color: f.ch.color, hitstop: .05, shake: .2 });
+    if (r === true) { popText(chestOf(g), shove ? 'SHOVE' : 'EMBESTIDA', f.ch.color, 17); if (!shove && !g.remote) f.dashCarry = { g }; }
+    break;
+  }
+}
+function dashEnd(f) {   // se suelta a quien arrastraba
+  f.dashHit = false; const C = f.dashCarry; f.dashCarry = null;
+  if (C && C.g.alive && !C.g.remote && C.g.ragdoll <= 0) { C.g.vel.x *= .4; C.g.vel.z *= .4; }
+}
 function dashKindOf(f, dx, dz) {
   if (!dx && !dz) return 'front';
   let ref = f.yaw; if (f.isPlayer) ref = cam.yaw; else if (f.ai && f.ai.target && f.ai.target.alive) ref = yawTo(f, f.ai.target);
@@ -8144,6 +8182,7 @@ function tryRagdollCancel(f, c) {
   return true;
 }
 function dashCancel(f, sv) {
+  dashEnd(f);
   const k = f.dashKind || 'front', m = k === 'back' ? (f.onGround ? .6 : .9) : k === 'side' ? 1.3 : .5;
   f.dashT = 0; f.dashAnimT = 0; f.dashRecT = 0; f.vel.x = sv.x * m; f.vel.z = sv.z * m;
   ghost(f, '#7df9ff', .5, .3); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7df9ff', 1.6, .3);
@@ -8156,7 +8195,7 @@ function applyCtl(f, c, dt) {
   const can = f.alive && f.stun <= 0 && f.ragdoll <= 0 && f.frozen <= 0 && !f.grabbed;
   if (f.action && f.action.name === 'flourish' && (c.mx || c.mz || c.jump || c.block || c.dash)) endAction(f);
   const a = f.action;
-  { const wb = f.blocking; f.blocking = can && !a && c.block; if (f.blocking && !wb) javiSpeak(f, 'ev_block'); }
+  { const wb = f.blocking; f.blocking = can && !a && c.block; if (f.blocking && !wb) { f.blockT0 = G.time; javiSpeak(f, 'ev_block'); } else if (!f.blocking && wb) f.blockRelT = G.time; }
   let sp = 9 * f.ch.spd * (f.awak > 0 ? 1.15 : 1) * (f.fireT > 0 ? 1.2 : 1) * (f.pisco > 0 ? 1.3 : 1) * (f.turbo > 0 ? 1.35 : 1) * (f.buf > 0 ? .3 : 1) * (f.isPlayer ? G.rules.spd : 1);
   if (f.blocking) sp *= .3; if (a) sp *= (a.speedMul != null ? a.speedMul : .4); if (f.swim) sp *= .55; else if (f.wade) sp *= .8; if (!can) sp = 0;
   const moving = c.mx || c.mz;
@@ -8189,11 +8228,12 @@ function applyCtl(f, c, dt) {
     else { f.yaw = dYaw; f.dashDir = 'front'; }
     const dClip = dSet && (dSet[dName] || dSet.esquive);
     f.dashAnimDur = dClip ? dClip.length : .35; f.dashAnimT = f.dashAnimDur;
-    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; f.dashKind = dashKindOf(f, dx, dz); javiSpeak(f, 'ev_dash');
+    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; f.dashKind = dashKindOf(f, dx, dz); f.dashHit = false; f.dashCarry = null; javiSpeak(f, 'ev_dash');
     sfx('dash', f.pos); burst(new V3(f.pos.x, .3, f.pos.z), 10, '#d8d0c0', 4, .2, .4, .2, 2);
     if (f.isPlayer) G.fovKick = Math.max(G.fovKick, 5);
   }
   if (f.seq && f.seq.lock) return;
+  if (f.dashT > 0 && f.dashKind === 'front') dashFrontHit(f, dt);
   if (c.m1 && !f.blocking && f.dashT <= 0 && f.dashRecT <= 0) doM1(f, c.up);   // el M1 no cancela el dash
   const busy = f.action && !f.action.soft, dashing = f.dashT > 0 || f.dashRecT > 0, sv = dashing ? f.vel.clone() : null;
   if (c.skill >= 0 && !busy && !f.blocking) { const cd0 = f.cd[c.skill]; useSkill(f, c.skill); if (dashing && f.cd[c.skill] > cd0 + .01) dashCancel(f, sv); }   // DASH CANCEL: la habilidad corta el dash
@@ -9655,7 +9695,8 @@ function tickTimers(f, dt) {
   if (wasRag && f.ragdoll <= 0 && f.alive) { f.iframes = Math.max(f.iframes, .45); f.getupT = .38; }
   f.iframes = Math.max(0, f.iframes - dt);
   f.hurtT -= dt; f.getupT -= dt; f.landT -= dt; f.flashT -= dt; f.frozen = Math.max(0, f.frozen - dt);
-  f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; { const wd = f.dashT > 0; f.dashT -= dt; if (wd && f.dashT <= 0) f.dashRecT = .14; }   // al terminar el dash queda un momento de recuperacion: ahi no se puede pegar con M1, pero una habilidad lo cancela
+  f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; { const wd = f.dashT > 0; f.dashT -= dt; if (wd && f.dashT <= 0) { f.dashRecT = .14; dashEnd(f); } }   // al terminar el dash queda un momento de recuperacion: ahi no se puede pegar con M1, pero una habilidad lo cancela
+  if (f.critT > 0) { f.critT -= dt; if (Math.random() < dt * 22) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(.2, 2), f.pos.z + rand(-.5, .5), 0, rand(1, 3), 0, Math.random() < .5 ? '#ff2a2a' : '#222222', .12, .5, 0, 1); }   // listo para el Black Flash
   f.dashRecT = Math.max(0, (f.dashRecT || 0) - dt); f.rcCd = Math.max(0, (f.rcCd || 0) - dt); f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
   for (let i = 0; i < 4; i++) f.cd[i] = Math.max(0, f.cd[i] - dt);
   if (f.isPlayer) { if (G.rules.noCd) f.cd[0] = f.cd[1] = f.cd[2] = f.cd[3] = 0; if (G.rules.god && f.alive) f.hp = f.maxHp; }
@@ -12031,7 +12072,7 @@ function vLoad(id) {
 }
 function vReset(f, x, z, yaw) {
   endAction(f); f.pos.set(x, groundAt(x, z), z); f.vel.set(0, 0, 0); f.yaw = f.prevYaw = yaw;
-  f.alive = true; f.hp = f.maxHp || 100; f.ragdoll = f.stun = f.frozen = f.iframes = f.hurtT = f.getupT = f.landT = f.dashT = f.dashAnimT = f.dashRecT = 0; f.dashDir = 'front';
+  f.alive = true; f.hp = f.maxHp || 100; f.ragdoll = f.stun = f.frozen = f.iframes = f.hurtT = f.getupT = f.landT = f.dashT = f.dashAnimT = f.dashRecT = 0; f.critT = 0; f.dashHit = false; f.dashCarry = null; f.dashDir = 'front';
   f.cineLock = null; f.grabbed = false; f.choreTrack = null; f.forcePose = null; f.blocking = false; f.awak = 30;
   f.hitCount = 0; f.hitT = -9; f.flashT = 0; f.choreFrame = -1; f.choreGripQuat = null; f.bbState = null; f.bbStateTime=0; f.bbFrom=null; f.twirl = null; f.twA = 0; f.walk = 0; f.rdPose = 0; f.rdDir = 1; f.onGround = true; f.airDash = true; f.pvx = f.pvz = f.leanF = f.leanR = 0;
   f.anim.reset(); const pose = stancePose(f.ch, 0, f.seed, true);
@@ -12126,7 +12167,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.7.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.8.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
