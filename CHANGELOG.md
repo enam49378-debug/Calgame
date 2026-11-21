@@ -12,6 +12,10 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.12.2 · 2026-11-21 · Arreglo: conexión al servidor global
+- La política de seguridad de la página (CSP) bloqueaba las consultas al servidor de Oracle y por eso el juego no lo detectaba y seguía usando los relés. Ahora la dirección del servidor está permitida.
+- Si algún día cambia la dirección del servidor en `config/servidor.js`, también hay que ponerla en `connect-src` de `index.html`.
+
 ## v1.12.1 · 2026-11-21 · IP fija del servidor
 - El servidor de Oracle ahora tiene una **IP pública reservada** (163.176.41.73), que no cambia aunque se apague la máquina. El juego usa `https://163-176-41-73.sslip.io`.
 
