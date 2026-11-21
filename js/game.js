@@ -5620,7 +5620,7 @@ function doM1(f, upVariant, slamArg) {
     else slam = !!slamArg;
     if (slam) upVariant = false;
   }
-  f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.3; f.m1cd = (fin ? 1.0 : .27) * (f.ch.m1speed || 1); f.atkT = 0;   // ritmo del combo; tras el cuarto golpe hay mas recuperacion (un dash la acorta)
+  f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.5; f.m1cd = (fin ? 1.0 : .27) * (f.ch.m1speed || 1); f.atkT = 0;   // ritmo del combo; tras el cuarto golpe hay mas recuperacion (un dash la acorta)
   if ((f.isPlayer || f.roomBot) && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0, s: slam ? 1 : 0 }, f);
   sfx('swing', f.pos, .6); javiSpeak(f, 'ev_m1_' + (i + 1));
   const unarmed = ownsMissingSpear(f), set = unarmed ? null : f.ch.m1set;
@@ -5628,9 +5628,10 @@ function doM1(f, upVariant, slamArg) {
   const def = slam ? SLAM_DEF : (set && set[fin ? (upVariant ? 4 : 3) : i]) || (fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i]);   // si el personaje no define ese golpe (p. ej. el uppercut), usa el generico
   startAction(f, {
     name: 'm1', unarmed, bbClip: slam ? undefined : fin ? (upVariant ? 'combo_4_arriba' : 'combo_4') : 'combo_'+(i+1), dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
+    tick: (a) => { if (!slam && !f.onGround && !f.remote && f.vel.y < 1.5 && a.t < .3) f.vel.y = Math.max(f.vel.y, -.8); },   // golpe en el aire: cae muy despacio mientras pega
     steps: [{
       at: fin ? .09 : .07, fn: () => {
-        const F = fwd(f.yaw), lg = def.lunge || 3; if (f.onGround) { f.vel.x += F.x * lg; f.vel.z += F.z * lg; }
+        const F = fwd(f.yaw), lg = def.lunge || 3; if (f.onGround) { f.vel.x += F.x * lg; f.vel.z += F.z * lg; } else if (!slam && !f.remote) { f.vel.x += F.x * lg * .6; f.vel.z += F.z * lg * .6; }
         if (slam && !f.remote) { f.vel.y = -26; f.vel.x += F.x * 5; f.vel.z += F.z * 5; }   // downslam: se lanza hacia abajo
         if (upVariant && !f.remote) { f.vel.y = Math.max(f.vel.y, 7); f.onGround = false; }   // uppercut: sube junto con el rival
         if (def.stab) stabFx(f, f.ch.color); else if (!def.palm) arcSlash(f, f.ch.color, def.arc);
@@ -8230,7 +8231,12 @@ function applyCtl(f, c, dt) {
   if (!can) { if (f.alive && f.ragdoll > 0 && c.dash && !f.grabbed && f.frozen <= 0 && !f.sceneLock && !f.cineLock && !f.choreTrack && !f.seq) tryRagdollCancel(f, c); return; }
   sekzaFlightControl(f,c,dt);
   if (f.ch.wings && f.awak > 0 && c.jump && !f.onGround && f.vel.y < -2.2 && !a) f.vel.y = -2.2;
-  if (c.jump && f.onGround && !a && !f.blocking) { f.vel.y = 11.5; f.onGround = false; f.dashAnimT = 0; sfx('jump', f.pos); f.anim.v.by -= 30; javiSpeak(f, 'ev_jump'); }
+  // SALTO como en los battlegrounds de Roblox: se guarda un instante si lo pulsas durante un golpe, y pierde fuerza si saltas muchas veces seguidas (cansancio de salto)
+  if (c.jump && !f.jumpHeld) f.jumpBufT = .3; f.jumpHeld = !!c.jump;
+  if ((c.jump || f.jumpBufT > 0) && f.onGround && !a && !f.blocking) {
+    const fat = f.jumpFat || 0; f.vel.y = 11.5 * clamp(1 - .17 * fat, .5, 1); f.jumpFat = Math.min(5, fat + 1); f.jumpBufT = 0;
+    f.onGround = false; f.dashAnimT = 0; sfx('jump', f.pos); f.anim.v.by -= 30; javiSpeak(f, 'ev_jump');
+  }
   if (c.dash && f.dashCd <= 0 && !a && (f.onGround || f.airDash)) { animeDashSmoke(f);
     let dx = c.mx, dz = c.mz; if (!dx && !dz) { const F = fwd(f.isPlayer ? cam.yaw : f.yaw); dx = F.x; dz = F.z; }
     f.vel.x = dx * 25; f.vel.z = dz * 25; if (!f.onGround) { f.airDash = false; f.vel.y = Math.max(f.vel.y, 2); }
@@ -9713,7 +9719,7 @@ function tickTimers(f, dt) {
   f.hurtT -= dt; f.getupT -= dt; f.landT -= dt; f.flashT -= dt; f.frozen = Math.max(0, f.frozen - dt);
   f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; { const wd = f.dashT > 0; f.dashT -= dt; if (wd && f.dashT <= 0) { f.dashRecT = .14; dashEnd(f); } }   // al terminar el dash queda un momento de recuperacion: ahi no se puede pegar con M1, pero una habilidad lo cancela
   if (f.critT > 0) { f.critT -= dt; if (Math.random() < dt * 22) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(.2, 2), f.pos.z + rand(-.5, .5), 0, rand(1, 3), 0, Math.random() < .5 ? '#ff2a2a' : '#222222', .12, .5, 0, 1); }   // listo para el Black Flash
-  f.m1BufT = Math.max(0, (f.m1BufT || 0) - dt); f.dashRecT = Math.max(0, (f.dashRecT || 0) - dt); f.rcCd = Math.max(0, (f.rcCd || 0) - dt); f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
+  f.m1BufT = Math.max(0, (f.m1BufT || 0) - dt); f.jumpBufT = Math.max(0, (f.jumpBufT || 0) - dt); f.jumpFat = Math.max(0, (f.jumpFat || 0) - dt * 1.2); f.dashRecT = Math.max(0, (f.dashRecT || 0) - dt); f.rcCd = Math.max(0, (f.rcCd || 0) - dt); f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
   for (let i = 0; i < 4; i++) f.cd[i] = Math.max(0, f.cd[i] - dt);
   if (f.isPlayer) { if (G.rules.noCd) f.cd[0] = f.cd[1] = f.cd[2] = f.cd[3] = 0; if (G.rules.god && f.alive) f.hp = f.maxHp; }
   if (f.awak > 0) {
@@ -12183,7 +12189,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.9.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.9.1';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;

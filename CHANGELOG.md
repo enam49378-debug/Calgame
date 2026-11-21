@@ -12,6 +12,13 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.9.1 · 2026-11-21 · Salto para combos
+- **Cansancio de salto:** si saltas muchas veces seguidas, cada salto pierde fuerza (hasta la mitad). Se recupera si dejas de saltar un par de segundos. Así no se puede hacer bunny hop alto para escapar.
+- **Salto guardado:** si pulsas saltar mientras estás en medio de un golpe, el salto se guarda 0,3 s y sale en cuanto termina el golpe.
+- **Golpes en el aire:** mientras pegas en el aire caes muy despacio y avanzas un poco, para poder encadenar combos en el aire (con el uppercut y el downslam).
+- El combo se reinicia si pasa más de 1,5 s sin pegar (antes 1,3 s).
+- Referencia: se revisó el código de un battleground de Roblox (archivo bat.rbxl del usuario) para tomar valores y reglas, sin copiar su código.
+
 ## v1.9.0 · 2026-11-21 · Golpes básicos (M1) mejorados: downslam y uppercut
 Inspirado en los battlegrounds de Roblox. Referencias: rblxguide.com (techs) y guías de combos de la comunidad. Los tiempos son una adaptación mía, no datos oficiales.
 - **El cuarto golpe del combo ahora puede cambiar** (tras tres golpes):
