@@ -233,7 +233,7 @@
       loop(f, 4, (dt, t) => {
         if (!landed) {
           const k = Math.min(1, Math.max(0, (t - .6) / .7)); sheet.position.y = c.y + 30 - k * k * 29.6; sheet.rotation.x = .25 * (1 - k); sheet.rotation.z = .2 * (1 - k) + Math.sin(t * 6) * .05 * (1 - k); sheet.rotation.y += dt * 1.2 * (1 - k);
-          if (k >= 1) { landed = true; t0 = t; explode(f, new V3(c.x, c.y + .6, c.z), S, { dmg: o.dmg || 20, stun: .8, kb: 9, up: 11, ragdoll: 1, guardBreak: true, color: '#6aa7ff', hitstop: .12, shake: .6 }); splat(c, '#6aa7ff', 8); star(c, f); sfx('boom', c, .9); shakeFrom(c, .6); popText(new V3(c.x, c.y + 3, c.z), 'APLASTADO', '#6aa7ff', 24); }
+          if (k >= 1) { landed = true; t0 = t; explode(f, new V3(c.x, c.y + .6, c.z), S, { dmg: o.dmg || 20, stun: .8, kb: 9, up: 11, ragdoll: 1, guardBreak: true, noRC: true, color: '#6aa7ff', hitstop: .12, shake: .6 }); splat(c, '#6aa7ff', 8); star(c, f); sfx('boom', c, .9); shakeFrom(c, .6); popText(new V3(c.x, c.y + 3, c.z), 'APLASTADO', '#6aa7ff', 24); }
         } else {   // la hoja se arruga y desaparece
           const k = Math.min(1, (t - t0) / .6); sheet.scale.set(1 - k * .85, 1 + k * 3, 1 - k * .85); sheet.rotation.x += dt * 8; emit(c.x + rand(-3, 3), c.y + 1, c.z + rand(-3, 3), rand(-2, 2), rand(2, 5), rand(-2, 2), '#ffffff', .2, .5, 0, 2); if (k >= 1) return true;
         }

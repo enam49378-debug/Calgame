@@ -12,6 +12,20 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.7.0 · 2026-11-21 · Técnicas de movimiento y cámara
+Inspirado en los battlegrounds de Roblox (The Strongest Battlegrounds). Referencias: rblxguide.com (guía de techs y de ragdoll cancel).
+- **Dash cancel:** si haces dash y usas una habilidad (o la ulti) enseguida, la habilidad corta el resto del dash y sale al instante.
+  - Dash hacia atrás (backdash cancel): conservas parte del retroceso; en el aire llegas más lejos.
+  - Dash de lado (micro dash): el impulso queda más corto y rápido.
+  - Los golpes M1 no cancelan el dash, y justo al terminar el dash hay una breve recuperación en la que no se puede pegar con M1.
+  - Aparece un aviso (BACKDASH CANCEL, MICRO DASH o DASH CANCEL).
+- **Ragdoll cancel:** estando tirado en el suelo, un dash de lado o hacia atrás (Q + A, D o S) te levanta al instante. Se puede usar una vez cada 30 s. El dash hacia adelante no sirve.
+  - Los golpes pesados de caída (Mazazo, Ban Hammer, Hoja en Blanco y el salto con golpe al suelo de varios personajes) lo impiden.
+  - Los bots también lo hacen, de vez en cuando.
+- **Cámara que sigue la cabeza:** la cámara acompaña la cabeza del jugador, también durante sus animaciones. En cinemáticas y escenas no la sigue, y al volver al juego se recupera de forma suave. Se puede quitar con `camaraCabeza(false)` en la consola.
+- La guía de controles del menú incluye las dos técnicas nuevas.
+- Nota: el tiempo exacto de las ventanas y el enfriamiento del ragdoll cancel (30 s) salen de guías de la comunidad y no son datos oficiales del otro juego; se pueden ajustar.
+
 ## v1.6.2 · 2026-11-21 · Sombras e iluminación
 - Las sombras ya no parpadean: la dirección del sol solo se actualiza en saltos invisibles en vez de rotar un poco en cada cuadro.
 - Las sombras de los personajes se actualizan en cada cuadro cuando el juego va fluido (antes cada 2 o 3 cuadros, lo que las hacía temblar al moverse).

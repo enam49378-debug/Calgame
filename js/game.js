@@ -5394,7 +5394,7 @@ function applyHit0(att, t, o) {
     t.stun = Math.max(t.stun, stun);
     t.vel.x = dir.x * kb; t.vel.z = dir.z * kb;
     if (up) { t.vel.y = up; t.onGround = false; } else if (!t.onGround) t.vel.y = Math.max(t.vel.y, 1.8);
-    if (ragdoll) { startRagdoll(t, ragdoll); t.stun = 0; }
+    if (ragdoll) { startRagdoll(t, ragdoll); t.stun = 0; if (o.noRC) t.rcBlockT = G.time + ragdoll + .5; }   // noRC: golpe de caida que impide el ragdoll cancel
     else {
       // reacción según de dónde viene el golpe: de frente se va para atrás, por la espalda se dobla hacia adelante, de costado se tuerce
       const tf = fwd(t.yaw), fr = tf.x * dir.x + tf.z * dir.z, sd = rightOf(t.yaw).x * dir.x + rightOf(t.yaw).z * dir.z;
@@ -6543,7 +6543,7 @@ const MOVES = {
         if (phase === 0 && t > .38) { phase = 1; f.vel.y = -38; f.vel.x *= .3; f.vel.z *= .3; a.anim = [[t, o.downPose || 'slamDown', 900]]; a.ghost = true; }
         if (phase === 1 && f.onGround) {
           phase = 2; a.ghost = false; f.vel.set(0, 0, 0); a.anim = [[t, o.landPose || 'stomp', 1000]];
-          explode(f, new V3(f.pos.x, f.pos.y + .6, f.pos.z), o.radius || 5, { dmg: o.dmg || 11, kb: 15, up: 9, ragdoll: 1.1, guardBreak: true, color: o.color });
+          explode(f, new V3(f.pos.x, f.pos.y + .6, f.pos.z), o.radius || 5, { dmg: o.dmg || 11, kb: 15, up: 9, ragdoll: 1.1, guardBreak: true, noRC: true, color: o.color });
           burst(new V3(f.pos.x, .3, f.pos.z), 40, '#5d9e3a', 12, .3, 1, 1.4, 8);
           a.t = Math.max(a.t, a.dur - .3);
         }
@@ -8025,6 +8025,7 @@ function aiCtl(f, dt) {
   if (ai.retarget <= 0 || !ai.target || !ai.target.alive) { ai.retarget = rand(2.5, 5); ai.target = pickTarget(f); }
   const t = ai.target; if (!t) return c;
   const dx = t.pos.x - f.pos.x, dz = t.pos.z - f.pos.z, d = Math.hypot(dx, dz) || .01, nx = dx / d, nz = dz / d;
+  if (f.ragdoll > 0 && f.onGround && (f.rcCd || 0) <= 0 && Math.random() < P.dodge * dt * 2.5) { c.dash = true; const sg = Math.random() < .5 ? 1 : -1; if (Math.random() < .5) { c.mx = -nx; c.mz = -nz; } else { c.mx = -nz * sg; c.mz = nx * sg; } return c; }   // los bots tambien hacen ragdoll cancel
   const style = f.ch.ai, pref = style === 'ranged' ? 8 : style === 'mid' ? 5 : 1.9;
   ai.strafeT -= dt; if (ai.strafeT <= 0) { ai.strafeT = rand(1, 2.5); ai.strafe = Math.random() < .5 ? 1 : -1; }
   // reacciones a ataques del rival
@@ -8115,6 +8116,39 @@ function laserLeg(a, b, col, w = .2, dur = .25) {
   addFx(grp, dur, (g, k) => { const q = 1 - k * .8; g.scale.set(q, q, 1); o1.material.opacity = .6 * (1 - k); c1.material.opacity = 1 - k; }, () => { o1.geometry.dispose(); o1.material.dispose(); c1.geometry.dispose(); c1.material.dispose(); });
 }
 function clampArena(v, m = 2) { if (v.z > 560) return v; if (worldBig() && !mapNow().circle) { const b = mapNow().b; v.x = clamp(v.x, b.x0 + m, b.x1 - m); v.z = Math.max(v.z, b.z0 + m); return v; } const d = Math.hypot(v.x, v.z), L = ARENA - m; if (d > L) { v.x *= L / d; v.z *= L / d; } return v; }
+// ---------- tecnicas de movimiento (como en los battlegrounds de Roblox) ----------
+// DASH CANCEL: hacer dash y usar una habilidad enseguida corta el resto del dash y la habilidad sale al instante.
+//   dash hacia atras (backdash cancel): conserva parte del retroceso; en el aire llega mas lejos.
+//   dash de lado (micro dash): el impulso es mas corto y rapido. Los golpes M1 NO cancelan el dash.
+// RAGDOLL CANCEL: en el suelo, tirado en ragdoll, un dash de lado o hacia atras te levanta al instante (una vez cada RC_CD segundos).
+//   Los golpes pesados de caida (noRC) lo impiden.
+const RC_CD = 30;
+function dashKindOf(f, dx, dz) {
+  if (!dx && !dz) return 'front';
+  let ref = f.yaw; if (f.isPlayer) ref = cam.yaw; else if (f.ai && f.ai.target && f.ai.target.alive) ref = yawTo(f, f.ai.target);
+  f._dashRef = ref;
+  const rel = Math.abs(wrapA(Math.atan2(dx, dz) - ref));
+  return rel < .79 ? 'front' : rel > 2.36 ? 'back' : 'side';
+}
+function tryRagdollCancel(f, c) {
+  const dx = c.mx, dz = c.mz, kind = dashKindOf(f, dx, dz);
+  const say = (t, col) => { if (f.isPlayer && (f.rcMsgT || 0) < G.time) { f.rcMsgT = G.time + .9; popText(chestOf(f), t, col, 16); } };
+  if (kind === 'front') { say('Dash de lado o atrás para cancelar', '#ffb020'); return false; }
+  if ((f.rcBlockT || 0) > G.time) { say('NO SE PUEDE CANCELAR', '#ff5a5a'); return false; }
+  if ((f.rcCd || 0) > 0) { say('RAGDOLL CANCEL en ' + Math.ceil(f.rcCd) + ' s', '#ffb020'); return false; }
+  if (!f.onGround) return false;
+  f.ragdoll = 0; f.stun = 0; f.hurtT = 0; f.getupT = 0; f.landT = 0; f.rcCd = RC_CD; f.iframes = Math.max(f.iframes, .4);
+  f.vel.x = dx * 25; f.vel.z = dz * 25; f.vel.y = 0; f.dashT = .2; f.dashCd = 2; f.dashAnimT = f.dashAnimDur = .35; f.dashKind = kind; f.dashDir = 'front'; f.yaw = f._dashRef != null ? f._dashRef : f.yaw;
+  const p = new V3(f.pos.x, f.pos.y + .1, f.pos.z); ringAt(p, '#7df9ff', 2.4, .4); burst(chestOf(f), 16, '#7df9ff', 7, .16, .4, .1); sfx('dash', f.pos);
+  popText(chestOf(f), 'RAGDOLL CANCEL', '#7df9ff', 20); if (f.isPlayer) G.fovKick = Math.max(G.fovKick, 5);
+  return true;
+}
+function dashCancel(f, sv) {
+  const k = f.dashKind || 'front', m = k === 'back' ? (f.onGround ? .6 : .9) : k === 'side' ? 1.3 : .5;
+  f.dashT = 0; f.dashAnimT = 0; f.dashRecT = 0; f.vel.x = sv.x * m; f.vel.z = sv.z * m;
+  ghost(f, '#7df9ff', .5, .3); ringAt(new V3(f.pos.x, f.pos.y + .1, f.pos.z), '#7df9ff', 1.6, .3);
+  if (f.isPlayer) popText(chestOf(f), k === 'back' ? 'BACKDASH CANCEL' : k === 'side' ? 'MICRO DASH' : 'DASH CANCEL', '#7df9ff', 15);
+}
 function applyCtl(f, c, dt) {
   f.ctlJump = !!c.jump; f.ctlDown = !!c.down;
   if (f.mount) { mountUpdate(f, c, dt); return; }
@@ -8139,7 +8173,7 @@ function applyCtl(f, c, dt) {
     } else if (moving) f.yaw = angLerp(f.yaw, Math.atan2(c.mx, c.mz), Math.min(1, 12 * dt));
   }
   if (f.seq) { if (!can || (f.seq.lock && c.dash && !a)) seqCancel(f); else { seqTick(f, c, dt); if (f.seq && f.seq.slot === c.skill) c.skill = -1; } }
-  if (!can) return;
+  if (!can) { if (f.alive && f.ragdoll > 0 && c.dash && !f.grabbed && f.frozen <= 0 && !f.sceneLock && !f.cineLock && !f.choreTrack && !f.seq) tryRagdollCancel(f, c); return; }
   sekzaFlightControl(f,c,dt);
   if (f.ch.wings && f.awak > 0 && c.jump && !f.onGround && f.vel.y < -2.2 && !a) f.vel.y = -2.2;
   if (c.jump && f.onGround && !a && !f.blocking) { f.vel.y = 11.5; f.onGround = false; f.dashAnimT = 0; sfx('jump', f.pos); f.anim.v.by -= 30; javiSpeak(f, 'ev_jump'); }
@@ -8155,15 +8189,15 @@ function applyCtl(f, c, dt) {
     else { f.yaw = dYaw; f.dashDir = 'front'; }
     const dClip = dSet && (dSet[dName] || dSet.esquive);
     f.dashAnimDur = dClip ? dClip.length : .35; f.dashAnimT = f.dashAnimDur;
-    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; javiSpeak(f, 'ev_dash');
+    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; f.dashKind = dashKindOf(f, dx, dz); javiSpeak(f, 'ev_dash');
     sfx('dash', f.pos); burst(new V3(f.pos.x, .3, f.pos.z), 10, '#d8d0c0', 4, .2, .4, .2, 2);
     if (f.isPlayer) G.fovKick = Math.max(G.fovKick, 5);
   }
   if (f.seq && f.seq.lock) return;
-  if (c.m1 && !f.blocking) doM1(f, c.up);
-  const busy = f.action && !f.action.soft;
-  if (c.skill >= 0 && !busy && !f.blocking) useSkill(f, c.skill);
-  if (c.ult && !busy && f.ult >= 100) useUlt(f);
+  if (c.m1 && !f.blocking && f.dashT <= 0 && f.dashRecT <= 0) doM1(f, c.up);   // el M1 no cancela el dash
+  const busy = f.action && !f.action.soft, dashing = f.dashT > 0 || f.dashRecT > 0, sv = dashing ? f.vel.clone() : null;
+  if (c.skill >= 0 && !busy && !f.blocking) { const cd0 = f.cd[c.skill]; useSkill(f, c.skill); if (dashing && f.cd[c.skill] > cd0 + .01) dashCancel(f, sv); }   // DASH CANCEL: la habilidad corta el dash
+  if (c.ult && !busy && f.ult >= 100) { const u0 = f.ult, a0 = f.awak; useUlt(f); if (dashing && (f.ult < u0 || f.awak > a0)) dashCancel(f, sv); }
 }
 
 // ================= Física, tiempos y animación =================
@@ -9621,7 +9655,8 @@ function tickTimers(f, dt) {
   if (wasRag && f.ragdoll <= 0 && f.alive) { f.iframes = Math.max(f.iframes, .45); f.getupT = .38; }
   f.iframes = Math.max(0, f.iframes - dt);
   f.hurtT -= dt; f.getupT -= dt; f.landT -= dt; f.flashT -= dt; f.frozen = Math.max(0, f.frozen - dt);
-  f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; f.dashT -= dt; f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
+  f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; { const wd = f.dashT > 0; f.dashT -= dt; if (wd && f.dashT <= 0) f.dashRecT = .14; }   // al terminar el dash queda un momento de recuperacion: ahi no se puede pegar con M1, pero una habilidad lo cancela
+  f.dashRecT = Math.max(0, (f.dashRecT || 0) - dt); f.rcCd = Math.max(0, (f.rcCd || 0) - dt); f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
   for (let i = 0; i < 4; i++) f.cd[i] = Math.max(0, f.cd[i] - dt);
   if (f.isPlayer) { if (G.rules.noCd) f.cd[0] = f.cd[1] = f.cd[2] = f.cd[3] = 0; if (G.rules.god && f.alive) f.hp = f.maxHp; }
   if (f.awak > 0) {
@@ -10130,7 +10165,11 @@ let { renderView, renderPanels, renderMain, drawLines } = gfxPost;
 
 // Cámara con guion (la usan las cinemáticas de personajes, p. ej. "Ojo del Cosmos"): G.camScript = { fn(dt) -> true si mueve la cámara, cleanup() }
 function endCamScript() { const s = G.camScript; G.camScript = null; if (s && s.cleanup) { try { s.cleanup(); } catch (e) { } } }
+const _camHead = new V3(), _camTarget = new V3();
+G.headCam = (() => { try { return localStorage.getItem('bsb_headcam') !== '0'; } catch (e) { return true; } })();
+window.camaraCabeza = v => { G.headCam = !!v; try { localStorage.setItem('bsb_headcam', v ? '1' : '0'); } catch (e) { } return 'camara que sigue la cabeza: ' + (v ? 'si' : 'no'); };   // en la consola: camaraCabeza(false) la quita
 function updateCamera(dt) {
+  const wasHeadK = cam.headK || 0; cam.headK = 0;   // en cinematicas y escenas la camara NO sigue la cabeza; al volver al juego se recupera suave
   if (G.camScript && !CFG_CINE.off) { let ok = false; try { ok = G.camScript.fn(dt); } catch (e) { endCamScript(); } if (ok) return; if (G.camScript) endCamScript(); }
   if (G.cine) {
     const c = G.cine, f = c.f, F = fwd(f.yaw), Rr = rightOf(f.yaw);
@@ -10191,7 +10230,16 @@ function updateCamera(dt) {
     cam.focus.copy(p.pos).add(new V3(0, 1.7, 0));
     return;
   }
-  cam.focus.lerp(new V3(p.pos.x, p.pos.y + 1.7, p.pos.z), Math.min(1, dt * 12));
+  { // la camara sigue la cabeza del jugador (tambien en sus animaciones: agacharse, saltos, golpes), con limites para que no se agite
+    let fx = p.pos.x, fy = p.pos.y + 1.7, fz = p.pos.z;
+    if (G.headCam && p.model && p.model.head) {
+      const hk = cam.headK = Math.min(1, wasHeadK + dt * 3);
+      p.model.head.getWorldPosition(_camHead);
+      const hx = clamp(_camHead.x - p.pos.x, -1.4, 1.4), hy = clamp(_camHead.y + .25 - p.pos.y, .4, 2.9), hz = clamp(_camHead.z - p.pos.z, -1.4, 1.4);
+      fx += hx * hk; fz += hz * hk; fy += (hy - 1.7) * hk;
+    }
+    cam.focus.lerp(_camTarget.set(fx, fy, fz), Math.min(1, dt * 14));
+  }
   const cp = Math.cos(cam.pitch), R = rightOf(cam.yaw);
   const dir = new V3(Math.sin(cam.yaw) * cp, -Math.sin(cam.pitch), Math.cos(cam.yaw) * cp);
   const inside=CITY.interiors.find(b=>Math.abs(p.pos.x-b.x)<b.w/2-.2&&Math.abs(p.pos.z-b.z)<b.d/2-.2&&p.pos.y<b.h-1.6);
@@ -11983,7 +12031,7 @@ function vLoad(id) {
 }
 function vReset(f, x, z, yaw) {
   endAction(f); f.pos.set(x, groundAt(x, z), z); f.vel.set(0, 0, 0); f.yaw = f.prevYaw = yaw;
-  f.alive = true; f.hp = f.maxHp || 100; f.ragdoll = f.stun = f.frozen = f.iframes = f.hurtT = f.getupT = f.landT = f.dashT = f.dashAnimT = 0; f.dashDir = 'front';
+  f.alive = true; f.hp = f.maxHp || 100; f.ragdoll = f.stun = f.frozen = f.iframes = f.hurtT = f.getupT = f.landT = f.dashT = f.dashAnimT = f.dashRecT = 0; f.dashDir = 'front';
   f.cineLock = null; f.grabbed = false; f.choreTrack = null; f.forcePose = null; f.blocking = false; f.awak = 30;
   f.hitCount = 0; f.hitT = -9; f.flashT = 0; f.choreFrame = -1; f.choreGripQuat = null; f.bbState = null; f.bbStateTime=0; f.bbFrom=null; f.twirl = null; f.twA = 0; f.walk = 0; f.rdPose = 0; f.rdDir = 1; f.onGround = true; f.airDash = true; f.pvx = f.pvz = f.leanF = f.leanR = 0;
   f.anim.reset(); const pose = stancePose(f.ch, 0, f.seed, true);
@@ -12078,7 +12126,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.6.2';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.7.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;

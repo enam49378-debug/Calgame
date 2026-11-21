@@ -210,7 +210,7 @@
           const k = Math.min(1, (t - t0) / .16); h.position.y = c.y + 26 + (1 - k) * 0 - k * (26 - 1.2);
           if (k >= 1 && !h._hit) {
             h._hit = true; const victims = foes(f, c, R);
-            explode(f, new V3(c.x, c.y + .8, c.z), R, { dmg: o.dmg || 24, stun: 1.5, kb: 10, up: 10, ragdoll: 1.2, guardBreak: true, color: RED, hitstop: .15, shake: .7 });
+            explode(f, new V3(c.x, c.y + .8, c.z), R, { dmg: o.dmg || 24, stun: 1.5, kb: 10, up: 10, ragdoll: 1.2, guardBreak: true, noRC: true, color: RED, hitstop: .15, shake: .7 });
             for (const v of victims) popText(chestOf(v), 'BANEADO', RED, 22); for (let i = 0; i < 3; i++) later(i * .07, () => ringAt(c, i ? '#ffffff' : RED, 4 + i * 3, .45));
             burst(new V3(c.x, c.y + 1, c.z), 44, '#8b929e', 12, .3, .7, .4); shakeFrom(c, .7); sfx('boom', c, .9); t0 = t;
           }

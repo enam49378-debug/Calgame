@@ -68,7 +68,7 @@
             emit(f.pos.x, f.pos.y + 1.5, f.pos.z, rand(-1, 1), 6, rand(-1, 1), '#ffffff', .22, .3, 0, 2);
             if (f.onGround || f.pos.y <= groundAt(f.pos.x, f.pos.z) + .05) {
               phase = 4; const H = Math.max(0, maxY - y0), c = gp(f.pos.x, f.pos.z), k = Math.min(1.9, 1 + H * .045);   // densidad: más altura, más daño y más radio
-              explode(f, new V3(c.x, c.y + .5, c.z), (o.radius || 4) * Math.min(1.5, 1 + H * .03), { dmg: (o.dmg || 15) * k, kb: 16 + H, up: 8 + H * .3, ragdoll: 1.1, guardBreak: true, color: '#e23b3b', hitstop: .12, shake: .6 });
+              explode(f, new V3(c.x, c.y + .5, c.z), (o.radius || 4) * Math.min(1.5, 1 + H * .03), { dmg: (o.dmg || 15) * k, kb: 16 + H, up: 8 + H * .3, ragdoll: 1.1, guardBreak: true, noRC: true, color: '#e23b3b', hitstop: .12, shake: .6 });
               for (let i = 0; i < 3; i++) later(i * .08, () => ringAt(c, i ? '#bfe8ff' : '#ff5a5a', 4 + i * 3 + H * .2, .45));
               burst(new V3(c.x, c.y + .6, c.z), 40, '#8b929e', 12, .3, .7, .4); shakeFrom(c, .6); sfx('boom', c, .9);
               popText(new V3(c.x, c.y + 2.6, c.z), H > 9 ? 'DENSIDAD x' + k.toFixed(1) : 'MAZAZO', '#ffd24a', 24);
