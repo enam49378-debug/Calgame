@@ -12078,6 +12078,8 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
+const GAME_VERSION = '1.6.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
 const _tp = new V3();
@@ -14324,13 +14326,14 @@ function localRoom(code, onStatus = () => { }) {
     function connect() {
       const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}${NET.public ? '&pub=1' : ''}${NET.roomOpts ? '&bots=' + NET.roomOpts.bots + '&max=' + NET.roomOpts.max : ''}`);
       const failTo = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { } } }, 5000);
-      ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.mySkin) R.setSkin(R.mySkin); if (R.myProfile) R.setProfile(R.myProfile); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
+      ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.down) { R.down = false; R.retry = 0; addFeedText('Conexión recuperada', '#7dff9a'); } if (R.mySkin) R.setSkin(R.mySkin); if (R.myProfile) R.setProfile(R.myProfile); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
       ws.onerror = () => { };
       ws.onclose = () => {
         clearTimeout(failTo);
         if (R.closed) return;
         if (!opened) { done(false, { code: 'server' }); return; }
-        setTimeout(() => { if (!R.closed) connect(); }, 1000);   // se cortó: reconecta solo
+        if (!R.down) { R.down = true; addFeedText('Conexión perdida: reconectando…', '#ffb020'); }
+        R.retry = Math.min(6000, Math.max(800, (R.retry || 500) * 1.5)); setTimeout(() => { if (!R.closed) connect(); }, R.retry);   // se cortó: reconecta solo (con espera creciente)
       };
       ws.onmessage = ev => {
         let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
@@ -14568,7 +14571,7 @@ function netSendPlay() {
 }
 function presenceOf(f, ch) {
   return {
-    v: 1, mp: MAPCUR.id, tr: CF_A.MAPAS && CF_A.MAPAS.inTunnel() ? 1 : 0, cos: f.isPlayer && window.CF_COS ? CF_COS.equippedIds() : undefined, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
+    v: 1, gv: GAME_VERSION, em: f.isPlayer && f.action && f.action.isEmote ? f.action.emote : undefined, mp: MAPCUR.id, tr: CF_A.MAPAS && CF_A.MAPAS.inTunnel() ? 1 : 0, cos: f.isPlayer && window.CF_COS ? CF_COS.equippedIds() : undefined, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
     dx: f.isPlayer && NET.destOut ? NET.destOut.filter(e => G.time - e.t < 2.5) : undefined, vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, ab: f.abyss ? 1 : 0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
@@ -14780,6 +14783,13 @@ function netTick(dt) {
       if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); if (!/-b\d+$/.test(pe.peer)) addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
+    if (!px.verWarned && !/-b\d+$/.test(pe.peer)) {   // otro jugador con otra version (o con cache vieja): se avisa una vez, es la causa mas comun de modelos o habilidades que no se ven
+      if (pr.gv !== GAME_VERSION) { px.verWarned = true; addFeedText(`${px.name} tiene ${pr.gv ? 'la versión ' + String(pr.gv).slice(0, 12) : 'una versión antigua'} (tú ${GAME_VERSION}): recarguen con Ctrl+F5`, '#ffb020'); }
+      else if (pr.ch !== 'dummy' && !CHARS[pr.ch]) { px.verWarned = true; addFeedText(`${px.name} usa un personaje que tu versión no tiene: recarga con Ctrl+F5`, '#ffb020'); }
+    }
+    if (window.CF_EMOTES) {   // respaldo del emote: si el aviso de la accion se perdio por la red, el estado de presencia lo reproduce igual
+      if (Number.isInteger(pr.em)) { if (px._emLast !== pr.em) { px._emLast = pr.em; if (!px.action && px.alive) CF_EMOTES.play(px, pr.em, true); } } else px._emLast = null;
+    }
     { const pm = ['A', 'J', 'B'].includes(pr.mp) ? pr.mp : 'A'; if (px.mapId !== pm) { px.mapId = pm; px.cheat = null; px.netBuf = null; px.netOff = null; }   // cambió de mapa: se reinician sus datos de red (no es un teletransporte)
       px.otherMap = pm !== MAPCUR.id || !!pr.tr; }
     if (pr.abx && window.CF_ABISMO && CF_ABISMO.netIn) { px.abyss = !!pr.ab; CF_ABISMO.netIn(px, pr.abx); }

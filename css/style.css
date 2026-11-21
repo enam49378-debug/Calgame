@@ -867,3 +867,6 @@ body:has(#menu:not(.hidden)) #friendsbtn{display:none}
 .tm-card h3{margin:0;font:italic 900 22px/1.1 var(--display,'Chakra Petch',sans-serif);color:#fff;letter-spacing:.04em}.tm-card h3 small{display:block;font:600 12px var(--body,'Chakra Petch',sans-serif);letter-spacing:.14em;color:#ffd400;margin-bottom:3px;font-style:normal}
 .tm-card .it{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#aab0cc;border-top:1px solid #ffffff14;padding-top:6px}.tm-card .it b{color:#fff}
 .tm-card.no{border-left-color:#ff5a5a}
+
+/* numero de version del juego (abajo a la derecha, discreto) */
+#gamever{position:fixed;right:8px;bottom:4px;z-index:3;font:600 11px/1 var(--body,system-ui,sans-serif);color:#ffffff;opacity:.45;letter-spacing:.06em;pointer-events:none;text-shadow:0 1px 2px #000}

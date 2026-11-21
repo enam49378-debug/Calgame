@@ -90,10 +90,10 @@
     // ---------------------------------------------------------------- poner y quitar en los luchadores
     function unmount(f) { if (f._cos) { for (const o of f._cos.objs) { if (o.parent) o.parent.remove(o); o.traverse(q => { if (q.geometry) q.geometry.dispose(); }); } f._cos = null; } }
     function mountFor(f, ids) {
-      const key = ids.join(','); if (f._cosKey === key && f._cos) return; f._cosKey = key; unmount(f); if (!f.model || !f.model.head || !f.model.torso) return;
+      const key = ids.join(','); if (f._cosKey === key && f._cos && f._cosModel === f.model && f._cos.objs.every(o => o.parent)) return; f._cosKey = key; unmount(f); if (!f.model || !f.model.head || !f.model.torso) return;
       const objs = [], auras = [];
       for (const id of ids) { const c = byId(id); if (!c) continue; if (c.mk === 'aura') { auras.push(c); continue; } const useBB = c.bb && window.CF_BBM && CF_BBM.has(c.bb); const mkr = useBB ? null : MAKERS[c.mk]; if (!mkr && !useBB) continue; const o = useBB ? bbObj(c) : mkr(c); const par = mount[c.slot] && mount[c.slot](f); if (!par) continue; par.add(o); objs.push(o); }
-      f._cos = { objs, auras, ids };
+      f._cos = { objs, auras, ids }; f._cosModel = f.model;   // se acuerda de en que modelo quedaron: si el modelo se cambia (transformacion, skin que llega) se vuelven a poner
     }
     function remote(px, ids) {
       if (!Array.isArray(ids)) { if (px._cosKey) { px._cosKey = ''; unmount(px); } return; }
