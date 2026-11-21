@@ -12189,8 +12189,19 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.9.1';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.10.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
+// SERVIDOR GLOBAL: si la pagina esta en un sitio y el servidor de salas en otro (por ejemplo la pagina en Vercel y el servidor en Oracle),
+// la direccion del servidor sale de config/servidor.js (window.CF_SERVIDOR) o de ?srv=https://... en el link. En localhost se usa el servidor local salvo que pongas ?srv=.
+const SRV_BASE = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('srv'), local = /^(localhost|127\.|\[::1\])/.test(location.hostname) || location.protocol === 'file:';
+    let u = (q || (local ? '' : window.CF_SERVIDOR) || '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\/[A-Za-z0-9.\-]+(:\d+)?$/.test(u)) return '';
+    return u === location.origin ? '' : u;
+  } catch (e) { return ''; }
+})();
+const SRV_WS = SRV_BASE ? SRV_BASE.replace(/^http/, 'ws') : '';
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
 const _tp = new V3();
@@ -12207,7 +12218,7 @@ async function netInit() {
   // si el juego se abrió desde el servidor local (server/server.js) se juega por él: más rápido y sin depender de internet
   if (!window.claude && /^https?:$/.test(location.protocol)) {   // si esta dirección responde /bs-server es un servidor del juego (local o público)
     try {
-      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1500), r = await fetch('/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 1500), r = await fetch(SRV_BASE + '/bs-server', { cache: 'no-store', signal: ctl.signal }); clearTimeout(to);
       const j = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
       if (j && j.ok && j.name === 'blockstrike-server') { NET.local = true; NET.environmentServer=+j.atmosphere>=3; NET.room = 'relay'; NET.publicUrl = j.publicUrl || ''; NET.lanBase = j.ips && j.ips.length ? 'http://' + j.ips[0] + ':' + j.port : ''; }
     } catch (e) { }
@@ -14435,7 +14446,7 @@ function localRoom(code, onStatus = () => { }) {
     R.leave = () => { R.closed = true; clearInterval(R.timer); mesh.closeAll(); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     function connect() {
-      const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}${NET.public ? '&pub=1' : ''}${NET.roomOpts ? '&bots=' + NET.roomOpts.bots + '&max=' + NET.roomOpts.max : ''}`);
+      const ws = R.ws = new WebSocket(`${SRV_BASE ? SRV_WS : proto + '//' + location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}${NET.public ? '&pub=1' : ''}${NET.roomOpts ? '&bots=' + NET.roomOpts.bots + '&max=' + NET.roomOpts.max : ''}`);
       const failTo = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { } } }, 5000);
       ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.down) { R.down = false; R.retry = 0; addFeedText('Conexión recuperada', '#7dff9a'); } if (R.mySkin) R.setSkin(R.mySkin); if (R.myProfile) R.setProfile(R.myProfile); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
       ws.onerror = () => { };
@@ -14464,7 +14475,7 @@ function localRoom(code, onStatus = () => { }) {
     }
     onStatus('Conectando al servidor…');
     // el servidor decide si se puede entrar (sala llena, o una privada por la puerta de las públicas) y dice el motivo
-    fetch(`/bs-join?room=${encodeURIComponent(code)}&pub=${NET.public ? 1 : 0}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null).then(j => {
+    fetch(`${SRV_BASE}/bs-join?room=${encodeURIComponent(code)}&pub=${NET.public ? 1 : 0}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null).then(j => {
       if (j && j.ok === false) { done(false, { code: j.why || 'server' }); return; }
       connect();
     });
@@ -15791,7 +15802,7 @@ function pubWatch(on) {
   if (!on) { PUB.watch.forEach(c => { try { c.end(true); } catch (e) { } }); PUB.watch = []; clearInterval(PUB.rt); PUB.srvOn = false; return; }
   if (NET.local) {   // con servidor: él lleva la lista de salas públicas (siguen aunque quien las abrió se vaya)
     if (PUB.srvOn) return; PUB.srvOn = true; clearInterval(PUB.rt);
-    const tick = async () => { try { const a = await (await fetch('/bs-rooms', { cache: 'no-store' })).json(); PUB.rooms.clear(); for (const o of a) if (/^[a-z0-9][a-z0-9_.-]{0,39}$/.test(o.code)) PUB.rooms.set(o.code, { code: o.code, host: String(o.host || 'Jugador').replace(/[<>&]/g, '').slice(0, 16), n: clamp(+o.n || 1, 1, 99), at: Date.now() }); pubRender(); } catch (e) { } };
+    const tick = async () => { try { const a = await (await fetch(SRV_BASE + '/bs-rooms', { cache: 'no-store' })).json(); PUB.rooms.clear(); for (const o of a) if (/^[a-z0-9][a-z0-9_.-]{0,39}$/.test(o.code)) PUB.rooms.set(o.code, { code: o.code, host: String(o.host || 'Jugador').replace(/[<>&]/g, '').slice(0, 16), n: clamp(+o.n || 1, 1, 99), at: Date.now() }); pubRender(); } catch (e) { } };
     tick(); PUB.rt = setInterval(tick, 2000); return;
   }
   if (PUB.watch.length || !window.mqtt) return; PUB.rooms.clear();
@@ -15882,7 +15893,7 @@ async function tmFind() {
   if (!NET.local) {   // sin servidor propio no se puede mirar la sala antes de entrar
     const h = document.createElement('h3'); h.textContent = 'Sala «' + code + '»'; card.append(h, row('Información', 'solo disponible con el servidor')); TM.found = { code, pub: false }; go.classList.remove('hidden'); tmMsg(''); return;
   }
-  let j = null; try { j = await (await fetch('/bs-info?room=' + encodeURIComponent(code), { cache: 'no-store' })).json(); } catch (e) { }
+  let j = null; try { j = await (await fetch(SRV_BASE + '/bs-info?room=' + encodeURIComponent(code), { cache: 'no-store' })).json(); } catch (e) { }
   if (!j) { card.classList.add('hidden'); tmMsg('No se pudo preguntar al servidor. Prueba de nuevo.'); return; }
   tmMsg('');
   if (!j.exists) { card.classList.add('no'); const h = document.createElement('h3'); h.textContent = 'No existe esa sala'; card.append(h, row('Código', code), row('Consejo', 'revisa el código o pide el link a quien la creó')); return; }

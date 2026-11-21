@@ -12,6 +12,12 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.10.0 · 2026-11-21 · Servidor global configurable
+- El juego ya puede conectarse a un servidor de salas que esté en otro sitio que la página (por ejemplo, la página en Vercel y el servidor en Oracle Cloud).
+  - La dirección se pone en `config/servidor.js` (vacía = mismo sitio, como antes) o en el link con `?srv=https://...`. En localhost se sigue usando el servidor local.
+  - Si el servidor configurado no responde, el juego sigue funcionando como antes (relés).
+- El servidor responde con permiso de otros orígenes (CORS) también en las listas de salas, la información de sala y la comprobación de entrada.
+
 ## v1.9.1 · 2026-11-21 · Salto para combos
 - **Cansancio de salto:** si saltas muchas veces seguidas, cada salto pierde fuerza (hasta la mitad). Se recupera si dejas de saltar un par de segundos. Así no se puede hacer bunny hop alto para escapar.
 - **Salto guardado:** si pulsas saltar mientras estás en medio de un golpe, el salto se guarda 0,3 s y sale en cuanto termina el golpe.
