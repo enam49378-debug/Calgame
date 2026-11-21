@@ -14554,7 +14554,7 @@ function netSendPlay() {
   if (!NET.named || !G.player) return;
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
-  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit(), abx: window.CF_ABISMO && CF_ABISMO.netOut ? CF_ABISMO.netOut() : undefined })).catch(() => { });
+  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, rc: NET.rcOut || undefined, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit(), abx: window.CF_ABISMO && CF_ABISMO.netOut ? CF_ABISMO.netOut() : undefined })).catch(() => { });
   if (NET.named.pubAs) for (const d of dummies().concat(roomBots())) if (d.netId) { if (d.roomBot) d.netHits = d.netHits.filter(h => now - h.t < 2500); NET.named.pubAs(d.netId, Object.assign(presenceOf(d, d.roomBot ? d.ch.id : 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: d.roomBot ? d.netHits.map(({ t, ...h }) => h) : [], bot: d.roomBot ? 1 : 0 })); }
 }
 function presenceOf(f, ch) {
@@ -14742,6 +14742,10 @@ function netDebug(dt) {
 }
 function netTick(dt) {
   netRulesSync();
+  if (NET.named && !NET.authOn) {   // sin servidor propio (conexión por relés): las opciones de la sala las manda quien la creó dentro de su presencia
+    let best = null; for (const pe of NET.named.peers()) { const rc = pe.presence && pe.presence.rc, jt = pe.presence && +pe.presence.jt; if (rc && typeof rc === 'object' && (!best || jt < best.jt)) best = { jt, rc }; }
+    NET.cfg = best ? { bots: !!best.rc.b, max: clamp(+best.rc.m || 10, 2, 10) } : null;
+  }
   roomBotsSync(dt);
   netDebug(dt);
   if (!NET.named) return;
@@ -14884,7 +14888,7 @@ function spawnRoomBot() {
 }
 let roomBotT = 0;
 function roomBotsSync(dt) {
-  const on = G.mp && NET.named && NET.cfg && NET.cfg.bots && NET.botHost && NET.named.pubAs && NET.named.dropAs && G.state === 'play' && G.player;
+  const on = G.mp && NET.named && NET.cfg && NET.cfg.bots && (NET.authOn ? NET.botHost : (NET.room === 'relay' && amHost())) && NET.named.pubAs && NET.named.dropAs && G.state === 'play' && G.player;
   if (!on) { for (const b of roomBots()) dropRoomBot(b); return; }
   roomBotT -= dt; if (roomBotT > 0) return; roomBotT = 1;
   const humans = 1 + [...NET.proxies.keys()].filter(id => !/-[db]\d+$/.test(id)).length, want = clamp((NET.cfg.max || 10) - humans, 0, 9), have = roomBots();
@@ -15726,7 +15730,8 @@ function tmGo() { tmClose(); titleLeave(); }
 async function tmEnter(code, pub, btn, creator = true) {
   if (TM.busy) return; if (!(await acctGate(pub))) return; TM.busy = true; if (btn) btn.disabled = true; tmMsg('Conectando a la sala…', true);
   $('roomcode').value = code; setMode('mp'); NET.public = pub;
-  NET.roomOpts = creator && window.CF_BETA && window.CF_BETA.on ? { bots: TM.bots ? 1 : 0, max: 10 } : null;   // al crear una sala: con o sin bots, máximo 10
+  NET.roomOpts = creator && window.CF_BETA && window.CF_BETA.on ? { bots: TM.bots ? 1 : 0, max: 10 } : null;
+  NET.rcOut = NET.roomOpts && !NET.local ? { b: NET.roomOpts.bots, m: NET.roomOpts.max } : null;   // sin servidor: las opciones viajan en la presencia del creador   // al crear una sala: con o sin bots, máximo 10
   let ok = false; try { ok = await joinRoom(); } catch (e) { }
   TM.busy = false; if (btn) btn.disabled = false;
   if (!ok) { NET.public = false; tmMsg($('netstat').textContent || 'No se pudo entrar a la sala. Probá de nuevo en unos segundos.'); return; }
