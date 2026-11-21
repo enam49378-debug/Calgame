@@ -27,13 +27,14 @@
     const lerp = (a, b, k) => a + (b - a) * k;
 
     function make(f, m) {
-      const mat = new THREE.MeshToonMaterial({ map: texture(), gradientMap: TOON_GRAD, alphaTest: .5, side: THREE.DoubleSide });
+      const mat = fighterToonMaterial(texture(), 'cutout', THREE.DoubleSide, { spec: .3 });   // el mismo material que el cuerpo: mismos colores, luz y brillo que la chaqueta
+      const olm = OUTLINE_MAT.clone(); olm.map = texture(); olm.alphaTest = .5; olm.needsUpdate = true;   // contorno que respeta los huecos de la capucha (si no, se veía negro por la abertura)
       const topGeo = geo(D.top, 4), bandGeo = geo(D.band, 4);
       const pivot = new THREE.Group(), top = new THREE.Mesh(topGeo, mat); top.castShadow = true; pivot.add(top);
-      const ol = new THREE.Mesh(addOutlineOffset(topGeo.clone(), .36 * PX), OUTLINE_MAT); top.add(ol);   // contorno como el resto del cuerpo
+      const ol = new THREE.Mesh(addOutlineOffset(topGeo.clone(), .36 * PX), olm); top.add(ol);   // contorno como el resto del cuerpo
       m.head.add(pivot);
       const bp = new THREE.Group(), band = new THREE.Mesh(bandGeo, mat); band.castShadow = true; bp.add(band);
-      band.add(new THREE.Mesh(addOutlineOffset(bandGeo.clone(), .3 * PX), OUTLINE_MAT));
+      band.add(new THREE.Mesh(addOutlineOffset(bandGeo.clone(), .3 * PX), olm));
       bp.position.set(0, 11.2 * PX, -3.3 * PX); bp.scale.set(.9, 1, .25); m.torso.add(bp);   // cuello de la capucha sobre los hombros (por detrás)
       m.mats.push(mat);
       return { model: m, pivot, top, band, bp, mat, u: 0, uv: 0, rx: 0, rxv: 0, rz: 0, rzv: 0, by: 0, byv: 0, bandA: 0, pv: new V3(), pvy: 0, rain: 0, put: 0, init: false, want: 0, hold: 0 };
