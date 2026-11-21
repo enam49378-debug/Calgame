@@ -12,6 +12,9 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.12.1 · 2026-11-21 · IP fija del servidor
+- El servidor de Oracle ahora tiene una **IP pública reservada** (163.176.41.73), que no cambia aunque se apague la máquina. El juego usa `https://163-176-41-73.sslip.io`.
+
 ## v1.12.0 · 2026-11-21 · Inmunidad, ping y protección
 - **Arreglo: inmunidad al minimizar o salir de la ventana.** Cuando el navegador frenaba el juego, el jugador se quedaba congelado con su tiempo de invulnerabilidad y su ragdoll, y nadie podía pegarle ni matarlo. Ahora, en línea, el juego sigue simulando lo que pasa en segundo plano (por ejemplo, los tiempos y la vida siguen corriendo), así que sigue recibiendo golpes y puede morir.
 - **Arreglo: inmunidad con la Guía abierta en línea.** Abrir la Guía ya no da invulnerabilidad en una sala en línea (en solo sigue igual).
