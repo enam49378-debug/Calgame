@@ -10700,7 +10700,7 @@ const CF_A = (() => {
     get MAPED() { return MAPED; },
     get SPAWN_POINTS() { return SPAWN_POINTS; },
     get MAPS() { return MAPS; }, get MAPCUR() { return MAPCUR; }, get TRAVEL() { return TRAVEL; }, get LAKES() { return LAKES; },
-    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction, addOutlineOffset, fighterToonMaterial, amCoord,
+    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction, addOutlineOffset, fighterToonMaterial, amCoord, buildVoxelWeapon,
     cityGrassAt,
     get ROOM_ATMOSPHERE() { return ROOM_ATMOSPHERE; },
     get WX() { return WX; },
