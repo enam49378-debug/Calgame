@@ -41,7 +41,7 @@
       'A4': 'Pelea dentro del rayo: te cura, corres más y se recargan tus habilidades.',
       'U': 'Cae una lluvia de cohetes y TNT sobre todos los rivales cercanos.',
     },
-    dmgMul: 1,
+    dmgMul: 1, m1speed: 1.15,   // la maza pega mas lento
   };
   CF_PERSONAJES['soru'].m1set = [
     { anim: [[0, 'scepterW', 900], [.09, 'scepterSmash', 1400], [.26, 'gatoHero', 450]], arc: { tilt: 1.4, len: 2.4, r: 2.2, w: .7, dir: -1 }, reach: 1.7, r: 1.6 },

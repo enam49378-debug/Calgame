@@ -41,7 +41,7 @@
       'A4': 'La zona se ve antes de caer: úsala cuando el rival esté atrapado.',
       'U': 'Cada pisotón cae sobre un rival distinto.',
     },
-    dmgMul: 1,
+    dmgMul: 1, m1speed: .96,
   };
   CF_PERSONAJES['berpol'].m1set = [
     { anim: [[0, 'sweep', 900], [.06, 'sweep_w', 1400], [.17, 'sweepRec', 500]], arc: { tilt: -.4, len: 2.4, r: 2.0, w: .45, dir: -1 }, reach: 1.6, r: 1.5 },

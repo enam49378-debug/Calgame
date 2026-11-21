@@ -12,6 +12,19 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.9.0 · 2026-11-21 · Golpes básicos (M1) mejorados: downslam y uppercut
+Inspirado en los battlegrounds de Roblox. Referencias: rblxguide.com (techs) y guías de combos de la comunidad. Los tiempos son una adaptación mía, no datos oficiales.
+- **El cuarto golpe del combo ahora puede cambiar** (tras tres golpes):
+  - **Downslam:** en el aire, cayendo (o con la tecla C), una patada hacia abajo que ignora el bloqueo y clava al rival en el suelo en ragdoll. Es un golpe de caída: impide el ragdoll cancel.
+  - **Uppercut:** con el salto sostenido, subiendo (o en el suelo), un puño hacia arriba que levanta al rival y tú subes con él.
+- **Ritmo del combo (cooldowns del M1):**
+  - Golpes 1 a 3 más rápidos (0,29 s a 0,27 s) y más tiempo para continuar el combo (1,3 s).
+  - Tras el cuarto golpe hay más recuperación (1,0 s); si el cuarto golpe falla, 0,3 s más. Un dash la acorta a 0,25 s.
+  - Si pulsas el golpe un poco antes de poder, se guarda y sale en cuanto se puede (buffer de 0,16 s).
+  - Cada personaje puede tener su propia velocidad de M1: Soru San (maza) más lento, SoyFrann y Berpol más rápidos.
+- Arreglo: Frann y Berpol no tenían definido el uppercut y fallaba al saltar y golpear al cuarto golpe. Ahora usan uno genérico.
+- La guía de controles incluye el uppercut y el downslam.
+
 ## v1.8.0 · 2026-11-21 · Bloqueo perfecto, Black Flash y embestida
 Inspirado en los battlegrounds de Roblox. Las ventanas de tiempo son una adaptación mía de lo que cuentan guías de la comunidad, no datos oficiales.
 - **Bloqueo perfecto:** si pulsas bloquear justo antes de recibir un golpe (ventana de 0,22 s desde que empiezas a bloquear), no recibes daño, el rival queda aturdido medio segundo y apareces con chispas rojas.

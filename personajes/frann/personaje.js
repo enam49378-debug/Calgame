@@ -41,7 +41,7 @@
       'A4': 'El martillo se ve venir: úsalo cuando el rival esté aturdido.',
       'U': 'Una ráfaga de datos cae sobre todos los rivales cercanos.',
     },
-    dmgMul: 1,
+    dmgMul: 1, m1speed: .92,
   };
   CF_PERSONAJES['frann'].m1set = [
     { anim: [[0, 'sweep', 900], [.06, 'sweep_w', 1400], [.17, 'sweepRec', 500]], arc: { tilt: -.4, len: 2.6, r: 2.1, w: .45, dir: -1 }, reach: 1.6, r: 1.5 },

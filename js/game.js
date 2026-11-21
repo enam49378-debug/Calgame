@@ -5605,34 +5605,49 @@ function startFlourish(f) {
     steps: fl.magic ? [{ at: fl.magic, fn: () => { const p = front(f, .6, 1.3); burst(p, 14, f.ch.color, 3, .12, .5, -.3); burst(p, 6, '#ffd54f', 2, .08, .4, -.3); } }] : [],
   });
 }
-function doM1(f, upVariant) {
+function doM1(f, upVariant, slamArg) {
   if (f.action && f.action.soft) endAction(f);
   if (f.m1cd > 0 || f.action || f.mount) return;
   if (f.spear && !f.spearOut && !f.remote && !ownsMissingSpear(f)) { drawSpear(f); return; }
   if (f.comboTimer <= 0) f.comboIdx = 0;
   const i = f.comboIdx, fin = i === 3;
-  f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.1; f.m1cd = fin ? .9 : .29; f.atkT = 0;
-  if ((f.isPlayer || f.roomBot) && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0 }, f);
+  // Tras tres golpes, el cuarto puede cambiar (como en los battlegrounds de Roblox):
+  //   UPPERCUT: con salto sostenido y subiendo (o en el suelo): puño hacia arriba que levanta al rival, y tu subes con el.
+  //   DOWNSLAM: en el aire, cayendo (o con C): patada hacia abajo que ignora el bloqueo y clava al rival en el suelo en ragdoll.
+  let slam = false;
+  if (fin) {
+    if (slamArg === undefined) { slam = !f.onGround && (f.vel.y <= 1 || !!f.ctlDown); if (!slam && upVariant && !f.onGround && f.vel.y <= 1) upVariant = false; }
+    else slam = !!slamArg;
+    if (slam) upVariant = false;
+  }
+  f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.3; f.m1cd = (fin ? 1.0 : .27) * (f.ch.m1speed || 1); f.atkT = 0;   // ritmo del combo; tras el cuarto golpe hay mas recuperacion (un dash la acorta)
+  if ((f.isPlayer || f.roomBot) && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0, s: slam ? 1 : 0 }, f);
   sfx('swing', f.pos, .6); javiSpeak(f, 'ev_m1_' + (i + 1));
   const unarmed = ownsMissingSpear(f), set = unarmed ? null : f.ch.m1set;
-  const def = set ? set[fin ? (upVariant ? 4 : 3) : i] : fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i];
+  const SLAM_DEF = { anim: [[0, 'slamUp', 800], [.07, 'slamDown', 1300]], arc: { tilt: -1.3, r: 1.7, w: .7, len: 2.5, dir: -1 }, reach: 1.0, r: 1.5 };
+  const def = slam ? SLAM_DEF : (set && set[fin ? (upVariant ? 4 : 3) : i]) || (fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i]);   // si el personaje no define ese golpe (p. ej. el uppercut), usa el generico
   startAction(f, {
-    name: 'm1', unarmed, bbClip: fin ? (upVariant ? 'combo_4_arriba' : 'combo_4') : 'combo_'+(i+1), dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
+    name: 'm1', unarmed, bbClip: slam ? undefined : fin ? (upVariant ? 'combo_4_arriba' : 'combo_4') : 'combo_'+(i+1), dur: fin ? .4 : .26, aim: true, speedMul: .35, anim: def.anim, spin: def.spin, eyes: !!def.eyeStab,
     steps: [{
       at: fin ? .09 : .07, fn: () => {
         const F = fwd(f.yaw), lg = def.lunge || 3; if (f.onGround) { f.vel.x += F.x * lg; f.vel.z += F.z * lg; }
+        if (slam && !f.remote) { f.vel.y = -26; f.vel.x += F.x * 5; f.vel.z += F.z * 5; }   // downslam: se lanza hacia abajo
+        if (upVariant && !f.remote) { f.vel.y = Math.max(f.vel.y, 7); f.onGround = false; }   // uppercut: sube junto con el rival
         if (def.stab) stabFx(f, f.ch.color); else if (!def.palm) arcSlash(f, f.ch.color, def.arc);
         if (def.palm) { const p = front(f, 1.3, 1.25); sphereFlash(p, f.ch.color, 1.1, .25); burst(p, 14, f.ch.color, 7, .14, .3, 0); impactStar(p, '#ffd54f', 1.3, .18); }
         if (def.magic) { const p = front(f, 2.0, 1.2); burst(p, 8, f.ch.color, 4, .12, .3, -.2); burst(p, 4, '#ffd54f', 3, .08, .25, -.2); }
         if (def.eyeStab) { const a = front(f, .35, 1.72), b = front(f, 3.4, 1.4); slashLine(a, b, f.ch.color, .2, .16); slashLine(a, b, '#ffffff', .14, .06); sfx('zap', f.pos, .5); }
         if (def.twirl) startTwirl(f, 1, .32);
         if (!unarmed && bbSet(f.ch.id)) javiStrikeFx(f, fin, i);
-        let o = fin
+        let o = slam ? { dmg: 6.5, kb: 1.5, up: -22, ragdoll: .9, stun: 0, guardBreak: true, noRC: true, color: f.ch.color, hitstop: .1, shake: .35, sound: 'heavy' }
+          : fin
           ? { dmg: 6, kb: upVariant ? 2 : 17, up: upVariant ? 15 : 6, ragdoll: upVariant ? 0 : 1.0, stun: upVariant ? .9 : 0 }
           : { dmg: 3.5, stun: .45, kb: 1.4 };
         const bf = f.critT > 0;   // tras un bloqueo perfecto, el siguiente golpe basico que conecta es un BLACK FLASH: mas dano, rompe la guardia y tira al rival
         if (bf) o = Object.assign({}, o, { dmg: o.dmg * 2.4, guardBreak: true, ragdoll: Math.max(o.ragdoll || 0, 1.0), kb: Math.max(o.kb || 0, 13), up: Math.max(o.up || 0, 6), stun: 0, hitstop: .16, shake: .7, color: '#ff2a2a', sound: 'heavy' });
-        const n = hitArea(f, front(f, def.reach || 1.25, 1.1), def.r || 1.25, o);
+        const n = hitArea(f, front(f, def.reach || 1.25, slam ? .3 : 1.1), def.r || 1.25, o);
+        if (slam && n) { const gp0 = new V3(f.pos.x + F.x * 1.2, groundAt(f.pos.x + F.x * 1.2, f.pos.z + F.z * 1.2), f.pos.z + F.z * 1.2); ringAt(gp0, '#ffffff', 3.2, .4); burst(new V3(gp0.x, gp0.y + .3, gp0.z), 18, '#d8d0c0', 7, .2, .5, .3); popText(chestOf(f), 'DOWNSLAM', f.ch.color, 20); sfx('boom', gp0, .5); }
+        if (fin && !n) f.m1cd += .3;   // fallar el cuarto golpe se paga con mas recuperacion
         if (bf && n) { f.critT = 0; blackFlashFx(f, front(f, def.reach || 1.25, 1.2)); }
         if (fin) worldDamage(front(f, 1.8, 1.1), 3.1, 1, 6, .9);
         f.destPow = .5;
@@ -8228,13 +8243,14 @@ function applyCtl(f, c, dt) {
     else { f.yaw = dYaw; f.dashDir = 'front'; }
     const dClip = dSet && (dSet[dName] || dSet.esquive);
     f.dashAnimDur = dClip ? dClip.length : .35; f.dashAnimT = f.dashAnimDur;
-    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; f.dashKind = dashKindOf(f, dx, dz); f.dashHit = false; f.dashCarry = null; javiSpeak(f, 'ev_dash');
+    f.dashT = .2; f.dashCd = 1.4; f.iframes = Math.max(f.iframes, .16); f.blocking = false; f.dashKind = dashKindOf(f, dx, dz); f.dashHit = false; f.dashCarry = null; if (f.m1cd > .25) f.m1cd = .25; javiSpeak(f, 'ev_dash');
     sfx('dash', f.pos); burst(new V3(f.pos.x, .3, f.pos.z), 10, '#d8d0c0', 4, .2, .4, .2, 2);
     if (f.isPlayer) G.fovKick = Math.max(G.fovKick, 5);
   }
   if (f.seq && f.seq.lock) return;
   if (f.dashT > 0 && f.dashKind === 'front') dashFrontHit(f, dt);
-  if (c.m1 && !f.blocking && f.dashT <= 0 && f.dashRecT <= 0) doM1(f, c.up);   // el M1 no cancela el dash
+  if (c.m1 && !f.m1Held) f.m1BufT = .16; f.m1Held = !!c.m1;
+  if ((c.m1 || f.m1BufT > 0) && !f.blocking && f.dashT <= 0 && f.dashRecT <= 0) { doM1(f, c.up); if (f.action && f.action.name === 'm1') f.m1BufT = 0; }   // el M1 no cancela el dash
   const busy = f.action && !f.action.soft, dashing = f.dashT > 0 || f.dashRecT > 0, sv = dashing ? f.vel.clone() : null;
   if (c.skill >= 0 && !busy && !f.blocking) { const cd0 = f.cd[c.skill]; useSkill(f, c.skill); if (dashing && f.cd[c.skill] > cd0 + .01) dashCancel(f, sv); }   // DASH CANCEL: la habilidad corta el dash
   if (c.ult && !busy && f.ult >= 100) { const u0 = f.ult, a0 = f.awak; useUlt(f); if (dashing && (f.ult < u0 || f.awak > a0)) dashCancel(f, sv); }
@@ -9697,7 +9713,7 @@ function tickTimers(f, dt) {
   f.hurtT -= dt; f.getupT -= dt; f.landT -= dt; f.flashT -= dt; f.frozen = Math.max(0, f.frozen - dt);
   f.m1cd -= dt; f.comboTimer -= dt; f.dashCd -= dt; { const wd = f.dashT > 0; f.dashT -= dt; if (wd && f.dashT <= 0) { f.dashRecT = .14; dashEnd(f); } }   // al terminar el dash queda un momento de recuperacion: ahi no se puede pegar con M1, pero una habilidad lo cancela
   if (f.critT > 0) { f.critT -= dt; if (Math.random() < dt * 22) emit(f.pos.x + rand(-.5, .5), f.pos.y + rand(.2, 2), f.pos.z + rand(-.5, .5), 0, rand(1, 3), 0, Math.random() < .5 ? '#ff2a2a' : '#222222', .12, .5, 0, 1); }   // listo para el Black Flash
-  f.dashRecT = Math.max(0, (f.dashRecT || 0) - dt); f.rcCd = Math.max(0, (f.rcCd || 0) - dt); f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
+  f.m1BufT = Math.max(0, (f.m1BufT || 0) - dt); f.dashRecT = Math.max(0, (f.dashRecT || 0) - dt); f.rcCd = Math.max(0, (f.rcCd || 0) - dt); f.dashAnimT = Math.max(0, (f.dashAnimT || 0) - dt);
   for (let i = 0; i < 4; i++) f.cd[i] = Math.max(0, f.cd[i] - dt);
   if (f.isPlayer) { if (G.rules.noCd) f.cd[0] = f.cd[1] = f.cd[2] = f.cd[3] = 0; if (G.rules.god && f.alive) f.hp = f.maxHp; }
   if (f.awak > 0) {
@@ -12167,7 +12183,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.8.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.9.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
@@ -14739,7 +14755,7 @@ function replayAct(px, a) {
     NETREP.on = true;   // lo que rompe un jugador remoto llega en sus propios paquetes de destrucción
     if (px.action) endAction(px);
     if (a.k === 'e') { if (window.CF_EMOTES) CF_EMOTES.play(px, a.i | 0, true); }
-    else if (a.k === 'm') { px.comboIdx = clamp(a.i | 0, 0, 3); px.comboTimer = 1; px.m1cd = 0; doM1(px, !!a.u); }
+    else if (a.k === 'm') { px.comboIdx = clamp(a.i | 0, 0, 3); px.comboTimer = 1; px.m1cd = 0; doM1(px, !!a.u, !!a.s); }
     else if (a.k === 's') { const i = clamp(a.i | 0, 0, 3); px.cd[i] = 0; px.awak = a.w ? Math.max(px.awak, 1) : 0; px._fistKit = a.x ? 1 : 0; try { useSkill(px, i); } finally { px._fistKit = 0; } }   // x: usa el kit de puños (Javi sin lanza)
     else if (a.k === 'u') { px.ult = 100; runUlt(px); if (involvesPlayerNear(px)) miniCut(px); }
     else if (a.k === 'c') {
