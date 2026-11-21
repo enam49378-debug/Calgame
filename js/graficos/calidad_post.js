@@ -20,7 +20,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
   let linesDrawn = false;
   // render con brillo (bloom) y los impact frames
   const _v2s = new THREE.Vector2();
-  // nitidez de la imagen: en la consola (F12)  nitidez(0.9)  la sube, nitidez(0)  la quita (ahora 0.9; se guarda en tu navegador)
+  // nitidez de la imagen: en la consola (F12)  nitidez(0.9)  la sube, nitidez(0)  la quita (ahora 0.45; se guarda en tu navegador)
   window.nitidez = v => { if (!gradePass) return 'sin post-proceso'; const q = Math.max(0, Math.min(2, +v || 0)); gradePass.uniforms.uSharp.value = q; try { localStorage.setItem('bsb_sharp', String(q)); } catch (e) { } return q; };
   let composer = null, renderPass = null, bloomPass = null, caPass = null, gradePass = null;
   function initPostProcessing(){if(composer)return;
@@ -51,7 +51,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
           uniforms: {
             tDiffuse: { value: null },
             uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
-            uSharp: { value: (() => { try { const v = parseFloat(localStorage.getItem('bsb_sharp')); return v >= 0 && v <= 2 ? v : 0.9; } catch (e) { return 0.9; } })() },
+            uSharp: { value: (() => { try { const v = parseFloat(localStorage.getItem('bsb_sharp')); return v >= 0 && v <= 2 ? v : 0.45; } catch (e) { return 0.45; } })() },
             uZzz: ZZZ_U.on,
             uBeta: ZZZ_U.beta,
             uImpact: ZZZ_U.impact,
@@ -234,7 +234,8 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       const table = beta ? SHADOW_PROFILES_BETA : SHADOW_PROFILES_PUBLIC;
       const prof = table[effShadows] || table.soft;
       const maxTex = (renderer.capabilities && renderer.capabilities.maxTextureSize) || 2048;
-      const mapDim = Math.min(prof.size, maxTex);
+      const crisp = beta && GFX.level === 0 && !(WEAK_PC || LOW_PC) && prof.size === 1024;   // en equipos buenos las sombras 'suaves' usan el doble de resolucion: bordes mas estables, sin temblor
+      const mapDim = Math.min(crisp ? 2048 : prof.size, maxTex);
       renderer.shadowMap.type = prof.type;
       sun.shadow.mapSize.set(mapDim, mapDim);
       Object.assign(sun.shadow.camera, {
@@ -479,7 +480,7 @@ window.CF_GRAFICOS.crearCalidadYPost = function crearCalidadYPost(dep) {
       } else {
         GFX.shFrame = (GFX.shFrame + 1) | 0;
         const cadence = (sc !== scene || inStudio) ? 1
-          : (GFX_CFG.shadows === 'ultra' && GFX.fps >= 54 && GFX.dynScale >= 0.95) ? 1
+          : (GFX.fps >= 54 && GFX.dynScale >= 0.95) ? 1
           : (GFX.fps < 36 || GFX.dynScale < 0.80) ? 3 : 2;
         const doSh = GFX.shForce || (GFX.shFrame % cadence) === 0;
         renderer.shadowMap.needsUpdate = doSh;

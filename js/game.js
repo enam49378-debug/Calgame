@@ -2009,9 +2009,9 @@ function updateCityWeather(dt,instant=false){
     if(beta){
       const daySunFade=THREE.MathUtils.smoothstep(height,-0.02,0.14),moonCastFade=THREE.MathUtils.smoothstep(-height,0.08,0.24);
       HEMI.color.set(zzz?0x415ca6:0x7b92c1).lerp(_c.set(zzz?0xd4efff:0xe4f1ff),day);HEMI.groundColor.set(zzz?0x0f152a:0x26394d).lerp(_c.set(zzz?0x3b4462:0x657c54),day);
-      HEMI.intensity=(zzz?(.15+day*.39):(.51+day*.12))+WX.flash*.25;
+      HEMI.intensity=(zzz?(.19+day*.43):(.51+day*.12))+WX.flash*.25;   // un poco mas de luz de relleno: las sombras no quedan tan duras
       sun.color.set(zzz?0xfff3d8:0xfff0d0).lerp(_c.set(zzz?0xff9d66:0xffaf78),sunset*.78).lerp(_c.set(0x8ab4ff),moonCastFade);
-      const daySunI=Math.sqrt(Math.max(0,height))*daySunFade*(zzz?.94:.69)*(1-WX.cloud*.6);
+      const daySunI=Math.sqrt(Math.max(0,height))*daySunFade*(zzz?.9:.69)*(1-WX.cloud*.6);
       const moonShadowI=night*moonCastFade*(zzz?.23:.18)*(1-WX.cloud*.45);
       sun.intensity=daySunI+moonShadowI+WX.flash;
       WX.moonLight.intensity=night*(zzz?(.38-.18*moonCastFade):(.36-.14*moonCastFade))*(1-WX.cloud*.45);
@@ -12078,7 +12078,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.6.1';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.6.2';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;

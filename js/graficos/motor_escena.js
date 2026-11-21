@@ -49,6 +49,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
   sun.shadow.camera.updateProjectionMatrix();
   scene.add(sun, sun.target);
 
+  const _shLast = new V3();   // ultima direccion de sombra usada: el sol se mueve despacio y, si la sombra rota un poquito en cada cuadro, todas las sombras parpadean; asi solo se actualiza en saltos invisibles
   const _shDir = new V3(), _shRight = new V3(), _shUp = new V3(), _shUpRef = new V3();
   function updateSunShadowFocus(dirX, dirY, dirZ, focusX = 0, focusZ = 0, shadowDist = 82) {
     if (typeof ZZZ_U !== 'undefined' && ZZZ_U.beta.value <= 0.5) {
@@ -66,6 +67,7 @@ window.CF_GRAFICOS.crearMotorEscena = function crearMotorEscena(dep = {}) {
       _shDir.y = 0.28;
       _shDir.normalize();
     }
+    if (_shLast.lengthSq() > 0 && _shDir.dot(_shLast) > 0.99998) _shDir.copy(_shLast); else _shLast.copy(_shDir);
     const cam = sun.shadow.camera;
     const frustumW = (cam.right - cam.left) || 108;
     const mapW = Math.max(1, sun.shadow.mapSize.x || 1024);

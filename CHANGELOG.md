@@ -12,6 +12,13 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.6.2 · 2026-11-21 · Sombras e iluminación
+- Las sombras ya no parpadean: la dirección del sol solo se actualiza en saltos invisibles en vez de rotar un poco en cada cuadro.
+- Las sombras de los personajes se actualizan en cada cuadro cuando el juego va fluido (antes cada 2 o 3 cuadros, lo que las hacía temblar al moverse).
+- En equipos buenos las sombras suaves usan el doble de resolución.
+- Un poco más de luz de relleno y menos dureza del sol: las sombras ya no quedan tan oscuras.
+- Nitidez por defecto más baja (de 0.9 a 0.45). Se cambia con `nitidez(valor)` en la consola.
+
 ## v1.6.1 · 2026-11-21 · Conexión
 - Al entrar a una sala, si el primer intento de conexión falla se reintenta dos veces antes de mostrar el error.
 - Se comprobó con dos jugadores en la misma sala que las habilidades, despertares y ultis de Soru San y SoyFrann se ven en el otro jugador sin errores.
