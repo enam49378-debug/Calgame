@@ -1,0 +1,61 @@
+{
+    "items_off": [],
+    "culling": false,
+    "color": -1,
+    "texture": "assets:models/Accesorios/capucha/texture.png",
+    "fp_main": {
+        "transform": {},
+        "group": ""
+    },
+    "ui_scale": 1.0,
+    "scale": [1.0, 1.0, 1.0],
+    "procedural": false,
+    "items_main": [],
+    "anchor": "",
+    "sneaking_pose": {},
+    "parts": {
+        "pose": {}
+    },
+    "fp_offhand": {
+        "transform": {},
+        "group": ""
+    },
+    "armor_slots": {
+        "chest": {
+            "transform": {},
+            "group": ""
+        },
+        "right_arm": {
+            "transform": {},
+            "group": ""
+        },
+        "left_leg": {
+            "transform": {},
+            "group": ""
+        },
+        "left_arm": {
+            "transform": {},
+            "group": ""
+        },
+        "right_leg": {
+            "transform": {},
+            "group": ""
+        },
+        "left_boot": {
+            "transform": {},
+            "group": ""
+        },
+        "helmet": {
+            "transform": {},
+            "group": ""
+        },
+        "right_boot": {
+            "transform": {},
+            "group": ""
+        },
+        "leggings": {
+            "transform": {},
+            "group": ""
+        }
+    }
+}

@@ -9733,6 +9733,7 @@ function animate(f, dt) {
   updateVerity(f, m, dt, T);
   updateJesuluto(f, m, dt, T);
   updateCapitan(f, m, dt, T);
+  if (CF_A.CAPUCHA) CF_A.CAPUCHA.update(f, m, dt, T);   // capucha de Javi (js/capucha.js)
 }
 
 // ================= HUD =================
@@ -10698,7 +10699,7 @@ const CF_A = (() => {
     get MAPED() { return MAPED; },
     get SPAWN_POINTS() { return SPAWN_POINTS; },
     get MAPS() { return MAPS; }, get MAPCUR() { return MAPCUR; }, get TRAVEL() { return TRAVEL; }, get LAKES() { return LAKES; },
-    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction,
+    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction, addOutlineOffset, fighterToonMaterial,
     cityGrassAt,
     get ROOM_ATMOSPHERE() { return ROOM_ATMOSPHERE; },
     get WX() { return WX; },
