@@ -12078,7 +12078,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.6.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.6.1';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
@@ -14331,7 +14331,7 @@ function localRoom(code, onStatus = () => { }) {
       ws.onclose = () => {
         clearTimeout(failTo);
         if (R.closed) return;
-        if (!opened) { done(false, { code: 'server' }); return; }
+        if (!opened) { if ((R.tries = (R.tries || 0) + 1) < 3) { setTimeout(() => { if (!R.closed) connect(); }, 700 * R.tries); return; } done(false, { code: 'server' }); return; }   // el primer intento puede fallar por un tropiezo de la red: se reintenta dos veces antes de rendirse
         if (!R.down) { R.down = true; addFeedText('Conexión perdida: reconectando…', '#ffb020'); }
         R.retry = Math.min(6000, Math.max(800, (R.retry || 500) * 1.5)); setTimeout(() => { if (!R.closed) connect(); }, R.retry);   // se cortó: reconecta solo (con espera creciente)
       };

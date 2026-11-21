@@ -12,6 +12,10 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.6.1 · 2026-11-21 · Conexión
+- Al entrar a una sala, si el primer intento de conexión falla se reintenta dos veces antes de mostrar el error.
+- Se comprobó con dos jugadores en la misma sala que las habilidades, despertares y ultis de Soru San y SoyFrann se ven en el otro jugador sin errores.
+
 ## v1.6.0 · 2026-11-21 · Red y multijugador
 - Ahora cada jugador manda su número de versión: si alguien tiene una versión distinta (o la caché vieja) aparece un aviso en el feed. Es la causa más común de modelos o habilidades que no se ven.
 - Los emotes tienen respaldo: si el aviso de la acción se pierde por la red, el estado del jugador lo reproduce igual en los demás.
