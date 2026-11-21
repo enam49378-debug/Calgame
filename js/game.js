@@ -12189,7 +12189,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.11.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.12.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 // SERVIDOR GLOBAL: si la pagina esta en un sitio y el servidor de salas en otro (por ejemplo la pagina en Vercel y el servidor en Oracle),
 // la direccion del servidor sale de config/servidor.js (window.CF_SERVIDOR) o de ?srv=https://... en el link. En localhost se usa el servidor local salvo que pongas ?srv=.
@@ -14803,7 +14803,7 @@ function netInterp(px, pr, nowMs) {
     }
   }
   const n = B.length; if (!n) return { x: +pr.x || 0, y: +pr.y || 0, z: +pr.z || 0, yw: +pr.yw || 0, ry: +pr.ry || 0, j: null };
-  const delay = clamp((px.netIv || 50) * 2 + (px.netJit || 0) * 2, NET.local ? 60 : 90, 300), rt = nowMs - px.netOff - delay;
+  const delay = clamp((px.netIv || 50) * 1.8 + (px.netJit || 0) * 2.2, NET.local ? 50 : 90, 300), rt = nowMs - px.netOff - delay;
   let a = B[0], b = null;
   for (let i = 0; i < n; i++) { if (B[i].ts <= rt) a = B[i]; else { b = B[i]; break; } }
   if (!b) {   // se quedó sin paquetes nuevos: sigue un instante con la última velocidad y se queda quieto
@@ -14821,7 +14821,8 @@ function proxyUpdate(px, dt) {
   const pr = px.net; if (!pr) return;
   const was = px.alive;
   px.alive = !!pr.al; px.hp = +pr.hp || 0; px.maxHp = +pr.mh || 100; px.kills = +pr.k || 0; px.deaths = +pr.d || 0; px.awak = pr.aw ? 1 : 0;
-  px.ragdoll = pr.rg ? 1 : 0; px.blocking = !!pr.bl;
+  if (pr.rg) { if (!px.rgT0) px.rgT0 = performance.now(); } else px.rgT0 = 0;
+  px.ragdoll = pr.rg && performance.now() - px.rgT0 < 3200 ? 1 : 0; px.blocking = !!pr.bl;   // un ragdoll no dura mas de ~3 s: si el emisor se quedo congelado, no es inmune
   if (window.CF_COS) CF_COS.remote(px, pr.cos);
   if (was && !px.alive) burst(chestOf(px), 30, '#dddddd', 5, .3, .8, -.2);
   // interpolación de instantáneas, como en un servidor normal: se guardan los últimos paquetes y cada jugador remoto se dibuja
@@ -14941,7 +14942,7 @@ function netTick(dt) {
   for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); if (!/-b\d+$/.test(peer)) addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
-  if (NET.sendT <= 0) { NET.sendT = NET_OLD && NET.room === 'relay' ? 1 / 15 : 1 / 25; netSendPlay(); }
+  if (NET.sendT <= 0) { NET.sendT = NET_OLD && NET.room === 'relay' ? 1 / 15 : 1 / (NET.local ? 30 : 25); netSendPlay(); }
 }
 
 // ================= Reglas de la partida (panel del anfitrión) =================
@@ -17418,7 +17419,7 @@ function guideBuild(E) {
 function guideNet(dt) {
   if (!GS.on) { netTick(dt); return; }
   const sf = G.fighters, sp = G.player, R = GS.real;
-  G.fighters = R.F; G.player = R.P; R.P.iframes = Math.max(R.P.iframes, 1);
+  G.fighters = R.F; G.player = R.P; if (!G.mp) R.P.iframes = Math.max(R.P.iframes, 1);   // en linea NO hay inmunidad con la guia abierta
   try { netTick(dt); } finally {
     G.fighters = sf; G.player = sp;
     for (const f of R.F) { try { f.model.root.visible = false; if (f.plate) f.plate.style.display = 'none'; } catch (e) { } }
@@ -17714,7 +17715,16 @@ if (IS_GUIDE) {
   })();
 }
 // con la pestaña minimizada el navegador frena los cuadros: seguimos atendiendo la sala para no desaparecer para los demás
-setInterval(()=>{if(G.mp&&G.state==='play'&&performance.now()-last>250)frameTask('red:segundo-plano',()=>guideNet(.1));},200);
+let bgLast = performance.now();
+setInterval(() => {
+  const nowT = performance.now();
+  if (!(G.mp && G.state === 'play' && nowT - last > 250)) { bgLast = nowT; return; }
+  // pestana minimizada u oculta: el navegador frena los cuadros. Antes solo seguia la red y el jugador quedaba CONGELADO (con su invulnerabilidad y su ragdoll)
+  // y nadie podia pegarle. Ahora tambien se simula lo que pasa, en pasos pequenos, para que siga recibiendo golpes, pueda morir y sus tiempos corran.
+  const el = Math.min(3, Math.max(0, (nowT - Math.max(last, bgLast)) / 1000)); bgLast = nowT;
+  if (el > 0 && !G.over && !TRAVEL.freeze) { const n = Math.min(30, Math.max(1, Math.round(el / .1))), dt = el / n; for (let i = 0; i < n; i++) frameTask('simulacion:segundo-plano', () => step(dt)); }
+  frameTask('red:segundo-plano', () => guideNet(Math.max(.05, el)));
+}, 200);
 for (const fn of (window.CF_HABILIDADES || [])) fn(CF_A);   // codigo de las habilidades (js/habilidades.js)
 delete window.CF_HABILIDADES;
 // el juego vive dentro de una función: desde la consola (o una extensión) no se puede tocar G, los peleadores ni las funciones para hacer trampa.

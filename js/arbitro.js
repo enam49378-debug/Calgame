@@ -130,6 +130,8 @@
           }
         }
       }
+      // un jugador no puede quedarse "en ragdoll" para siempre (pestana minimizada, cliente congelado o trampa): pasado el tiempo maximo se reenvia como vulnerable
+      if (f.rg) { if (!p.rgS) p.rgS = now; else if (now - p.rgS > 3500) f.rg = 0; } else p.rgS = 0;
       // golpes que dice haber dado
       const hitsOut = [];
       if (Array.isArray(f.hits)) for (const h of f.hits) {

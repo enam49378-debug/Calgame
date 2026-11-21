@@ -12,6 +12,17 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.12.0 · 2026-11-21 · Inmunidad, ping y protección
+- **Arreglo: inmunidad al minimizar o salir de la ventana.** Cuando el navegador frenaba el juego, el jugador se quedaba congelado con su tiempo de invulnerabilidad y su ragdoll, y nadie podía pegarle ni matarlo. Ahora, en línea, el juego sigue simulando lo que pasa en segundo plano (por ejemplo, los tiempos y la vida siguen corriendo), así que sigue recibiendo golpes y puede morir.
+- **Arreglo: inmunidad con la Guía abierta en línea.** Abrir la Guía ya no da invulnerabilidad en una sala en línea (en solo sigue igual).
+- **Ragdoll con límite:** un ragdoll no dura más de unos 3 s para quien lo ve ni para el servidor, aunque el otro jugador se quede congelado o haga trampa.
+- **Ping y delays:** con servidor se mandan 30 actualizaciones por segundo (antes 25) y el retraso de suavizado de los otros jugadores es menor; el servidor de Oracle usa una red más rápida (BBR).
+- **Protección del servidor:**
+  - Detrás de Caddy todos los jugadores parecían venir de la misma IP (127.0.0.1), lo que rompía los límites por IP. Ahora se lee la IP real.
+  - Máximo de 12 conexiones por IP y solo las páginas autorizadas (`ALLOWED_ORIGINS`) pueden abrir salas.
+  - El puerto 8080 queda cerrado al exterior (solo se entra por HTTPS), el servicio corre con límites (memoria, permisos) y se instalan fail2ban (contra intentos de entrar por SSH) y actualizaciones automáticas de seguridad.
+  - El árbitro ya no deja a nadie en ragdoll para siempre.
+
 ## v1.11.0 · 2026-11-21 · Sala global
 - Botón nuevo en el menú de jugar: **SALA GLOBAL**. Te mete directo en una partida en línea con gente de todo el mundo, sin códigos.
   - Son copias de la misma sala (`global-1`, `global-2`, ...) con hasta 10 jugadores cada una.
