@@ -36,7 +36,7 @@
     const log = opts.log || (() => { });
     const P = new Map(), D = new Map();      // jugadores y dummies (los publica el anfitrión)
     const R = { hostH: 0, god: false };      // reglas vistas del anfitrión
-    const fresh = id => ({ id, st: '', ch: '', hp: null, mh: 100, alive: true, deathT: -1e9, x: 0, y: 0, z: 0, ab: 0, t: 0, k: 0, d: 0, seqMax: 0, verd: new Map(), times: [], dmg: [], rej: [], mute: 0,
+    const fresh = id => ({ id, st: '', ch: '', mp: 'A', tr: 0, hp: null, mh: 100, alive: true, deathT: -1e9, x: 0, y: 0, z: 0, ab: 0, t: 0, k: 0, d: 0, seqMax: 0, verd: new Map(), times: [], dmg: [], rej: [], mute: 0,
       pend: [], last: new Map(), tok: L.HEAL_CAP, tokT: 0, ign: 0, auth: 0, winT: 0, corrT: 0, flags: 0, hits: 0, rejected: 0 });
     const get = id => { let p = P.get(id); if (!p) { p = fresh(id); P.set(id, p); } return p; };
 
@@ -69,6 +69,7 @@
       const isDummy = v.owner !== undefined;
       if (!v.alive || (!isDummy && v.st !== 'play')) return 'mudo:víctima';
       if ((a.ab ? 1 : 0) !== (v.ab ? 1 : 0)) return 'mundos';
+      if ((a.mp || 'A') !== (v.mp || 'A') || a.tr || v.tr) return 'mudo:mapa';   // mapas distintos o alguien dentro de un portal: nadie se toca
       if (a.ab && v.ab && !isDummy) return 'abismo';       // sin PVP dentro del abismo
       if (dist(a, v) > L.RANGE) return 'distancia';
       a.times = a.times.filter(t => now - t < 1000); if (a.times.length >= L.HITS_PER_S) return 'ritmo';
@@ -84,6 +85,7 @@
       if (f.x !== undefined) { f.x = num(f.x, -800, 800); f.z = num(f.z, -800, 1400); f.y = num(f.y, -300, 700); }
       f.mh = num(f.mh, 1, 300, 100); f.hp = num(f.hp, 0, f.mh, f.mh);
       f.nm = text(f.nm, 16); f.ch = text(f.ch, 24); f.st = text(f.st, 12);
+      f.mp = ['A', 'J', 'B'].includes(f.mp) ? f.mp : 'A'; f.tr = f.tr ? 1 : 0;   // en qué mapa está y si está viajando por un portal
       f.k = num(f.k, 0, 9999); f.d = num(f.d, 0, 9999);
       if (!isHost) delete f.rl;                                        // solo el anfitrión cambia las reglas de la sala
       if (Array.isArray(f.hits)) f.hits = f.hits.slice(0, 12).filter(h => h && typeof h === 'object'); else delete f.hits;
@@ -99,7 +101,7 @@
       refill(p, now);
       p.t = now; p.st = f.st; p.ch = f.ch;
       if (f.x !== undefined) { p.x = f.x; p.y = f.y; p.z = f.z; }
-      p.ab = f.ab ? 1 : 0;
+      p.ab = f.ab ? 1 : 0; p.mp = f.mp; p.tr = f.tr;
       if (isHost && f.rl && typeof f.rl === 'object') {
         R.god = !!f.rl.god;
         const h = f.rl.p && Number.isFinite(+f.rl.p.h) ? +f.rl.p.h : 0;
@@ -176,7 +178,7 @@
     const list = () => [...P.values()];
     function dummy(owner, id, d, now) {
       const f = cleanState(d, false); if (!f) return null;
-      D.set(id, { id, owner, x: f.x || 0, y: f.y || 0, z: f.z || 0, alive: f.al === undefined ? true : !!f.al, ab: 0, st: 'play', t: now });
+      D.set(id, { id, owner, x: f.x || 0, y: f.y || 0, z: f.z || 0, alive: f.al === undefined ? true : !!f.al, ab: 0, st: 'play', mp: f.mp || 'A', tr: f.tr || 0, t: now });
       return f;
     }
     function leave(id) { P.delete(id); for (const [k, v] of [...D]) if (v.owner === id || k === id) D.delete(k); }

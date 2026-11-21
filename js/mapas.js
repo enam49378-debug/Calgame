@@ -21,7 +21,8 @@
     // colores de cada universo: [oscuro, medio, brillante]
     const PAL = { A: ['#0b2a73', '#2fb6ff', '#ffd36b'], J: ['#04301c', '#27e08a', '#e2ff70'], B: ['#3a0f4f', '#ff74c4', '#ffe3f4'] };
     const R = { t: 0, warned: -1, ev: null, evT: 70, chipT: 0, off: false };
-    const T = { phase: '', t: 0, from: 'A', to: 'B', list: [], fx: null, swapped: false, spawns: null, exitP: null, saved: null, extras: [], fov: 0 };
+    const S = { seq: 0, doneSeq: 0, last: null, lastChange: 0, wasCoord: false };   // sincronización en salas: el coordinador manda, los demás obedecen
+    const T = { phase: '', t: 0, from: 'A', rem: [], to: 'B', list: [], fx: null, swapped: false, spawns: null, exitP: null, saved: null, extras: [], fov: 0 };
     const col3 = id => new THREE.Color(MAPS[id].col);
     const pal = (id, i) => new THREE.Color(PAL[id][i]);
     const easeBack = k => { k = clamp(k, 0, 1); const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); };
@@ -112,6 +113,10 @@
         const p = makePortal(to, f.isPlayer ? 1.8 : 1.2); p.position.copy(c); p.rotation.y = f.yaw + Math.PI; scene.add(p);
         T.list.push({ f, p, c, p0: f.pos.clone(), delay: f.isPlayer ? 0 : Math.random() * .5 });
       }
+      T.rem = [];
+      if (G.mp) for (const f of G.fighters) if (f.remote && f.model && !f.otherMap && f.alive) {   // los demás jugadores también se ven absorbidos por su portal
+        const Fv = fwd(f.yaw), c = new V3(f.pos.x + Fv.x * 3.5, f.pos.y + 1.5, f.pos.z + Fv.z * 3.5), p = makePortal(to, 1.5); p.position.copy(c); p.rotation.y = f.yaw + Math.PI; scene.add(p); T.rem.push({ f, p, c, y0: f.yaw });
+      }
       snd('ult', G.player.pos, .5);
       showBanner('PORTAL DEL MULTIVERSO', MAPS[to].col, 'Viajando a ' + MAPS[to].short);
       return true;
@@ -133,6 +138,10 @@
           const cc = Math.random() < .3 ? '#ffffff' : '#' + pal(T.to, 1 + (Math.random() < .5 ? 1 : 0)).getHexString();
           emit(p.x, p.y, p.z, (e.c.x - p.x) * 1.8 + (e.c.z - p.z) * .8, (e.c.y - p.y) * 1.8, (e.c.z - p.z) * 1.8 - (e.c.x - p.x) * .8, cc, rand(.07, .17), .6, 0, 1);
         }
+      }
+      for (const e of T.rem) {   // visual de los demás: su posición la manda su propio juego; aquí solo se dibuja su portal y se encoge
+        const t = T.t, open = easeBack(t / .7) * (t > 2.1 ? clamp(1 - (t - 2.1) / .3, 0, 1) : 1); portalTick(e.p, dt, open);
+        if (e.f.model && t > .5) { const k = Math.pow(clamp((t - .5) / 1.6, 0, 1), 2), m = e.f.model.root; m.scale.setScalar(Math.max(.05, 1 - k * .94)); m.rotation.z = t * 7 * (1 + k * 3); }
       }
       warp(clamp((T.t - 1.1) / 1.3, 0, 1) * .8);
       PS.update(dt);
@@ -176,6 +185,7 @@
     function startTunnel() {
       T.phase = 'tunnel'; T.t = 0; flash(420, '#' + pal(T.to, 2).getHexString()); warp(0);
       for (const e of T.list) { killPortal(e.p); e.p = null; resetModel(e.f); }
+      for (const e of T.rem) { killPortal(e.p); if (e.f.model) resetModel(e.f); } T.rem = [];
       const P = G.player; T.saved = { pos: P.pos.clone(), yaw: P.yaw };
       P.pos.set(0, 3000, 0); P.yaw = 0; P.prevYaw = 0; P.vel.set(0, 0, 0); P.ragdoll = 999; P.onGround = false; P.rdPose = 0; P.rdDir = 1; P.getupT = 0;
       stageEnter(P);
@@ -227,7 +237,7 @@
 
     // ---------- cambio de mapa (detrás de la pantalla de viaje) ----------
     function doSwap() {
-      T.swapped = true; setMapNow(T.to);
+      T.swapped = true; setMapNow(T.to); S.lastChange = performance.now();
       atmosphereCommand({ mode: 'auto', hour: MAPS[T.to].hour, cycle: true });
       R.ev = null; R.evT = 55 + Math.random() * 40;
       const taken = [], free = spawnsNow().filter(p => groundAt(p.x, p.z) <= .1); T.spawns = new Map();
@@ -288,6 +298,7 @@
       showBanner(MAPS[MAPCUR.id].short, MAPS[MAPCUR.id].col, MAPS[MAPCUR.id].sub); addFeedText('Mapa nuevo: ' + MAPS[MAPCUR.id].name, MAPS[MAPCUR.id].col);
     }
     function abort() {
+      for (const e of T.rem) { killPortal(e.p); if (e.f.model) resetModel(e.f); } T.rem = [];
       if (STAGE.on) stageExit(); STAGE.skyMat.visible = true; if (STAGE.floorMat) STAGE.floorMat.visible = true; STAGE.rings.concat(STAGE.halos).forEach(m => { m.visible = true; });
       if (T.fx) { STAGE.scene.remove(T.fx); T.fx = null; } killPortal(T.exitP); T.exitP = null; clearExtras();
       for (const e of T.list) { killPortal(e.p); if (e.f.model) resetModel(e.f); }
@@ -311,6 +322,7 @@
           { id: 'festival', n: 'Festival de farolillos', m: 'Cae la noche y miles de farolillos suben al cielo.', col: '#ffd35c', dur: 55, on() { atmosphereCommand({ hour: 20.2, cycle: false }); }, tick: lanterns, off: back }]
     };
     function eventsTick(dt) {
+      if (G.mp && !amCoord()) { if (R.ev) { R.ev.t -= dt; if (R.ev.e.tick) R.ev.e.tick(dt); } return; }   // en sala los eventos los lleva el coordinador
       if (R.ev) { R.ev.t -= dt; if (R.ev.e.tick) R.ev.e.tick(dt); if (R.ev.t <= 0) { R.ev.e.off(); addFeedText(R.ev.e.n + ' terminó', '#9fd3ff'); R.ev = null; R.evT = 80 + Math.random() * 70; } return; }
       R.evT -= dt; if (R.evT > 0) return;
       const list = EVTS[MAPCUR.id] || [], e = pick(list); if (!e) { R.evT = 90; return; }
@@ -332,16 +344,54 @@
         if (T.phase === 'absorb') absorbTick(dt); else if (T.phase === 'tunnel') tunnelTick(dt); else if (T.phase === 'arrive') arriveTick(dt);
         return;
       }
-      if (G.paused || G.over || G.mp || G.cine) { updateChip(0); return; }
+      if (G.paused || G.over || G.cine) { updateChip(0); return; }
+      const coord = !G.mp || amCoord();
+      if (G.mp) {   // el que pasa a ser coordinador sigue el reloj que llevaba el anterior
+        if (coord && !S.wasCoord) { S.wasCoord = true; if (S.last) R.t = EVERY - (+S.last.i || 0) / 1000; S.seq = Math.max(S.seq, S.doneSeq); } else if (!coord) S.wasCoord = false;
+      }
+      if (!coord) { R.t += dt; eventsTick(dt); updateChip(dt); return; }   // los demás esperan las órdenes del coordinador (netIn)
       if (!R.off) R.t += dt; eventsTick(dt); updateChip(dt);
       const rem = EVERY - R.t, sec = Math.ceil(rem);
       if (!R.off && rem <= 10 && sec !== R.warned && sec > 0) { R.warned = sec; if (sec === 10) showBanner('PORTAL EN 10 s', MAPS[MAPCUR.id].col, 'El mapa está a punto de cambiar'); else snd('chime', G.player && G.player.pos, .35); }
-      if (!R.off && R.t >= EVERY && G.player && G.player.alive) begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]);
+      if (!R.off && R.t >= EVERY && G.player && G.player.alive) { if (G.mp) S.seq++; begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]); }
     }
-    function reset() { if (TRAVEL.on) abort(); R.t = 0; R.warned = -1; R.ev = null; R.evT = 70; }
+    function reset() { if (TRAVEL.on) abort(); R.t = 0; R.warned = -1; R.ev = null; R.evT = 70; S.doneSeq = 0; S.last = null; S.wasCoord = false; }
+    // ---------- sala: lo que el coordinador manda y lo que los demás reciben ----------
+    const nextOf = id => ORDER[(ORDER.indexOf(id) + 1) % ORDER.length];
+    function netOut() {
+      if (!G.mp || !amCoord()) return {};
+      const o = { ms: { s: S.seq, c: TRAVEL.on ? T.to : MAPCUR.id, t: TRAVEL.on ? T.to : nextOf(MAPCUR.id), i: TRAVEL.on ? 0 : Math.max(0, Math.round((EVERY - R.t) * 1000)), p: R.off ? 1 : 0 } };
+      if (R.ev) o.ev = { id: R.ev.e.id, l: Math.round(R.ev.t) };
+      const se = []; for (const k in SEA.ev) if (SEA.ev[k] > 0 && k !== 'squid') se.push(k); if (se.length) o.se = se;
+      return o;
+    }
+    function adopt(id) {   // recién entrado a una sala: se pone en el mapa de la sala sin animación
+      if (!G.player || G.state !== 'play') return false;
+      setMapNow(id); S.lastChange = performance.now(); respawn(G.player); G.player.iframes = 2; return true;
+    }
+    function syncEvents(ev, se) {
+      if (ev && ev.id) {
+        if (!R.ev || R.ev.e.id !== ev.id) { const e = (EVTS[MAPCUR.id] || []).find(q => q.id === ev.id); if (e) { if (R.ev) R.ev.e.off(); R.ev = { e, t: +ev.l || 30 }; e.on(); showBanner(e.n.toUpperCase(), e.col, e.m); addFeedText(e.m, e.col); } }
+        else R.ev.t = +ev.l || R.ev.t;
+      } else if (R.ev) { R.ev.e.off(); R.ev = null; }
+      if (Array.isArray(se)) for (const k of se) if (typeof k === 'string' && SEA_EVENTS[k] && k !== 'squid' && !(SEA.ev[k] > 0)) { try { triggerSeaEvent(k); } catch (e) { } }   // eventos del mar del coordinador
+    }
+    function netIn(peers) {
+      if (!G.mp || !worldBig()) return;
+      if (amCoord()) { S.last = null; return; }
+      let ms = null, ev = null, se = null, best = -1;
+      for (const pe of peers) { if (pe.sameTab) continue; const pr = pe.presence; if (pr && pr.ms && typeof pr.ms === 'object') { const ts = +pr.ts || 0; if (!ms || ts > best) { ms = pr.ms; ev = pr.ev; se = pr.se; best = ts; } } }
+      S.last = ms; if (!ms || !ORDER.includes(ms.c) || !ORDER.includes(ms.t) || G.state !== 'play') return;
+      R.off = !!ms.p;
+      if (!S.doneSeq) { if (MAPCUR.id === ms.c || adopt(ms.c)) { S.doneSeq = ms.s; S.seq = ms.s; } }
+      else if (ms.s > S.doneSeq) { S.doneSeq = ms.s; S.seq = ms.s; if (!TRAVEL.on && MAPCUR.id !== ms.t) begin(ms.t); }
+      else if (!TRAVEL.on && ms.c !== MAPCUR.id && performance.now() - S.lastChange > 15000 && ms.i > 2000) begin(ms.c);   // se quedó en otro mapa: se pone al día
+      if (!TRAVEL.on) R.t = EVERY - (+ms.i || 0) / 1000;
+      syncEvents(ev, se);
+    }
     window.CF_A_MAPAS = null;
-    A.MAPAS = { tick, cam(dt) { if (T.phase === 'tunnel') tunnelCam(dt); camFx(dt); }, reset, begin, every(s) { EVERY = Math.max(20, +s || 300); R.t = 0; }, pause(v) { R.off = v == null ? !R.off : !!v; return R.off; }, ids: ORDER,
-      next() { return begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]); }, state: () => ({ phase: T.phase, t: T.t, map: MAPCUR.id, left: EVERY - R.t, paused: R.off, every: EVERY }) };
+    A.MAPAS = { netOut, netIn, inTunnel: () => T.phase === 'tunnel', tick, cam(dt) { if (T.phase === 'tunnel') tunnelCam(dt); camFx(dt); }, reset, begin(id) { if (G.mp) { if (!amCoord()) return false; S.seq++; } return begin(id); }, every(s) { EVERY = Math.max(20, +s || 300); R.t = 0; }, pause(v) { R.off = v == null ? !R.off : !!v; return R.off; }, ids: ORDER,
+      next() { return this.begin(ORDER[(ORDER.indexOf(MAPCUR.id) + 1) % ORDER.length]); }, state: () => ({ phase: T.phase, t: T.t, map: MAPCUR.id, left: EVERY - R.t, paused: R.off, every: EVERY }) };
     window.CF_A_MAPAS = A.MAPAS;   // la consola del owner (js/owner.js) lo usa para lanzar el portal
   }
 });

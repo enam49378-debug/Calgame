@@ -4405,7 +4405,7 @@ class Fighter {
   }
   dispose() { this._disposed = true; clearSkillObjs(this); stopCharacterVoice(this); releaseOwnerSpear(this); disposeMount(this); endAction(this); if (this.verity) { disposeVerity(this.verity); this.verity = null; } if (this.clippy) { disposeClippy(this.clippy); this.clippy = null; } if (this.wheel) { scene.remove(this.wheel.mesh); this.wheel.mesh.geometry.dispose(); this.wheel.mat.dispose(); this.wheel.tex.dispose(); this.wheel = null; } if (this.auraMat) this.auraMat.dispose(); disposeModel(this.model); if (this.plate) this.plate.remove(); }
 }
-const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive && (g.isBoss ? !!f.abyss : f.isBoss ? !!g.abyss : (!!f.abyss === !!g.abyss) && !(f.abyss && g.abyss)));   // en el abismo los jugadores son aliados: sin PVP   // el abismo y el mar son mundos aparte
+const enemiesOf = f => G.fighters.filter(g => g !== f && g.alive && !g.otherMap && (!f.otherMap) && (g.isBoss ? !!f.abyss : f.isBoss ? !!g.abyss : (!!f.abyss === !!g.abyss) && !(f.abyss && g.abyss)));   // en el abismo los jugadores son aliados: sin PVP   // el abismo y el mar son mundos aparte
 const chestOf = f => new V3(f.pos.x, f.pos.y + 1.1, f.pos.z);
 function front(f, d, h = 1) { const F = fwd(f.yaw); return new V3(f.pos.x + F.x * d, f.pos.y + h, f.pos.z + F.z * d); }
 const involvesPlayerNear = f => G.player && G.player.alive && f.pos.distanceTo(G.player.pos) < 25;
@@ -5605,7 +5605,7 @@ function doM1(f, upVariant) {
   if (f.comboTimer <= 0) f.comboIdx = 0;
   const i = f.comboIdx, fin = i === 3;
   f.comboIdx = fin ? 0 : i + 1; f.comboTimer = 1.1; f.m1cd = fin ? .9 : .29; f.atkT = 0;
-  if (f.isPlayer && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0 });
+  if ((f.isPlayer || f.roomBot) && G.mp) netAct({ k: 'm', i, u: upVariant ? 1 : 0 }, f);
   sfx('swing', f.pos, .6); javiSpeak(f, 'ev_m1_' + (i + 1));
   const unarmed = ownsMissingSpear(f), set = unarmed ? null : f.ch.m1set;
   const def = set ? set[fin ? (upVariant ? 4 : 3) : i] : fin ? (upVariant ? { anim: [[0, 'upper_w', 800], [.08, 'upper', 1100]], arc: { tilt: 1.57, r: 1.6, len: 2.4 } } : { anim: [[0, 'kick_w', 800], [.08, 'kick', 1100]], arc: { tilt: -.45, r: 1.95, w: .75, len: 2.8, dir: -1 } }) : M1[i];
@@ -7663,7 +7663,7 @@ function useSkill(f, i) {
   const ok = MOVES[s.k](f, Object.assign({ color: f.ch.color, slot: i }, s.o));
   if (ok !== false) { try { skillSound(f, s); } catch (e) { } }   // sonidos propios de la habilidad (personajes/<id>/Skills/Sound/<Habilidad>/)
   if (ok !== false) { javiSpeak(f, 'hab_' + (SKILL_VOICE[s.k] || s.k.toLowerCase())); javiSpeak(f, 'ev_skill_' + (i + 1)); }   // voz propia de esa habilidad (si el personaje la tiene)
-  if (ok !== false && f.isPlayer && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0, x: ownsMissingSpear(f) ? 1 : 0 });   // las coreografías mandan su propio aviso ('c') al agarrar
+  if (ok !== false && (f.isPlayer || f.roomBot) && G.mp && s.k !== 'chore') netAct({ k: 's', i, w: f.awak > 0 ? 1 : 0, x: ownsMissingSpear(f) ? 1 : 0 }, f);   // las coreografías mandan su propio aviso ('c') al agarrar
   f.cd[i] = ok === false ? .4 : s.cd;
   if (ok !== false && f.isPlayer) { const el = $('skills').children[i]; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
   if (ok === false && f.isPlayer) popText(chestOf(f), 'Sin objetivo', '#aab', 15);
@@ -7681,7 +7681,7 @@ function useUlt(f) {
 // el despertar no es un ataque: termina la animación y las habilidades cambian por un tiempo
 function runUlt(f) {
   javiActivateVoice(f);
-  if (f.isPlayer && G.mp) netAct({ k: 'u' });
+  if ((f.isPlayer || f.roomBot) && G.mp) netAct({ k: 'u' }, f);
   f.awak = AWAKE_DUR; f.ult = 0; f.cd = [0, 0, 0, 0]; f.iframes = Math.max(f.iframes, .6);
   if (f.hp < f.maxHp) { f.hp = f.maxHp; popText(chestOf(f), '¡VIDA AL MÁXIMO!', '#7dff6a', 22); burst(chestOf(f), 24, '#7dff6a', 6, .2, .6, .4); }   // despertar: se cura del todo
   comicPop(chestOf(f), '¡DESPERTAR!', 'burst-purple', 38, -6); G.linesI = 1;
@@ -8707,7 +8707,7 @@ function updateSeaLife(dt, t, cp) {
   const L = SEA.life; if (!L) return;
   // temporizador de eventos y cuenta atras de los activos
   for (const k in SEA.ev) if (SEA.ev[k] > 0) SEA.ev[k] = Math.max(0, SEA.ev[k] - dt);
-  if (SEA.eventsAuto && G.state === 'play' && !(worldBig() && MAPCUR.id !== 'A')) { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && (krakenBlocked() || (window.CF_ABISMO && CF_ABISMO.sim)))); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
+  if (SEA.eventsAuto && G.state === 'play' && !(worldBig() && MAPCUR.id !== 'A') && (!G.mp || amCoord())) { SEA.evTimer -= dt; if (SEA.evTimer <= 0) { SEA.evTimer = rand(300, 540); const free = Object.keys(SEA_EVENTS).filter(k => !(SEA.ev[k] > 0) && !(k === 'squid' && (krakenBlocked() || (window.CF_ABISMO && CF_ABISMO.sim)))); if (free.length) triggerSeaEvent(free[Math.random() * free.length | 0]); } }
   const glow = SEA.ev.glow > 0 ? 1 + .8 * Math.min(1, SEA.ev.glow / 4, (SEA_EVENTS.glow.dur - SEA.ev.glow) / 3 + .2) : 1;
   const near = (x, z, R) => (x - cp.x) * (x - cp.x) + (z - cp.z) * (z - cp.z) < R * R;
   for (const a of L.mantas) {
@@ -10700,7 +10700,7 @@ const CF_A = (() => {
     get MAPED() { return MAPED; },
     get SPAWN_POINTS() { return SPAWN_POINTS; },
     get MAPS() { return MAPS; }, get MAPCUR() { return MAPCUR; }, get TRAVEL() { return TRAVEL; }, get LAKES() { return LAKES; },
-    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction, addOutlineOffset, fighterToonMaterial,
+    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction, addOutlineOffset, fighterToonMaterial, amCoord,
     cityGrassAt,
     get ROOM_ATMOSPHERE() { return ROOM_ATMOSPHERE; },
     get WX() { return WX; },
@@ -12084,7 +12084,10 @@ const _tp = new V3();
 // cada acción (habilidad, golpe básico, ulti...) lleva un número de secuencia y una clave de sesión. Se reenvían las de los últimos 1.6 s en cada paquete:
 // si un paquete se pierde o dos acciones caen en el mismo instante, el otro jugador igual las recibe (antes solo viajaba la última)
 NET.sess = Math.random().toString(36).slice(2, 8); NET.acts = [];
-function netAct(a) { if (G.guide) return; a.s = ++NET.actSeq; a.ss = NET.sess; a.t = Date.now(); NET.act = a; NET.acts.push(a); if (NET.acts.length > 10) NET.acts.shift(); }
+function netAct(a, f) {
+  if (G.guide) return;
+  if (f && f.roomBot) { const B = f.netActO || (f.netActO = { seq: 0, act: null, acts: [] }); a.s = ++B.seq; a.ss = NET.sess + f.netId; a.t = Date.now(); B.act = a; B.acts.push(a); if (B.acts.length > 10) B.acts.shift(); return; }   // acción de un bot: viaja con el bot
+  a.s = ++NET.actSeq; a.ss = NET.sess; a.t = Date.now(); NET.act = a; NET.acts.push(a); if (NET.acts.length > 10) NET.acts.shift(); }
 async function netInit() {
   // en claude.ai: sala del artifact; en cualquier otra web: conexión directa entre navegadores (PeerJS)
   try { if (window.claude && window.claude.use) NET.room = await window.claude.use('room'); } catch (e) { NET.room = null; }
@@ -14554,12 +14557,18 @@ function netSendPlay() {
   if (!NET.named || !G.player) return;
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
-  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, rc: NET.rcOut || undefined, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit(), abx: window.CF_ABISMO && CF_ABISMO.netOut ? CF_ABISMO.netOut() : undefined })).catch(() => { });
-  if (NET.named.pubAs) for (const d of dummies().concat(roomBots())) if (d.netId) { if (d.roomBot) d.netHits = d.netHits.filter(h => now - h.t < 2500); NET.named.pubAs(d.netId, Object.assign(presenceOf(d, d.roomBot ? d.ch.id : 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: d.roomBot ? d.netHits.map(({ t, ...h }) => h) : [], bot: d.roomBot ? 1 : 0 })); }
+  NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, rc: NET.rcOut || undefined, ...(CF_A.MAPAS ? CF_A.MAPAS.netOut() : {}), k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit(), abx: window.CF_ABISMO && CF_ABISMO.netOut ? CF_ABISMO.netOut() : undefined })).catch(() => { });
+  NET.botFlip = !NET.botFlip;
+  if (NET.named.pubAs) for (const d of dummies().concat(roomBots())) if (d.netId) {
+    if (d.roomBot && !NET.authOn && NET.botFlip) continue;   // sin servidor propio los bots se publican a la mitad de frecuencia
+    if (d.roomBot) d.netHits = d.netHits.filter(h => now - h.t < 2500);
+    const BA = d.roomBot && d.netActO ? d.netActO : null;
+    NET.named.pubAs(d.netId, Object.assign(presenceOf(d, d.roomBot ? d.ch.id : 'dummy'), { k: 0, d: 0, act: BA ? BA.act : (d.netAct || null), acts: BA ? (BA.acts = BA.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r) : undefined, hits: d.roomBot ? d.netHits.map(({ t, ...h }) => h) : [], bot: d.roomBot ? 1 : 0 }));
+  }
 }
 function presenceOf(f, ch) {
   return {
-    v: 1, cos: f.isPlayer && window.CF_COS ? CF_COS.equippedIds() : undefined, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
+    v: 1, mp: MAPCUR.id, tr: CF_A.MAPAS && CF_A.MAPAS.inTunnel() ? 1 : 0, cos: f.isPlayer && window.CF_COS ? CF_COS.equippedIds() : undefined, ts: Math.round(performance.now()), st: 'play', nm: f.name, ch, uid: f.isPlayer && ACCT.user?.uid ? ACCT.user.uid : undefined, x: r2(f.pos.x), y: r2(f.pos.y), z: r2(f.pos.z), yw: r2(f.yaw), ry: r2(wrapA(f.model.root.rotation.y)),
     j: JOINTS.map(k => r2(f.anim.x[k])), hp: Math.max(0, Math.round(f.hp)), mh: f.maxHp, al: f.alive ? 1 : 0, aw: f.awak > 0 ? 1 : 0,
     dx: f.isPlayer && NET.destOut ? NET.destOut.filter(e => G.time - e.t < 2.5) : undefined, vc: characterVoicePresence(f), jf: spearReceiptList(f), sd: serializeLostSpear(f), sr: f.spearRecoveryUntil>G.time ? f.spearRecovery : null,
     wxSafe: f.iframes>0||!!f.cineLock||!!f.choreTrack?1:0, ab: f.abyss ? 1 : 0, rft:r2(f.rFlightT||0), sp: f.spearOut ? 1 : 0, sv: f.spearThrown ? 0 : 1, tw: r2(f.twA || 0), rg: f.ragdoll > 0 ? 1 : 0, bl: f.blocking ? 1 : 0, pg: f.isPlayer && NET.named ? (NET.named.isHost ? 1 : Math.round(+NET.named.ping || 0)) : undefined,
@@ -14606,7 +14615,7 @@ function netAuth(m) {
   }
 }
 function applyNetHit(px, h, p = G.player) {
-  if (!p || !p.alive || VB.on) return;
+  if (!p || !p.alive || VB.on || px.otherMap) return;
   { const ck = cheatOf(px), now = performance.now();
     if (ck.mute > now || !px.alive) return;
     if (px.pos.distanceTo(p.pos) > 70) { cheatStrike(px, 'golpes desde muy lejos'); return; }
@@ -14714,7 +14723,7 @@ function proxyUpdate(px, dt) {
   if (m.gripRot && isFinite(+pr.tw)) m.gripRot.rotation.x += +pr.tw;
   m.root.position.copy(px.pos);
   m.root.rotation.y = st ? st.ry : (isFinite(+pr.ry) ? angLerp(m.root.rotation.y, +pr.ry, Math.min(1, dt * 14)) : px.yaw);
-  m.root.visible = px.alive;
+  m.root.visible = px.alive && !px.otherMap;
   if (px.spear) { const out = !!pr.sp; if (out !== px.spearOut) setSpear(px, out); px.spear.visible = !!pr.sv && !ownsMissingSpear(px); }
   px.flashT -= dt;
   px.rFlightT=clamp(+pr.rft||0,0,6);
@@ -14771,6 +14780,8 @@ function netTick(dt) {
       if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); if (!/-b\d+$/.test(pe.peer)) addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
+    { const pm = ['A', 'J', 'B'].includes(pr.mp) ? pr.mp : 'A'; if (px.mapId !== pm) { px.mapId = pm; px.cheat = null; px.netBuf = null; px.netOff = null; }   // cambió de mapa: se reinician sus datos de red (no es un teletransporte)
+      px.otherMap = pm !== MAPCUR.id || !!pr.tr; }
     if (pr.abx && window.CF_ABISMO && CF_ABISMO.netIn) { px.abyss = !!pr.ab; CF_ABISMO.netIn(px, pr.abx); }
     receiveCharacterVoice(px,pr);
     synchronizeSpearDrops(px,pr);
@@ -14794,6 +14805,7 @@ function netTick(dt) {
  G.player.ult = Math.min(100, G.player.ult + 20 * ULT_GAIN); showBanner('K.O.', '#d7ff2f', `${px.name} fuera`); G.slowT = .3; sfx('ko', px.pos); }
     }
   }
+  if (CF_A.MAPAS) CF_A.MAPAS.netIn(peers);
   for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); if (!/-b\d+$/.test(peer)) addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
@@ -14888,13 +14900,15 @@ function spawnRoomBot() {
 }
 let roomBotT = 0;
 function roomBotsSync(dt) {
-  const on = G.mp && NET.named && NET.cfg && NET.cfg.bots && (NET.authOn ? NET.botHost : (NET.room === 'relay' && amHost())) && NET.named.pubAs && NET.named.dropAs && G.state === 'play' && G.player;
+  const on = G.mp && NET.named && NET.cfg && NET.cfg.bots && amCoord() && NET.named.pubAs && NET.named.dropAs && G.state === 'play' && G.player;
   if (!on) { for (const b of roomBots()) dropRoomBot(b); return; }
   roomBotT -= dt; if (roomBotT > 0) return; roomBotT = 1;
   const humans = 1 + [...NET.proxies.keys()].filter(id => !/-[db]\d+$/.test(id)).length, want = clamp((NET.cfg.max || 10) - humans, 0, 9), have = roomBots();
   for (let i = have.length; i < want; i++) spawnRoomBot();
   for (let i = have.length - 1; i >= want; i--) dropRoomBot(have[i]);
 }
+// coordinador de la sala: simula los bots, lleva el reloj de mapas y los eventos (con servidor lo elige él; sin servidor, el que lleva más tiempo dentro)
+function amCoord() { if (!G.mp || !NET.named) return false; if (NET.authOn) return !!NET.botHost; return NET.room === 'relay' && amHost(); }
 function amHost() {
   if (!G.mp) return true;
   if (NET.authOn && NET.srvHost != null) return NET.srvHost && !NET.public;   // con servidor él decide: en las públicas nadie es anfitrión
