@@ -860,3 +860,10 @@ body:has(#menu:not(.hidden)) #friendsbtn{display:none}
 /* inicio con color e iluminación mejorados (vista privada) */
 #tgrade{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;background:linear-gradient(180deg,rgba(70,120,255,.42) 0%,rgba(255,170,90,0) 46%,rgba(255,120,40,.55) 100%)}
 #tgrade::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,transparent 42%,rgba(25,8,45,.6) 100%);mix-blend-mode:multiply}
+
+/* entrar a una sala con código */
+.tm-codebar{display:flex;gap:8px}.tm-codebar input{flex:1;min-width:0;background:#05060c;border:2px solid #ffffff2e;color:#fff;font:700 16px var(--body,'Chakra Petch',sans-serif);padding:10px 12px;outline:none}.tm-codebar input:focus{border-color:#ffd400}.tm-codebar .tm-go{padding:9px 18px;font-size:16px}
+.tm-card{background:#171a2a;border-left:6px solid #ffd400;padding:14px 16px;display:flex;flex-direction:column;gap:6px}.tm-card.hidden{display:none}
+.tm-card h3{margin:0;font:italic 900 22px/1.1 var(--display,'Chakra Petch',sans-serif);color:#fff;letter-spacing:.04em}.tm-card h3 small{display:block;font:600 12px var(--body,'Chakra Petch',sans-serif);letter-spacing:.14em;color:#ffd400;margin-bottom:3px;font-style:normal}
+.tm-card .it{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#aab0cc;border-top:1px solid #ffffff14;padding-top:6px}.tm-card .it b{color:#fff}
+.tm-card.no{border-left-color:#ff5a5a}

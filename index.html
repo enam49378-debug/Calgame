@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Chakra+Petch:wght@400;600;700&display=swap">
 
 <!-- Estilos modulares del juego -->
-<link rel="stylesheet" href="css/style.css?v=7.2">
+<link rel="stylesheet" href="css/style.css?v=7.3">
 <link rel="stylesheet" href="css/mobile.css?v=6.8">
 <link rel="stylesheet" href="css/cuentas.css?v=2">
 <link rel="stylesheet" href="css/perfil.css?v=2">
@@ -202,6 +202,7 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
       <div id="tm-home" class="tm-view">
         <button type="button" class="tm-big" id="tm-solo"><b>JUGAR SOLO</b><small>Peleá contra bots</small></button>
         <button type="button" class="tm-big" id="tm-pub"><b>SALAS PÚBLICAS</b><small>Entrá a una sala con más gente</small></button>
+        <button type="button" class="tm-big cf-beta-only" id="tm-join"><b>ENTRAR CON CÓDIGO</b><small>Escribe el código de una sala y mira quién la creó antes de entrar</small></button>
         <button type="button" class="tm-big" id="tm-new"><b>CREAR SALA</b><small>Privada con tus amigos o pública para todos</small></button>
       </div>
       <div id="tm-solo-v" class="tm-view hidden">
@@ -214,7 +215,13 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
       <div id="tm-create-v" class="tm-view hidden">
         <div class="tm-field"><label for="tm-code">Código de la sala</label><input id="tm-code" type="text" maxlength="24" autocomplete="off" spellcheck="false"></div>
         <div class="tm-seg" id="tm-vis"><button type="button" class="on" data-vis="private"><b>PRIVADA</b><small>Solo entra quien tenga el código o el link. Tú controlas las reglas</small></button><button type="button" data-vis="public"><b>PÚBLICA</b><small>Aparece en Salas públicas para todos. Nadie la controla, ni tú: solo la abres</small></button></div>
+        <div class="tm-seg cf-beta-only" id="tm-bots"><button type="button" class="on" data-bots="1"><b>CON BOTS</b><small>Hasta 10 en la sala: los bots llenan los lugares libres y se van cuando entra gente. No suman K.O.</small></button><button type="button" data-bots="0"><b>SIN BOTS</b><small>Solo jugadores (máximo 10)</small></button></div>
         <div class="tm-row"><button type="button" class="tm-sec" data-tmback>← Volver</button><button type="button" class="tm-go" id="tm-create-go">CREAR SALA</button></div>
+      </div>
+      <div id="tm-join-v" class="tm-view hidden">
+        <div class="tm-field"><label for="tm-jcode">Código de la sala</label><div class="tm-codebar"><input id="tm-jcode" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="por ejemplo: amigos-k3x9"><button type="button" class="tm-go" id="tm-jfind">BUSCAR</button></div></div>
+        <div id="tm-jcard" class="tm-card hidden"></div>
+        <div class="tm-row"><button type="button" class="tm-sec" data-tmback>← Volver</button><button type="button" class="tm-go hidden" id="tm-jgo">UNIRSE</button></div>
       </div>
       <div id="tm-public-v" class="tm-view hidden">
         <ul id="tm-list"></ul>
@@ -623,7 +630,7 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="js/capucha.js?v=5"></script>
 <script defer src="js/titulo.js?v=5"></script>
 <script defer src="js/carga_partida.js?v=1"></script>
-<script defer src="js/game.js?v=11.6"></script>
+<script defer src="js/game.js?v=11.8"></script>
 
 </body>
 </html>

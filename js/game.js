@@ -1631,7 +1631,7 @@ function atmosphereLeader(){
   if(!G.mp||!NET.named)return null;
   if(NET.named.environment&&NET.named.environmentHost)return NET.named.environmentHost;
   const me=NET.named.myId||NET.myPeer;
-  const peers=NET.named.peers().filter(p=>p.presence&&p.presence.st==='play'&&p.presence.ch!=='dummy'&&!(String(p.peer).includes('-d')));
+  const peers=NET.named.peers().filter(p=>p.presence&&p.presence.st==='play'&&p.presence.ch!=='dummy'&&!(String(p.peer).includes('-d'))&&!/-b\d+$/.test(String(p.peer)));
   if(!peers.some(p=>p.peer===me)&&G.state==='play')peers.push({peer:me,presence:{jt:NET.joinT}});
   peers.sort((a,b)=>(a.presence.jt||Infinity)-(b.presence.jt||Infinity)||String(a.peer).localeCompare(String(b.peer)));
   return peers[0]?.peer||me;
@@ -5249,8 +5249,9 @@ function netHit(att, t, o) {
   let dir = o.dir ? o.dir.clone() : new V3(t.pos.x - att.pos.x, 0, t.pos.z - att.pos.z);
   dir.y = 0; if (dir.lengthSq() < 1e-4) dir = fwd(att.yaw); dir.normalize();
   const dmg = o.dmg * (att.awak > 0 ? 1.15 : 1) * (att.ch.dmgMul || 1) * DMG_GLOBAL * (att.isPlayer ? G.rules.dmg : 1), col = o.color || att.ch.color, heavy = (o.ragdoll || 0) > 0 || o.dmg >= 8;
-  NET.hitsOut.push({ s: ++NET.hitSeq, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col, sf: o.spearFinish || null });
-  while (NET.hitsOut.length > 10) NET.hitsOut.shift();
+  const nhit = { s: 0, t: performance.now(), to: t.peer, dm: Math.round(dmg * 10) / 10, kb: o.kb || 0, up: o.up || 0, rg: o.ragdoll || 0, st: o.stun || 0, gb: o.guardBreak ? 1 : 0, fz: o.freeze || 0, dx: r2(dir.x), dz: r2(dir.z), c: col, sf: o.spearFinish || null };
+  if (att.roomBot) { nhit.s = ++att.netSeq; att.netHits.push(nhit); while (att.netHits.length > 10) att.netHits.shift(); }   // bot de la sala: el golpe sale con el id del bot
+  else { nhit.s = ++NET.hitSeq; NET.hitsOut.push(nhit); while (NET.hitsOut.length > 10) NET.hitsOut.shift(); }
   att.ult = Math.min(100, att.ult + dmg * ULT_GAIN); t.flashT = .12;
   if(t.hp>dmg&&t.hp<t.maxHp*.22&&!t.net?.wxSafe)javiSpeak(att,'near');
   const chest = chestOf(t);
@@ -5494,12 +5495,12 @@ function kill(v, k) {
   if (v.capRandi) { capEnd(v); return; }   // Capitán Perú cae y ElRandi con él
   if (k && k !== v && k.ch && (k.ch.id === 'randi' || k.capRandi) && G.time - (k.voiceT || -9) > 3) { k.voiceT = G.time; playSnd('randi_voz2', 1.5, k.pos); }   // mató a alguien
   if (k && k !== v && k.capRandi) k.capT = Math.min(45, k.capT + 10);   // matar le suma tiempo a Capitán Perú
-  v.alive = false; v.hp = 0; v.respawnT = v.dummy ? 2 : 4; v.deathT = 0; v.blocking = false; v.frozen = 0; v.grabbed = false;
+  v.alive = false; v.hp = 0; v.respawnT = v.dummy ? 2 : v.roomBot ? 3 : 4; v.deathT = 0; v.blocking = false; v.frozen = 0; v.grabbed = false;
   endAction(v); v.ragdoll = 3; v.deaths++;
   if (v.isPlayer && typeof SESSION_STATS !== 'undefined') SESSION_STATS.deaths = v.deaths;
   javiSpeak(v,'death');if(k&&k!==v)javiSpeak(k,'kill');
   sfx('ko', v.pos);
-  if (v.dummy) { if (k && k.isPlayer) popText(chestOf(v), 'K.O.', '#d7ff2f', 26); return; }
+  if (v.dummy || v.roomBot) { if (k && k.isPlayer) popText(chestOf(v), 'K.O.', '#d7ff2f', 26); return; }   // dummies y bots de sala: sin bajas ni mensaje de baja
   if (k && k !== v) {
     k.kills++;
     if (k.isPlayer) { statsKill(); if (typeof SESSION_STATS !== 'undefined') SESSION_STATS.kills = k.kills; }
@@ -12077,7 +12078,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
+const NET = { room: null, named: null, code: '', ready: false, skins: {}, known: new Set(), joinT: 0, dummySeq: 0, botSeq: 0, cfg: null, botHost: false, roomOpts: null, myPeer: null, proxies: new Map(), hitSeq: 0, hitsOut: [], actSeq: 0, act: null, ko: null, lastHit: {}, lastAct: {}, lastKo: {}, sendT: 0 };
 const r2 = v => Math.round(v * 100) / 100;
 const _tp = new V3();
 // cada acción (habilidad, golpe básico, ulti...) lleva un número de secuencia y una clave de sesión. Se reenvían las de los últimos 1.6 s en cada paquete:
@@ -14316,7 +14317,7 @@ function localRoom(code, onStatus = () => { }) {
     R.leave = () => { R.closed = true; clearInterval(R.timer); mesh.closeAll(); try { R.ws.close(); } catch (e) { } return Promise.resolve(); };
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     function connect() {
-      const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}${NET.public ? '&pub=1' : ''}`);
+      const ws = R.ws = new WebSocket(`${proto}//${location.host}/ws?room=${encodeURIComponent(code)}&id=${myId}${NET.public ? '&pub=1' : ''}${NET.roomOpts ? '&bots=' + NET.roomOpts.bots + '&max=' + NET.roomOpts.max : ''}`);
       const failTo = setTimeout(() => { if (!opened) { try { ws.close(); } catch (e) { } } }, 5000);
       ws.onopen = () => { opened = true; clearTimeout(failTo); if (R.mySkin) R.setSkin(R.mySkin); if (R.myProfile) R.setProfile(R.myProfile); if (Object.keys(R.my).length) R.presence({}); done(true, R); };
       ws.onerror = () => { };
@@ -14338,6 +14339,7 @@ function localRoom(code, onStatus = () => { }) {
         else if (m.t === 'pf' && id) receivePublicProfile(R, id, m.d, notify);
         else if (m.t === 'po') R.ping = Math.max(0, Date.now() - (+m.ts || 0));
         else if (m.t === 'au') netAuth(m);
+        else if (m.t === 'cfg') NET.cfg = { bots: !!m.bots, max: +m.max || 0 };   // opciones de la sala (con bots, máximo de gente)
         else if ((m.t === 'ab' || m.t === 'abd' || m.t === 'abe') && window.CF_ABISMO && CF_ABISMO.srvMsg) CF_ABISMO.srvMsg(m);
       };
     }
@@ -14493,7 +14495,7 @@ async function doJoin(code) {
   const st = t => { if (joinCode === code) { const s = $('netstat'); s.classList.remove('ok'); s.textContent = t; } };
   try {
     if (NET.named) { const old = NET.named; NET.named = null; try { await old.leave(); } catch (e) { } }
-    NET.authOn = false; NET.srvHost = null; NET.authLog = ''; if (window.CF_ABISMO && CF_ABISMO.setSim) CF_ABISMO.setSim(false);
+    NET.authOn = false; NET.srvHost = null; NET.authLog = ''; NET.cfg = null; NET.botHost = false; if (window.CF_ABISMO && CF_ABISMO.setSim) CF_ABISMO.setSim(false);
     st('Conectando al servidor…');
     const room = NET.room === 'relay' ? (NET.local ? await localRoom(code.slice(3), st) : await relayRoom(code.slice(3), st)) : await NET.room.join(code);
     if (joinCode !== code) { try { room.leave(); } catch (e) { } return false; }
@@ -14551,7 +14553,7 @@ function netSendPlay() {
   const p = G.player, now = performance.now();
   NET.hitsOut = NET.hitsOut.filter(h => now - h.t < 2500);
   NET.named.presence(Object.assign(presenceOf(p, faceCharId(p.ch) || G.charId), { wx: atmospherePayload(), rl: amHost() ? G.rules : undefined, jt: NET.joinT, k: p.kills, d: p.deaths, act: NET.act, acts: (NET.acts = NET.acts.filter(a => Date.now() - a.t < 1600)).map(({ t, ...r }) => r), hits: NET.hitsOut.map(({ t, ...h }) => h), ko: NET.ko, vb: vbPub(), vh: vbPubHit(), abx: window.CF_ABISMO && CF_ABISMO.netOut ? CF_ABISMO.netOut() : undefined })).catch(() => { });
-  if (NET.named.pubAs) for (const d of dummies()) if (d.netId) NET.named.pubAs(d.netId, Object.assign(presenceOf(d, 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: [] }));
+  if (NET.named.pubAs) for (const d of dummies().concat(roomBots())) if (d.netId) { if (d.roomBot) d.netHits = d.netHits.filter(h => now - h.t < 2500); NET.named.pubAs(d.netId, Object.assign(presenceOf(d, d.roomBot ? d.ch.id : 'dummy'), { k: 0, d: 0, act: d.netAct || null, hits: d.roomBot ? d.netHits.map(({ t, ...h }) => h) : [], bot: d.roomBot ? 1 : 0 })); }
 }
 function presenceOf(f, ch) {
   return {
@@ -14583,8 +14585,10 @@ function cheatStrike(px, why) {
 // El servidor es el árbitro de la sala (js/arbitro.js): decide qué golpes valen, la vida real, las muertes y las bajas.
 // Aquí el juego acepta sus correcciones. Una vida más baja que la tuya se aplica siempre; la tuya nunca se sube desde fuera.
 function netAuth(m) {
+  if (m.bh !== undefined && m.hello === undefined && m.host === undefined) { NET.botHost = !!m.bh; return; }   // solo aviso de quién simula los bots
   if (m.hello || m.host !== undefined) {
     NET.authOn = true; if (m.hello) { NET.authLog = 'activo'; if (typeof m.pub === 'boolean') NET.public = m.pub; if (window.CF_ABISMO && CF_ABISMO.setSim) CF_ABISMO.setSim(!!m.sim); }
+    if (m.bh !== undefined) NET.botHost = !!m.bh;
     if (m.host !== undefined) { NET.srvHost = !!m.host; if (m.hello === undefined && m.host) addFeedText('Ahora eres el anfitrión de la sala', '#d7ff2f'); }
     if (m.hello) return;
   }
@@ -14736,6 +14740,7 @@ function netDebug(dt) {
 }
 function netTick(dt) {
   netRulesSync();
+  roomBotsSync(dt);
   netDebug(dt);
   if (!NET.named) return;
   const peers = NET.named.peers(), seen = new Set();
@@ -14757,7 +14762,7 @@ function netTick(dt) {
       px.actSeen = new Set((Array.isArray(pr.acts) ? pr.acts : []).concat(pr.act ? [pr.act] : []).map(a => (a.ss || '') + ':' + a.s));   // lo que ya venia en curso al entrar no se repite
       NET.lastKo[pe.peer] = pr.ko ? pr.ko.n : 0;
       px.characterVoiceSeen=pr.vc?.k!=="clippy/hola"&&Number.isSafeInteger(pr.vc?.s)?pr.vc.s:0;
-      if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); addFeedText(`${px.name} entró a la arena`, px.ch.color); }
+      if (!NET.known.has(pe.peer)) { NET.known.add(pe.peer); if (!/-b\d+$/.test(pe.peer)) addFeedText(`${px.name} entró a la arena`, px.ch.color); }
     }
     px.net = pr;
     if (pr.abx && window.CF_ABISMO && CF_ABISMO.netIn) { px.abyss = !!pr.ab; CF_ABISMO.netIn(px, pr.abx); }
@@ -14765,7 +14770,7 @@ function netTick(dt) {
     synchronizeSpearDrops(px,pr);
     if (Array.isArray(pr.hits)) {
       // golpes dirigidos a mí o a uno de mis dummies
-      const mineD = {}; for (const d of dummies()) if (d.netId) mineD[d.netId] = d;
+      const mineD = {}; for (const d of dummies().concat(roomBots())) if (d.netId) mineD[d.netId] = d;
       const mine = pr.hits.filter(h => h && (h.to === NET.myPeer || mineD[h.to]) && +h.s > (NET.lastHit[pe.peer] || 0)).sort((a, b) => a.s - b.s);
       for (const h of mine) { NET.lastHit[pe.peer] = +h.s; applyNetHit(px, h, h.to === NET.myPeer ? G.player : mineD[h.to]); }
     }
@@ -14783,7 +14788,7 @@ function netTick(dt) {
  G.player.ult = Math.min(100, G.player.ult + 20 * ULT_GAIN); showBanner('K.O.', '#d7ff2f', `${px.name} fuera`); G.slowT = .3; sfx('ko', px.pos); }
     }
   }
-  for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
+  for (const peer of [...NET.proxies.keys()]) if (!seen.has(peer)) { const px = NET.proxies.get(peer); if (!/-b\d+$/.test(peer)) addFeedText(`${px.name} salió`, '#9aa0b8'); NET.known.delete(peer); removeProxy(peer); }
   for (const px of NET.proxies.values()) proxyUpdate(px, dt);
   NET.sendT -= dt;
   if (NET.sendT <= 0) { NET.sendT = NET_OLD && NET.room === 'relay' ? 1 / 15 : 1 / 25; netSendPlay(); }
@@ -14863,6 +14868,27 @@ function rulesUI(ok) {
 // En la sala con amigos solo el anfitrión (el que entró primero) los crea; los demás los ven y les pegan.
 const DUMMY_NAMES = { idle: 'Dummy quieto', attack: 'Dummy que pega', block: 'Dummy que bloquea' };
 const dummies = () => G.fighters.filter(f => f.dummy);
+// ===== Bots de sala: la sala se llena con bots hasta 10 y cada jugador que entra se lleva el lugar de un bot. Los simula quien lleva más tiempo dentro
+// (el servidor lo avisa) y viajan como cualquier otro jugador. No suman ni dan bajas. =====
+const roomBots = () => G.fighters.filter(f => f.roomBot);
+function dropRoomBot(b) { if (b.netId && NET.named && NET.named.dropAs) NET.named.dropAs(b.netId); try { ringAt(new V3(b.pos.x, b.pos.y, b.pos.z), b.ch.color, 2.4, .4); } catch (e) { } b.dispose(); const i = G.fighters.indexOf(b); if (i >= 0) G.fighters.splice(i, 1); }
+function spawnRoomBot() {
+  const ch = CHAR_IDS[Math.random() * CHAR_IDS.length | 0], ov = {};
+  if (Math.random() < .6) ov.shirt = SHIRTS[Math.random() * SHIRTS.length | 0];
+  const usados = new Set(roomBots().map(b => b.name)), libres = BOT_NAMES.map(n => ('BOT ' + n).slice(0, 16)).filter(n => !usados.has(n)), nombre = libres.length ? libres[Math.random() * libres.length | 0] : 'BOT ' + (NET.botSeq + 1);   // cada bot con un nombre distinto
+  const f = new Fighter({ name: nombre, char: ch, skinOv: ov, lvlVar: rand(-.8, .8) });
+  f.roomBot = true; f.netId = NET.named.myId + '-b' + (++NET.botSeq); f.netHits = []; f.netSeq = 0;
+  G.fighters.push(f); respawn(f); f.iframes = 0; applyAiLevels();
+}
+let roomBotT = 0;
+function roomBotsSync(dt) {
+  const on = G.mp && NET.named && NET.cfg && NET.cfg.bots && NET.botHost && NET.named.pubAs && NET.named.dropAs && G.state === 'play' && G.player;
+  if (!on) { for (const b of roomBots()) dropRoomBot(b); return; }
+  roomBotT -= dt; if (roomBotT > 0) return; roomBotT = 1;
+  const humans = 1 + [...NET.proxies.keys()].filter(id => !/-[db]\d+$/.test(id)).length, want = clamp((NET.cfg.max || 10) - humans, 0, 9), have = roomBots();
+  for (let i = have.length; i < want; i++) spawnRoomBot();
+  for (let i = have.length - 1; i >= want; i--) dropRoomBot(have[i]);
+}
 function amHost() {
   if (!G.mp) return true;
   if (NET.authOn && NET.srvHost != null) return NET.srvHost && !NET.public;   // con servidor él decide: en las públicas nadie es anfitrión
@@ -15679,11 +15705,12 @@ function pubStart() {
   PUB.pt = setInterval(put, 6000);
 }
 addEventListener('pagehide', () => { try { pubStop(); } catch (e) { } });
-const TM = { vis: 'private', busy: false };
+const TM = { vis: 'private', busy: false, bots: true, found: null };
 const tmMsg = (t, ok) => { const m = $('tm-msg'); m.textContent = t || ''; m.classList.toggle('ok', !!ok); };
 function tmView(v) {
-  for (const id of ['home', 'solo-v', 'create-v', 'public-v']) $('tm-' + (id === 'home' ? 'home' : id)).classList.toggle('hidden', id !== (v === 'home' ? 'home' : v));
-  $('tm-title').textContent = { home: 'JUGAR', 'solo-v': 'JUGAR SOLO', 'create-v': 'CREAR SALA', 'public-v': 'SALAS PÚBLICAS' }[v]; tmMsg('');
+  for (const id of ['home', 'solo-v', 'create-v', 'public-v', 'join-v']) $('tm-' + (id === 'home' ? 'home' : id)).classList.toggle('hidden', id !== (v === 'home' ? 'home' : v));
+  $('tm-title').textContent = { home: 'JUGAR', 'solo-v': 'JUGAR SOLO', 'create-v': 'CREAR SALA', 'public-v': 'SALAS PÚBLICAS', 'join-v': 'ENTRAR CON CÓDIGO' }[v]; tmMsg('');
+  if (v === 'join-v') { TM.found = null; $('tm-jcard').classList.add('hidden'); $('tm-jgo').classList.add('hidden'); $('tm-jcode').value = ''; setTimeout(() => $('tm-jcode').focus({ preventScroll: true }), 30); }
   if (v === 'solo-v') {
     $('tm-nbots').value = $('nbots').value; $('tm-lvl').value = $('lvl').value; $('tm-goal').value = $('goalsel').value; $('tm-auto').checked = $('auto').checked;
     $('tm-nbots-o').textContent = $('tm-nbots').value; $('tm-lvl-o').textContent = $('tm-lvl').value;
@@ -15697,12 +15724,30 @@ function tmGo() { tmClose(); titleLeave(); }
 async function tmEnter(code, pub, btn, creator = true) {
   if (TM.busy) return; if (!(await acctGate(pub))) return; TM.busy = true; if (btn) btn.disabled = true; tmMsg('Conectando a la sala…', true);
   $('roomcode').value = code; setMode('mp'); NET.public = pub;
+  NET.roomOpts = creator && window.CF_BETA && window.CF_BETA.on ? { bots: TM.bots ? 1 : 0, max: 10 } : null;   // al crear una sala: con o sin bots, máximo 10
   let ok = false; try { ok = await joinRoom(); } catch (e) { }
   TM.busy = false; if (btn) btn.disabled = false;
   if (!ok) { NET.public = false; tmMsg($('netstat').textContent || 'No se pudo entrar a la sala. Probá de nuevo en unos segundos.'); return; }
   if (pub && creator) pubStart(); tmGo();
 }
 const tmJoin = (code, btn) => tmEnter(code, true, btn, false);
+// entrar con código: primero se pregunta al servidor quién creó la sala y cuánta gente hay (como en Among Us), y después se entra
+async function tmFind() {
+  const code = cleanCode($('tm-jcode').value), card = $('tm-jcard'), go = $('tm-jgo'); $('tm-jcode').value = code; go.classList.add('hidden'); TM.found = null;
+  if (!code) { tmMsg('Escribe el código de la sala.'); return; }
+  const row = (a, b) => { const d = document.createElement('div'); d.className = 'it'; const x = document.createElement('span'), y = document.createElement('b'); x.textContent = a; y.textContent = b; d.append(x, y); return d; };
+  card.innerHTML = ''; card.classList.remove('hidden', 'no'); tmMsg('Buscando la sala…', true);
+  if (!NET.local) {   // sin servidor propio no se puede mirar la sala antes de entrar
+    const h = document.createElement('h3'); h.textContent = 'Sala «' + code + '»'; card.append(h, row('Información', 'solo disponible con el servidor')); TM.found = { code, pub: false }; go.classList.remove('hidden'); tmMsg(''); return;
+  }
+  let j = null; try { j = await (await fetch('/bs-info?room=' + encodeURIComponent(code), { cache: 'no-store' })).json(); } catch (e) { }
+  if (!j) { card.classList.add('hidden'); tmMsg('No se pudo preguntar al servidor. Prueba de nuevo.'); return; }
+  tmMsg('');
+  if (!j.exists) { card.classList.add('no'); const h = document.createElement('h3'); h.textContent = 'No existe esa sala'; card.append(h, row('Código', code), row('Consejo', 'revisa el código o pide el link a quien la creó')); return; }
+  const h = document.createElement('h3'), sm = document.createElement('small'); sm.textContent = j.mode === 'public' ? 'SALA PÚBLICA' : 'SALA PRIVADA'; h.append(sm, 'Sala de ' + String(j.host || 'Jugador').replace(/[<>&]/g, '').slice(0, 16));
+  card.append(h, row('Código', code), row('Jugadores', j.n + ' / ' + j.max), row('Bots', j.bots ? 'sí (' + j.nbots + ' ahora)' : 'no'), row('Estado', j.full ? 'llena' : 'con lugar libre'));
+  if (!j.full) { TM.found = { code, pub: j.mode === 'public' }; go.classList.remove('hidden'); } else tmMsg('La sala está llena.');
+}
 function tmWire() {
   $('tplay').addEventListener('click', e => { e.stopImmediatePropagation(); e.stopPropagation(); if (TITLE.on && TITLE.lt == null) tmOpen(); }, true);
   $('tm-x').addEventListener('click', tmClose);
@@ -15715,6 +15760,11 @@ function tmWire() {
     setMode('bots'); NET.public = false; tmGo();
   });
   document.querySelectorAll('#tm-vis button').forEach(b => b.addEventListener('click', () => { TM.vis = b.dataset.vis; document.querySelectorAll('#tm-vis button').forEach(x => x.classList.toggle('on', x === b)); }));
+  $('tm-join').addEventListener('click', () => tmView('join-v')); $('tm-jfind').addEventListener('click', tmFind);
+  $('tm-jcode').addEventListener('keydown', e => { if (e.key === 'Enter') { if (TM.found && !$('tm-jgo').classList.contains('hidden')) $('tm-jgo').click(); else tmFind(); } });
+  $('tm-jcode').addEventListener('input', () => { TM.found = null; $('tm-jgo').classList.add('hidden'); });
+  $('tm-jgo').addEventListener('click', () => { if (TM.found) tmEnter(TM.found.code, TM.found.pub, $('tm-jgo'), false); });
+  document.querySelectorAll('#tm-bots button').forEach(b => b.addEventListener('click', () => { TM.bots = b.dataset.bots === '1'; document.querySelectorAll('#tm-bots button').forEach(x => x.classList.toggle('on', x === b)); }));
   $('tm-create-go').addEventListener('click', () => { const code = cleanCode($('tm-code').value); $('tm-code').value = code; tmEnter(code, TM.vis === 'public', $('tm-create-go')); });
   $('tm-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('tm-create-go').click(); });
   addEventListener('keydown', e => { if (e.code === 'Escape' && !$('tmodal').classList.contains('hidden')) { e.preventDefault(); e.stopImmediatePropagation(); if (!$('tm-home').classList.contains('hidden')) tmClose(); else tmView('home'); } }, true);
