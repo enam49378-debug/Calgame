@@ -12,6 +12,11 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.10.1 · 2026-11-21 · Servidor de Oracle conectado
+- El juego en internet ya usa el servidor de salas de Oracle Cloud (São Paulo) en `https://167-234-237-155.sslip.io`. Es la dirección de `config/servidor.js`.
+- Si la IP pública de la máquina cambia (por ejemplo, al apagarla y encenderla), hay que actualizar esa dirección. Para evitarlo se puede reservar la IP.
+- Si el servidor no responde, el juego sigue funcionando por relés como antes.
+
 ## v1.10.0 · 2026-11-21 · Servidor global configurable
 - El juego ya puede conectarse a un servidor de salas que esté en otro sitio que la página (por ejemplo, la página en Vercel y el servidor en Oracle Cloud).
   - La dirección se pone en `config/servidor.js` (vacía = mismo sitio, como antes) o en el link con `?srv=https://...`. En localhost se sigue usando el servidor local.

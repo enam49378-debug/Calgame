@@ -12189,7 +12189,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.10.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.10.1';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 // SERVIDOR GLOBAL: si la pagina esta en un sitio y el servidor de salas en otro (por ejemplo la pagina en Vercel y el servidor en Oracle),
 // la direccion del servidor sale de config/servidor.js (window.CF_SERVIDOR) o de ?srv=https://... en el link. En localhost se usa el servidor local salvo que pongas ?srv=.
