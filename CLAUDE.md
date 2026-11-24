@@ -1,7 +1,8 @@
 # Arquitectura del Juego
 - **Cliente:** HTML, CSS y JS puro con **THREE.js** para el 3D (`index.html`). Sin compiladores.
 - **Gráficos modulares (`js/graficos/`):** `motor_escena.js`, `materiales_peleador.js`, `escenario_ulti.js`, `efectos_combate.js` y `calidad_post.js` (documentados en `docs/GRAFICOS.md`).
-- **Servidor y Lógica:** Node.js puro sin dependencias externas en `server/` y `js/arbitro.js` (árbitro, salas, monstruos, Kraken).
+- **Partes separadas de `game.js`:** `js/ui/` (ventanitas, minimapa), `js/editores/` (mapa, audio, animaciones, expresiones), `js/modos/` (vóley) y `js/graficos/armas.js`. Cada una es una fábrica (`CF_UI`, `CF_EDITORES`, `CF_MODOS`, `CF_GRAFICOS`) que `game.js` crea en el lugar donde estaba el código. Para seguir separando, usar `tools/refactor/` (ver su `LEEME.md`) y luego `npm run revisar`.
+- **Servidor y Lógica:** Node.js puro sin dependencias externas en `server/`, `js/arbitro.js` (árbitro, salas, monstruos, Kraken) y `js/ambiente.js` (clima de la sala, compartido con el juego). Al subir el servidor a Oracle se copian los dos.
 - **Herramientas:** Scripts en Python dentro de `tools/` (`tools/parches_antiguos/`, `tools/audio/`, `tools/discord/`, `tools/launcher/` para utilidades no activas).
 - **Documentación:** En `docs/` (`docs/ORDEN_DEL_PROYECTO.md`, `docs/GRAFICOS.md`, etc.).
 - **Pruebas:** En JS con `node tests/...`.

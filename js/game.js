@@ -1541,81 +1541,8 @@ function cityGrassAt(x,z) {
 // ================= Atmósfera de Ciudad Aurora =================
 // Efectos visuales independientes de la física y del daño. Un único lote por efecto de lluvia.
 // Núcleo compartido por servidor y juego: una sola línea temporal por sala.
-const ROOM_ATMOSPHERE = (() => {
-  const presets={
-    clear:{rain:0,cloud:.04,fog:.08,snow:0,wind:.2},cloudy:{rain:0,cloud:.8,fog:.25,snow:0,wind:.35},
-    drizzle:{rain:.28,cloud:.75,fog:.48,snow:0,wind:.25},rain:{rain:.72,cloud:.9,fog:.6,snow:0,wind:.55},
-    storm:{rain:1,cloud:1,fog:.78,snow:0,wind:1},fog:{rain:0,cloud:.55,fog:.85,snow:0,wind:.1},
-    densefog:{rain:.08,cloud:.7,fog:1,snow:0,wind:.08},wind:{rain:0,cloud:.48,fog:.3,snow:0,wind:1},
-    snow:{rain:0,cloud:.7,fog:.5,snow:.7,wind:.3},blizzard:{rain:0,cloud:.95,fog:.92,snow:1,wind:1}
-  };
-  const buildings=CITY_PLAN.map(b=>[b.x,b.z,b.w,b.d,b.h,b.accessible]);
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-  const round=v=>Math.round(v*1000)/1000;
-  function hash(text){let n=2166136261;for(const c of String(text))n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;}
-  function random(s){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296;}
-  const ATM_SEQ={A:[['clear',80],['cloudy',50],['drizzle',65],['rain',85],['storm',85],['fog',70],['densefog',60],['wind',55],['snow',80],['blizzard',65]],
-    J:[['clear',70],['cloudy',45],['drizzle',60],['rain',90],['storm',75],['fog',55],['clear',50],['wind',40]],
-    B:[['clear',70],['cloudy',45],['drizzle',60],['fog',75],['snow',80],['clear',65],['wind',50],['densefog',45]]};   // cada mapa tiene su propio ciclo de clima (el Valle: sin tormentas, con niebla y nieve suave)
-  function kind(s){if(s.mode!=='auto')return s.mode;const seq=ATM_SEQ[(window.CF_BETA&&window.CF_BETA.on)?MAPCUR.id:'A']||ATM_SEQ.A;let tot=0;for(const q of seq)tot+=q[1];let t=s.elapsed%tot;for(const [k,d]of seq){if(t<d)return k;t-=d;}return 'clear';}
-  function create(seed=8197){return {v:3,t:0,hour:11,cycle:true,mode:'auto',elapsed:0,rain:0,cloud:.04,fog:.08,snow:0,wind:.2,wet:0,fogStrength:1.15,seed:seed>>>0,rng:seed>>>0,seq:0,nextStrike:12,strikes:[]};}
-  function command(s,c){
-    if(!c||typeof c!=='object')return false;
-    let ok=false;
-    if(typeof c.mode==='string'&&(c.mode==='auto'||presets[c.mode])){s.mode=c.mode;s.elapsed=0;s.nextStrike=s.t+5;ok=true;}
-    if(Number.isFinite(c.hour)&&c.hour>=0&&c.hour<24){s.hour=c.hour;ok=true;}
-    if(typeof c.cycle==='boolean'){s.cycle=c.cycle;ok=true;}
-    if(Number.isFinite(c.fogStrength)){s.fogStrength=clamp(c.fogStrength,.6,1.65);ok=true;}
-    return ok;
-  }
-  function sheltered(p){
-    for(const [x,z,w,d,h]of buildings){
-      if(Math.abs(p.x-x)<w/2-.1&&Math.abs(p.z-z)<d/2-.1&&p.y+1.85<h-.1)return true;
-      const f=z<0?1:-1;
-      if(Math.abs(p.x-x)<w/2-.2&&Math.abs(p.z-(z+f*(d/2+.5)))<.7&&p.y+1.85<2.38)return true;
-    }
-    return false;
-  }
-  function surfaceAt(x,z){for(const [bx,bz,w,d,h]of buildings)if(Math.abs(x-bx)<w/2&&Math.abs(z-bz)<d/2)return h+.3;return .1;}
-  function warn(s,x,z,delay=0){
-    const strike={id:s.seed.toString(36)+'-'+(++s.seq),x:round(clamp(x,-(CITY.bounds-1),CITY.bounds-1)),z:round(clamp(z,-(CITY.bounds-1),CITY.bounds-1)),y:surfaceAt(x,z),at:round(s.t+delay),radius:3.1,damage:28,resolved:false,victims:[]};
-    s.strikes.push(strike);return strike;
-  }
-  function advance(s,dt,players=[],hazards=true){
-    dt=clamp(Number.isFinite(dt)?dt:0,0,60);s.t+=dt;s.elapsed+=dt;if(s.cycle)s.hour=(s.hour+dt*.05)%24;
-    const p=presets[kind(s)],blend=1-Math.exp(-dt*.28);
-    for(const k of ['rain','cloud','fog','snow','wind'])s[k]+=(p[k]-s[k])*blend;
-    s.wet=clamp(s.wet+dt*(s.rain>.1?s.rain*.035:s.snow>.2?.003:-.008),0,1);
-    if(hazards){
-      if(kind(s)==='storm'&&s.t>=s.nextStrike){
-        s.nextStrike=s.t+4.5+random(s)*4;
-        const exposed=players.filter(p=>p.alive&&!p.safe&&!sheltered(p));
-        const target=exposed.length&&random(s)<.9?exposed[Math.floor(random(s)*exposed.length)]:null;
-        if(target)warn(s,target.x+(random(s)-.5)*.6,target.z+(random(s)-.5)*.6);
-        else {const a=random(s)*Math.PI*2,r=5+random(s)*(CITY.bounds-9);warn(s,Math.cos(a)*r,Math.sin(a)*r);}
-      }
-      for(const e of s.strikes)if(!e.resolved&&s.t>=e.at){
-        e.resolved=true;
-        for(const p of players){if(!p.alive||p.safe||sheltered(p))continue;const d=Math.hypot(p.x-e.x,p.z-e.z);if(d<e.radius&&Math.abs(p.y-e.y)<2.8)e.victims.push({id:String(p.id),damage:Math.round(e.damage*(1-d/e.radius*.55))});}
-      }
-    }
-    s.strikes=s.strikes.filter(e=>s.t-e.at<6).slice(-8);return s;
-  }
-  function warm(s){const p=presets[kind(s)];for(const k of ['rain','cloud','fog','snow','wind'])s[k]=p[k];s.wet=p.rain;return s;}
-  function snapshot(s){const d={...s,strikes:s.strikes.map(e=>({...e,victims:e.victims.map(v=>({...v}))}))};for(const k of ['t','hour','elapsed','rain','cloud','fog','snow','wind','wet'])d[k]=round(d[k]);return d;}
-  function parse(d){
-    if(!d||d.v!==3||!['t','hour','elapsed','rain','cloud','fog','snow','wind','wet','seed','rng','seq','nextStrike','fogStrength'].every(k=>Number.isFinite(d[k]))||!(d.mode==='auto'||presets[d.mode])||typeof d.cycle!=='boolean')return null;
-    if(d.t<0||d.t>1e9||d.hour<0||d.hour>=24||['rain','cloud','fog','snow','wind','wet'].some(k=>d[k]<0||d[k]>1))return null;
-    const s={...d,strikes:[]};s.fogStrength=clamp(d.fogStrength,.6,1.65);
-    for(const e of Array.isArray(d.strikes)?d.strikes.slice(-8):[]){
-      if(!e||typeof e.id!=='string'||e.id.length>64||!['x','y','z','at','radius','damage'].every(k=>Number.isFinite(e[k]))||Math.abs(e.x)>ARENA||Math.abs(e.z)>ARENA||e.radius<0||e.radius>4||e.damage<0||e.damage>35)continue;
-      s.strikes.push({...e,resolved:!!e.resolved,victims:(Array.isArray(e.victims)?e.victims:[]).filter(v=>v&&typeof v.id==='string'&&v.id.length<80&&Number.isFinite(v.damage)&&v.damage>0&&v.damage<=35).map(v=>({id:v.id,damage:v.damage}))});
-    }
-    return s;
-  }
-  return {presets,buildings,create,hash,kind,command,sheltered,surfaceAt,warn,advance,warm,snapshot,parse};
-})();
-if(typeof module!=='undefined'&&module.exports)module.exports=ROOM_ATMOSPHERE;
+// clima, hora y rayos de la sala: el mismo código que usa el servidor (js/ambiente.js)
+const ROOM_ATMOSPHERE = CF_AMBIENTE.crear({ edificios: CITY_PLAN.map(b => [b.x, b.z, b.w, b.d, b.h, b.accessible]), limites: () => ({ bounds: CITY.bounds, arena: ARENA }) });
 
 const WX = {
   hour:11, cycle:true, mode:'auto', quality:'full', sound:true, elapsed:0, time:0,
@@ -1679,6 +1606,7 @@ function advanceAtmosphere(dt,instant){
     if(instant)ROOM_ATMOSPHERE.command(WX_ROOM.state,{mode:WX.mode,hour:WX.hour,cycle:WX.cycle});
   }
   const s=WX_ROOM.state;
+  if(authority)s.mapa=mapNow().id;   // el ciclo de clima es el del mapa donde se juega (viaja en el estado: los demás lo reciben)
   if(instant&&!me){ROOM_ATMOSPHERE.warm(s);}
   ROOM_ATMOSPHERE.advance(s,dt,authority?atmospherePlayers():[],authority&&G.state==='play'&&!G.viewer&&!G.cine);
   for(const k of ['hour','cycle','mode','elapsed','rain','cloud','wet','snow','wind','fogStrength'])WX[k]=s[k];
@@ -3530,291 +3458,10 @@ function setFaceDecal(f, img) {
   m.decal.scale.set(s, s, 1); m.decal.position.set((fit.ox || 0) * PX, (8 - (row + .5) + (fit.oy || 0)) * PX, 5.2 * PX); m.decal.visible = true;
 }
 
-// ===== Editor de expresiones =====
-const FE = { cid: 'javi', id: 'blink', color: 'K', mirror: true, painting: false, erase: false };
-const feLib = () => FACE_LIB[FE.cid], feExpr = () => feLib().exprs.find(e => e.id === FE.id);
-function feFaceBase(cid) {
-  // cara original (base + sombrero) de la skin predeterminada, para dibujar el fondo del editor
-  const sk = charSkin(cid), t = document.createElement('canvas'); t.width = 64; t.height = 64; const g = t.getContext('2d'); g.drawImage(sk, 0, 0);
-  const o = document.createElement('canvas'); o.width = o.height = 8; const og = o.getContext('2d');
-  og.putImageData(g.getImageData(8, 8, 8, 8), 0, 0); const h = document.createElement('canvas'); h.width = h.height = 8; h.getContext('2d').putImageData(g.getImageData(40, 8, 8, 8), 0, 0); og.drawImage(h, 0, 0);
-  return o;
-}
-function feColor(c) { const lib = feLib(); return c === 'G' ? CHARS[FE.cid].color : lib.pal[c]; }
-function feDrawFace(cv, cid, ex, px, noImg) {
-  const g = cv.getContext('2d'); g.imageSmoothingEnabled = false; g.clearRect(0, 0, cv.width, cv.height);
-  g.drawImage(feFaceBase(cid), 0, 0, 8, 8, 0, 0, 8 * px, 8 * px);
-  const lib = FACE_LIB[cid], nm = lib.exprs.find(e => e.id === 'normal'), op = lib.exprs.find(e => e.id === 'open');
-  const keepEyes = !!(ex && ex.img && ex.img.hideEyes === false && op && ex !== op && ex !== nm);
-  for (const L of [nm, keepEyes ? op : null, ex && ex !== nm ? ex : null]) {
-    if (!L) continue;
-    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { const c = L.grid[y][x]; if (c === '.') continue; const col = c === 'G' ? CHARS[cid].color : lib.pal[c]; if (col) { g.fillStyle = col; g.fillRect(x * px, y * px, px, px); } }
-  }
-  const img = ex && ex.img;
-  if (img && img.hideEyes !== false) {
-    const I = feFaceInfo(cid), sd = g.getImageData(Math.floor(3.5 * px), Math.floor((I.row + .5) * px), 1, 1).data;
-    g.fillStyle = 'rgb(' + sd[0] + ',' + sd[1] + ',' + sd[2] + ')';
-    for (const [x, y] of faceEyeCells(I)) g.fillRect(x * px, y * px, px, px);
-  }
-  if (img && !noImg) {
-    const t = faceImageTex(img, CHARS[cid].color), fit = img.fit || {}, s = fit.s || 1, row = feFaceInfo(cid).row, size = 9 * px * s;
-    g.drawImage(t.image, (4 + (fit.ox || 0)) * px - size / 2, (row + .5 - (fit.oy || 0)) * px - size / 2, size, size);
-  }
-}
-function feDrawMain() {
-  const ex = feExpr(), cv = $('fe-canvas'), g = cv.getContext('2d');
-  feDrawFace(cv, FE.cid, ex, 40);
-  g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1;
-  for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 40 + .5, 0); g.lineTo(i * 40 + .5, 320); g.moveTo(0, i * 40 + .5); g.lineTo(320, i * 40 + .5); g.stroke(); }
-  g.strokeStyle = 'rgba(255,255,255,.5)'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(160.5, 0); g.lineTo(160.5, 320); g.stroke(); g.setLineDash([]);
-}
-function feRender() {
-  const lib = feLib(), ex = feExpr();
-  feDrawMain();
-  // paleta
-  const pal = $('fe-pal'); pal.innerHTML = '';
-  const add = (c, col, title) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (FE.color === c ? ' on' : ''); b.title = title; if (col) b.style.background = col; else { b.textContent = '↺'; } b.addEventListener('click', () => { FE.color = c; feRender(); }); pal.appendChild(b); };
-  add('.', null, 'Original (borra y deja el píxel de la skin)');
-  const names = { S: 'Piel', T: 'Sombra de párpado', K: 'Oscuro (línea, pupila)', W: 'Blanco del ojo', A: 'Iris claro', B: 'Iris oscuro', X: 'Blanco puro', G: 'Color del personaje (brillo)', m: 'Interior de la boca', p: 'Labio', r: 'Lengua', b: 'Lágrima', y: 'Sudor' };
-  for (const c of ['S', 'T', 'K', 'W', 'A', 'B', 'X', 'G', 'm', 'p', 'r', 'b', 'y']) add(c, feColor(c), names[c]);
-  for (const c in lib.pal) if (!names[c]) add(c, lib.pal[c], 'Color propio ' + c);
-  $('fe-char').value = FE.cid;
-  feRenderImg();
-  // lista de expresiones con miniatura
-  const list = $('fe-list'); list.innerHTML = '';
-  for (const e of lib.exprs) {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (e.id === FE.id ? ' on' : '');
-    const c = document.createElement('canvas'); c.width = c.height = 32; feDrawFace(c, FE.cid, e, 4); const s = document.createElement('span'); s.textContent = e.label;
-    b.append(c, s); b.addEventListener('click', () => { FE.id = e.id; feSelect(); }); list.appendChild(b);
-  }
-  // asignación de estados
-  const use = $('fe-use'); use.innerHTML = '';
-  for (const [st, label] of FACE_STATES) {
-    const row = document.createElement('label'); const sp = document.createElement('span'); sp.textContent = label; const sel = document.createElement('select');
-    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = st === 'idle' ? '(cara Normal)' : '(la misma que en reposo)'; sel.appendChild(o0);
-    for (const e of lib.exprs) { const o = document.createElement('option'); o.value = e.id; o.textContent = e.label; sel.appendChild(o); }
-    sel.value = lib.use[st] || ''; sel.addEventListener('change', () => { lib.use[st] = sel.value; saveFaceLib(); feMsg('Guardado'); });
-    row.append(sp, sel); use.appendChild(row);
-  }
-}
-function feRenderImg() {
-  const e = feExpr(), sel = $('fe-img'); if (!sel) return;
-  if (!sel.options.length) {
-    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = '(sin imagen)'; sel.appendChild(o0);
-    for (const [id, label] of FACE_ART) { const o = document.createElement('option'); o.value = 'p:' + id; o.textContent = label; sel.appendChild(o); }
-    const ou = document.createElement('option'); ou.value = 'data'; ou.textContent = 'Imagen subida'; sel.appendChild(ou);
-  }
-  const img = e.img; sel.value = !img ? '' : (img.kind === 'data' || img.kind === 'frames') ? 'data' : 'p:' + img.id;
-  $('fe-hide').checked = !img || img.hideEyes !== false; $('fe-hide').disabled = !img;
-  const fit = (img && img.fit) || {}; $('fe-is').value = fit.s || 1; $('fe-ix').value = fit.ox || 0; $('fe-iy').value = fit.oy || 0;
-  for (const id of ['fe-is', 'fe-ix', 'fe-iy']) $(id).disabled = !img;
-}
-function feImgChanged(live) {
-  const e = feExpr(); if (!e.img) return; e.img.fit = { s: +$('fe-is').value, ox: +$('fe-ix').value, oy: +$('fe-iy').value };
-  feRender(); if (SH.fig) SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; if (SH.fig) SH.fig.faceKey = ''; if (!live) saveFaceLib(); else refreshFaces();
-}
-// PNG de la cara (sin la imagen superpuesta): original + Normal + esta expresión, ampliada con píxeles nítidos
-function feFaceCanvas(cid, ex, px) { const c = document.createElement('canvas'); c.width = c.height = 8 * px; feDrawFace(c, cid, ex, px, true); return c; }
-function feDownload(canvas, name) { canvas.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }, 'image/png'); }
-// letra de la paleta para un color (si no existe se agrega uno propio)
-function feLetterFor(lib, hex) {
-  hex = hex.toLowerCase(); for (const k in lib.pal) if (lib.pal[k].toLowerCase() === hex) return k;
-  const k = FACE_POOL.split('').find(c => !(c in lib.pal)); if (!k) return null; lib.pal[k] = hex; return k;
-}
-function feImportPNG(file) {
-  const rd = new FileReader();
-  rd.onload = () => {
-    const im = new Image();
-    im.onload = () => {
-      const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = false; g.drawImage(im, 0, 0, 8, 8);
-      const d = g.getImageData(0, 0, 8, 8).data, lib = feLib(), ex = feExpr(), nm = lib.exprs.find(e => e.id === 'normal'), grid = [];
-      for (let y = 0; y < 8; y++) {
-        let row = '';
-        for (let x = 0; x < 8; x++) {
-          const i = (y * 8 + x) * 4; if (d[i + 3] < 128) { row += '.'; continue; }
-          const k = feLetterFor(lib, hex2(d[i], d[i + 1], d[i + 2])); row += k || '.';
-          if (ex !== nm && nm && k && nm.grid[y][x] === k) row = row.slice(0, -1) + '.';   // igual que la Normal: queda como "original"
-        }
-        grid.push(row);
-      }
-      ex.grid = grid; saveFaceLib(); feSelect(); feMsg('Cara importada');
-    };
-    im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
-  };
-  rd.readAsDataURL(file);
-}
-function feMsg(t) { $('fe-msg').textContent = t; clearTimeout(feMsg.t); feMsg.t = setTimeout(() => { $('fe-msg').textContent = ''; }, 1800); }
-// muestra la expresión elegida en la cabeza 3D del menú
-function feSelect() { feRender(); if (SH.fig) { SH.fig.faceForce = FE.id; SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; } }
-function fePaintAt(ev) {
-  const cv = $('fe-canvas'), r = cv.getBoundingClientRect(), x = Math.floor((ev.clientX - r.left) / r.width * 8), y = Math.floor((ev.clientY - r.top) / r.height * 8);
-  if (x < 0 || x > 7 || y < 0 || y > 7) return;
-  const ex = feExpr(), c = FE.erase ? '.' : FE.color, set = (xx) => { const row = ex.grid[y].split(''); row[xx] = c; ex.grid[y] = row.join(''); };
-  set(x); if (FE.mirror) set(7 - x);
-  feRender(); if (SH.fig) { SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; }
-}
-setInterval(() => { if ($('faceed').classList.contains('hidden')) return; const ex = FACE_LIB[FE.cid] && feExpr(); if (ex && ex.img) { const t = faceImageTex(ex.img, CHARS[FE.cid].color); if (faceAnimTick(t, performance.now() / 1000)) feDrawMain(); } }, 80);
-function feOpen() {
-  if (!DEV.on) return;
-  const first = Object.keys(FACE_LIB).includes(G.charId) ? G.charId : 'javi';
-  FE.cid = first; if (!feExpr()) FE.id = feLib().exprs[0].id;
-  $('faceed').classList.remove('hidden'); SH.faceZoom = true; feSelect();
-  if (G.charId !== FE.cid) { G.charId = FE.cid; showSelect(FE.cid, true); setTimeout(feSelect, 50); }
-}
-function feClose() { $('faceed').classList.add('hidden'); SH.faceZoom = false; if (SH.fig) { SH.fig.faceForce = null; SH.fig.faceVer = (SH.fig.faceVer || 0) + 1; } saveFaceLib(); }
-function feChangeChar(cid) { FE.cid = cid; FE.id = feLib().exprs[0].id; G.charId = cid; showSelect(cid, true); setTimeout(feSelect, 50); }
-function feInit() {
-  const sel = $('fe-char'); for (const cid of Object.keys(FACE_DEFAULTS)) { const o = document.createElement('option'); o.value = cid; o.textContent = CHARS[cid].name; sel.appendChild(o); }
-  sel.addEventListener('change', () => feChangeChar(sel.value));
-  const cv = $('fe-canvas');
-  cv.addEventListener('contextmenu', e => e.preventDefault());
-  cv.addEventListener('pointerdown', e => { FE.painting = true; FE.erase = e.button === 2; cv.setPointerCapture(e.pointerId); fePaintAt(e); });
-  cv.addEventListener('pointermove', e => { if (FE.painting) fePaintAt(e); });
-  cv.addEventListener('pointerup', () => { FE.painting = false; saveFaceLib(); });
-  $('fe-mirror').addEventListener('change', e => { FE.mirror = e.target.checked; });
-  $('fe-pngout').addEventListener('click', () => feDownload(feFaceCanvas(FE.cid, feExpr(), 32), FE.cid + '_cara_' + FE.id + '.png'));
-  $('fe-pngin').addEventListener('click', () => $('fe-pngfile').click());
-  $('fe-pngfile').addEventListener('change', e => { const f = e.target.files[0]; if (f) feImportPNG(f); e.target.value = ''; });
-  $('fe-img').addEventListener('change', e => {
-    const v = e.target.value, ex = feExpr();
-    if (v === '') delete ex.img; else if (v.startsWith('p:')) ex.img = { kind: 'preset', id: v.slice(2), hideEyes: ex.img ? ex.img.hideEyes !== false : (FACE_ART.find(a => a[0] === v.slice(2)) || [0, 0, 1])[2] === 1, fit: (ex.img && ex.img.fit) || { s: 1, ox: 0, oy: 0 } };
-    else if (v === 'data' && !(ex.img && (ex.img.kind === 'data' || ex.img.kind === 'frames'))) { $('fe-imgfile').click(); feRenderImg(); return; }
-    saveFaceLib(); feSelect();
-  });
-  $('fe-imgup').addEventListener('click', () => $('fe-imgfile').click());
-  $('fe-imgfile').addEventListener('change', e => {
-    const file = e.target.files[0]; if (!file) return; e.target.value = '';
-    if (/gif/i.test(file.type)) {
-      feGifFrames(file).then(r => {
-        if (!r) { feMsg('Este navegador no puede leer GIF animados (usá Chrome o Edge); se pone solo el primer cuadro'); return gifStill(file); }
-        feExpr().img = { kind: 'frames', frames: r.frames, delays: r.delays, hideEyes: true, fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('GIF puesto (' + r.frames.length + ' cuadros)');
-      }).catch(() => gifStill(file)); return;
-    }
-    gifStill(file);
-  });
-  function gifStill(file) {
-    const rd = new FileReader();
-    rd.onload = () => {
-      const im = new Image();
-      im.onload = () => {
-        // se reduce a 128 px como máximo para que el guardado sea liviano; la imagen se pega con filtro de píxeles
-        const k = Math.min(1, 128 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
-        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, c.width, c.height);
-        feExpr().img = { kind: 'data', src: c.toDataURL('image/png'), hideEyes: true, fit: { s: 1, ox: 0, oy: 0 } }; saveFaceLib(); feSelect(); feMsg('Imagen puesta');
-      };
-      im.onerror = () => feMsg('Ese archivo no es una imagen'); im.src = rd.result;
-    };
-    rd.readAsDataURL(file);
-  }
-  $('fe-hide').addEventListener('change', e => { const ex = feExpr(); if (!ex.img) return; ex.img.hideEyes = e.target.checked; saveFaceLib(); feSelect(); });
-  for (const id of ['fe-is', 'fe-ix', 'fe-iy']) { $(id).addEventListener('input', () => feImgChanged(true)); $(id).addEventListener('change', () => feImgChanged(false)); }
-  $('fe-close').addEventListener('click', feClose);
-  $('feb').addEventListener('click', () => { sfx('select'); feOpen(); });
-  $('animedbtn').addEventListener('click', () => { sfx('select'); edOpen(); });
-  $('fe-clear').addEventListener('click', () => { feExpr().grid = Array(8).fill('........'); saveFaceLib(); feSelect(); });
-  $('fe-reset').addEventListener('click', () => {
-    if (FE.id === 'normal') { const n = makeNormal(FE.cid), e = feExpr(); e.grid = n.grid; delete e.img; saveFaceLib(); feSelect(); feMsg('Cara original restaurada'); return; }
-    const d = FACE_DEFAULTS[FE.cid].exprs.find(e => e.id === FE.id);
-    if (d) { feExpr().grid = d.grid.slice(); saveFaceLib(); feSelect(); feMsg('Restaurada'); } else feMsg('Esta expresión es tuya: no hay original');
-  });
-  $('fe-addcolor').addEventListener('click', () => {
-    const lib = feLib(), free = FACE_POOL.split('').find(c => !(c in lib.pal));
-    if (!free) { feMsg('Ya no caben más colores propios'); return; }
-    lib.pal[free] = $('fe-color').value; FE.color = free; saveFaceLib(); feRender();
-  });
-  $('fe-new').addEventListener('click', () => {
-    const name = prompt('Nombre de la expresión nueva'); if (!name) return;
-    const id = 'x' + Date.now().toString(36); feLib().exprs.push({ id, label: name, grid: Array(8).fill('........') }); FE.id = id; saveFaceLib(); feSelect();
-  });
-  $('fe-dup').addEventListener('click', () => {
-    const e = feExpr(), id = 'x' + Date.now().toString(36); feLib().exprs.push({ id, label: e.label + ' (copia)', grid: e.grid.slice() }); FE.id = id; saveFaceLib(); feSelect();
-  });
-  $('fe-ren').addEventListener('click', () => { const e = feExpr(), n = prompt('Nuevo nombre', e.label); if (n) { e.label = n; saveFaceLib(); feRender(); } });
-  $('fe-del').addEventListener('click', () => {
-    const lib = feLib(); if (lib.exprs.length <= 1 || FE.id === 'normal') { feMsg('La cara Normal no se puede borrar'); return; } const e = feExpr(); if (!confirm('¿Borrar "' + e.label + '"?')) return;
-    lib.exprs = lib.exprs.filter(x => x.id !== e.id); for (const k in lib.use) if (lib.use[k] === e.id) lib.use[k] = ''; FE.id = lib.exprs[0].id; saveFaceLib(); feSelect();
-  });
-  $('fe-export').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(FACE_LIB, null, 1)], { type: 'application/json' }), a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'expresiones.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  });
-  $('fe-import').addEventListener('click', () => $('fe-file').click());
-  $('fe-file').addEventListener('change', e => {
-    const file = e.target.files[0]; if (!file) return; const rd = new FileReader();
-    rd.onload = () => { try { const d = JSON.parse(rd.result); for (const id in d) if (FACE_LIB[id] && Array.isArray(d[id].exprs)) FACE_LIB[id] = d[id]; saveFaceLib(); FE.id = feLib().exprs[0].id; feSelect(); feMsg('Importado'); } catch (err) { feMsg('Ese archivo no sirve'); } };
-    rd.readAsText(file); e.target.value = '';
-  });
-  $('fe-resetall').addEventListener('click', () => { if (!confirm('¿Volver a las expresiones originales de todos los personajes?')) return; try { localStorage.removeItem('bsb_faces'); } catch (e) { } loadFaceLib(); ensureNormalAll(); refreshFaces(); FE.id = feLib().exprs[0].id; feSelect(); feMsg('Originales restauradas'); });
-}
-
-// visor brillante a la altura de los ojos (fila 4 de la cara)
-function addEyes(model, col) {
-  const e = new THREE.Mesh(new THREE.BoxGeometry(6.4 * PX, 1.3 * PX, .6 * PX), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .4, depthWrite: false, blending: THREE.AdditiveBlending }));
-  e.position.set(0, 3.5 * PX, 4.45 * PX); model.head.add(e); model.eyes = e;
-}
-function eyeGlow(m, on, T) {
-  if (!m.eyes) return;
-  m.eyes.material.opacity = on ? .85 + .15 * Math.sin(T * 60) : .4;
-  m.eyes.scale.set(on ? 1.15 : 1, on ? 1.6 : 1, 1);
-}
-// Arma hecha de vóxeles (1 vóxel = 1 píxel), apunta a +z, agarre en z=0
-const _wepGeoCache = new Map();
-function buildVoxelWeapon(vox, scale = 1, outlineScale = 0.14) {
-  const mat = fighterToonMaterial(null, 'opaque', THREE.FrontSide, { color: 0xffffff, spec: 1.0 });
-  const key = scale + ':' + outlineScale;
-  let pair = _wepGeoCache.get(key);
-  if (!pair) {
-    pair = {
-      geo: new THREE.BoxGeometry(PX * scale, PX * scale, PX * scale),
-      olGeo: addOutlineOffset(new THREE.BoxGeometry(PX * scale, PX * scale, PX * scale), outlineScale * PX * scale),
-    };
-    _wepGeoCache.set(key, pair);
-  }
-  const m = new THREE.InstancedMesh(pair.geo, mat, vox.length), M = new THREE.Matrix4();
-  const olM = new THREE.InstancedMesh(pair.olGeo, OUTLINE_MAT, vox.length);
-  vox.forEach(([y, z, c], i) => { M.makeTranslation(0, y * PX * scale, z * PX * scale); m.setMatrixAt(i, M); m.setColorAt(i, _c.set(c)); olM.setMatrixAt(i, M); });
-  m.castShadow = true; m.frustumCulled = false; olM.castShadow = false; olM.receiveShadow = false; olM.frustumCulled = false; m.add(olM);
-  return m;
-}
-// Lanza de Minecraft hecha de vóxeles
-function buildSpear(scale = 1) {
-  const vox = [], P = (y, z, c) => vox.push([y, z, c]);
-  for (let z = -11; z <= 16; z++) P(0, z, z === -11 ? '#c9a94a' : (z >= -3 && z <= 2) ? '#3b2a1a' : (z % 2 ? '#7a5230' : '#8f6339'));
-  [[1, 16], [-1, 16], [1, 17], [-1, 17], [0, 17]].forEach(([y, z]) => P(y, z, '#c9a94a'));
-  [1, 2, 2, 2, 1, 1, 0, 0].forEach((w, i) => { for (let y = -w; y <= w; y++) P(y, 18 + i, w && Math.abs(y) === w ? '#2bb3a8' : y === 0 ? '#9ff7ef' : '#4ee6d6'); });
-  P(0, 26, '#e0fffb');
-  return buildVoxelWeapon(vox, scale);
-}
-// Cetro dorado con gema y cuernos, mismo agarre que la lanza
-function buildScepter() {
-  const vox = [], P = (y, z, c) => vox.push([y, z, c]);
-  for (let z = -10; z <= 15; z++) P(0, z, (z >= -2 && z <= 2) ? '#1e6b3a' : (z % 2 ? '#d4a017' : '#b8860b'));
-  P(0, -11, '#3ddc84');
-  [[1, 15], [-1, 15], [1, 16], [-1, 16]].forEach(([y, z]) => P(y, z, '#d4a017'));
-  [[0, 17, '#4fc3f7'], [0, 18, '#b3e5fc'], [0, 19, '#4fc3f7'], [1, 17, '#0288d1'], [-1, 17, '#0288d1'], [1, 18, '#4fc3f7'], [-1, 18, '#4fc3f7']].forEach(([y, z, c]) => P(y, z, c));
-  [[2, 17], [3, 18], [3, 19], [3, 20], [2, 21], [-2, 17], [-3, 18], [-3, 19], [-3, 20], [-2, 21]].forEach(([y, z]) => P(y, z, Math.abs(y) === 3 ? '#ffd54f' : '#d4a017'));
-  P(0, 20, '#d4a017'); P(0, 21, '#ffd54f'); P(0, 22, '#fff3c4');
-  return buildVoxelWeapon(vox, 1);
-}
-// Espada de ItzUkyo: empuñadura azul oscuro con trama roja, guardia y pomo dorados, hoja larga de acero
-function buildSword() {
-  const vox = [], P = (y, z, c) => vox.push([y, z, c]);
-  for (let z = -4; z <= 2; z++) P(0, z, z % 2 ? '#ba1f2f' : '#16142b');
-  [[0, -5], [1, -5], [-1, -5]].forEach(([y, z]) => P(y, z, '#bd8e20'));
-  for (let y = -3; y <= 3; y++) P(y, 3, '#bd8e20');
-  P(2, 4, '#bd8e20'); P(-2, 4, '#bd8e20');
-  for (let z = 4; z <= 25; z++) { P(0, z, '#dfe8f2'); P(1, z, '#f7fbff'); P(-1, z, '#8f9db0'); }
-  P(0, 26, '#ffffff'); P(1, 26, '#f7fbff');
-  return buildVoxelWeapon(vox, 1);
-}
-const WEAPONS = { spear: buildSpear, scepter: buildScepter, sword: buildSword };
-function setSpear(o, out) {
-  if (out && ownsMissingSpear(o)) return;
-  const s = o.spear; if (!s) return;
-  (out ? o.model.gripRot : o.model.backHold).add(s);
-  s.position.set(0, 0, out ? 0 : -7 * PX); o.spearOut = out;
-}
-
+// ===== Editor de expresiones (modo desarrollador): caras de cada personaje: vive en js/editores/editor_expresiones.js =====
+const { FE, feChangeChar, feClose, feColor, feDownload, feDrawFace, feDrawMain, feExpr, feFaceBase, feFaceCanvas, feImgChanged, feImportPNG, feInit, feLetterFor, feLib, feMsg, feOpen, fePaintAt, feRender, feRenderImg, feSelect } = CF_EDITORES.crearEditorExpresiones({ $, FACE_ART, FACE_DEFAULTS, FACE_LIB, FACE_POOL, FACE_STATES, ensureNormalAll, faceAnimTick, faceEyeCells, faceImageTex, feFaceInfo, feGifFrames, hex2, loadFaceLib, makeNormal, refreshFaces, saveFaceLib, get CHARS() { return CHARS; }, get charSkin() { return charSkin; }, get G() { return G; }, get sfx() { return sfx; }, get SH() { return SH; }, get showSelect() { return showSelect; }, get DEV() { return DEV; }, get edOpen() { return edOpen; } });
+// ===== Armas de vóxeles (lanza, cetro, espada) y ojos brillantes de los modelos: vive en js/graficos/armas.js =====
+const { WEAPONS, addEyes, buildScepter, buildSpear, buildSword, buildVoxelWeapon, eyeGlow, setSpear } = CF_GRAFICOS.crearArmas({ OUTLINE_MAT, PX, _c, addOutlineOffset, fighterToonMaterial, get ownsMissingSpear() { return ownsMissingSpear; } });
 // ================= Animación: poses + resortes =================
 const JOINTS = ['ix', 'iy', 'iz', 'by', 'bz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'llz', 'lrx', 'lrz', 'sx'];
 // Canales de actuación: desplazamientos en píxeles y escalas por parte.
@@ -6163,7 +5810,33 @@ function choreFx(name, st, P, col, e) {
     case 'debris': burst(G0, e.n || 40, '#7a7f87', e.v || 12, .3, 1.4, 1.5); burst(new V3(G0.x, G0.y + .3, G0.z), Math.round((e.n || 40) / 2), '#cfc4a8', (e.v || 12) * .7, .45, 1.1, .8); break;
     case 'flash': screenFlash(e.op || .5); break;
     case 'lines': G.linesI = 1; break;
+    case 'screenbreak': screenBreak(e.life || 2.6); camPunch(1.6, -1); break;
   }
+}
+// Pantalla rota: telaraña de grietas y esquirlas de vidrio dibujadas encima del juego (rompe la cuarta pared). Se desvanece sola.
+function screenBreak(life) {
+  try {
+    const W = innerWidth, H = innerHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60;transition:opacity .9s ease-out;opacity:1';
+    const c = cv.getContext('2d'), cx = W * (.46 + Math.random() * .08), cy = H * (.44 + Math.random() * .1), R = Math.hypot(W, H);
+    // vidrio dañado alrededor del golpe
+    const g = c.createRadialGradient(cx, cy, 0, cx, cy, R * .45); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(.25, 'rgba(210,235,255,.1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    const n = 15 + (Math.random() * 5 | 0), ends = [];
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2 + (Math.random() - .5) * .3; let x = cx, y = cy, len = R * (.3 + Math.random() * .5), cur = a; const seg = 9 + (Math.random() * 6 | 0), pts = [[x, y]];
+      for (let s = 0; s < seg; s++) { const l = len / seg * (.6 + Math.random() * .8); cur += (Math.random() - .5) * .16; x += Math.cos(cur) * l; y += Math.sin(cur) * l; pts.push([x, y]); if (s > 1 && Math.random() < .3) ends.push([x, y, cur + (Math.random() < .5 ? 1 : -1) * (.5 + Math.random() * .5), len * .16]); }
+      c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.strokeStyle = 'rgba(0,0,0,.55)'; c.lineWidth = 4.5; c.stroke(); c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineWidth = 1.6; c.stroke();
+    }
+    for (const b of ends) { c.beginPath(); c.moveTo(b[0], b[1]); c.lineTo(b[0] + Math.cos(b[2]) * b[3], b[1] + Math.sin(b[2]) * b[3]); c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.2; c.stroke(); }
+    // anillos irregulares (las grietas concéntricas del vidrio)
+    for (let r = 1; r <= 5; r++) { const rad = R * .025 * r * r * .8 + 20; c.beginPath(); for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, rr = rad * (.85 + Math.random() * .3); const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr; i ? c.lineTo(px, py) : c.moveTo(px, py); } c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1.1; c.stroke(); }
+    // esquirlas triangulares claras
+    for (let i = 0; i < 70; i++) { const a = Math.random() * Math.PI * 2, d = Math.pow(Math.random(), 1.6) * R * .5, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d, s = 8 + Math.random() * 38, r = Math.random() * 6.28; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(r) * s, y + Math.sin(r) * s); c.lineTo(x + Math.cos(r + 2.1) * s * .7, y + Math.sin(r + 2.1) * s * .7); c.closePath(); c.fillStyle = 'rgba(' + (200 + Math.random() * 55 | 0) + ',235,255,' + (.08 + Math.random() * .2) + ')'; c.fill(); }
+    // punto de impacto
+    const h = c.createRadialGradient(cx, cy, 0, cx, cy, 70); h.addColorStop(0, 'rgba(255,255,255,.95)'); h.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = h; c.beginPath(); c.arc(cx, cy, 70, 0, 6.3); c.fill();
+    document.body.appendChild(cv);
+    setTimeout(() => { cv.style.opacity = '0'; }, Math.max(200, (life - .9) * 1000)); setTimeout(() => cv.remove(), life * 1000 + 300);
+  } catch (e) { }
 }
 // director de cámara: cada plano se arma con ejes fijos (los de la escena, no los que cambian cuando se cruzan),
 // se mueve suave dentro del plano, corta seco entre planos y se aleja solo si alguno de los dos queda fuera de cuadro.
@@ -10822,7 +10495,7 @@ const CF_A = (() => {
     get MAPED() { return MAPED; },
     get SPAWN_POINTS() { return SPAWN_POINTS; },
     get MAPS() { return MAPS; }, get MAPCUR() { return MAPCUR; }, get TRAVEL() { return TRAVEL; }, get LAKES() { return LAKES; },
-    mapNow, setMapNow, spawnsNow, worldBig, outLand, mmApply, endAction, addOutlineOffset, fighterToonMaterial, amCoord, buildVoxelWeapon,
+    mapNow, setMapNow, spawnsNow, worldBig, outLand, get mmApply() { return mmApply; }, endAction, addOutlineOffset, fighterToonMaterial, amCoord, buildVoxelWeapon,
     cityGrassAt,
     get ROOM_ATMOSPHERE() { return ROOM_ATMOSPHERE; },
     get WX() { return WX; },
@@ -11024,24 +10697,24 @@ const CF_A = (() => {
     get FE() { return FE; },
     get feLib() { return feLib; },
     get feExpr() { return feExpr; },
-    feFaceBase,
-    feColor,
-    feDrawFace,
-    feDrawMain,
-    feRender,
-    feRenderImg,
-    feImgChanged,
-    feFaceCanvas,
-    feDownload,
-    feLetterFor,
-    feImportPNG,
-    feMsg,
-    feSelect,
-    fePaintAt,
-    feOpen,
-    feClose,
-    feChangeChar,
-    feInit,
+    get feFaceBase() { return feFaceBase; },
+    get feColor() { return feColor; },
+    get feDrawFace() { return feDrawFace; },
+    get feDrawMain() { return feDrawMain; },
+    get feRender() { return feRender; },
+    get feRenderImg() { return feRenderImg; },
+    get feImgChanged() { return feImgChanged; },
+    get feFaceCanvas() { return feFaceCanvas; },
+    get feDownload() { return feDownload; },
+    get feLetterFor() { return feLetterFor; },
+    get feImportPNG() { return feImportPNG; },
+    get feMsg() { return feMsg; },
+    get feSelect() { return feSelect; },
+    get fePaintAt() { return fePaintAt; },
+    get feOpen() { return feOpen; },
+    get feClose() { return feClose; },
+    get feChangeChar() { return feChangeChar; },
+    get feInit() { return feInit; },
     addEyes,
     eyeGlow,
     buildSpear,
@@ -11143,7 +10816,6 @@ const CF_A = (() => {
     screenFlash,
     shakeFrom,
     get DN() { return DN; },
-    get _v() { return _v; },
     toScreen,
     popText,
     comicPop,
@@ -11257,7 +10929,6 @@ const CF_A = (() => {
     get TIMERS() { return TIMERS; },
     get later() { return later; },
     startAction,
-    endAction,
     updateAction,
     counterHit,
     netHit,
@@ -11602,36 +11273,36 @@ const CF_A = (() => {
     get PROP_DIMS() { return PROP_DIMS; },
     get ME() { return ME; },
     get meSnap() { return meSnap; },
-    meRestore,
-    mePush,
-    meUndo,
-    meRedo,
-    meInitMeshes,
-    meBuildGizmo,
-    meUpdateGizmo,
-    meUpdateCam,
-    meFocus,
+    get meRestore() { return meRestore; },
+    get mePush() { return mePush; },
+    get meUndo() { return meUndo; },
+    get meRedo() { return meRedo; },
+    get meInitMeshes() { return meInitMeshes; },
+    get meBuildGizmo() { return meBuildGizmo; },
+    get meUpdateGizmo() { return meUpdateGizmo; },
+    get meUpdateCam() { return meUpdateCam; },
+    get meFocus() { return meFocus; },
     get meRect() { return meRect; },
     get meHit() { return meHit; },
     get meW2S() { return meW2S; },
     get meS2W() { return meS2W; },
-    meDraw,
-    meList,
-    meProps,
-    meSelect,
-    meDelete,
-    meDup,
-    meRotate,
-    meMsg,
-    meExportJSON,
-    meSrv,
-    meSave,
-    meReset,
-    meBuild,
-    meFit,
-    meOpen,
-    meClose,
-    uiDialog,
+    get meDraw() { return meDraw; },
+    get meList() { return meList; },
+    get meProps() { return meProps; },
+    get meSelect() { return meSelect; },
+    get meDelete() { return meDelete; },
+    get meDup() { return meDup; },
+    get meRotate() { return meRotate; },
+    get meMsg() { return meMsg; },
+    get meExportJSON() { return meExportJSON; },
+    get meSrv() { return meSrv; },
+    get meSave() { return meSave; },
+    get meReset() { return meReset; },
+    get meBuild() { return meBuild; },
+    get meFit() { return meFit; },
+    get meOpen() { return meOpen; },
+    get meClose() { return meClose; },
+    get uiDialog() { return uiDialog; },
     get uiPrompt() { return uiPrompt; },
     get uiConfirm() { return uiConfirm; },
     get uiAlert() { return uiAlert; },
@@ -11642,24 +11313,24 @@ const CF_A = (() => {
     get AE() { return AE; },
     get aeDef() { return aeDef; },
     get aeClone() { return aeClone; },
-    aeSrv,
-    aeEvents,
-    aeClips,
+    get aeSrv() { return aeSrv; },
+    get aeEvents() { return aeEvents; },
+    get aeClips() { return aeClips; },
     get aeActionsOf() { return aeActionsOf; },
-    aeItems,
-    aeStop,
-    aePlay,
-    aeMsg,
-    aeRender,
-    aeLs,
-    aeSlider,
-    aeDetail,
-    aeDecodeDur,
-    aeUpload,
-    aeSave,
-    aeBuild,
-    aeOpen,
-    aeClose,
+    get aeItems() { return aeItems; },
+    get aeStop() { return aeStop; },
+    get aePlay() { return aePlay; },
+    get aeMsg() { return aeMsg; },
+    get aeRender() { return aeRender; },
+    get aeLs() { return aeLs; },
+    get aeSlider() { return aeSlider; },
+    get aeDetail() { return aeDetail; },
+    get aeDecodeDur() { return aeDecodeDur; },
+    get aeUpload() { return aeUpload; },
+    get aeSave() { return aeSave; },
+    get aeBuild() { return aeBuild; },
+    get aeOpen() { return aeOpen; },
+    get aeClose() { return aeClose; },
     get DEV() { return DEV; },
     devHash,
     devApply,
@@ -11674,7 +11345,6 @@ const CF_A = (() => {
     get ACCT_ERR() { return ACCT_ERR; },
     get acctMsg() { return acctMsg; },
     get acctErr() { return acctErr; },
-    acctLoad,
     acctRefreshVerified,
     acctSha,
     acctChanged,
@@ -11720,7 +11390,6 @@ const CF_A = (() => {
     get socialPair() { return socialPair; },
     socialWait,
     socialError,
-    socialLoad,
     socialReset,
     socialAuthChanged,
     socialSaveProfile,
@@ -11769,7 +11438,6 @@ const CF_A = (() => {
     sendPresence,
     relayRoom,
     localRoom,
-    p2pRoom,
     netSkin,
     netShareSkin,
     inviteLink,
@@ -11831,77 +11499,76 @@ const CF_A = (() => {
     get edBounceOut() { return edBounceOut; },
     get ED_EASE() { return ED_EASE; },
     get ED_EASE_ES() { return ED_EASE_ES; },
-    edEase,
-    edBezier,
+    get edEase() { return edEase; },
+    get edBezier() { return edBezier; },
     get edDR() { return edDR; },
     get edNoise() { return edNoise; },
     get ED_FN() { return ED_FN; },
     get ED_CACHE() { return ED_CACHE; },
-    edCompile,
-    edRun,
+    get edCompile() { return edCompile; },
+    get edRun() { return edRun; },
     get edKeyVal() { return edKeyVal; },
-    edEvalChan,
-    edFromGame,
-    edCompileClip,
-    edSnap,
-    edPush,
-    edPoint,
-    edRestoreSnap,
-    edUndo,
-    edRedo,
-    edMsg,
-    edLoadSaved,
-    edSaveGame,
-    edStore,
-    edDup,
-    edDelClip,
-    edRefOptions,
-    edRefSet,
-    edRefFile,
-    edRefUse,
-    edRefStart,
-    edRefStop,
-    edRestore,
-    edExport,
-    edImportFile,
+    get edEvalChan() { return edEvalChan; },
+    get edFromGame() { return edFromGame; },
+    get edCompileClip() { return edCompileClip; },
+    get edSnap() { return edSnap; },
+    get edPush() { return edPush; },
+    get edPoint() { return edPoint; },
+    get edRestoreSnap() { return edRestoreSnap; },
+    get edUndo() { return edUndo; },
+    get edRedo() { return edRedo; },
+    get edMsg() { return edMsg; },
+    get edLoadSaved() { return edLoadSaved; },
+    get edSaveGame() { return edSaveGame; },
+    get edStore() { return edStore; },
+    get edDup() { return edDup; },
+    get edDelClip() { return edDelClip; },
+    get edRefOptions() { return edRefOptions; },
+    get edRefSet() { return edRefSet; },
+    get edRefFile() { return edRefFile; },
+    get edRefUse() { return edRefUse; },
+    get edRefStart() { return edRefStart; },
+    get edRefStop() { return edRefStop; },
+    get edRestore() { return edRestore; },
+    get edExport() { return edExport; },
+    get edImportFile() { return edImportFile; },
     get ED_SETS() { return ED_SETS; },
-    edPair,
-    edLoadObj,
-    edOpenClip,
-    edSetTarget,
-    edMakeVic,
-    edLen,
-    edVicDispose,
-    edVicBuild,
+    get edPair() { return edPair; },
+    get edLoadObj() { return edLoadObj; },
+    get edOpenClip() { return edOpenClip; },
+    get edSetTarget() { return edSetTarget; },
+    get edMakeVic() { return edMakeVic; },
+    get edLen() { return edLen; },
+    get edVicDispose() { return edVicDispose; },
+    get edVicBuild() { return edVicBuild; },
     get ED_ZERO() { return ED_ZERO; },
     get ED_DEFPATH() { return ED_DEFPATH; },
     get edPath() { return edPath; },
-    edRebuild,
-    edOpen,
-    edComicInit,
-    edClose,
-    edBuild,
-    edKey,
-    edTree,
+    get edRebuild() { return edRebuild; },
+    get edOpen() { return edOpen; },
+    get edComicInit() { return edComicInit; },
+    get edClose() { return edClose; },
+    get edBuild() { return edBuild; },
+    get edKey() { return edKey; },
+    get edTree() { return edTree; },
     get edTimeSnap() { return edTimeSnap; },
-    edKeysOf,
-    edSetKey,
-    edAddKeys,
-    edRebuildPartial,
-    edDelSel,
-    edCopy,
-    edPaste,
+    get edKeysOf() { return edKeysOf; },
+    get edSetKey() { return edSetKey; },
+    get edAddKeys() { return edAddKeys; },
+    get edRebuildPartial() { return edRebuildPartial; },
+    get edDelSel() { return edDelSel; },
+    get edCopy() { return edCopy; },
+    get edPaste() { return edPaste; },
     get ED_INTERPS() { return ED_INTERPS; },
-    edProps,
-    edBindProps,
-    get ED_RH() { return ED_RH; }, set ED_RH(v) { ED_RH = v; },
+    get edProps() { return edProps; },
+    get edBindProps() { return edBindProps; },
     get ED_LW() { return ED_LW; },
     get ED_ROW() { return ED_ROW; },
-    edBindTimeline,
-    edSelAll,
-    edDraw,
-    edLoop,
-    edShowFrame,
+    get edBindTimeline() { return edBindTimeline; },
+    get edSelAll() { return edSelAll; },
+    get edDraw() { return edDraw; },
+    get edLoop() { return edLoop; },
+    get edShowFrame() { return edShowFrame; },
     bustPortrait,
     get CHAR_RANK() { return CHAR_RANK; },
     renderRoster,
@@ -11980,36 +11647,36 @@ const CF_A = (() => {
     get VB_PADS() { return VB_PADS; },
     get VB_NEUTRAL() { return VB_NEUTRAL; },
     get vbOther() { return vbOther; },
-    vbInit,
-    vbHud,
+    get vbInit() { return vbInit; },
+    get vbHud() { return vbHud; },
     get vbBox() { return vbBox; },
-    vbNames,
-    vbScoreHud,
-    vbSpot,
-    vbPlace,
-    vbServe,
-    vbStart,
-    vbSpawnBot,
-    vbEnd,
-    vbHitBall,
-    vbPointFx,
-    vbPoint,
-    vbOver,
-    vbPin,
-    vbSim,
-    vbGuest,
-    vbPub,
-    vbPubHit,
-    vbPlayerCtl,
-    vbPredict,
-    vbBotCtl,
-    vbLobby,
-    updateVolley,
+    get vbNames() { return vbNames; },
+    get vbScoreHud() { return vbScoreHud; },
+    get vbSpot() { return vbSpot; },
+    get vbPlace() { return vbPlace; },
+    get vbServe() { return vbServe; },
+    get vbStart() { return vbStart; },
+    get vbSpawnBot() { return vbSpawnBot; },
+    get vbEnd() { return vbEnd; },
+    get vbHitBall() { return vbHitBall; },
+    get vbPointFx() { return vbPointFx; },
+    get vbPoint() { return vbPoint; },
+    get vbOver() { return vbOver; },
+    get vbPin() { return vbPin; },
+    get vbSim() { return vbSim; },
+    get vbGuest() { return vbGuest; },
+    get vbPub() { return vbPub; },
+    get vbPubHit() { return vbPubHit; },
+    get vbPlayerCtl() { return vbPlayerCtl; },
+    get vbPredict() { return vbPredict; },
+    get vbBotCtl() { return vbBotCtl; },
+    get vbLobby() { return vbLobby; },
+    get updateVolley() { return updateVolley; },
     get MM() { return MM; },
     get mmX() { return mmX; },
     get mmZ() { return mmZ; },
-    mmBackground,
-    mmDraw,
+    get mmBackground() { return mmBackground; },
+    get mmDraw() { return mmDraw; },
     get CB() { return CB; },
     get GS() { return GS; },
     get NEUTRAL() { return NEUTRAL; },
@@ -12200,7 +11867,7 @@ loadFaceLib(); feInit();
 // ================= Multijugador con amigos (sala en tiempo real) =================
 // Cada jugador simula solo a su personaje y publica su estado en su "presence";
 // los golpes viajan dentro de ese estado y cada víctima se aplica el daño a sí misma.
-const GAME_VERSION = '1.13.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
+const GAME_VERSION = '1.14.0';   // numero de version del juego (ver CHANGELOG.md): se manda en la presencia para avisar si dos jugadores tienen versiones distintas
 window.CF_VERSION = GAME_VERSION;
 // SERVIDOR GLOBAL: si la pagina esta en un sitio y el servidor de salas en otro (por ejemplo la pagina en Vercel y el servidor en Oracle),
 // la direccion del servidor sale de config/servidor.js (window.CF_SERVIDOR) o de ?srv=https://... en el link. En localhost se usa el servidor local salvo que pongas ?srv=.
@@ -12298,983 +11965,12 @@ addEventListener('visibilitychange', () => { if (document.hidden && stCount()) {
 // ---- panel del dueño ----
 const OW = { u: new Map(), on: new Map(), cl: [], el: null, tm: 0 };
 async function stHash(k) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-// ===== Editor de mapa (modo desarrollador): 3D interactivo con mover, rotar, duplicar y borrar modelos =====
-const PROP_DIMS = { palmera: [4, 4], sombrilla_roja: [4, 5], sombrilla_azul: [4, 5], sombrilla_amarilla: [4, 5], sombrilla_verde: [4, 5], set_playa_pro_v2: [4, 5], torre_salvavidas: [4.2, 7], chiringuito: [10.4, 7.6],
-  barca_roja: [1.6, 5], barca_azul: [1.6, 5], velero: [2, 6.5], muelle: [9, 40, 0, 20], faro: [9, 9], rocas_a: [6, 5], rocas_b: [6, 5], castillo: [2, 2], voley: [9.2, 17.2], caseta_roja: [3.2, 3.2], caseta_azul: [3.2, 3.2] };
-
-const ME = {
-  open: false, mode: '3d', el: null, cv: null, g: null,
-  cx: 0, cz: 20, sc: 4, sel: null, undo: [], redo: [],
-  snap: true, showDel: false, drag: null, pan: null,
-  dirty: false, filter: '', counter: 0, srv: null, msg: '',
-  // 3D Editor State
-  camTarget: new THREE.Vector3(0, 2, 20),
-  camYaw: 0, camPitch: -0.55, camDist: 40,
-  keys: {}, drag3d: null, orbiting: false, panning: false,
-  lastMouse: { x: 0, y: 0 },
-  raycaster: new THREE.Raycaster(), mouse2d: new THREE.Vector2(),
-  groundPlane: new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
-  gizmo: null, wireBox: null, groundRing: null, dirArrow: null,
-  prevCam: null, meshesInit: false
-};
-
-const meSnap = () => JSON.stringify(MAP_ITEMS.filter(i => !i.virt).map(i => [i.key, i.x, i.z, i.ry, i.del ? 1 : 0, i.added ? 1 : 0, i.kind, i.model, i.label, i.from || '', i.w, i.d, i.h, i.color || '']));
-
-function meRestore(txt) {
-  const rows = JSON.parse(txt), by = new Map(MAP_ITEMS.map(i => [i.key, i])), keep = [];
-  for (const [key, x, z, ry, del, added, kind, model, label, from, w, d, h, color] of rows) {
-    let it = by.get(key);
-    if (!it) { if (!added) continue; it = { key, kind, model, label, ox: x, oz: z, ory: 0, w, d, h, color, added: true, from, lx: 0, lz: 0, plan: null }; }
-    it.x = x; it.z = z; it.ry = ry; it.del = !!del; keep.push(it);
-  }
-  const fixed = MAP_ITEMS.filter(i => !i.added && !keep.includes(i));
-  MAP_ITEMS.length = 0; MAP_ITEMS.push(...keep, ...fixed);
-  // Sincronizar todos los modelos 3D en la escena
-  for (const it of MAP_ITEMS) {
-    if (it.mesh) {
-      it.mesh.position.x = it.x;
-      it.mesh.position.z = it.z;
-      if (it.ry != null) it.mesh.rotation.y = it.ry;
-      it.mesh.visible = !it.del || ME.showDel;
-    }
-  }
-  if (ME.sel && !MAP_ITEMS.includes(ME.sel)) ME.sel = null;
-  meUpdateGizmo();
-  if (ME.mode === '2d') meDraw();
-  meList();
-  meProps();
-}
-
-function mePush() { ME.undo.push(meSnap()); if (ME.undo.length > 150) ME.undo.shift(); ME.redo = []; ME.dirty = true; }
-function meUndo() { if (!ME.undo.length) return; ME.redo.push(meSnap()); meRestore(ME.undo.pop()); ME.dirty = true; meMsg('Deshecho'); }
-function meRedo() { if (!ME.redo.length) return; ME.undo.push(meSnap()); meRestore(ME.redo.pop()); ME.dirty = true; meMsg('Rehecho'); }
-
-function meInitMeshes() {
-  for (const it of MAP_ITEMS) {
-    if (it.mesh) continue;
-    // Buscar si existe un mesh en scene en las coordenadas
-    scene.traverse(o => {
-      if (it.mesh) return;
-      if (o.isMesh && Math.abs(o.position.x - it.x) < 0.35 && Math.abs(o.position.z - it.z) < 0.35) {
-        if (!o.userData.mapItem) { it.mesh = o; o.userData.mapItem = it; }
-      }
-    });
-    // Si no tiene mesh propio (por ejemplo bloques instanciados), crear volumen proxy
-    if (!it.mesh) {
-      const dm = it.kind === 'p' ? (PROP_DIMS[it.model] || [3, 3]) : [it.w || 8, it.d || 8];
-      const h = it.h || (it.kind === 'p' ? 5 : 10);
-      const geo = new THREE.BoxGeometry(dm[0], h, dm[1]);
-      const mat = new THREE.MeshLambertMaterial({ color: it.color || 0x6688aa, transparent: true, opacity: 0.22, depthWrite: false });
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set(it.x, h / 2, it.z);
-      m.rotation.y = it.ry || 0;
-      m.userData.mapItem = it;
-      m.userData.isProxy = true;
-      scene.add(m);
-      it.mesh = m;
-    }
-  }
-}
-
-function meBuildGizmo() {
-  if (ME.gizmo) return;
-  const grp = new THREE.Group();
-  grp.name = 'MapEditor3DGizmo';
-
-  // Jaula delimitadora de alambre dorado anime
-  const wireMat = new THREE.LineBasicMaterial({ color: 0xffd400, depthTest: false, transparent: true, opacity: 0.95 });
-  const wire = new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.BoxGeometry(1, 1, 1)), wireMat);
-  wire.renderOrder = 9999;
-  grp.add(wire);
-  ME.wireBox = wire;
-
-  // Anillo celestial en el suelo
-  const rGeo = new THREE.RingGeometry(1.4, 1.6, 36);
-  rGeo.rotateX(-Math.PI / 2);
-  const rMat = new THREE.MeshBasicMaterial({ color: 0xffd400, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.85 });
-  const ring = new THREE.Mesh(rGeo, rMat);
-  ring.position.y = 0.05;
-  ring.renderOrder = 9999;
-  grp.add(ring);
-  ME.groundRing = ring;
-
-  // Flecha cian de orientación frontal (ángulo de giro ry)
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 2.4);
-  shape.lineTo(0.75, 1.3);
-  shape.lineTo(-0.75, 1.3);
-  shape.closePath();
-  const aGeo = new THREE.ShapeGeometry(shape);
-  aGeo.rotateX(-Math.PI / 2);
-  const aMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.95 });
-  const arrow = new THREE.Mesh(aGeo, aMat);
-  arrow.position.y = 0.06;
-  arrow.renderOrder = 9999;
-  grp.add(arrow);
-  ME.dirArrow = arrow;
-
-  scene.add(grp);
-  grp.visible = false;
-  ME.gizmo = grp;
-}
-
-function meUpdateGizmo() {
-  if (!ME.gizmo) meBuildGizmo();
-  const tag = $('me-floating-tag');
-  if (!ME.open || !ME.sel || (ME.sel.del && !ME.showDel)) {
-    ME.gizmo.visible = false;
-    if (tag) tag.classList.add('hidden');
-    return;
-  }
-  const s = ME.sel;
-  ME.gizmo.visible = (ME.mode === '3d');
-  ME.gizmo.position.set(s.x, 0, s.z);
-  ME.gizmo.rotation.y = s.ry || 0;
-
-  const dm = s.kind === 'p' ? (PROP_DIMS[s.model] || [3, 3]) : [s.w || 8, s.d || 8];
-  const w = dm[0], d = dm[1], h = s.h || (s.kind === 'p' ? 5 : 10);
-  ME.wireBox.scale.set(w, h, d);
-  ME.wireBox.position.set(0, h / 2, 0);
-
-  const radius = Math.max(w, d) * 0.65;
-  ME.groundRing.scale.set(radius, 1, radius);
-  ME.dirArrow.scale.set(radius * 0.6, 1, radius * 0.6);
-  ME.dirArrow.position.z = radius * 0.35;
-
-  // Actualizar cartel flotante 3D
-  if (tag && ME.mode === '3d') {
-    const screenPos = new THREE.Vector3(s.x, h + 1.2, s.z).project(camera);
-    if (screenPos.z < 1) {
-      const rx = (screenPos.x * 0.5 + 0.5) * innerWidth;
-      const ry = (-screenPos.y * 0.5 + 0.5) * innerHeight;
-      tag.style.left = rx + 'px';
-      tag.style.top = ry + 'px';
-      tag.classList.remove('hidden');
-      $('me-tag-name').textContent = s.label || s.model.replace(/_/g, ' ').toUpperCase();
-      $('me-tag-coords').textContent = `X: ${s.x.toFixed(1)}  Z: ${s.z.toFixed(1)}  ·  ${Math.round(((s.ry || 0) * 180 / Math.PI) % 360)}°`;
-    } else {
-      tag.classList.add('hidden');
-    }
-  }
-}
-
-function meUpdateCam(dt) {
-  if (!ME.open || ME.mode !== '3d') return;
-  const speed = (ME.keys['ShiftLeft'] || ME.keys['ShiftRight'] ? 65 : 28) * dt;
-  const fwd = new THREE.Vector3();
-  camera.getWorldDirection(fwd);
-  const fwdH = new THREE.Vector3(fwd.x, 0, fwd.z).normalize();
-  const right = new THREE.Vector3().crossVectors(fwd, camera.up).normalize();
-
-  if (ME.keys['KeyW'] || ME.keys['ArrowUp']) camera.position.addScaledVector(fwdH, speed);
-  if (ME.keys['KeyS'] || ME.keys['ArrowDown']) camera.position.addScaledVector(fwdH, -speed);
-  if (ME.keys['KeyA'] || ME.keys['ArrowLeft']) camera.position.addScaledVector(right, -speed);
-  if (ME.keys['KeyD'] || ME.keys['ArrowRight']) camera.position.addScaledVector(right, speed);
-  if (ME.keys['KeyE'] || ME.keys['Space']) camera.position.y += speed;
-  if (ME.keys['KeyQ']) camera.position.y = Math.max(0.5, camera.position.y - speed);
-
-  meUpdateGizmo();
-}
-
-function meFocus(it) {
-  const target = it ? it : (ME.sel ? ME.sel : { x: 0, z: 20 });
-  const tx = target.x, tz = target.z;
-  ME.camTarget.set(tx, 2, tz);
-  camera.position.set(tx, 20, tz + 28);
-  camera.lookAt(ME.camTarget);
-  ME.camYaw = Math.atan2(camera.position.x - tx, camera.position.z - tz);
-  ME.camPitch = -0.55;
-  meUpdateGizmo();
-  meMsg('Cámara centrada en ' + (target.label || target.model?.replace(/_/g, ' ') || 'centro'));
-}
-
-const meRect = it => {
-  const dm = it.kind === 'p' ? (PROP_DIMS[it.model] || [3, 3]) : [it.w, it.d], w = dm[0], d = dm[1], ox = dm[2] || 0, oz = dm[3] || 0, c = Math.cos(it.ry || 0), s = Math.sin(it.ry || 0);
-  return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([lx, lz]) => { lx += ox; lz += oz; return [it.x + lx * c + lz * s, it.z - lx * s + lz * c]; });
-};
-const meHit = (it, x, z) => {
-  const dm = it.kind === 'p' ? (PROP_DIMS[it.model] || [3, 3]) : [it.w, it.d], c = Math.cos(it.ry || 0), s = Math.sin(it.ry || 0), dx = x - it.x, dz = z - it.z;
-  const lx = dx * c - dz * s - (dm[2] || 0), lz = dx * s + dz * c - (dm[3] || 0);
-  return Math.abs(lx) <= dm[0] / 2 && Math.abs(lz) <= dm[1] / 2;
-};
-const meW2S = (x, z) => [(x - ME.cx) * ME.sc + ME.cv.width / 2, (z - ME.cz) * ME.sc + ME.cv.height / 2];
-const meS2W = (px, pz) => [(px - ME.cv.width / 2) / ME.sc + ME.cx, (pz - ME.cv.height / 2) / ME.sc + ME.cz];
-
-function meDraw() {
-  if (!ME.open) return;
-  const g = ME.g, W = ME.cv.width, H = ME.cv.height;
-  g.clearRect(0, 0, W, H);
-  if (ME.mode === '3d') {
-    // En modo 3D el canvas es transparente para dejar ver el mundo 3D nativo
-    return;
-  }
-  // En modo 2D dibujamos el esquema arquitectónico
-  g.fillStyle = '#2a4f33'; g.fillRect(0, 0, W, H);
-  g.beginPath(); const x0 = ME.cx - W / 2 / ME.sc, x1 = ME.cx + W / 2 / ME.sc;
-  g.moveTo(...meW2S(x0, SHORE(x0))); for (let x = x0; x <= x1; x += 2) g.lineTo(...meW2S(x, SHORE(x))); g.lineTo(...meW2S(x1, 400)); g.lineTo(...meW2S(x0, 400)); g.closePath(); g.fillStyle = '#25638c'; g.fill();
-  g.beginPath(); g.moveTo(...meW2S(x0, SHORE(x0))); for (let x = x0; x <= x1; x += 2) g.lineTo(...meW2S(x, SHORE(x))); g.strokeStyle = '#d6c28c'; g.lineWidth = 6 * Math.min(1, ME.sc / 4); g.stroke();
-  g.beginPath(); g.arc(...meW2S(0, 0), CITY.core * ME.sc, 0, TAU); g.fillStyle = '#4c545e'; g.fill();
-  g.strokeStyle = '#ffffff22'; g.lineWidth = 2; g.beginPath(); g.arc(...meW2S(0, 0), CITY.bounds * ME.sc, 0, TAU); g.stroke();
-  g.fillStyle = '#2c3138'; const rd = (x, z, w, d) => { const [a, b] = meW2S(x - w / 2, z - d / 2); g.fillRect(a, b, w * ME.sc, d * ME.sc); };
-  rd(0, 0, 8, 2 * CITY.core); rd(0, 0, 2 * CITY.core, 8); for (const a of [-22, 22, -44, 44]) { const L = 2 * Math.floor(Math.sqrt(CITY.core * CITY.core - a * a) - 1.5); rd(a, 0, 5, L); rd(0, a, L, 5); }
-  g.fillStyle = '#6e9a62'; for (const pk of CITY.parks) rd(pk.x, pk.z, pk.w, pk.d);
-  g.strokeStyle = '#ffffff12'; g.lineWidth = 1; const gs = ME.sc > 6 ? 5 : 10;
-  for (let x = Math.ceil(x0 / gs) * gs; x <= x1; x += gs) { const [a] = meW2S(x, 0); g.beginPath(); g.moveTo(a, 0); g.lineTo(a, H); g.stroke(); }
-  const z0 = ME.cz - H / 2 / ME.sc, z1 = ME.cz + H / 2 / ME.sc; for (let z = Math.ceil(z0 / gs) * gs; z <= z1; z += gs) { const [, b] = meW2S(0, z); g.beginPath(); g.moveTo(0, b); g.lineTo(W, b); g.stroke(); }
-  for (const it of MAP_ITEMS) {
-    if (it.del && !ME.showDel) continue;
-    const poly = meRect(it), sel = it === ME.sel;
-    g.beginPath(); poly.forEach(([x, z], i) => { const [a, b] = meW2S(x, z); i ? g.lineTo(a, b) : g.moveTo(a, b); }); g.closePath();
-    const base = it.kind === 'b' ? (it.color || '#b0a090') : /palm/.test(it.model) ? '#2f8f4a' : /sombrilla/.test(it.model) ? '#e0a040' : /barca|velero|muelle/.test(it.model) ? '#8a6a44' : '#c9b78a';
-    g.globalAlpha = it.del ? .35 : .92; g.fillStyle = base; g.fill(); g.globalAlpha = 1;
-    g.lineWidth = sel ? 3 : it.added ? 2 : 1; g.strokeStyle = sel ? '#ffe600' : it.del ? '#ff4d4d' : it.added ? '#5dff9a' : '#0008'; g.stroke();
-    if (it.del) { g.strokeStyle = '#ff4d4d'; g.beginPath(); const [a, b] = meW2S(poly[0][0], poly[0][1]), [c, d] = meW2S(poly[2][0], poly[2][1]); g.moveTo(a, b); g.lineTo(c, d); g.moveTo(...meW2S(poly[1][0], poly[1][1])); g.lineTo(...meW2S(poly[3][0], poly[3][1])); g.stroke(); }
-    if (ME.sc >= 3.2 || sel) { const [a, b] = meW2S(it.x, it.z); g.fillStyle = '#000c'; g.font = '11px sans-serif'; g.textAlign = 'center'; const t = it.label || it.model.replace(/_/g, ' '); g.fillText(t, a, b + 4); }
-  }
-  g.fillStyle = '#fff9'; g.font = '11px monospace'; g.textAlign = 'left'; g.fillText(`x ${ME.cx.toFixed(0)}  z ${ME.cz.toFixed(0)}  ·  zoom ${ME.sc.toFixed(1)}`, 10, H - 10);
-}
-
-function meList() {
-  const ul = $('me-list'); if (!ul) return; ul.innerHTML = '';
-  const q = ME.filter.toLowerCase();
-  for (const it of MAP_ITEMS) {
-    const name = (it.label || it.model.replace(/_/g, ' ')) + (it.added ? ' (copia)' : '') + (it.del ? ' (borrado)' : '');
-    if (q && !name.toLowerCase().includes(q)) continue;
-    const li = document.createElement('li'); li.textContent = name; li.className = (it === ME.sel ? 'on ' : '') + (it.del ? 'del ' : '') + (it.added ? 'add' : '');
-    li.addEventListener('click', () => { meSelect(it); meFocus(it); });
-    ul.appendChild(li);
-  }
-}
-
-function meProps() {
-  const s = ME.sel, box = $('me-props'); if (!box) return;
-  if (!s) { box.innerHTML = '<small>Hacé clic en cualquier modelo 3D del mapa o de la lista para seleccionarlo.</small>'; return; }
-  box.innerHTML = `<b>${s.label || s.model.replace(/_/g, ' ')}</b><small>${s.kind === 'b' ? 'Edificio 3D' : 'Adorno de la costa'}${s.added ? ' · copia' : ''}</small>
-    <label>X <input id="me-x" type="number" step="0.5" value="${s.x.toFixed(2)}"></label>
-    <label>Z <input id="me-z" type="number" step="0.5" value="${s.z.toFixed(2)}"></label>
-    <label>Giro <input id="me-ry" type="number" step="15" value="${Math.round((s.ry || 0) * 180 / Math.PI)}">°</label>`;
-  const set = () => {
-    mePush();
-    s.x = +$('me-x').value || 0;
-    s.z = +$('me-z').value || 0;
-    if ($('me-ry')) s.ry = (+$('me-ry').value || 0) * Math.PI / 180;
-    if (s.mesh) {
-      s.mesh.position.x = s.x;
-      s.mesh.position.z = s.z;
-      if (s.ry != null) s.mesh.rotation.y = s.ry;
-    }
-    meUpdateGizmo();
-    if (ME.mode === '2d') meDraw();
-  };
-  for (const id of ['me-x', 'me-z', 'me-ry']) if ($(id)) $(id).addEventListener('change', set);
-}
-
-function meSelect(it) {
-  ME.sel = it;
-  meUpdateGizmo();
-  if (ME.mode === '2d') meDraw();
-  meList();
-  meProps();
-}
-
-function meDelete() {
-  const s = ME.sel; if (!s) return;
-  if (s.kind === 'b' && s.label === 'TORRE AURORA') { meMsg('La Torre Aurora no se puede borrar (tiene el ascensor), pero sí moverla.'); return; }
-  mePush();
-  if (s.added) {
-    if (s.mesh) scene.remove(s.mesh);
-    MAP_ITEMS.splice(MAP_ITEMS.indexOf(s), 1);
-    ME.sel = null;
-  } else {
-    s.del = !s.del;
-    if (s.mesh) s.mesh.visible = !s.del || ME.showDel;
-  }
-  meUpdateGizmo();
-  if (ME.mode === '2d') meDraw();
-  meList();
-  meProps();
-  meMsg(s ? (s.del ? 'Modelo borrado' : 'Modelo restaurado') : 'Eliminado');
-}
-
-function meDup() {
-  const s = ME.sel; if (!s) return; mePush();
-  const n = Object.assign({}, s, {
-    key: 'a' + Date.now().toString(36) + (++ME.counter),
-    added: true, del: false,
-    from: s.added ? s.from : s.key,
-    x: s.x + 3, z: s.z + 3, ox: s.x + 3, oz: s.z + 3
-  });
-  if (s.kind === 'b') { n.label = ''; }
-  // Clonar el modelo 3D en la escena
-  if (s.mesh) {
-    const clone = s.mesh.clone();
-    clone.position.set(n.x, s.mesh.position.y, n.z);
-    clone.rotation.y = n.ry || 0;
-    clone.userData.mapItem = n;
-    scene.add(clone);
-    n.mesh = clone;
-  }
-  MAP_ITEMS.push(n);
-  meSelect(n);
-  meFocus(n);
-  meMsg('Duplicado: ' + (n.label || n.model.replace(/_/g, ' ')));
-}
-
-function meRotate(deg = 90) {
-  const s = ME.sel; if (!s) return;
-  mePush();
-  s.ry = ((s.ry || 0) + deg * Math.PI / 180) % TAU;
-  if (s.mesh) s.mesh.rotation.y = s.ry;
-  meUpdateGizmo();
-  meProps();
-  if (ME.mode === '2d') meDraw();
-  meMsg('Girado ' + deg + '°');
-}
-
-function meMsg(t) {
-  ME.msg = t; const m = $('me-msg');
-  if (m) { m.textContent = t; clearTimeout(ME.mt); ME.mt = setTimeout(() => { m.textContent = ''; }, 5000); }
-}
-
-function meExportJSON() {
-  const E = { v: 1, mv: {}, del: [], add: [] };
-  for (const it of MAP_ITEMS) {
-    if (it.added) { if (!it.del) E.add.push({ id: it.key, kind: it.kind, model: it.model, from: it.from, x: +it.x.toFixed(2), z: +it.z.toFixed(2), ry: +(it.ry || 0).toFixed(3) }); continue; }
-    if (it.del) { E.del.push(it.key); continue; }
-    if (Math.abs(it.x - it.ox) > 1e-6 || Math.abs(it.z - it.oz) > 1e-6 || Math.abs((it.ry || 0) - (it.ory || 0)) > 1e-6) E.mv[it.key] = { x: +it.x.toFixed(2), z: +it.z.toFixed(2), ry: +(it.ry || 0).toFixed(3) };
-  }
-  return JSON.stringify(E, null, 1);
-}
-
-async function meSrv() { if (ME.srv != null) return ME.srv; try { const r = await fetch('/ping', { cache: 'no-store' }); ME.srv = r.ok && (await r.text()).startsWith('calfight-dev'); } catch (e) { ME.srv = false; } return ME.srv; }
-
-async function meSave(reload) {
-  const txt = meExportJSON(); try { localStorage.setItem('bsb_mapedit', txt); } catch (e) { }
-  let how = 'guardado en este navegador';
-  if (await meSrv()) { try { const r = await fetch('/save?p=config/mapa.json', { method: 'POST', body: txt }); if (r.ok) how = 'guardado en config/mapa.json'; } catch (e) { } }
-  else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = 'mapa.json'; a.click(); how = 'guardado en este navegador y descargado como mapa.json (ponelo en la carpeta config/ para publicarlo)'; }
-  ME.dirty = false; meMsg('Listo: ' + how + '.'); if (reload) setTimeout(() => location.reload(), 600);
-}
-
-async function meReset() {
-  if (!(await uiConfirm('¿Volver el mapa a como venía de fábrica? Se borran todos los cambios del editor.', true))) return;
-  try { localStorage.removeItem('bsb_mapedit'); } catch (e) { }
-  (async () => { if (await meSrv()) { try { await fetch('/save?p=config/mapa.json', { method: 'POST', body: '{"v":1,"mv":{},"del":[],"add":[]}' }); } catch (e) { } } location.reload(); })();
-}
-
-function meBuild() {
-  if (ME.el) return;
-  const st = document.createElement('style');
-  st.textContent = `#mapedit{position:fixed;inset:0;z-index:80;background:transparent;pointer-events:none;color:#e8ecf4;font:14px/1.4 system-ui,sans-serif;display:grid;grid-template-columns:minmax(0,1fr) 280px;grid-template-rows:auto minmax(0,1fr)}
-#mapedit.hidden{display:none}
-#mapedit .me-top{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:rgba(18,23,38,0.95);backdrop-filter:blur(10px);border-bottom:2px solid #ffb020;box-shadow:0 4px 20px rgba(0,0,0,0.5);pointer-events:auto}
-#mapedit h2{margin:0 12px 0 0;font:italic 900 20px var(--display,sans-serif);color:#ffb020;letter-spacing:.04em}
-#mapedit button{background:#1c2234;color:#e8ecf4;border:1px solid #333c55;border-radius:6px;padding:6px 12px;cursor:pointer;font:inherit;transition:background .2s,border-color .2s}
-#mapedit button:hover:not(:disabled){background:#2a3452;border-color:#ffb020}
-#mapedit button:disabled{opacity:.4;cursor:default}
-#mapedit button.pri{background:#ffb020;color:#000;border-color:#ffb020;font-weight:700}
-#mapedit button.pri:hover{background:#ffc44d}
-#mapedit button.on{background:#3a4a7a;border-color:#5d8fff}
-#mapedit .me-sp{flex:1}
-#me-msg{color:#9dffb6;font-size:13px;min-width:140px;font-weight:600}
-#mapedit .me-cv{position:relative;min-height:0;overflow:hidden;pointer-events:auto;cursor:crosshair}
-#mapedit canvas{width:100%;height:100%;display:block;touch-action:none}
-#mapedit .me-side{display:flex;flex-direction:column;min-height:0;border-left:2px solid #263050;background:rgba(15,19,32,0.94);backdrop-filter:blur(10px);box-shadow:-4px 0 20px rgba(0,0,0,0.4);pointer-events:auto}
-#me-props{padding:12px 14px;border-bottom:1px solid #263050;display:grid;gap:8px;font-size:13px}
-#me-props b{font-size:15px;color:#ffd400}
-#me-props label{display:flex;gap:8px;align-items:center;font-weight:600}
-#me-props input{width:100px;background:#05060c;border:1px solid #333c55;color:#fff;padding:5px 8px;border-radius:4px;font-family:monospace}
-#me-props small{color:#8a96b0}
-#me-filter{margin:8px 12px;background:#05060c;border:1px solid #333c55;color:#fff;padding:6px 10px;border-radius:4px}
-#me-list{list-style:none;margin:0;padding:0 8px 10px;overflow:auto;flex:1}
-#me-list li{padding:5px 10px;cursor:pointer;border-radius:4px;font-size:13px;margin-bottom:2px}
-#me-list li:hover{background:#1c2234}
-#me-list li.on{background:#ffb020;color:#000;font-weight:700}
-#me-list li.del{color:#ff8a8a;text-decoration:line-through}
-#me-list li.add{color:#5dff9a}
-.me-3d-hint{position:absolute;bottom:12px;left:14px;right:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:rgba(10,13,22,0.85);backdrop-filter:blur(8px);border:1px solid rgba(255,176,32,0.3);border-radius:8px;font-size:12px;color:#c0c9dc;pointer-events:none}
-.me-3d-hint b{color:#ffd400}
-#me-floating-tag{position:absolute;transform:translate(-50%,-100%);pointer-events:none;background:rgba(15,20,35,0.92);border:2px solid #ffd400;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.6);padding:4px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;z-index:90;transition:opacity .15s}
-#me-floating-tag.hidden{display:none}
-.me-tag-name{font:italic 900 13px var(--display,sans-serif);color:#ffd400;letter-spacing:.05em}
-.me-tag-coords{font:700 11px monospace;color:#7ad7ff}`;
-  document.head.appendChild(st);
-
-  const el = document.createElement('div'); el.id = 'mapedit'; el.className = 'hidden';
-  el.innerHTML = `<div class="me-top">
-    <h2>EDITOR DE MAPA 3D</h2>
-    <button id="me-mode" class="pri" title="Alternar entre Vista 3D y Plano 2D">🎮 VISTA 3D</button>
-    <button id="me-undo" title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
-    <button id="me-redo" title="Rehacer (Ctrl+Y)">↷ Rehacer</button>
-    <button id="me-dup" title="Duplicar (Ctrl+D)">⧉ Duplicar</button>
-    <button id="me-del" title="Borrar (Supr)">🗑 Borrar</button>
-    <button id="me-rot" title="Girar 90° (R)">⟳ Girar</button>
-    <button id="me-snap" class="on" title="Imán a la cuadrícula (0.5m)">▦ Cuadrícula</button>
-    <button id="me-showdel" title="Ver modelos borrados">👁 Borrados</button>
-    <button id="me-center" title="Centrar cámara en el modelo (F)">⌖ Centrar</button>
-    <span class="me-sp"></span><span id="me-msg"></span>
-    <button id="me-import">Importar</button>
-    <button id="me-export">Exportar</button>
-    <button id="me-reset">Restablecer</button>
-    <button id="me-save">Guardar</button>
-    <button id="me-apply" class="pri">Guardar y probar ▸</button>
-    <button id="me-close">Cerrar</button>
-  </div>
-  <div class="me-cv">
-    <canvas id="me-cv"></canvas>
-    <div id="me-floating-tag" class="hidden">
-      <span id="me-tag-name" class="me-tag-name"></span>
-      <span id="me-tag-coords" class="me-tag-coords"></span>
-    </div>
-    <div class="me-3d-hint">
-      <span><b>🖱 Clic:</b> Elegir / Arrastrar en 3D</span>
-      <span><b>Clic Der. / Arrastre:</b> Rotar Cámara</span>
-      <span><b>Rueda:</b> Zoom</span>
-      <span><b>W/A/S/D:</b> Volar (Shift: Rápido)</span>
-      <span><b>R:</b> Girar 90°</span>
-      <span><b>Ctrl+D:</b> Duplicar</span>
-      <span><b>Supr:</b> Borrar</span>
-    </div>
-  </div>
-  <div class="me-side">
-    <div id="me-props"></div>
-    <input id="me-filter" placeholder="Buscar modelo en el mapa…">
-    <ul id="me-list"></ul>
-  </div>`;
-
-  document.body.appendChild(el);
-  ME.el = el;
-  ME.cv = $('me-cv');
-  ME.g = ME.cv.getContext('2d', { willReadFrequently: true });
-
-  // Eventos de botones
-  $('me-mode').addEventListener('click', () => {
-    ME.mode = ME.mode === '3d' ? '2d' : '3d';
-    $('me-mode').textContent = ME.mode === '3d' ? '🎮 VISTA 3D' : '📐 PLANO 2D';
-    $('me-mode').className = ME.mode === '3d' ? 'pri' : '';
-    meUpdateGizmo();
-    meDraw();
-    meMsg(ME.mode === '3d' ? 'Modo 3D Interactivo activado' : 'Modo Plano 2D activado');
-  });
-
-  $('me-undo').addEventListener('click', meUndo);
-  $('me-redo').addEventListener('click', meRedo);
-  $('me-dup').addEventListener('click', meDup);
-  $('me-del').addEventListener('click', meDelete);
-  $('me-rot').addEventListener('click', () => meRotate(90));
-  $('me-snap').addEventListener('click', e => {
-    ME.snap = !ME.snap;
-    e.currentTarget.classList.toggle('on', ME.snap);
-    meMsg(ME.snap ? 'Imán a cuadrícula (0.5m) activado' : 'Colocación libre activada');
-  });
-  $('me-showdel').addEventListener('click', e => {
-    ME.showDel = !ME.showDel;
-    e.currentTarget.classList.toggle('on', ME.showDel);
-    for (const it of MAP_ITEMS) { if (it.del && it.mesh) it.mesh.visible = ME.showDel; }
-    meUpdateGizmo();
-    if (ME.mode === '2d') meDraw();
-  });
-  $('me-center').addEventListener('click', () => meFocus(ME.sel));
-  $('me-save').addEventListener('click', () => meSave(false));
-  $('me-apply').addEventListener('click', () => meSave(true));
-  $('me-reset').addEventListener('click', meReset);
-  $('me-close').addEventListener('click', meClose);
-
-  $('me-export').addEventListener('click', () => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([meExportJSON()], { type: 'application/json' }));
-    a.download = 'mapa.json'; a.click();
-  });
-  $('me-import').addEventListener('click', () => {
-    const f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json';
-    f.onchange = () => {
-      const r = new FileReader();
-      r.onload = () => {
-        try {
-          const j = JSON.parse(r.result); if (j.v !== 1) throw 0;
-          localStorage.setItem('bsb_mapedit', r.result); location.reload();
-        } catch (e) { meMsg('Ese archivo no es un mapa válido.'); }
-      };
-      if (f.files[0]) r.readAsText(f.files[0]);
-    }; f.click();
-  });
-  $('me-filter').addEventListener('input', e => { ME.filter = e.target.value; meList(); });
-
-  const cv = ME.cv;
-  cv.addEventListener('contextmenu', e => e.preventDefault());
-
-  // Raycaster 3D helper para clic en la escena
-  function raycastItem(clientX, clientY) {
-    const rect = cv.getBoundingClientRect();
-    ME.mouse2d.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    ME.mouse2d.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    ME.raycaster.setFromCamera(ME.mouse2d, camera);
-
-    const candidates = [];
-    for (const it of MAP_ITEMS) {
-      if (it.mesh && (!it.del || ME.showDel)) candidates.push(it.mesh);
-    }
-    const hits = ME.raycaster.intersectObjects(candidates, true);
-    if (!hits.length) return null;
-
-    let obj = hits[0].object;
-    while (obj && !obj.userData?.mapItem && obj.parent && obj.parent !== scene) {
-      obj = obj.parent;
-    }
-    return obj?.userData?.mapItem || null;
-  }
-
-  function raycastGround(clientX, clientY) {
-    const rect = cv.getBoundingClientRect();
-    ME.mouse2d.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    ME.mouse2d.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    ME.raycaster.setFromCamera(ME.mouse2d, camera);
-    const pt = new THREE.Vector3();
-    const hit = ME.raycaster.ray.intersectPlane(ME.groundPlane, pt);
-    return hit ? pt : null;
-  }
-
-  // Interacción táctil / ratón en el área de vista (3D y 2D)
-  cv.addEventListener('pointerdown', e => {
-    cv.setPointerCapture(e.pointerId);
-    ME.lastMouse = { x: e.clientX, y: e.clientY };
-
-    if (ME.mode === '3d') {
-      if (e.button === 1 || (e.button === 2 && e.shiftKey)) {
-        // Paneo de cámara
-        ME.panning = true; return;
-      }
-      if (e.button === 2 || e.altKey) {
-        // Rotación de cámara libre
-        ME.orbiting = true; return;
-      }
-      if (e.button === 0) {
-        // Clic izquierdo: Seleccionar modelo 3D o arrastrar
-        const hit = raycastItem(e.clientX, e.clientY);
-        if (hit) {
-          meSelect(hit);
-          const gPt = raycastGround(e.clientX, e.clientY);
-          ME.drag3d = {
-            startX: hit.x, startZ: hit.z,
-            hitX: gPt ? gPt.x : hit.x,
-            hitZ: gPt ? gPt.z : hit.z,
-            moved: false
-          };
-        } else {
-          // Si hace clic en el suelo libre o cielo, deseleccionar y permitir rotar la cámara
-          ME.sel = null;
-          meUpdateGizmo();
-          meProps();
-          meList();
-          ME.orbiting = true;
-        }
-      }
-    } else {
-      // Modo 2D original
-      const rect = cv.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * cv.width / rect.width;
-      const pz = (e.clientY - rect.top) * cv.height / rect.height;
-      const [wx, wz] = meS2W(px, pz);
-      if (e.button === 1 || e.button === 2 || ME.space) {
-        ME.pan = { px, pz, cx: ME.cx, cz: ME.cz }; return;
-      }
-      let hit = null;
-      for (let i = MAP_ITEMS.length - 1; i >= 0; i--) {
-        const it = MAP_ITEMS[i]; if (it.del && !ME.showDel) continue;
-        if (meHit(it, wx, wz)) { hit = it; break; }
-      }
-      if (hit) { meSelect(hit); ME.drag = { dx: hit.x - wx, dz: hit.z - wz, moved: false }; }
-      else { ME.sel = null; meDraw(); meList(); meProps(); ME.pan = { px, pz, cx: ME.cx, cz: ME.cz }; }
-    }
-  });
-
-  cv.addEventListener('pointermove', e => {
-    const dx = e.clientX - ME.lastMouse.x;
-    const dy = e.clientY - ME.lastMouse.y;
-    ME.lastMouse = { x: e.clientX, y: e.clientY };
-
-    if (ME.mode === '3d') {
-      if (ME.panning) {
-        // Desplazar cámara en el plano de vista
-        const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
-        const right = new THREE.Vector3().crossVectors(fwd, camera.up).normalize();
-        camera.position.addScaledVector(right, -dx * 0.08);
-        camera.position.y += dy * 0.08;
-        return;
-      }
-      if (ME.orbiting) {
-        // Rotar cámara 3D libre
-        ME.camYaw -= dx * 0.0035;
-        ME.camPitch = Math.max(-1.48, Math.min(1.48, ME.camPitch - dy * 0.0035));
-        const cy = Math.cos(ME.camPitch), sy = Math.sin(ME.camPitch);
-        const fwd = new THREE.Vector3(Math.sin(ME.camYaw) * cy, sy, -Math.cos(ME.camYaw) * cy).normalize();
-        camera.lookAt(camera.position.clone().add(fwd));
-        return;
-      }
-      if (ME.drag3d && ME.sel) {
-        // Mover modelo 3D sobre el plano del suelo en tiempo real
-        const gPt = raycastGround(e.clientX, e.clientY);
-        if (gPt) {
-          let nx = ME.drag3d.startX + (gPt.x - ME.drag3d.hitX);
-          let nz = ME.drag3d.startZ + (gPt.z - ME.drag3d.hitZ);
-          if (ME.snap && !e.altKey) {
-            nx = Math.round(nx * 2) / 2;
-            nz = Math.round(nz * 2) / 2;
-          }
-          if (!ME.drag3d.moved && (Math.abs(nx - ME.sel.x) > 0.01 || Math.abs(nz - ME.sel.z) > 0.01)) {
-            mePush(); ME.drag3d.moved = true;
-          }
-          ME.sel.x = nx; ME.sel.z = nz;
-          if (ME.sel.mesh) {
-            ME.sel.mesh.position.x = nx;
-            ME.sel.mesh.position.z = nz;
-          }
-          meUpdateGizmo();
-          meProps();
-        }
-      }
-    } else {
-      // Modo 2D
-      const rect = cv.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * cv.width / rect.width;
-      const pz = (e.clientY - rect.top) * cv.height / rect.height;
-      if (ME.pan) { ME.cx = ME.pan.cx - (px - ME.pan.px) / ME.sc; ME.cz = ME.pan.cz - (pz - ME.pan.pz) / ME.sc; meDraw(); return; }
-      if (ME.drag && ME.sel) {
-        const [wx, wz] = meS2W(px, pz); let x = wx + ME.drag.dx, z = wz + ME.drag.dz;
-        if (!ME.drag.moved) { mePush(); ME.drag.moved = true; }
-        if (ME.snap && !e.altKey) { x = Math.round(x * 2) / 2; z = Math.round(z * 2) / 2; }
-        ME.sel.x = x; ME.sel.z = z;
-        if (ME.sel.mesh) { ME.sel.mesh.position.x = x; ME.sel.mesh.position.z = z; }
-        meDraw(); meProps();
-      }
-    }
-  });
-
-  const up = () => { ME.drag = null; ME.pan = null; ME.drag3d = null; ME.orbiting = false; ME.panning = false; };
-  cv.addEventListener('pointerup', up);
-  cv.addEventListener('pointercancel', up);
-
-  cv.addEventListener('wheel', e => {
-    e.preventDefault();
-    if (ME.mode === '3d') {
-      // Zoom 3D: avanzar / retroceder en la dirección de la cámara
-      const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
-      const delta = -Math.sign(e.deltaY) * (e.shiftKey ? 8 : 3.5);
-      camera.position.addScaledVector(fwd, delta);
-      meUpdateGizmo();
-    } else {
-      const rect = cv.getBoundingClientRect();
-      const px = (e.clientX - rect.left) * cv.width / rect.width;
-      const pz = (e.clientY - rect.top) * cv.height / rect.height;
-      const [wx, wz] = meS2W(px, pz);
-      ME.sc = clamp(ME.sc * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 30);
-      const [wx2, wz2] = meS2W(px, pz);
-      ME.cx += wx - wx2; ME.cz += wz - wz2;
-      meDraw();
-    }
-  }, { passive: false });
-
-  // Teclado
-  addEventListener('keyup', e => {
-    if (ME.keys[e.code]) delete ME.keys[e.code];
-  });
-
-  addEventListener('keydown', e => {
-    if (!ME.open) return;
-    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-    if (!typing) {
-      ME.keys[e.code] = true;
-      if (e.code === 'KeyF') { e.preventDefault(); meFocus(ME.sel); }
-      if (e.code === 'KeyR') { e.preventDefault(); meRotate(90); }
-      if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); meDelete(); }
-    }
-    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !typing) { e.preventDefault(); e.shiftKey ? meRedo() : meUndo(); }
-    else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY' && !typing) { e.preventDefault(); meRedo(); }
-    else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD' && !typing) { e.preventDefault(); meDup(); }
-    else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') { e.preventDefault(); meSave(false); }
-    else if (!typing && e.code === 'Escape') meClose();
-    if (ME.open && !typing) e.stopImmediatePropagation();
-  }, true);
-
-  addEventListener('resize', () => { if (ME.open) meFit(); });
-}
-
-function meFit() {
-  const r = ME.cv.parentElement.getBoundingClientRect();
-  ME.cv.width = Math.max(200, Math.round(r.width));
-  ME.cv.height = Math.max(200, Math.round(r.height));
-  if (ME.mode === '2d') meDraw();
-}
-
-function meOpen() {
-  if (!DEV.on) return;
-  meBuild();
-  meInitMeshes();
-  meBuildGizmo();
-  scene.traverse(o => { if (o.userData && o.userData.isProxy) o.visible = true; });
-  ME.open = true;
-  ME.el.classList.remove('hidden');
-  document.body.classList.add('guide-on');
-  ME.undo = []; ME.redo = []; ME.dirty = false;
-  ME.sel = null;
-
-  // Guardar estado de cámara previo
-  ME.prevCam = {
-    pos: camera.position.clone(),
-    rot: camera.rotation.clone(),
-    fov: camera.fov,
-    state: G.state
-  };
-
-  // Posicionar cámara del editor 3D
-  meFocus(null);
-  meFit();
-  meList();
-  meProps();
-  $('me-msg').textContent = 'Editor 3D Activo · Volá con W/A/S/D o arrastrá modelos con el ratón';
-}
-
-async function meClose() {
-  if (!ME.open) return;
-  if (ME.dirty && !(await uiConfirm('Hay cambios sin guardar. ¿Cerrar igual?', true))) return;
-  ME.open = false;
-  scene.traverse(o => { if (o.userData && o.userData.isProxy) o.visible = false; });
-  ME.el.classList.add('hidden');
-  document.body.classList.remove('guide-on');
-  if (ME.gizmo) ME.gizmo.visible = false;
-  const tag = $('me-floating-tag');
-  if (tag) tag.classList.add('hidden');
-  // Restaurar cámara
-  if (ME.prevCam) {
-    camera.position.copy(ME.prevCam.pos);
-    camera.rotation.copy(ME.prevCam.rot);
-    camera.fov = ME.prevCam.fov;
-    camera.updateProjectionMatrix();
-  }
-}
-
-$('mapedbtn').addEventListener('click', () => { sfx('select'); meOpen(); });
-
-// ===== Ventanitas propias: prompt/alert/confirm no existen en algunos navegadores (el integrado de la app, por ejemplo) =====
-function uiDialog(o) {
-  return new Promise(res => {
-    if (!$('uidlg')) {
-      const st = document.createElement('style');
-      st.textContent = `#uidlg{position:fixed;inset:0;z-index:200;display:grid;place-items:center;background:#05060ccc;padding:16px}#uidlg.hidden{display:none}
-#uidlg .box{width:min(440px,100%);background:#10131f;border:3px solid #000;border-top:6px solid #ffd400;box-shadow:8px 8px 0 #000;padding:20px 22px;color:#fff;font:15px/1.5 system-ui,sans-serif}
-#uidlg h3{margin:0 0 10px;font:italic 900 24px var(--display,sans-serif);color:#ffd400}#uidlg p{margin:0 0 14px;white-space:pre-line}
-#uidlg input{width:100%;box-sizing:border-box;background:#05060c;border:2px solid #ffffff33;color:#fff;font:700 16px monospace;padding:9px 12px;margin-bottom:14px}
-#uidlg .row{display:flex;gap:10px;justify-content:flex-end}#uidlg button{border:0;padding:9px 20px;font:700 15px system-ui,sans-serif;cursor:pointer;background:#222842;color:#fff}
-#uidlg button.ok{background:#ffd400;color:#000}#uidlg button.danger{background:#ff4d4d;color:#fff}`;
-      document.head.appendChild(st);
-      const d = document.createElement('div'); d.id = 'uidlg'; d.className = 'hidden'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
-      d.innerHTML = '<div class="box"><h3></h3><p></p><input type="password" autocomplete="off" spellcheck="false"><div class="row"><button type="button" class="no"></button><button type="button" class="ok"></button></div></div>'; document.body.appendChild(d);
-    }
-    const d = $('uidlg'), h = d.querySelector('h3'), pp = d.querySelector('p'), inp = d.querySelector('input'), ok = d.querySelector('.ok'), no = d.querySelector('.no');
-    h.textContent = o.title || ''; h.style.display = o.title ? '' : 'none'; pp.textContent = o.msg || ''; inp.style.display = o.input ? '' : 'none'; inp.type = o.input === 'text' ? 'text' : 'password'; inp.value = '';
-    ok.textContent = o.ok || 'Aceptar'; ok.className = 'ok' + (o.danger ? ' danger' : ''); no.textContent = o.cancel || 'Cancelar'; no.style.display = o.cancel === false ? 'none' : '';
-    d.classList.remove('hidden');
-    const done = v => { d.classList.add('hidden'); ok.onclick = no.onclick = null; removeEventListener('keydown', key, true); res(v); };
-    const key = e => { if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); done(o.input ? null : false); } else if (e.code === 'Enter' && (e.target === inp || e.target === ok)) { e.preventDefault(); e.stopImmediatePropagation(); done(o.input ? inp.value : true); } };
-    addEventListener('keydown', key, true);
-    ok.onclick = () => done(o.input ? inp.value : true); no.onclick = () => done(o.input ? null : false);
-    setTimeout(() => (o.input ? inp : ok).focus(), 30);
-  });
-}
-const uiPrompt = (msg, secret = true, title = '') => uiDialog({ title, msg, input: secret ? 'password' : 'text', ok: 'Entrar' });
-const uiConfirm = (msg, danger = false, title = '') => uiDialog({ title, msg, danger, ok: danger ? 'Sí, seguir' : 'Aceptar' });
-const uiAlert = (msg, title = '') => uiDialog({ title, msg, cancel: false });
-// ===== Editor de audio (modo desarrollador): sonidos del juego, música, ambiente y voces con su lógica =====
-// Lo que se edita queda en config/audio.json (y los audios nuevos en sonidos/ y musica/): el juego lo lee al cargar y vale para todos los jugadores.
-const SFX_NAMES = ['swing', 'hit', 'heavy', 'boom', 'block', 'break', 'dash', 'tp', 'zap', 'beam', 'slash', 'jump', 'select'];
-const AE_ACTIONS = [
-  ['Combate', [['ev_m1_1', 'Golpe 1 del combo'], ['ev_m1_2', 'Golpe 2 del combo'], ['ev_m1_3', 'Golpe 3 del combo'], ['ev_m1_4', 'Remate (golpe 4)'], ['ev_hit_land', 'Al conectar un golpe o habilidad'],
-    ['ev_block', 'Al empezar a bloquear'], ['ev_block_hit', 'Al recibir un golpe bloqueado'], ['ev_dash', 'Al esquivar'], ['ev_jump', 'Al saltar'], ['ev_land', 'Al caer de golpe'],
-    ['ev_skill_1', 'Al usar habilidad 1'], ['ev_skill_2', 'Al usar habilidad 2'], ['ev_skill_3', 'Al usar habilidad 3'], ['ev_skill_4', 'Al usar habilidad 4']]],
-  ['Ulti y despertar', [['activate', 'Al activar la ulti'], ['ready', 'Cuando la ulti está lista'], ['ev_awake_end', 'Al terminar el despertar']]],
-  ['Estado del personaje', [['hurt', 'Al recibir daño'], ['ev_low_hp', 'Con poca vida'], ['death', 'Al morir'], ['kill', 'Al eliminar a alguien'], ['near', 'A punto de eliminar a alguien'], ['ev_spawn', 'Al aparecer / reaparecer'], ['idle', 'Estando quieto un rato'], ['menu', 'Al elegirlo en el menú']]],
-  ['Partida', [['ev_victory', 'Al ganar la partida'], ['ev_defeat', 'Al perder la partida']]],
-];
-const AE_LABEL = Object.fromEntries(AE_ACTIONS.flatMap(([, l]) => l));
-const aeLabel = e => AE_LABEL[e] || (e.startsWith('cerca_') ? 'Al estar cerca de ' + e.slice(6).replace('_ulti', ' (despierto)') : e.startsWith('hab_') ? 'Al usar: ' + e.slice(4) : e.startsWith('reac_') ? 'Reacción: ' + e.slice(5) : e);
-const AE = { open: false, el: null, tab: 'voices', char: null, sel: null, cfg: null, dirty: false, srv: null, filter: '', aud: null, ev: {}, files: {} };
-const aeDef = () => ({ v: 1, voices: {}, clip: {}, dur: {}, evp: {}, sfx: {}, music: {}, amb: {}, up: {} });
-const aeClone = o => JSON.parse(JSON.stringify(o));
-async function aeSrv() { if (AE.srv != null) return AE.srv; try { const r = await fetch('/ping', { cache: 'no-store' }); AE.srv = r.ok && (await r.text()).startsWith('calfight-dev'); } catch (e) { AE.srv = false; } return AE.srv; }
-// eventos -> clips de un personaje, tal como están ahora (lo del juego + lo que se cambió acá)
-function aeEvents(ch) {
-  if (AE.cfg.voices[ch]) return AE.cfg.voices[ch];
-  const o = {}; for (const [e, l] of Object.entries(VOICE_PACKS[ch] || {})) o[e] = l.slice(); return (AE.cfg.voices[ch] = o);
-}
-function aeClips(ch) {   // todos los audios del personaje: los que tienen acción + los que hay en la carpeta
-  const set = new Set(); for (const l of Object.values(aeEvents(ch))) for (const c of l) set.add(c);
-  for (const f of (AE.files[ch] || [])) set.add(f.replace(/\.mp3$/, ''));
-  return [...set].sort();
-}
-const aeActionsOf = (ch, clip) => Object.entries(aeEvents(ch)).filter(([, l]) => l.includes(clip)).map(([e]) => e);
-function aeItems() {
-  const t = AE.tab, q = AE.filter.toLowerCase(), out = [];
-  if (t === 'sfx') for (const n of SFX_NAMES) out.push({ id: n, label: n, sub: AE.cfg.sfx[n] && AE.cfg.sfx[n].file ? 'archivo propio' : 'sintetizado', url: AE.cfg.sfx[n] && AE.cfg.sfx[n].file, kind: 'sfx' });
-  else if (t === 'music') {
-    const def = {
-      menu2: ['Menú · Bit Rush (Arcade)', 'musica/calfight_arcade.mp3'],
-      menu3: ['Menú · Nocturno Lo-Fi', 'musica/calfight_nocturno.mp3'],
-      menu: ['Música del menú (clásica)', 'musica/menu.mp3'],
-      fight1: ['Pelea 1', 'musica/pelea1.mp3'],
-      fight2: ['Pelea 2', 'musica/pelea2.mp3'],
-      fight3: ['Pelea 3', 'musica/pelea3.mp3'],
-      intro: ['Pantalla de inicio', 'musica/calfight_intro.mp3']
-    };
-    for (const [id, [l, f]] of Object.entries(def)) out.push({ id, label: l, sub: (AE.cfg.music[id] && AE.cfg.music[id].file) || f, url: (AE.cfg.music[id] && AE.cfg.music[id].file) || f, kind: 'music', dflt: f });
-    for (const id of CHAR_IDS) out.push({ id: 'ult_' + id, label: 'Ulti de ' + CHARS[id].name, sub: (AE.cfg.music['ult_' + id] && AE.cfg.music['ult_' + id].file) || ultMusicRel(id), url: (AE.cfg.music['ult_' + id] && AE.cfg.music['ult_' + id].file) || ultMusicRel(id), kind: 'music', dflt: ultMusicRel(id) });
-  } else if (t === 'amb') for (const n of SND_LIST.filter(n => !CHARACTER_VOICE_KEYS.has(n) && !/^randi_/.test(n))) out.push({ id: n, label: n.replace(/_/g, ' '), sub: (AE.cfg.amb[n] && AE.cfg.amb[n].file) || 'sonidos/' + n + '.mp3', url: (AE.cfg.amb[n] && AE.cfg.amb[n].file) || 'sonidos/' + n + '.mp3', kind: 'amb', dflt: 'sonidos/' + n + '.mp3' });
-  else if (t === 'voices' && AE.char) for (const c of aeClips(AE.char)) { const key = AE.char + '/' + c, acts = aeActionsOf(AE.char, c); out.push({ id: key, label: c, sub: acts.length ? acts.map(aeLabel).join(' · ') : 'sin acción asignada', url: voiceRel(key), kind: 'voice', clip: c }); }
-  return out.filter(i => !q || (i.label + ' ' + i.sub).toLowerCase().includes(q));
-}
-function aeStop() { if (AE.aud) { try { AE.aud.pause(); } catch (e) { } AE.aud = null; } }
-function aePlay(url) { aeStop(); const a = new Audio(url + (url.startsWith('blob:') ? '' : '?t=' + Date.now())); a.volume = .9; AE.aud = a; a.addEventListener('timeupdate', () => { const p = $('ae-prog'); if (p && a.duration) p.value = a.currentTime / a.duration * 100; }); a.addEventListener('ended', () => { const p = $('ae-prog'); if (p) p.value = 0; }); a.addEventListener('error', () => aeMsg('No se pudo reproducir ese archivo.')); a.play().catch(() => aeMsg('El navegador bloqueó el audio: tocá de nuevo.')); }
-function aeMsg(t) { const m = $('ae-msg'); if (m) { m.textContent = t; clearTimeout(AE.mt); AE.mt = setTimeout(() => { m.textContent = ''; }, 6000); } }
-function aeRender() {
-  if (!AE.open) return;
-  document.querySelectorAll('#audedit .ae-tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === AE.tab));
-  const side = $('ae-side'), body = $('ae-body');
-  if (AE.tab === 'voices' && !AE.char) {   // primero elegir personaje (aunque no tenga audios)
-    side.innerHTML = '<div class="ae-h">Elegí el personaje</div><div class="ae-chars"></div>'; const box = side.querySelector('.ae-chars');
-    for (const id of CHAR_IDS) { const ch = CHARS[id], n = Object.values(aeEvents(id)).flat().length; const b = document.createElement('button'); b.type = 'button'; b.style.setProperty('--cc', ch.color); const cv = document.createElement('canvas'); cv.className = 'px'; headPortrait(charSkin(id), cv); b.appendChild(cv); b.insertAdjacentHTML('beforeend', `<b>${ch.name}</b><small>${n ? n + ' acciones con audio' : 'sin audios todavía'}</small>`); b.addEventListener('click', async () => { AE.char = id; AE.sel = null; await aeLs(id); aeRender(); }); box.appendChild(b); }
-    body.innerHTML = '<div class="ae-empty">Elegí un personaje para ver y editar sus voces.</div>'; return;
-  }
-  const items = aeItems(); side.innerHTML = '';
-  const head = document.createElement('div'); head.className = 'ae-h';
-  if (AE.tab === 'voices') { head.innerHTML = `<button type="button" id="ae-back">← Personajes</button> <b>${CHARS[AE.char].name}</b>`; }
-  else head.innerHTML = `<b>${{ sfx: 'Sonidos del juego (golpes, saltos…)', music: 'Música', amb: 'Sonido ambiente' }[AE.tab]}</b>`;
-  side.appendChild(head);
-  const fi = document.createElement('input'); fi.id = 'ae-filter'; fi.placeholder = 'Buscar…'; fi.value = AE.filter; fi.addEventListener('input', e => { AE.filter = e.target.value; const p = e.target.selectionStart; aeRender(); const n = $('ae-filter'); n.focus(); n.setSelectionRange(p, p); }); side.appendChild(fi);
-  const ul = document.createElement('ul'); ul.className = 'ae-list';
-  for (const it of items) { const li = document.createElement('li'); li.className = AE.sel && AE.sel.id === it.id ? 'on' : ''; li.innerHTML = `<b>${it.label}</b><small>${it.sub}</small>`; li.addEventListener('click', () => { AE.sel = it; aeStop(); aeRender(); }); ul.appendChild(li); }
-  if (!items.length) ul.innerHTML = '<li class="empty">' + (AE.tab === 'voices' ? 'Este personaje todavía no tiene audios. Subí el primero con “＋ Subir audio”.' : 'Nada para mostrar.') + '</li>';
-  side.appendChild(ul);
-  if (AE.tab === 'voices') { const up = document.createElement('button'); up.type = 'button'; up.className = 'ae-add'; up.textContent = '＋ Subir audio'; up.addEventListener('click', () => aeUpload(null)); side.appendChild(up); const b = $('ae-back'); if (b) b.addEventListener('click', () => { AE.char = null; AE.sel = null; aeStop(); aeRender(); }); }
-  else { const hint = document.createElement('div'); hint.className = 'ae-hint'; hint.textContent = AE.tab === 'sfx' ? 'Cada sonido se puede reemplazar por un archivo tuyo y ajustar su volumen y frecuencia.' : 'Elegí uno y reemplazalo por tu archivo; el volumen vale para todos.'; side.appendChild(hint); }
-  aeDetail();
-}
-async function aeLs(ch) { AE.files[ch] = []; if (await aeSrv()) { for (const dir of charSoundDirs(ch)) { try { const r = await fetch('/ls?p=' + encodeURIComponent(dir)); const j = await r.json(); for (const f of j.files) if (/\.mp3$/.test(f.name) && !AE.files[ch].includes(f.name)) AE.files[ch].push(f.name); } catch (e) { } } } }
-function aeSlider(id, label, min, max, step, val, fmt) { return `<label class="ae-sl"><span>${label} <output id="${id}-o">${fmt(val)}</output></span><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${val}"></label>`; }
-function aeDetail() {
-  const body = $('ae-body'), it = AE.sel; if (!it) { body.innerHTML = '<div class="ae-empty">Elegí un audio de la lista.</div>'; return; }
-  const cfgKey = it.kind === 'voice' ? 'clip' : it.kind, cur = (cfgKey === 'clip' ? AE.cfg.clip[it.id] : AE.cfg[cfgKey][it.id]) || {};
-  const set = (k, v) => { const store = cfgKey === 'clip' ? AE.cfg.clip : AE.cfg[cfgKey]; (store[it.id] || (store[it.id] = {}))[k] = v; AE.dirty = true; };
-  let h = `<h3>${it.label}</h3><div class="ae-src">${it.kind === 'sfx' && !it.url ? 'Sonido sintetizado por el juego' : it.url}</div>
-    <div class="ae-player"><button type="button" id="ae-play">▶ Escuchar</button><button type="button" id="ae-stop">■</button><progress id="ae-prog" max="100" value="0"></progress></div>`;
-  h += aeSlider('ae-vol', 'Volumen', 0, 200, 5, Math.round((cur.vol ?? 1) * 100), v => v + ' %');
-  if (it.kind === 'sfx' || it.kind === 'voice') { h += aeSlider('ae-chance', 'Frecuencia (probabilidad de sonar)', 0, 100, 5, Math.round((cur.chance ?? 1) * 100), v => v + ' %'); h += aeSlider('ae-cd', 'Espera entre veces', 0, 60, .5, cur.cd ?? 0, v => v + ' s'); }
-  if (it.kind === 'sfx') h += `<label class="ae-chk"><input type="checkbox" id="ae-off" ${cur.off ? 'checked' : ''}> Silenciar este sonido</label>`;
-  h += '<div class="ae-btns">';
-  h += `<button type="button" id="ae-rep">${it.kind === 'voice' ? 'Reemplazar el archivo…' : 'Usar mi propio archivo…'}</button>`;
-  if (it.kind !== 'voice' && cur.file) h += '<button type="button" id="ae-orig">Volver al original</button>';
-  if (it.kind === 'voice') h += `<button type="button" id="ae-delclip" class="danger">${AE.cfg.up[it.id] ? 'Borrar este audio' : 'Quitar de las acciones'}</button>`;
-  h += '</div>';
-  if (it.kind === 'voice') {   // lógica: en qué acciones del juego suena
-    const acts = new Set(aeActionsOf(AE.char, it.clip)), extra = Object.keys(aeEvents(AE.char)).filter(e => !AE_LABEL[e]);
-    h += '<div class="ae-logic"><h4>Lógica · cuándo suena este audio</h4><small>Marcá las acciones del jugador. Si marcás varias, suena en cualquiera de ellas. Varios audios en la misma acción: el juego elige uno al azar.</small>';
-    for (const [g, list] of [...AE_ACTIONS, ...(extra.length ? [['Especiales de este personaje', extra.map(e => [e, aeLabel(e)])]] : [])]) {
-      h += `<div class="ae-grp"><b>${g}</b>`; for (const [e, l] of list) h += `<label><input type="checkbox" data-act="${e}" ${acts.has(e) ? 'checked' : ''}> ${l}</label>`; h += '</div>';
-    }
-    h += '</div>';
-  }
-  body.innerHTML = h;
-  $('ae-play').addEventListener('click', () => { if (it.kind === 'sfx' && !it.url) { SFX_RAW = true; SFX_FORCE = true; sfx(it.id); SFX_RAW = false; SFX_FORCE = false; } else aePlay(it.url); });
-  $('ae-stop').addEventListener('click', aeStop);
-  const bindS = (id, key, mul, fmt) => { const el = $(id); if (!el) return; el.addEventListener('input', () => { $(id + '-o').textContent = fmt(+el.value); set(key, +el.value / mul); }); };
-  bindS('ae-vol', 'vol', 100, v => v + ' %'); bindS('ae-chance', 'chance', 100, v => v + ' %'); bindS('ae-cd', 'cd', 1, v => v + ' s');
-  if ($('ae-off')) $('ae-off').addEventListener('change', e => set('off', e.target.checked));
-  $('ae-rep').addEventListener('click', () => aeUpload(it));
-  if ($('ae-orig')) $('ae-orig').addEventListener('click', () => { delete AE.cfg[cfgKey][it.id].file; AE.dirty = true; aeRender(); });
-  if ($('ae-delclip')) $('ae-delclip').addEventListener('click', async () => {
-    const ok = await uiConfirm(AE.cfg.up[it.id] ? '¿Borrar este audio de la carpeta del juego?' : '¿Quitar este audio de todas sus acciones? (El archivo queda en la carpeta.)', true); if (!ok) return;
-    for (const e of Object.keys(aeEvents(AE.char))) aeEvents(AE.char)[e] = aeEvents(AE.char)[e].filter(c => c !== it.clip);
-    if (AE.cfg.up[it.id] && await aeSrv()) { try { await fetch('/del?p=' + encodeURIComponent(voiceRel(it.id)), { method: 'DELETE' }); } catch (e) { } delete AE.cfg.up[it.id]; AE.files[AE.char] = (AE.files[AE.char] || []).filter(f => f !== it.clip + '.mp3'); }
-    AE.sel = null; AE.dirty = true; aeRender();
-  });
-  body.querySelectorAll('[data-act]').forEach(c => c.addEventListener('change', () => {
-    const ev = aeEvents(AE.char), e = c.dataset.act; ev[e] = ev[e] || [];
-    if (c.checked) { if (!ev[e].includes(it.clip)) ev[e].push(it.clip); } else ev[e] = ev[e].filter(x => x !== it.clip);
-    if (!ev[e].length) ev[e] = [];   // evento vacío = sin audio
-    AE.dirty = true; const li = document.querySelector('#ae-side li.on small'); if (li) { const a = aeActionsOf(AE.char, it.clip); li.textContent = a.length ? a.map(aeLabel).join(' · ') : 'sin acción asignada'; }
-  }));
-}
-async function aeDecodeDur(buf) { try { const c = new (window.AudioContext || window.webkitAudioContext)(); const d = await c.decodeAudioData(buf.slice(0)); c.close(); return d.duration; } catch (e) { return 0; } }
-async function aeUpload(it) {
-  if (!(await aeSrv())) { await uiAlert('Para subir o reemplazar audios abrí el editor con el servidor del modo desarrollador: doble clic en Iniciar_Editor.bat (o python tools/dev-server.py).', 'SERVIDOR LOCAL'); return; }
-  const f = document.createElement('input'); f.type = 'file'; f.accept = 'audio/*,.mp3,.wav,.ogg,.m4a';
-  f.onchange = async () => {
-    const file = f.files[0]; if (!file) return; const buf = await file.arrayBuffer(), dur = await aeDecodeDur(buf);
-    let name = file.name.replace(/\.[^.]+$/, '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'audio';
-    const ext = (file.name.match(/\.[^.]+$/) || ['.mp3'])[0].toLowerCase();
-    let rel;
-    if (it && it.kind === 'voice') rel = voiceRel(it.id); else if (it && it.kind === 'sfx') rel = 'sonidos/general/' + it.id + '.mp3'; else if (it && it.kind === 'music') rel = it.id.startsWith('ult_') ? 'personajes/' + it.id.slice(4) + '/Skills/Ulti/Sound/ulti_propia.mp3' : 'musica/' + it.id + '_propia.mp3'; else if (it && it.kind === 'amb') rel = 'sonidos/ambiente/' + it.id + '.mp3'; else rel = charSoundRel(AE.char, name);
-    if (!(it && it.kind === 'voice') && AE.tab === 'voices') { let n = 2, base = name; while ((AE.files[AE.char] || []).includes(name + '.mp3') || aeClips(AE.char).includes(name)) name = base + '_' + n++; rel = charSoundRel(AE.char, name); }
-    aeMsg('Subiendo…');
-    try {
-      const r = await fetch('/upload?p=' + encodeURIComponent(rel.replace(/\.mp3$/, ext)), { method: 'POST', body: buf }), j = await r.json();
-      if (!r.ok) { aeMsg(j.error || 'No se pudo subir.'); return; }
-      rel = j.file;
-      if (it && it.kind !== 'voice') { const st = AE.cfg[it.kind][it.id] || (AE.cfg[it.kind][it.id] = {}); st.file = rel; }
-      else if (it && it.kind === 'voice') { AE.cfg.dur[it.id] = dur || AE.cfg.dur[it.id]; }
-      else { const key = AE.char + '/' + name; AE.cfg.up[key] = 1; AE.cfg.dur[key] = dur || 2; AE.files[AE.char] = [...(AE.files[AE.char] || []), name + '.mp3']; AE.sel = { id: key, label: name, kind: 'voice', clip: name, url: rel, sub: 'sin acción asignada' }; }
-      AE.dirty = true; aeMsg('Subido: ' + rel); aeRender();
-    } catch (e) { aeMsg('No se pudo subir (¿está abierto el servidor?).'); }
-  };
-  f.click();
-}
-async function aeSave(reload) {
-  const cfg = aeClone(AE.cfg); cfg.v = 1;
-  for (const ch in cfg.voices) { for (const e in cfg.voices[ch]) if (!cfg.voices[ch][e].length) cfg.voices[ch][e] = []; }
-  const txt = JSON.stringify(cfg, null, 1); try { localStorage.setItem('bsb_audiocfg', txt); } catch (e) { }
-  let how = 'guardado en este navegador';
-  if (await aeSrv()) { try { const r = await fetch('/save?p=config/audio.json', { method: 'POST', body: txt }); if (r.ok) how = 'guardado en config/audio.json'; } catch (e) { } }
-  else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = 'audio.json'; a.click(); how = 'descargado como audio.json (ponelo en la carpeta config/ para que valga para todos)'; }
-  AE.dirty = false; aeMsg('Listo: ' + how + '.'); if (reload) setTimeout(() => location.reload(), 700);
-}
-function aeBuild() {
-  if (AE.el) return;
-  const st = document.createElement('style');
-  st.textContent = `#audedit{position:fixed;inset:0;z-index:80;background:#0b0e16;color:#e8ecf4;font:14px/1.4 system-ui,sans-serif;display:grid;grid-template-columns:340px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}#audedit.hidden{display:none}
-#audedit .ae-top{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:#121726;border-bottom:1px solid #263050}
-#audedit h2{margin:0 12px 0 0;font:italic 900 20px var(--display,sans-serif);color:#ffb020}#audedit .ae-tabs{display:flex;gap:4px}
-#audedit button{background:#1c2234;color:#e8ecf4;border:1px solid #333c55;border-radius:6px;padding:7px 13px;cursor:pointer;font:inherit}#audedit button:hover{background:#2a3452}
-#audedit .ae-tabs button.on{background:#ffb020;color:#000;border-color:#ffb020;font-weight:700}#audedit button.pri{background:#ffb020;color:#000;border-color:#ffb020;font-weight:700}#audedit button.danger{background:#5a2330;border-color:#8a3346}
-#audedit .ae-sp{flex:1}#ae-msg{color:#9dffb6;font-size:13px}
-#ae-side{display:flex;flex-direction:column;min-height:0;border-right:1px solid #263050;background:#0f1320}#ae-body{overflow:auto;padding:18px 24px;min-height:0}
-#ae-side .ae-h{padding:10px 12px;border-bottom:1px solid #263050;display:flex;gap:8px;align-items:center}#ae-filter{margin:8px 10px;background:#05060c;border:1px solid #333c55;color:#fff;padding:7px 9px;border-radius:4px}
-.ae-list{list-style:none;margin:0;padding:0 6px;overflow:auto;flex:1}.ae-list li{padding:7px 10px;border-radius:5px;cursor:pointer;display:flex;flex-direction:column}.ae-list li:hover{background:#1c2234}.ae-list li.on{background:#3a4a7a}.ae-list li small{color:#8a96b0;font-size:12px}.ae-list li.empty{cursor:default;color:#8a96b0}
-.ae-add{margin:8px 10px 10px!important}.ae-hint{padding:8px 12px;font-size:12px;color:#8a96b0;border-top:1px solid #263050}
-.ae-chars{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;overflow:auto}.ae-chars button{display:flex;flex-direction:column;align-items:center;gap:4px;border-bottom:3px solid var(--cc)!important;padding:10px 6px!important}.ae-chars canvas{width:48px;height:48px;image-rendering:pixelated}.ae-chars small{color:#8a96b0;font-size:11px;text-align:center}
-.ae-empty{color:#8a96b0;padding:40px}#ae-body h3{margin:0 0 4px;font:italic 900 28px var(--display,sans-serif)}.ae-src{color:#8a96b0;font-size:12px;margin-bottom:12px;word-break:break-all}
-.ae-player{display:flex;gap:8px;align-items:center;margin-bottom:16px}#ae-prog{flex:1;height:10px}
-.ae-sl{display:block;margin:0 0 12px;max-width:520px}.ae-sl span{display:flex;justify-content:space-between;color:#aab4cc;font-size:13px}.ae-sl input{width:100%;accent-color:#ffb020}
-.ae-chk{display:block;margin:0 0 12px}.ae-btns{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
-.ae-logic{max-width:760px;border-top:1px solid #263050;padding-top:12px}.ae-logic h4{margin:0 0 4px;font-size:16px;color:#ffb020}.ae-logic>small{color:#8a96b0}
-.ae-grp{margin-top:12px}.ae-grp b{display:block;color:#aab4cc;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}.ae-grp label{display:inline-flex;gap:6px;align-items:center;margin:2px 14px 2px 0;font-size:14px;cursor:pointer}.ae-grp input{accent-color:#ffb020}`;
-  document.head.appendChild(st);
-  const el = document.createElement('div'); el.id = 'audedit'; el.className = 'hidden';
-  el.innerHTML = `<div class="ae-top"><h2>EDITOR DE AUDIO</h2><div class="ae-tabs"><button type="button" data-t="sfx">Sonidos generales</button><button type="button" data-t="music">Música</button><button type="button" data-t="amb">Sonido ambiente</button><button type="button" data-t="voices" class="on">Voces</button></div>
-    <span class="ae-sp"></span><span id="ae-msg"></span><button type="button" id="ae-save">Guardar</button><button type="button" id="ae-apply" class="pri">Guardar y probar ▸</button><button type="button" id="ae-close">Cerrar</button></div>
-    <div id="ae-side"></div><div id="ae-body"></div>`;
-  document.body.appendChild(el); AE.el = el;
-  el.querySelectorAll('.ae-tabs button').forEach(b => b.addEventListener('click', () => { AE.tab = b.dataset.t; AE.sel = null; AE.filter = ''; aeStop(); aeRender(); }));
-  $('ae-save').addEventListener('click', () => aeSave(false)); $('ae-apply').addEventListener('click', () => aeSave(true)); $('ae-close').addEventListener('click', aeClose);
-  addEventListener('keydown', e => { if (!AE.open) return; const dl = $('uidlg'), dlg = dl && !dl.classList.contains('hidden'); if (dlg) return; if (e.code === 'Escape' && !/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) aeClose(); e.stopImmediatePropagation(); }, true);
-}
-async function aeOpen() {
-  if (!DEV.on) return; aeBuild(); AE.cfg = aeClone(AUDIO_CFG); for (const k of Object.keys(aeDef())) if (!AE.cfg[k]) AE.cfg[k] = aeDef()[k];
-  AE.open = true; AE.el.classList.remove('hidden'); AE.dirty = false; AE.sel = null; AE.char = null; AE.srv = null; document.body.classList.add('guide-on'); initAudio(); aeRender(); aeSrv();
-}
-async function aeClose() {
-  if (!AE.open) return; if (AE.dirty && !(await uiConfirm('Hay cambios sin guardar. ¿Cerrar igual?', true))) return;
-  aeStop(); AE.open = false; AE.el.classList.add('hidden'); document.body.classList.remove('guide-on');
-}
-$('audedbtn').addEventListener('click', () => { sfx('select'); aeOpen(); });
-
+// ===== Editor de mapa (modo desarrollador): mover, rotar, duplicar y borrar modelos: vive en js/editores/editor_mapa.js =====
+const { ME, PROP_DIMS, meBuild, meBuildGizmo, meClose, meDelete, meDraw, meDup, meExportJSON, meFit, meFocus, meHit, meInitMeshes, meList, meMsg, meOpen, meProps, mePush, meRect, meRedo, meReset, meRestore, meRotate, meS2W, meSave, meSelect, meSnap, meSrv, meUndo, meUpdateCam, meUpdateGizmo, meW2S } = CF_EDITORES.crearEditorMapa({ $, CITY, G, MAP_ITEMS, SHORE, TAU, camera, clamp, scene, sfx, get uiConfirm() { return uiConfirm; }, get DEV() { return DEV; } });
+// ===== Ventanitas propias (alert / confirm / prompt): algunos navegadores no las tienen: vive en js/ui/ventanitas.js =====
+const { uiAlert, uiConfirm, uiDialog, uiPrompt } = CF_UI.crearVentanitas({ $ });
+// ===== Editor de audio (modo desarrollador): sonidos, música, ambiente y voces: vive en js/editores/editor_audio.js =====
+const { AE, AE_ACTIONS, AE_LABEL, SFX_NAMES, aeActionsOf, aeBuild, aeClips, aeClone, aeClose, aeDecodeDur, aeDef, aeDetail, aeEvents, aeItems, aeLabel, aeLs, aeMsg, aeOpen, aePlay, aeRender, aeSave, aeSlider, aeSrv, aeStop, aeUpload } = CF_EDITORES.crearEditorAudio({ $, AUDIO_CFG, CHARACTER_VOICE_KEYS, CHARS, CHAR_IDS, SND_LIST, VOICE_PACKS, charSkin, charSoundDirs, charSoundRel, headPortrait, initAudio, sfx, uiAlert, uiConfirm, ultMusicRel, voiceRel, get SFX_RAW() { return SFX_RAW; }, set SFX_RAW(v) { SFX_RAW = v; }, get SFX_FORCE() { return SFX_FORCE; }, set SFX_FORCE(v) { SFX_FORCE = v; }, get DEV() { return DEV; } });
 // ===== Modo desarrollador: lo ve y lo usa solo el dueño =====
 // Se activa en tu PC (localhost) o con la clave del dueño (guardada como PBKDF2 con sal; la clave en sí no está en el juego).
 // Ojo: esto es una puerta en tu navegador, no seguridad de servidor: las herramientas solo cambian tu copia y lo que publicás lo decidís vos.
@@ -14500,104 +13196,6 @@ function localRoom(code, onStatus = () => { }) {
     }, 1000);
   });
 }
-// (sin uso) sala P2P directa entre navegadores
-function p2pRoom(code, tries = 0, onStatus = () => { }) {
-  return new Promise((resolve, reject) => {
-    const hostId = 'blockstrike-v1-' + code;
-    const R = { name: 'bs-' + code, my: {}, myId: null, isHost: false, states: new Map(), seen: new Map(), skins: new Map(), profiles: new Map(), conns: new Map(), host: null, cbs: [], peer: null, closed: false, settled: false, ping: 0, mySkin: null, lastSend: 0, timer: 0 };
-    const STALE = 8000;
-    const done = (ok, v) => { if (R.settled) return; R.settled = true; if (!ok) clearInterval(R.timer); ok ? resolve(v) : reject(v); };
-    const notify = () => R.cbs.forEach(f => { try { f(); } catch (e) { } });
-    const toAll = (msg, except) => { for (const [cid, c] of R.conns) if (cid !== except && c.open) try { c.send(msg); } catch (e) { } };
-    const send = msg => { try { if (R.isHost) toAll(msg); else if (R.host && R.host.open) R.host.send(msg); } catch (e) { } };
-    R.peers = () => {
-      const now = Date.now(), a = [{ peer: R.myId, sameTab: true, isMe: true, presence: R.my }];
-      for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) a.push({ peer: id, sameTab: false, isMe: false, presence: d });
-      return a;
-    };
-    R.onPeers = fn => { R.cbs.push(fn); return () => { R.cbs = R.cbs.filter(x => x !== fn); }; };
-    let lastKey = '';
-    R.presence = patch => {
-      for (const k in patch) { if (patch[k] === null) delete R.my[k]; else R.my[k] = patch[k]; }
-      send({ t: 'p', id: R.myId, d: R.my }); R.lastSend = Date.now();
-      const key = R.my.st + '|' + R.my.nm + '|' + R.my.ch; if (key !== lastKey) { lastKey = key; notify(); }
-      return Promise.resolve();
-    };
-    R.setProfile = d => { R.myProfile = cleanPublicProfile(d); if (R.myProfile && R.myId) { R.profiles.set(R.myId, R.myProfile); send({ t: 'pf', id: R.myId, d: R.myProfile }); notify(); } };
-    R.setSkin = d => { R.mySkin = d; if (R.myId) { R.skins.set(R.myId, d); send({ t: 'sk', id: R.myId, d }); } };
-    const forget = id => { R.profiles.delete(id); R.states.delete(id); R.seen.delete(id); R.skins.delete(id); if (R.isHost) { const c = R.conns.get(id); R.conns.delete(id); if (c) try { c.close(); } catch (e) { } toAll({ t: 'x', id }); } notify(); };
-    R.leave = () => { R.closed = true; clearInterval(R.timer); try { R.peer.destroy(); } catch (e) { } return Promise.resolve(); };
-    // latido: reenvía el estado, mide el ping y borra a quien dejó de responder (recargas, cortes)
-    R.timer = setInterval(() => {
-      if (R.closed || !R.myId) return;
-      const now = Date.now();
-      if (now - R.lastSend > 1500) R.presence({});
-      if (!R.isHost) send({ t: 'pi', ts: now });
-      let gone = false;
-      for (const id of [...R.states.keys()]) if (now - (R.seen.get(id) || 0) > STALE) { forget(id); gone = true; }
-      if (gone) notify();
-    }, 2000);
-    const onData = (fromId, m) => {
-      if (!m || typeof m !== 'object') return;
-      if (m.t === 'p' && m.d && typeof m.d === 'object') {
-        const id = R.isHost ? fromId : String(m.id);
-        if (id === R.myId) return;
-        const prev = R.states.get(id); R.states.set(id, m.d); R.seen.set(id, Date.now());
-        if (R.isHost) toAll({ t: 'p', id, d: m.d }, fromId);
-        if (!prev || prev.st !== m.d.st || prev.nm !== m.d.nm || prev.ch !== m.d.ch) notify();
-      } else if (m.t === 'x' && !R.isHost) { forget(String(m.id)); }
-      else if (m.t === 'pf') { const id = R.isHost ? fromId : String(m.id); if (id !== R.myId) { receivePublicProfile(R, id, m.d, notify); if (R.isHost && R.profiles.has(id)) toAll({ t: 'pf', id, d: R.profiles.get(id) }, fromId); } }
-      else if (m.t === 'sk') {
-        const id = R.isHost ? fromId : String(m.id), d = typeof m.d === 'string' && m.d.length < 24000 ? m.d : null;
-        if (id === R.myId) return;
-        R.skins.set(id, d); if (R.isHost) toAll({ t: 'sk', id, d }, fromId);
-        if (R.onSkin) R.onSkin(id, d);
-      }
-      else if (m.t === 'pi' && R.isHost) { const c = R.conns.get(fromId); if (c && c.open) c.send({ t: 'po', ts: m.ts }); }
-      else if (m.t === 'po' && !R.isHost) { R.ping = Math.max(0, Date.now() - (+m.ts || 0)); }
-    };
-    const retry = () => {
-      clearInterval(R.timer); clearTimeout(openTo); try { R.peer.destroy(); } catch (e) { }
-      if (tries >= 4) { done(false, { code: 'no_host' }); return; }
-      onStatus(`El anfitrión no responde, reintentando (${tries + 2}/5)…`);
-      setTimeout(() => p2pRoom(code, tries + 1, onStatus).then(r => done(true, r), e => done(false, e)), 1500);
-    };
-    // si el servidor de conexión no contesta, no quedarse cargando para siempre
-    const openTo = setTimeout(() => { if (!R.settled && !R.myId) { try { R.peer.destroy(); } catch (e) { } done(false, { code: 'server' }); } }, 10000);
-    const startClient = () => {
-      R.peer = new Peer({ debug: 0 });
-      R.peer.on('open', id => {
-        R.myId = id; clearTimeout(openTo);
-        onStatus('Conectando con el anfitrión de la sala…');
-        const c = R.peer.connect(hostId, { serialization: 'json' });
-        R.host = c;
-        const to = setTimeout(retry, 9000);
-        c.on('open', () => { clearTimeout(to); if (R.mySkin) c.send({ t: 'sk', id: R.myId, d: R.mySkin }); if (R.myProfile) c.send({ t: 'pf', id: R.myId, d: R.myProfile }); done(true, R); });
-        c.on('data', m => onData(hostId, m));
-        c.on('close', () => { R.states.clear(); R.seen.clear(); notify(); if (!R.closed && R.onLost) R.onLost(); });
-      });
-      R.peer.on('error', e => { if (e.type === 'peer-unavailable' && !R.settled) retry(); else if (!R.settled) done(false, { code: e.type }); });
-    };
-    R.peer = new Peer(hostId, { debug: 0 });
-    R.peer.on('open', id => { clearTimeout(openTo); R.myId = id; R.isHost = true; if (R.mySkin) R.skins.set(id, R.mySkin); done(true, R); });
-    R.peer.on('connection', c => {
-      c.on('open', () => {
-        R.conns.set(c.peer, c);
-        if (Object.keys(R.my).length) c.send({ t: 'p', id: R.myId, d: R.my });
-        const now = Date.now();
-        for (const [id, d] of R.states) if (now - (R.seen.get(id) || 0) < STALE) c.send({ t: 'p', id, d });
-        for (const [id, d] of R.profiles) c.send({ t: 'pf', id, d });
-        for (const [id, d] of R.skins) if (d) c.send({ t: 'sk', id, d });
-      });
-      c.on('data', m => onData(c.peer, m));
-      c.on('close', () => { if (R.conns.get(c.peer) === c) forget(c.peer); });
-    });
-    R.peer.on('error', e => {
-      if (e.type === 'unavailable-id' && !R.settled) { try { R.peer.destroy(); } catch (x) { } onStatus('La sala ya existe, entrando…'); startClient(); }
-      else if (!R.settled) done(false, { code: e.type });
-    });
-  });
-}
 // skins personalizadas compartidas (solo en la sala directa: la de claude.ai tiene un límite de 4 KB por jugador)
 function netSkin(id, d) {
   if (!d || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(d)) { if (NET.skins[id]) { delete NET.skins[id]; removeProxy(id); } return; }
@@ -15111,571 +13709,8 @@ $('dclear').addEventListener('click', () => { if (canUsePanel()) clearDummies();
 $('dclose').addEventListener('click', () => togglePanel(false));
 $('panelbtn').addEventListener('click', () => togglePanel(true));
 
-// ================= Editor de animaciones (estilo Blockbench): claves, interpolaciones, fórmulas y curvas =================
-const ED = { att: null, vic: null, tg: 'att', attName: null, vicName: null, vfig: null, vchar: null, vOn: true, on: false, setId: null, name: null, clip: null, time: 0, playing: false, loop: true, speed: 1, zoom: 170, scroll: -.3, vscroll: 0, sel: new Set(), rows: [], undo: [], redo: [], clip0: null, curves: false, rotY: .35, camZ: 7.4, snap: true, open: {}, selBone: 'body', selChan: null, drag: null, saved: {}, orig: {}, msgT: 0 };
-const ED_BONES = [
-  { id: 'body', n: 'Cuerpo', col: '#ffd23f', g: { rot: ['ix', 'iy', 'iz'], pos: ['bx', 'by', 'bz'] } },
-  { id: 'torso', n: 'Torso', col: '#7dff6a', g: { rot: ['tx', 'ty', 'tz'], pos: ['tpx', 'tpy', 'tpz'], scl: ['tscx', 'tscy', 'tscz'] } },
-  { id: 'head', n: 'Cabeza', col: '#4dd2ff', g: { rot: ['hx', 'hy', 'hz'], pos: ['hpx', 'hpy', 'hpz'], scl: ['hscx', 'hscy', 'hscz'] } },
-  { id: 'armL', n: 'Brazo izquierdo', col: '#ff7ab8', g: { rot: ['alx', 'aly', 'alz'], pos: ['alpx', 'alpy', 'alpz'], scl: ['als'] } },
-  { id: 'armR', n: 'Brazo derecho', col: '#ff9a3d', g: { rot: ['arx', 'ary', 'arz'], pos: ['arpx', 'arpy', 'arpz'], scl: ['ars'] } },
-  { id: 'legL', n: 'Pierna izquierda', col: '#b06bff', g: { rot: ['llx', 'llz'], pos: ['llpx', 'llpy', 'llpz'], scl: ['lls'] } },
-  { id: 'legR', n: 'Pierna derecha', col: '#6bffd9', g: { rot: ['lrx', 'lrz'], pos: ['lrpx', 'lrpy', 'lrpz'], scl: ['lrs'] } },
-  { id: 'weapon', n: 'Arma', col: '#cfd6df', g: { rot: ['sx', 'sy', 'sz'], pos: ['spx', 'spy', 'spz'], scl: ['ssc'] } },
-];
-const ED_KIND = { rot: 'Rotación (°)', pos: 'Posición', scl: 'Escala' };
-const ED_ROT = new Set(['ix', 'iy', 'iz', 'tx', 'ty', 'tz', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'llx', 'llz', 'lrx', 'lrz', 'sx', 'sy', 'sz']);
-const edBoneOf = c => ED_BONES.find(b => Object.values(b.g).some(a => a.includes(c)));
-const edKindOf = c => ED_ROT.has(c) ? 'rot' : /sc[xyz]$|^(als|ars|lls|lrs|ssc)$/.test(c) ? 'scl' : 'pos';
-const edAxis = c => { if (c === 'ssc') return 'TAMAÑO'; const l = c.slice(-1); return 'xyz'.includes(l) && !/^(als|ars|lls|lrs)$/.test(c) ? l.toUpperCase() : 'LARGO'; };
-const edDef = c => JDEF[c] != null ? JDEF[c] : 0;
-const edDeg = v => v * 180 / Math.PI;
-const edShow = (c, v) => ED_ROT.has(c) ? edDeg(v) : v;
-const edUnshow = (c, v) => ED_ROT.has(c) ? v * Math.PI / 180 : v;
-// ----- interpolaciones
-const edBack = u => 2.70158 * u * u * u - 1.70158 * u * u;
-const edElastic = u => u === 0 ? 0 : u === 1 ? 1 : -Math.pow(2, 10 * u - 10) * Math.sin((u * 10 - 10.75) * (2 * Math.PI / 3));
-const edBounceOut = u => { const n = 7.5625, d = 2.75; if (u < 1 / d) return n * u * u; if (u < 2 / d) return n * (u -= 1.5 / d) * u + .75; if (u < 2.5 / d) return n * (u -= 2.25 / d) * u + .9375; return n * (u -= 2.625 / d) * u + .984375; };
-const ED_EASE = {
-  sine: u => 1 - Math.cos(u * Math.PI / 2), quad: u => u * u, cubic: u => u * u * u, quart: u => u ** 4, quint: u => u ** 5,
-  expo: u => u === 0 ? 0 : Math.pow(2, 10 * u - 10), circ: u => 1 - Math.sqrt(1 - u * u), back: edBack, elastic: edElastic, bounce: u => 1 - edBounceOut(1 - u),
-};
-const ED_EASE_ES = { sine: 'Seno', quad: 'Cuadrática', cubic: 'Cúbica', quart: 'Cuártica', quint: 'Quíntica', expo: 'Exponencial', circ: 'Circular', back: 'Atrás', elastic: 'Elástica', bounce: 'Rebote' };
-function edEase(name, mode, u) {
-  const f = ED_EASE[name]; if (!f) return u;
-  if (mode === 'in') return f(u); if (mode === 'out') return 1 - f(1 - u);
-  return u < .5 ? f(2 * u) / 2 : 1 - f(2 * (1 - u)) / 2;
-}
-function edBezier(x1, y1, x2, y2, x) {
-  if (x <= 0) return 0; if (x >= 1) return 1;
-  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by; let t = x;
-  for (let i = 0; i < 8; i++) { const e = ((ax * t + bx) * t + cx) * t - x, d = (3 * ax * t + 2 * bx) * t + cx; if (Math.abs(e) < 1e-5 || Math.abs(d) < 1e-6) break; t -= e / d; }
-  t = clamp(t, 0, 1); return ((ay * t + by) * t + cy) * t;
-}
-// ----- fórmulas seguras (sin eval): sin/cos/tan en grados como en Blockbench, variables time, life, length, pi
-const edDR = Math.PI / 180, edNoise = x => { const i = Math.floor(x), f = x - i, h = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); }, u = f * f * (3 - 2 * f); return (h(i) + (h(i + 1) - h(i)) * u) * 2 - 1; };
-const ED_FN = {
-  sin: a => Math.sin(a * edDR), cos: a => Math.cos(a * edDR), tan: a => Math.tan(a * edDR), asin: a => Math.asin(a) / edDR, acos: a => Math.acos(a) / edDR, atan: a => Math.atan(a) / edDR, atan2: (a, b) => Math.atan2(a, b) / edDR,
-  abs: Math.abs, min: Math.min, max: Math.max, clamp: (a, lo, hi) => Math.min(hi, Math.max(lo, a)), lerp: (a, b, t) => a + (b - a) * t, floor: Math.floor, ceil: Math.ceil, round: Math.round, trunc: Math.trunc,
-  sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, ln: Math.log, mod: (a, b) => a - b * Math.floor(a / b), sign: Math.sign, random: (a = 0, b = 1) => a + Math.random() * (b - a), noise: edNoise,
-  saw: a => a - Math.floor(a), tri: a => Math.abs(((a % 1) + 1) % 1 * 2 - 1), step: (e, x) => x < e ? 0 : 1, smoothstep: (a, b, x) => { const u = clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); }, bounce: a => edBounceOut(clamp(a, 0, 1)), hypot: Math.hypot,
-};
-const ED_CACHE = new Map();
-function edCompile(src) {
-  if (ED_CACHE.has(src)) return ED_CACHE.get(src);
-  const rx = /\s*(?:(\d+\.?\d*(?:e[-+]?\d+)?|\.\d+)|([A-Za-z_][A-Za-z0-9_.]*)|(\|\||&&|==|!=|<=|>=|[-+*\/%^(),?:<>!]))/gy, tk = []; let m, pos = 0;
-  while (pos < src.length && (m = rx.exec(src))) { pos = rx.lastIndex; if (m[1] != null) tk.push({ n: parseFloat(m[1]) }); else if (m[2] != null) tk.push({ id: m[2].replace(/^(math|query|variable|v|q)\./i, '').toLowerCase() }); else tk.push({ op: m[3] }); }
-  if (/\S/.test(src.slice(pos))) throw new Error('Carácter no válido en la fórmula');
-  let i = 0; const peek = () => tk[i], eat = o => { const t = tk[i]; if (t && t.op === o) { i++; return true; } return false; };
-  const need = o => { if (!eat(o)) throw new Error('Falta "' + o + '"'); };
-  const prim = () => {
-    const t = tk[i++]; if (!t) throw new Error('Fórmula incompleta');
-    if (t.n != null) return () => t.n;
-    if (t.op === '(') { const e = tern(); need(')'); return e; }
-    if (t.op === '-') { const e = unary(); return c => -e(c); }
-    if (t.op === '+') return unary();
-    if (t.op === '!') { const e = unary(); return c => e(c) ? 0 : 1; }
-    if (t.id) {
-      if (eat('(')) { const f = ED_FN[t.id]; if (!f) throw new Error('Función desconocida: ' + t.id); const a = []; if (!eat(')')) { do a.push(tern()); while (eat(',')); need(')'); } return c => f(...a.map(x => x(c))); }
-      const id = t.id; return c => { switch (id) { case 'time': case 'anim_time': case 't': return c.time; case 'life': return c.length ? c.time / c.length : 0; case 'length': return c.length; case 'pi': return Math.PI; case 'kt': return c.kt || 0; default: throw new Error('Variable desconocida: ' + id); } };
-    }
-    throw new Error('Símbolo inesperado');
-  };
-  const unary = () => prim();
-  const pw = () => { let a = prim(); if (eat('^')) { const b = unaryPow(); const l = a; a = c => Math.pow(l(c), b(c)); } return a; };
-  const unaryPow = () => { if (eat('-')) { const e = unaryPow(); return c => -e(c); } return pw(); };
-  const mul = () => { let a = pw(); for (;;) { if (eat('*')) { const b = pw(), l = a; a = c => l(c) * b(c); } else if (eat('/')) { const b = pw(), l = a; a = c => l(c) / (b(c) || 1e-9); } else if (eat('%')) { const b = pw(), l = a; a = c => ED_FN.mod(l(c), b(c)); } else return a; } };
-  const add = () => { let a = mul(); for (;;) { if (eat('+')) { const b = mul(), l = a; a = c => l(c) + b(c); } else if (eat('-')) { const b = mul(), l = a; a = c => l(c) - b(c); } else return a; } };
-  const cmp = () => { let a = add(); for (;;) { const o = peek() && peek().op; if (['<', '>', '<=', '>=', '==', '!='].includes(o)) { i++; const b = add(), l = a; a = c => { const x = l(c), y = b(c); return (o === '<' ? x < y : o === '>' ? x > y : o === '<=' ? x <= y : o === '>=' ? x >= y : o === '==' ? x === y : x !== y) ? 1 : 0; }; } else return a; } };
-  const and = () => { let a = cmp(); while (eat('&&')) { const b = cmp(), l = a; a = c => l(c) && b(c) ? 1 : 0; } return a; };
-  const or = () => { let a = and(); while (eat('||')) { const b = and(), l = a; a = c => l(c) || b(c) ? 1 : 0; } return a; };
-  const tern = () => { const c0 = or(); if (eat('?')) { const a = tern(); need(':'); const b = tern(); return c => c0(c) ? a(c) : b(c); } return c0; };
-  const fn = tern(); if (i < tk.length) throw new Error('Sobra "' + (tk[i].op || tk[i].id || tk[i].n) + '"');
-  ED_CACHE.set(src, fn); return fn;
-}
-function edRun(src, ctx) { try { const v = edCompile(src)(ctx); return Number.isFinite(v) ? v : 0; } catch (e) { return 0; } }
-// ----- evaluación de claves
-const edKeyVal = (clip, c, k, t) => typeof k.v === 'string' ? edUnshow(c, edRun(k.v, { time: t, length: clip.length, kt: k.t })) : k.v;
-function edEvalChan(clip, c, t) {
-  const ks = clip.tracks[c]; if (!ks || !ks.length) return edDef(c);
-  const n = ks.length; if (t <= ks[0].t) return edKeyVal(clip, c, ks[0], t); if (t >= ks[n - 1].t) return edKeyVal(clip, c, ks[n - 1], t);
-  let i = 0; while (i < n - 2 && t >= ks[i + 1].t) i++;
-  const a = ks[i], b = ks[i + 1], u = (t - a.t) / (b.t - a.t), va = edKeyVal(clip, c, a, t), vb = edKeyVal(clip, c, b, t), mode = a.i || 'catmull';
-  if (mode === 'step') return va; if (mode === 'linear') return va + (vb - va) * u;
-  if (mode === 'bezier') { const q = a.b || [.25, .1, .25, 1]; return va + (vb - va) * edBezier(q[0], q[1], q[2], q[3], u); }
-  if (mode.includes(':')) { const [nm, md] = mode.split(':'); return va + (vb - va) * edEase(nm, md, u); }
-  const p0 = i > 0 ? edKeyVal(clip, c, ks[i - 1], t) : va, p3 = i + 2 < n ? edKeyVal(clip, c, ks[i + 2], t) : vb, h = b.t - a.t, t0 = i > 0 ? ks[i - 1].t : a.t, t3 = i + 2 < n ? ks[i + 2].t : b.t;
-  const m1 = i > 0 ? (vb - p0) / (b.t - t0) * h * .5 : 0, m2 = i + 2 < n ? (p3 - va) / (t3 - a.t) * h * .5 : 0, s2 = u * u, s3 = s2 * u;
-  return (2 * s3 - 3 * s2 + 1) * va + (s3 - 2 * s2 + u) * m1 + (-2 * s3 + 3 * s2) * vb + (s3 - s2) * m2;
-}
-// ----- clip <-> datos del juego
-function edFromGame(setId, name) {
-  const D = bbSet(setId)[name], clip = { name, length: D.length, loop: !!D.loop, contacts: (D.contacts || []).slice(), tracks: {} };
-  D.channels.forEach((c, ci) => {
-    const pts = D.samples.map(r => [r[0], r[ci + 1]]), tol = ED_ROT.has(c) ? .012 : /^(als|ars|lls|lrs|tsc|hsc)/.test(c) ? .006 : .06, keep = new Set([0, pts.length - 1]);
-    const rdp = (a, b) => { let md = 0, mi = -1; for (let i = a + 1; i < b; i++) { const u = (pts[i][0] - pts[a][0]) / ((pts[b][0] - pts[a][0]) || 1), d = Math.abs(pts[i][1] - (pts[a][1] + (pts[b][1] - pts[a][1]) * u)); if (d > md) { md = d; mi = i; } } if (md > tol && mi > 0) { keep.add(mi); rdp(a, mi); rdp(mi, b); } };
-    rdp(0, pts.length - 1);
-    const ks = [...keep].sort((x, y) => x - y).map(i => ({ t: +pts[i][0].toFixed(4), v: +pts[i][1].toFixed(5), i: 'catmull' }));
-    if (ks.length > 1 || Math.abs(ks[0].v - edDef(c)) > 1e-4) clip.tracks[c] = ks;
-  });
-  return clip;
-}
-function edCompileClip(clip) {
-  const ch = Object.keys(clip.tracks).filter(c => clip.tracks[c].length).sort(), rows = [], L = Math.max(.05, clip.length), n = Math.ceil(L * 60);
-  const times = new Set(); for (let i = 0; i <= n; i++) times.add(+(Math.min(L, i / 60)).toFixed(6)); times.add(+L.toFixed(6));
-  for (const t of [...times].sort((a, b) => a - b)) rows.push([t, ...ch.map(c => +edEvalChan(clip, c, t).toFixed(6))]);
-  return { length: +L.toFixed(4), loop: !!clip.loop, contacts: clip.contacts.slice(), channels: ch, samples: rows };
-}
-function edSnap() { return JSON.stringify({ a: ED.att, v: ED.vic, tg: ED.tg }); }
-function edPush() { ED.undo.push(edSnap()); if (ED.undo.length > 100) ED.undo.shift(); ED.redo.length = 0; }
-function edPoint() { ED.clip = ED.tg === 'vic' && ED.vic ? ED.vic : ED.att; if (ED.clip === ED.att) ED.tg = 'att'; }
-function edRestoreSnap(j) { const o = JSON.parse(j); ED.att = o.a; ED.vic = o.v; ED.tg = o.tg; edPoint(); ED.sel.clear(); edRebuild(); }
-function edUndo() { if (!ED.undo.length) return; ED.redo.push(edSnap()); edRestoreSnap(ED.undo.pop()); }
-function edRedo() { if (!ED.redo.length) return; ED.undo.push(edSnap()); edRestoreSnap(ED.redo.pop()); }
-function edMsg(t, bad) { const e = $('ae-msg'); if (!e) return; e.textContent = t; e.style.color = bad ? '#ff7a7a' : '#9fe8a8'; e.style.opacity = 1; ED.msgT = 3; }
-// ----- guardado
-function edLoadSaved() {
-  try { ED.saved = JSON.parse(localStorage.getItem('bsb_anim_edits') || '{}') || {}; } catch (e) { ED.saved = {}; }
-  for (const sid of Object.keys(ED.saved)) { const D = bbSet(sid); if (!D) continue; for (const nm of Object.keys(ED.saved[sid])) { try { D[nm] = edCompileClip(ED.saved[sid][nm]); for (const k of Object.keys(JAVI_BB_CACHE)) if (k === sid + ':' + nm) delete JAVI_BB_CACHE[k]; } catch (e) { } } }
-}
-function edSaveGame() {
-  const D = bbSet(ED.setId); if (!D) return; const names = [];
-  for (const [nm, c] of [[ED.attName, ED.att], [ED.vicName, ED.vic]]) {
-    if (!nm || !c) continue; const key = ED.setId + ':' + nm; if (!ED.orig[key] && D[nm]) ED.orig[key] = D[nm];
-    D[nm] = edCompileClip(c); delete JAVI_BB_CACHE[key]; (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = JSON.parse(JSON.stringify(c)); names.push(nm);
-  }
-  try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); edMsg('Guardado en el juego: ' + names.join(' + ')); } catch (e) { edMsg('No se pudo guardar (espacio lleno). Exporta el JSON.', true); }
-}
-function edStore() { try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); } catch (e) { edMsg('No se pudo guardar (espacio lleno). Exporta el JSON.', true); } }
-function edDup() {
-  let nm = prompt('Nombre del clip nuevo (copia de ' + ED.attName + ')', ED.attName.replace(/_copia\d*$/, '') + '_copia'); if (!nm) return; nm = nm.trim().replace(/\s+/g, '_');
-  const D = bbSet(ED.setId); if (!nm || D[nm]) return edMsg('Ya existe un clip con ese nombre', true);
-  const vn = ED.vic ? (/^cine_/.test(nm) ? 'cine_vic_' + nm.slice(5) : nm + '_vic') : null; if (vn && D[vn]) return edMsg('Ya existe ' + vn, true);
-  const mk = (src, name) => { const c = JSON.parse(JSON.stringify(src)); c.name = name; c.user = true; D[name] = edCompileClip(c); (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[name] = c; };
-  mk(ED.att, nm); if (vn) mk(ED.vic, vn); edStore(); edOpenClip(ED.setId, nm); edMsg('Duplicado como ' + nm + (vn ? ' + ' + vn : ''));
-}
-function edDelClip() {
-  const names = [ED.att && ED.att.user ? ED.attName : null, ED.vic && ED.vic.user ? ED.vicName : null].filter(Boolean);
-  if (!names.length) return edMsg('Solo puedes borrar clips que creaste tú (usa Restaurar para deshacer cambios)', true);
-  if (!confirm('¿Borrar ' + names.join(' y ') + '?')) return; const D = bbSet(ED.setId);
-  for (const n of names) { delete D[n]; if (ED.saved[ED.setId]) delete ED.saved[ED.setId][n]; } edStore(); edOpenClip(ED.setId, D.idle ? 'idle' : Object.keys(D)[0]); edMsg('Clip borrado');
-}
-// ----- audio de referencia: onda en la línea de tiempo y sonido al reproducir
-function edRefOptions() {
-  const sel = document.getElementById('ae-ref'); if (!sel) return;
-  const voices = CHARACTER_VOICE_FILES.filter(k => CHARACTER_VOICE_META[k] && CHARACTER_VOICE_META[k].character === ED.setId), extra = ED.setId === 'randi' ? ['randi_waaa', 'randi_voz1', 'randi_voz2'] : [];
-  const grp = (t, l) => l.length ? '<optgroup label="' + t + '">' + l.map(k => '<option value="' + k + '"' + (ED.ref && ED.ref.key === k ? ' selected' : '') + '>' + k + '</option>').join('') + '</optgroup>' : '';
-  sel.innerHTML = '<option value="">♪ Audio de referencia: ninguno</option>' + grp('Voces de ' + ((CHARS[ED.setId] || {}).name || ''), [...voices, ...extra]) + grp('Sonidos del juego', SND_LIST.filter(k => !voices.includes(k) && !extra.includes(k)));
-  if (ED.ref && ED.ref.key === '__file') sel.insertAdjacentHTML('beforeend', '<option value="__file" selected>' + ED.ref.name + '</option>');
-}
-async function edRefSet(key) {
-  if (!key) { edRefStop(); ED.ref = null; ED_RH = 20; return; }
-  initAudio(); if (!AC) return edMsg('El audio no está disponible', true);
-  let buf = SND.buf[key]; if (!buf) { try { const ab = await (await fetch(voiceRel(key))).arrayBuffer(); buf = await new Promise((ok, no) => AC.decodeAudioData(ab, ok, no)); SND.buf[key] = buf; } catch (e) { return edMsg('No se pudo cargar ' + key, true); } }
-  edRefUse(key, key, buf);
-}
-function edRefFile(file) { initAudio(); if (!AC) return; const r = new FileReader(); r.onload = () => AC.decodeAudioData(r.result, buf => { edRefUse('__file', file.name, buf); edRefOptions(); }, () => edMsg('No se pudo leer ese audio', true)); r.readAsArrayBuffer(file); }
-function edRefUse(key, name, buf) {
-  edRefStop(); const N = 1400, ch = buf.getChannelData(0), step = Math.max(1, Math.floor(ch.length / N)), pk = new Float32Array(N);
-  for (let i = 0; i < N; i++) { let m = 0; for (let j = 0; j < step; j++) m = Math.max(m, Math.abs(ch[i * step + j] || 0)); pk[i] = m; }
-  ED.ref = { key, name, buf, pk, off: 0 }; ED_RH = 58; edRefOptions(); const o = document.getElementById('ae-refoff'); if (o) o.value = 0; edMsg('Audio de referencia: ' + name + ' (' + buf.duration.toFixed(2) + ' s)');
-}
-function edRefStart() { if (!ED.ref || !AC) return; edRefStop(); const t = ED.time - ED.ref.off, src = AC.createBufferSource(); src.buffer = ED.ref.buf; src.connect(AC.destination); if (t >= 0) { if (t < ED.ref.buf.duration) src.start(0, t); else return; } else src.start(AC.currentTime - t); ED.refSrc = src; src.onended = () => { if (ED.refSrc === src) ED.refSrc = null; }; }
-function edRefStop() { if (ED.refSrc) { try { ED.refSrc.stop(); } catch (e) { } ED.refSrc = null; } }
-function edRestore() {
-  const sid = ED.setId; let got = false;
-  for (const nm of [ED.attName, ED.vicName]) { if (!nm) continue; if (ED.saved[sid]) delete ED.saved[sid][nm]; const o = ED.orig[sid + ':' + nm]; if (o) { bbSet(sid)[nm] = o; delete JAVI_BB_CACHE[sid + ':' + nm]; got = true; } }
-  try { localStorage.setItem('bsb_anim_edits', JSON.stringify(ED.saved)); } catch (e) { }
-  edOpenClip(sid, ED.name, true); edMsg(got ? 'Clips originales restaurados' : 'Cambios borrados (recarga para ver el original)');
-}
-function edExport() { const blob = new Blob([JSON.stringify({ v: 2, set: ED.setId, attName: ED.attName, vicName: ED.vicName, att: ED.att, vic: ED.vic }, null, 1)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ED.setId + '-' + ED.attName + '.anim.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
-function edImportFile(file) {
-  const r = new FileReader(); r.onload = () => {
-    try {
-      const j = JSON.parse(r.result); edPush();
-      if (j.v === 2 && j.att) { ED.att = j.att; ED.vic = j.vic || null; ED.attName = j.attName || ED.attName; ED.vicName = j.vicName || ED.vicName; ED.tg = 'att'; }
-      else if (j.clip && j.clip.tracks) { ED.clip.tracks = j.clip.tracks; ED.clip.length = j.clip.length || ED.clip.length; ED.clip.loop = !!j.clip.loop; ED.clip.contacts = j.clip.contacts || []; }
-      else throw 0;
-      edPoint(); ED.sel.clear(); edRebuild(); edMsg('JSON importado');
-    } catch (e) { edMsg('Archivo no válido', true); }
-  }; r.readAsText(file);
-}
-// ----- abrir / cerrar
-const ED_SETS = () => CHAR_IDS.filter(id => bbSet(id));
-function edPair(sid, name) {
-  const D = bbSet(sid), m = /^cine_vic_(.+)$/.exec(name);
-  if (m) return { att: D['cine_' + m[1]] ? 'cine_' + m[1] : null, vic: name, tg: 'vic' };
-  const v = /^cine_(.+)$/.test(name) ? 'cine_vic_' + name.slice(5) : null;
-  return { att: name, vic: v && D[v] ? v : null, tg: 'att' };
-}
-function edLoadObj(sid, name) { const c = ED.saved[sid] && ED.saved[sid][name] ? JSON.parse(JSON.stringify(ED.saved[sid][name])) : edFromGame(sid, name); c.contacts = c.contacts || []; c.name = name; return c; }
-function edOpenClip(sid, name, keepUndo) {
-  const D = bbSet(sid); if (!D || !D[name]) return; const pr = edPair(sid, name);
-  ED.setId = sid; ED.name = name; ED.attName = pr.att || (D.idle ? 'idle' : name); ED.vicName = pr.vic;
-  ED.att = edLoadObj(sid, ED.attName); ED.vic = ED.vicName ? edLoadObj(sid, ED.vicName) : null; ED.tg = pr.tg; edPoint();
-  if (!keepUndo) { ED.undo.length = 0; ED.redo.length = 0; } ED.sel.clear(); ED.time = 0; ED.playing = false;
-  ED.open = {}; for (const c of Object.keys(ED.clip.tracks)) { const b = edBoneOf(c); if (b) ED.open[b.id] = true; }
-  ED.selBone = Object.keys(ED.open)[0] || 'body'; ED.selChan = null; edRebuild(); edVicBuild();
-  const mv = /^idle_voz_(\d+)$/.exec(name); if (mv && VOICE_PACKS[sid] && (VOICE_PACKS[sid].idle || []).includes('reposo_' + mv[1])) edRefSet(sid + '/reposo_' + mv[1]);
-}
-function edSetTarget(t) {
-  if (t === 'vic' && !ED.vic) return edMsg('Este clip no tiene víctima: pulsa "Crear víctima"', true);
-  ED.tg = t; edPoint(); ED.sel.clear(); ED.open = {}; for (const c of Object.keys(ED.clip.tracks)) { const b = edBoneOf(c); if (b) ED.open[b.id] = true; } ED.selChan = null; edRebuild();
-}
-function edMakeVic() {
-  if (ED.vic) return; const D = bbSet(ED.setId), nm = /^cine_/.test(ED.attName) ? 'cine_vic_' + ED.attName.slice(5) : ED.attName + '_vic';
-  if (D[nm] && ED.saved[ED.setId] && ED.saved[ED.setId][nm]) { ED.vic = edLoadObj(ED.setId, nm); } else if (D[nm]) { ED.vic = edLoadObj(ED.setId, nm); }
-  else { const c = { name: nm, length: ED.att.length, loop: false, contacts: [], tracks: {}, user: true }; D[nm] = edCompileClip(c); (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = c; edStore(); ED.vic = c; }
-  ED.vicName = nm; edPush(); edSetTarget('vic'); edMsg('Víctima creada: ' + nm + ' (edita su pose con los deslizadores)');
-}
-function edLen() { return Math.max(.05, ED.att ? ED.att.length : 1, ED.vic ? ED.vic.length : 0); }
-// ----- atacante y víctima juntos en la vista
-function edVicDispose() { if (ED.vfig) { try { disposeModel(ED.vfig.model); } catch (e) { } ED.vfig = null; } }
-function edVicBuild() {
-  edVicDispose(); if (!ED.vOn || !SH.scene) return;
-  const id = ED.vchar && CHARS[ED.vchar] ? ED.vchar : (CHAR_IDS.find(c => c !== ED.setId) || ED.setId); ED.vchar = id;
-  const skin = charSkin(id), faceC = copyCanvas(skin), model = buildModel(faceC, !!CHARS[id].slim, SH.scene);
-  ED.vfig = { model, anim: new Animator(model) }; ED.vfig.anim.bbR6 = true; const vs = document.getElementById('ae-vchar'); if (vs) vs.value = id;
-}
-const ED_ZERO = new V3(0, 0, 0), ED_DEFPATH = { apos: [[0, 0, 0, 0, 0]], vpos: [[0, 0, 0, 1.5, 0]] };
-const edPath = (k) => { const P = ED.att && ED.att.paths && ED.att.paths[k]; return P && P.length ? P : ED_DEFPATH[k]; };
-function edRebuild() {
-  ED.rows = []; for (const b of ED_BONES) { if (b.id === 'weapon' && !(SH.fig && SH.fig.spear)) continue; ED.rows.push({ t: 'bone', b }); if (ED.open[b.id]) for (const k of ['rot', 'pos', 'scl']) for (const c of b.g[k] || []) ED.rows.push({ t: 'chan', b, k, c }); }
-  { const ta = $('ae-tg-att'), tv = $('ae-tg-vic'); if (ta) { ta.classList.toggle('on', ED.tg === 'att'); tv.classList.toggle('on', ED.tg === 'vic'); tv.disabled = !ED.vic; $('ae-vmake').style.display = ED.vic ? 'none' : ''; const vs = $('ae-vchar'); vs.innerHTML = CHAR_IDS.map(id => '<option value="' + id + '"' + (id === ED.vchar ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); } }
-  edRefOptions(); const ss = $('ae-set'), sc = $('ae-clip'); if (ss) { ss.innerHTML = ED_SETS().map(id => '<option value="' + id + '"' + (id === ED.setId ? ' selected' : '') + '>' + CHARS[id].name + '</option>').join(''); }
-  if (sc && ED.setId) { const D = bbSet(ED.setId); sc.innerHTML = Object.keys(D).map(n => '<option' + (n === ED.name ? ' selected' : '') + '>' + n + '</option>').join(''); }
-  edProps(); edTree();
-}
-function edOpen() {
-  if (!DEV.on) return;
-  if (G.state !== 'menu') return; edBuild(); edComicInit(); const id = ED_SETS().includes(G.charId) ? G.charId : ED_SETS()[0];
-  ED.on = true; $('menu').style.display = 'none'; $('animed').classList.remove('hidden'); SH.landed = true; SH.kf = null; ED.camZ = Math.max(ED.camZ, 9.8);
-  if (G.charId !== id) { G.charId = id; showSelect(id, true); } edOpenClip(id, bbSet(id).idle ? 'idle' : Object.keys(bbSet(id))[0]);
-  requestAnimationFrame(edLoop);
-}
-function edComicInit() {
-  const root = document.getElementById('animed'), top = root && root.querySelector('.ae-top'); if (!root || !top) return;
-  let on = true; try { on = localStorage.getItem('bsb_ed_comic') !== '0'; } catch (e) { }
-  root.classList.toggle('comic', on);
-  if (!document.getElementById('aecomicbtn')) {
-    const b = document.createElement('button'); b.type = 'button'; b.id = 'aecomicbtn'; b.title = 'Cambia entre el estilo cómic/anime y el estilo clásico'; b.textContent = 'ESTILO CÓMIC';
-    b.addEventListener('click', () => { const v = !root.classList.contains('comic'); root.classList.toggle('comic', v); try { localStorage.setItem('bsb_ed_comic', v ? '1' : '0'); } catch (e) { } });
-    top.appendChild(b);
-  }
-}
-function edClose() { ED.on = false; ED.playing = false; edRefStop(); edVicDispose(); $('animed').classList.add('hidden'); $('menu').style.display = ''; showSelect(G.charId, true); }
-// ----- interfaz
-function edBuild() {
-  if ($('animed')) return;
-  const st = document.createElement('style');
-  st.textContent = `
-#animed.comic{font-family:"Chakra Petch",system-ui,sans-serif;color:#fff}
-#animed.comic .ae-top,#animed.comic .ae-left,#animed.comic .ae-right,#animed.comic .ae-bottom{background:#17102b;border:0;background-image:radial-gradient(rgba(255,212,0,.16) 1.4px,transparent 1.6px);background-size:9px 9px}
-#animed.comic .ae-top{border-bottom:4px solid #000;box-shadow:0 4px 0 #ffd400}
-#animed.comic .ae-left{border-right:4px solid #000;box-shadow:4px 0 0 #ff3d6e}
-#animed.comic .ae-right{border-left:4px solid #000;box-shadow:-4px 0 0 #3fe0ff}
-#animed.comic .ae-bottom{border-top:4px solid #000;box-shadow:0 -4px 0 #ffd400}
-#animed.comic .ae-top b{font-style:italic;font-weight:900;color:#ffd400;text-shadow:2px 2px 0 #000;transform:skewX(-8deg);display:inline-block;font-size:20px}
-#animed.comic button,#animed.comic select,#animed.comic input[type=text],#animed.comic input[type=number]{background:#fff;color:#000;border:3px solid #000;border-radius:2px;font-weight:800;box-shadow:3px 3px 0 #000;text-transform:uppercase;letter-spacing:.03em}
-#animed.comic input[type=number],#animed.comic input[type=text]{text-transform:none}
-#animed.comic button:hover:not(:disabled){background:#ffd400;border-color:#000;transform:translate(-1px,-1px) skewX(-4deg);box-shadow:5px 5px 0 #000}
-#animed.comic button:active:not(:disabled){transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
-#animed.comic button.on{background:#ff3d6e;color:#fff;border-color:#000;text-shadow:1px 1px 0 #000}
-#animed.comic button.warn{background:#ff5a5a;color:#fff}
-#animed.comic h4{color:#ffd400;font-style:italic;font-weight:900;font-size:13px;letter-spacing:.08em;text-shadow:2px 2px 0 #000;transform:skewX(-8deg);display:inline-block;border-bottom:3px solid #ff3d6e;padding-right:12px}
-#animed.comic .ae-bone{border:2px solid transparent;border-radius:2px;font-weight:700}
-#animed.comic .ae-bone:hover{background:#ffd40033;border-color:#000}
-#animed.comic .ae-bone.sel,#animed.comic .ae-bone.on{background:#ffd400;color:#000;border:2px solid #000;box-shadow:3px 3px 0 #000;transform:skewX(-5deg)}
-#animed.comic .ae-bone small{color:#9fd8ff}
-#animed.comic canvas{border:4px solid #000;box-shadow:5px 5px 0 #ff3d6e;background:#0c0820}
-#animed.comic .ae-tools label{font-weight:800}
-#animed.comic input[type=range]{accent-color:#ff3d6e}
-#animed.comic .ae-top::after{content:'';position:absolute;left:0;right:0;bottom:-10px;height:6px;background:repeating-linear-gradient(100deg,#000 0 14px,transparent 14px 28px);opacity:.35;pointer-events:none}
-#aecomicbtn{margin-left:auto}
-#animed{position:fixed;inset:0;z-index:70;pointer-events:none;font:13px/1.35 "Chakra Petch",system-ui,sans-serif;color:#d6dae3}#animed.hidden{display:none}#animed *{box-sizing:border-box}
-#animed .ae-top,#animed .ae-left,#animed .ae-right,#animed .ae-bottom{pointer-events:auto;background:#1a1d24;border:1px solid #2b303b}
-#animed .ae-top{position:absolute;left:0;right:0;top:0;height:42px;display:flex;align-items:center;gap:8px;padding:0 10px;border-width:0 0 1px}
-#animed .ae-top b{font-family:var(--display);font-size:18px;letter-spacing:.08em;color:#ffd400;margin-right:8px}
-#animed button,#animed select,#animed input[type=text],#animed input[type=number]{font:inherit;color:#e6e9f0;background:#252a35;border:1px solid #394050;border-radius:4px;padding:4px 9px;min-width:0}
-#animed button{cursor:pointer}#animed button:hover:not(:disabled){background:#313848;border-color:#5a6a8a}#animed button.on{background:#3e8bff;border-color:#3e8bff;color:#fff}#animed button.warn:hover{background:#6b2a2a}
-#animed .sp{flex:1}#animed .ae-left{position:absolute;left:0;top:42px;bottom:310px;width:230px;overflow:auto;border-width:0 1px 0 0;padding:8px}
-#animed .ae-right{position:absolute;right:0;top:42px;bottom:310px;width:300px;overflow:auto;border-width:0 0 0 1px;padding:10px;display:flex;flex-direction:column;gap:9px}
-#animed h4{margin:0 0 6px;font-size:11px;letter-spacing:.14em;color:#8791a6;font-weight:700}
-#animed .ae-bone{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:4px;cursor:pointer;user-select:none}#animed .ae-bone:hover{background:#252a35}#animed .ae-bone.on{background:#2c3a55}
-#animed .ae-bone i{width:10px;height:10px;border-radius:2px;display:inline-block}#animed .ae-bone small{margin-left:auto;color:#6f7a90}
-#animed .ae-bottom{position:absolute;left:0;right:0;bottom:0;height:310px;display:flex;flex-direction:column;border-width:1px 0 0}
-#animed .ae-tools{display:flex;align-items:center;gap:6px;padding:6px 10px;border-bottom:1px solid #2b303b;flex-wrap:wrap}#animed .ae-tools label{display:flex;align-items:center;gap:5px;color:#9aa4b8}
-#animed .ae-tools input[type=number]{width:62px}#animed #ae-time{font-family:ui-monospace,Consolas,monospace;color:#ffd400;min-width:132px;text-align:center}
-#animed #ae-wrap{flex:1;position:relative;min-height:0}#animed canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-#animed .ae-view{position:absolute;left:230px;right:300px;top:42px;bottom:310px;pointer-events:auto;cursor:grab}#animed .ae-view:active{cursor:grabbing}
-#animed .ae-hint{position:absolute;left:240px;top:50px;color:#8f99ae;font-size:12px;pointer-events:none;text-shadow:0 1px 3px #000}
-#animed #ae-msg{position:absolute;left:50%;transform:translateX(-50%);top:52px;font-weight:700;opacity:0;transition:opacity .4s;pointer-events:none;text-shadow:0 1px 4px #000}
-#animed .ae-field{display:grid;grid-template-columns:78px 1fr;gap:6px;align-items:center}#animed .ae-field input,#animed .ae-field select{width:100%}
-#animed .ae-sl{display:grid;grid-template-columns:34px 1fr 74px;gap:6px;align-items:center}#animed .ae-sl input[type=range]{width:100%;accent-color:#3e8bff}
-#animed .ae-card{background:#20242d;border:1px solid #2f3543;border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:7px}
-#animed .ae-help{font-size:11.5px;color:#9aa4b8;line-height:1.5}#animed .ae-help code{background:#14161c;padding:1px 5px;border-radius:3px;color:#ffd23f}#animed .ae-err{color:#ff7a7a;font-size:12px;min-height:16px}
-#animed .ae-btns{display:flex;gap:6px;flex-wrap:wrap}#animed .ae-seg{display:inline-flex;border:1px solid #394050;border-radius:5px;overflow:hidden}#animed .ae-seg button{border:0;border-radius:0}#animed .ae-seg button.on{background:#ffd400;color:#000}#animed .ae-tag{font-weight:700;letter-spacing:.1em}`;
-  document.head.appendChild(st);
-  const d = document.createElement('div'); d.id = 'animed'; d.className = 'hidden';
-  d.innerHTML = `<div class="ae-top"><b>EDITOR DE ANIMACIONES</b><select id="ae-set" title="Personaje"></select><select id="ae-clip" title="Animación"></select><span class="ae-seg"><button id="ae-tg-att" class="on" title="Editar la animación del atacante">Atacante</button><button id="ae-tg-vic" title="Editar la animación de la víctima">Víctima</button></span><select id="ae-vchar" title="Personaje que hace de víctima"></select><button id="ae-vtoggle" class="on" title="Mostrar u ocultar a la víctima">👁 Víctima</button><button id="ae-vmake" style="display:none" title="Crea la animación de la víctima de este clip">+ Crear víctima</button>
-<button id="ae-new" title="Clip nuevo vacío">Nuevo</button><button id="ae-dup" title="Copia este clip con otro nombre para hacer una animación nueva a partir de él">Duplicar</button><button id="ae-delclip" class="warn" title="Borra este clip (solo los que creaste tú)">Borrar clip</button><button id="ae-undo" title="Deshacer (Ctrl+Z)">↶</button><button id="ae-redo" title="Rehacer (Ctrl+Y)">↷</button><span class="sp"></span>
-<button id="ae-save" class="on" title="Aplica la animación al juego y la guarda en este navegador">Guardar en el juego</button><button id="ae-restore" title="Quita los cambios de este clip">Restaurar</button><button id="ae-exp">Exportar JSON</button><button id="ae-imp">Importar JSON</button><input id="ae-file" type="file" accept=".json,application/json" style="display:none"><button id="ae-close" class="warn">Cerrar ✕</button></div>
-<aside class="ae-left"><h4>ESQUELETO</h4><div id="ae-tree"></div></aside>
-<div class="ae-view" id="ae-view"></div><div class="ae-hint">Arrastra para girar · rueda: zoom · atacante y víctima juntos · en la línea de tiempo arrastra un recuadro para seleccionar claves</div><div id="ae-msg"></div>
-<aside class="ae-right"><h4>PROPIEDADES</h4><div id="ae-props"></div></aside>
-<section class="ae-bottom"><div class="ae-tools"><button id="ae-first">⏮</button><button id="ae-play">▶</button><button id="ae-last">⏭</button><button id="ae-loop" class="on" title="Repetir">⟲</button><span id="ae-time">0:00:00 / 0</span>
-<label>FPS <input id="ae-fps" type="number" min="1" max="240" value="60"></label><label>Duración <input id="ae-len" type="number" min=".05" step=".05" value="1"></label><label>Vel. <input id="ae-speed" type="number" min=".05" max="4" step=".05" value="1"></label>
-<button id="ae-snap" class="on" title="Ajustar al cuadro">Imán</button><button id="ae-curves" title="Alternar entre claves y curvas">Curvas</button><select id="ae-ref" title="Audio de referencia para guiarte con el tiempo"></select><button id="ae-refup" title="Subir un audio tuyo">Subir…</button><label>Desfase <input id="ae-refoff" type="number" step=".05" value="0"></label><button id="ae-reflen" title="Pone la duración del clip igual a la del audio">Ajustar</button><input id="ae-reffile" type="file" accept="audio/*" style="display:none"><span class="sp"></span>
-<button id="ae-add" title="Clave en el cursor (K) para el canal o hueso elegido">◆ Clave</button><button id="ae-addxyz" title="Claves X,Y,Z del hueso en el cursor">◆ XYZ</button><button id="ae-del" title="Borrar claves (Supr)">Borrar</button><button id="ae-copy">Copiar</button><button id="ae-paste">Pegar</button></div>
-<div id="ae-wrap"><canvas id="ae-cv"></canvas></div></section>`;
-  document.body.appendChild(d);
-  const $e = id => document.getElementById(id), on = (id, ev, fn) => $e(id).addEventListener(ev, fn);
-  on('ae-close', 'click', edClose); on('ae-save', 'click', edSaveGame); on('ae-restore', 'click', edRestore); on('ae-exp', 'click', edExport); on('ae-imp', 'click', () => $e('ae-file').click()); on('ae-file', 'change', e => { if (e.target.files[0]) edImportFile(e.target.files[0]); e.target.value = ''; });
-  on('ae-set', 'change', e => { const id = e.target.value; G.charId = id; showSelect(id, true); SH.landed = true; SH.kf = null; const D = bbSet(id); edOpenClip(id, D.idle ? 'idle' : Object.keys(D)[0]); });
-  on('ae-clip', 'change', e => edOpenClip(ED.setId, e.target.value));
-  on('ae-tg-att', 'click', () => edSetTarget('att')); on('ae-tg-vic', 'click', () => edSetTarget('vic')); on('ae-vmake', 'click', edMakeVic);
-  on('ae-vtoggle', 'click', () => { ED.vOn = !ED.vOn; $e('ae-vtoggle').classList.toggle('on', ED.vOn); edVicBuild(); }); on('ae-vchar', 'change', e => { ED.vchar = e.target.value; edVicBuild(); });
-  on('ae-new', 'click', () => { const nm = (prompt('Nombre del clip nuevo', 'mi_animacion') || '').trim().replace(/\s+/g, '_'); if (!nm) return; const D = bbSet(ED.setId); if (D[nm]) return edMsg('Ya existe un clip con ese nombre', true); D[nm] = { length: 1, loop: false, contacts: [], channels: [], samples: [[0], [1]] }; (ED.saved[ED.setId] = ED.saved[ED.setId] || {})[nm] = { name: nm, length: 1, loop: false, contacts: [], tracks: {}, user: true }; edStore(); edOpenClip(ED.setId, nm); edMsg('Clip creado: ' + nm); });
-  on('ae-undo', 'click', edUndo); on('ae-redo', 'click', edRedo); on('ae-dup', 'click', edDup); on('ae-delclip', 'click', edDelClip);
-  on('ae-ref', 'change', e => edRefSet(e.target.value)); on('ae-refup', 'click', () => $e('ae-reffile').click()); on('ae-reffile', 'change', e => { if (e.target.files[0]) edRefFile(e.target.files[0]); e.target.value = ''; });
-  on('ae-refoff', 'change', e => { if (ED.ref) { ED.ref.off = +e.target.value || 0; if (ED.playing) edRefStart(); } }); on('ae-reflen', 'click', () => { if (!ED.ref) return edMsg('Primero elige un audio de referencia', true); edPush(); ED.clip.length = +(ED.ref.buf.duration + ED.ref.off + .3).toFixed(2); edProps(); edMsg('Duración ajustada al audio'); });
-  on('ae-first', 'click', () => { ED.time = 0; }); on('ae-last', 'click', () => { ED.time = ED.clip.length; });
-  on('ae-play', 'click', () => { ED.playing = !ED.playing; if (ED.playing && ED.time >= ED.clip.length) ED.time = 0; });
-  on('ae-loop', 'click', () => { ED.loop = !ED.loop; $e('ae-loop').classList.toggle('on', ED.loop); });
-  on('ae-snap', 'click', () => { ED.snap = !ED.snap; $e('ae-snap').classList.toggle('on', ED.snap); });
-  on('ae-curves', 'click', () => { ED.curves = !ED.curves; $e('ae-curves').classList.toggle('on', ED.curves); });
-  on('ae-speed', 'change', e => { ED.speed = clamp(+e.target.value || 1, .05, 4); });
-  on('ae-len', 'change', e => { edPush(); ED.clip.length = Math.max(.05, +e.target.value || 1); edProps(); });
-  on('ae-add', 'click', () => edAddKeys(false)); on('ae-addxyz', 'click', () => edAddKeys(true)); on('ae-del', 'click', edDelSel); on('ae-copy', 'click', edCopy); on('ae-paste', 'click', edPaste);
-  const view = $e('ae-view'); let dr = null; view.addEventListener('pointerdown', e => { dr = { x: e.clientX, r: ED.rotY }; view.setPointerCapture(e.pointerId); }); view.addEventListener('pointermove', e => { if (dr) ED.rotY = dr.r + (e.clientX - dr.x) * .01; }); view.addEventListener('pointerup', () => { dr = null; });
-  view.addEventListener('wheel', e => { e.preventDefault(); ED.camZ = clamp(ED.camZ + e.deltaY * .004, 2.2, 10); }, { passive: false });
-  ED.cv = $e('ae-cv'); edBindTimeline();
-  addEventListener('keydown', edKey);
-}
-function edKey(e) {
-  if (!ED.on || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
-  const k = e.code, ctrl = e.ctrlKey || e.metaKey;
-  if (ctrl && k === 'KeyZ') { e.preventDefault(); e.shiftKey ? edRedo() : edUndo(); } else if (ctrl && k === 'KeyY') { e.preventDefault(); edRedo(); } else if (ctrl && k === 'KeyC') { edCopy(); } else if (ctrl && k === 'KeyV') { edPaste(); } else if (ctrl && k === 'KeyS') { e.preventDefault(); edSaveGame(); } else if (ctrl && k === 'KeyA') { e.preventDefault(); edSelAll(); }
-  else if (k === 'Space') { e.preventDefault(); document.getElementById('ae-play').click(); } else if (k === 'Delete' || k === 'Backspace') { edDelSel(); } else if (k === 'KeyK') { edAddKeys(e.shiftKey); }
-  else if (k === 'ArrowLeft') { ED.time = Math.max(0, ED.time - 1 / (+document.getElementById('ae-fps').value || 60)); ED.playing = false; } else if (k === 'ArrowRight') { ED.time = Math.min(ED.clip.length, ED.time + 1 / (+document.getElementById('ae-fps').value || 60)); ED.playing = false; }
-  else if (k === 'Home') ED.time = 0; else if (k === 'End') ED.time = ED.clip.length; else if (k === 'Escape') edClose();
-}
-function edTree() {
-  const t = document.getElementById('ae-tree'); if (!t) return; t.innerHTML = '';
-  for (const b of ED_BONES) {
-    if (b.id === 'weapon' && !(SH.fig && SH.fig.spear)) continue;
-    const n = Object.values(b.g).flat().reduce((s, c) => s + ((ED.clip.tracks[c] || []).length), 0);
-    const el = document.createElement('div'); el.className = 'ae-bone' + (ED.selBone === b.id ? ' on' : ''); el.innerHTML = '<i style="background:' + b.col + '"></i>' + b.n + '<small>' + (n ? n + ' claves' : '—') + '</small>';
-    el.addEventListener('click', () => { ED.selBone = b.id; ED.selChan = null; ED.open[b.id] = !ED.open[b.id] || ED.selBone !== b.id ? true : false; edRebuild(); });
-    t.appendChild(el);
-  }
-}
-// ----- claves
-const edTimeSnap = t => { const f = +document.getElementById('ae-fps').value || 60; return ED.snap ? Math.round(t * f) / f : t; };
-function edKeysOf(c) { return ED.clip.tracks[c] || (ED.clip.tracks[c] = []); }
-function edSetKey(c, t, v, interp) {
-  const ks = edKeysOf(c), f = 1 / (+document.getElementById('ae-fps').value || 60);
-  let k = ks.find(x => Math.abs(x.t - t) < f * .5); if (!k) { k = { t: +t.toFixed(4), v, i: interp || (ks.length ? ks[ks.length - 1].i : 'catmull') || 'catmull' }; ks.push(k); ks.sort((a, b) => a.t - b.t); } else k.v = v;
-  return k;
-}
-function edAddKeys(xyz) {
-  const t = edTimeSnap(ED.time); let chans = [];
-  const row = ED.selChan ? { c: ED.selChan } : null, b = ED_BONES.find(x => x.id === ED.selBone);
-  if (xyz || !row) { const kind = row ? edKindOf(row.c) : 'rot'; chans = (b.g[kind] || b.g.rot || []).slice(); } else chans = [row.c];
-  edPush(); for (const c of chans) { const k = edSetKey(c, t, edEvalChan(ED.clip, c, t)); ED.sel.add(k); } edRebuildPartial();
-}
-function edRebuildPartial() { edTree(); edProps(); }
-function edDelSel() { if (!ED.sel.size) return; edPush(); for (const c of Object.keys(ED.clip.tracks)) ED.clip.tracks[c] = ED.clip.tracks[c].filter(k => !ED.sel.has(k)); ED.sel.clear(); edRebuildPartial(); }
-function edCopy() { if (!ED.sel.size) return; let t0 = 1e9; const items = []; for (const c of Object.keys(ED.clip.tracks)) for (const k of ED.clip.tracks[c]) if (ED.sel.has(k)) { items.push({ c, k: JSON.parse(JSON.stringify(k)) }); t0 = Math.min(t0, k.t); } ED.clipboard = items.map(i => ({ c: i.c, k: Object.assign(i.k, { t: i.k.t - t0 }) })); edMsg(items.length + ' claves copiadas'); }
-function edPaste() { if (!ED.clipboard || !ED.clipboard.length) return; edPush(); ED.sel.clear(); const t0 = edTimeSnap(ED.time); for (const it of ED.clipboard) { const k = edSetKey(it.c, t0 + it.k.t, it.k.v, it.k.i); if (it.k.b) k.b = it.k.b.slice(); k.i = it.k.i; ED.sel.add(k); } edRebuildPartial(); }
-// ----- panel de propiedades
-const ED_INTERPS = () => '<option value="catmull">Suave (Catmull-Rom)</option><option value="linear">Lineal</option><option value="step">Escalón</option><option value="bezier">Bézier cúbica</option>' + Object.keys(ED_EASE).map(n => '<optgroup label="' + ED_EASE_ES[n] + '"><option value="' + n + ':in">' + ED_EASE_ES[n] + ' · entrada</option><option value="' + n + ':out">' + ED_EASE_ES[n] + ' · salida</option><option value="' + n + ':inout">' + ED_EASE_ES[n] + ' · entrada y salida</option></optgroup>').join('');
-function edProps() {
-  const p = document.getElementById('ae-props'); if (!p || !ED.clip) return; const clip = ED.clip, b = ED_BONES.find(x => x.id === ED.selBone), sel = [...ED.sel], k0 = sel[0];
-  let h = '';
-  if (k0) {
-    const c0 = Object.keys(clip.tracks).find(c => clip.tracks[c].includes(k0)), many = sel.length > 1, cur = typeof k0.v === 'string' ? k0.v : String(+edShow(c0, k0.v).toFixed(4));
-    h += '<div class="ae-card"><h4>KEYFRAME' + (many ? ' (' + sel.length + ')' : '') + ' · ' + (edBoneOf(c0) || {}).n + ' ' + edAxis(c0) + '</h4>' +
-      '<div class="ae-field"><label>Tiempo (s)</label><input id="ae-kt" type="number" step=".01" value="' + k0.t + '"></div>' +
-      '<div class="ae-field"><label>Valor / fórmula</label><input id="ae-kv" type="text" value="' + cur.replace(/"/g, '&quot;') + '" ' + (many ? 'placeholder="(varios)"' : '') + '></div><div class="ae-err" id="ae-kerr"></div>' +
-      '<div class="ae-field"><label>Interpolación</label><select id="ae-ki">' + ED_INTERPS() + '</select></div>' +
-      '<div class="ae-field" id="ae-kbz" style="display:none"><label>Bézier</label><input id="ae-kb" type="text" value="' + (k0.b || [.25, .1, .25, 1]).join(', ') + '"></div>' +
-      '<div class="ae-btns"><button id="ae-kdup">Duplicar</button><button id="ae-kdel" class="warn">Borrar</button></div></div>';
-  } else {
-    h += '<div class="ae-card"><h4>' + (ED.tg === 'vic' ? 'VÍCTIMA' : 'ATACANTE') + ' · ' + clip.name + '</h4><div class="ae-field"><label>Contactos (s)</label><input id="ae-contacts" type="text" value="' + clip.contacts.join(', ') + '" placeholder="0.2, 0.55"></div><label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="ae-cloop" ' + (clip.loop ? 'checked' : '') + '> Animación en bucle</label>' +
-      '<div class="ae-help">Los <b>contactos</b> son los instantes del golpe: el juego sincroniza el cuerpo con ellos.</div></div>';
-  }
-  h += '<div class="ae-card"><h4>POSE · ' + b.n.toUpperCase() + ' <small style="color:#6f7a90">en t=' + ED.time.toFixed(2) + ' s</small></h4>';
-  for (const kind of ['rot', 'pos', 'scl']) for (const c of b.g[kind] || []) {
-    const v = edShow(c, edEvalChan(clip, c, ED.time)), rg = kind === 'rot' ? 180 : kind === 'pos' ? 12 : 2, mn = kind === 'scl' ? 0 : -rg;
-    h += '<div class="ae-sl"><span style="color:' + b.col + '">' + edAxis(c) + '</span><input type="range" data-c="' + c + '" min="' + mn + '" max="' + rg + '" step="' + (kind === 'rot' ? 1 : .05) + '" value="' + v.toFixed(3) + '"><input type="number" data-n="' + c + '" step="' + (kind === 'rot' ? 1 : .05) + '" value="' + (+v.toFixed(3)) + '"></div>';
-  }
-  h += '<div class="ae-help">Mover un deslizador crea o cambia la clave en el cursor.</div></div>';
-  { const P = ED.att.paths || {}, fmt = a => JSON.stringify(a && a.length ? a : null) || '';
-    h += '<div class="ae-card"><h4>TRAYECTORIAS (APOS / VPOS)</h4><div class="ae-help"><code>apos</code> mueve al atacante y <code>vpos</code> a la víctima, como en el código: <code>[tiempo, x, y, z, giro]</code> en metros (z = hacia adelante).</div>' +
-      '<div class="ae-field"><label>apos</label><textarea id="ae-apos" rows="2" style="width:100%;background:#14161c;color:#e6e9f0;border:1px solid #394050;border-radius:4px">' + (P.apos ? JSON.stringify(P.apos) : '') + '</textarea></div>' +
-      '<div class="ae-field"><label>vpos</label><textarea id="ae-vpos" rows="2" style="width:100%;background:#14161c;color:#e6e9f0;border:1px solid #394050;border-radius:4px">' + (P.vpos ? JSON.stringify(P.vpos) : '') + '</textarea></div><div class="ae-err" id="ae-perr"></div>' +
-      '<div class="ae-btns"><button id="ae-ppos">+ Posición víctima en el cursor</button><button id="ae-pcopy">Copiar código</button></div></div>'; }
-  h += '<details class="ae-card" open><summary style="cursor:pointer;color:#8791a6;font-size:11px;letter-spacing:.14em;font-weight:700">FÓRMULAS (MATEMÁTICAS)</summary><div class="ae-help">Escribe una fórmula en <b>Valor</b> y la clave se calcula en cada instante. En rotaciones, el resultado son grados.<br>' +
-    'Variables: <code>time</code> <code>life</code> (0→1) <code>length</code> <code>pi</code><br>Funciones (trig. en grados): <code>sin cos tan atan2 abs min max clamp lerp floor ceil round sqrt pow mod noise saw tri step smoothstep bounce random</code><br>Operadores: <code>+ - * / % ^ ? : &lt; &gt; == &amp;&amp; ||</code><br>' +
-    'Ejemplos:<br><code>sin(time*360)*20</code> balanceo de 1 Hz<br><code>abs(sin(time*180))*30</code> rebote<br><code>noise(time*4)*8</code> temblor<br><code>time&gt;0.5 ? 40 : 0</code> salto brusco</div></details>';
-  p.innerHTML = h; edBindProps();
-  const li = document.getElementById('ae-len'); if (li) li.value = clip.length; const ki = document.getElementById('ae-ki'); if (ki && k0) { ki.value = k0.i || 'catmull'; document.getElementById('ae-kbz').style.display = ki.value === 'bezier' ? 'grid' : 'none'; }
-}
-function edBindProps() {
-  const g = id => document.getElementById(id), sel = [...ED.sel], clip = ED.clip;
-  const kerr = g('ae-kerr');
-  if (g('ae-kt')) g('ae-kt').addEventListener('change', e => { edPush(); const dt = edTimeSnap(Math.max(0, +e.target.value || 0)) - sel[0].t; for (const k of sel) k.t = Math.max(0, +(k.t + dt).toFixed(4)); for (const c of Object.keys(clip.tracks)) clip.tracks[c].sort((a, b) => a.t - b.t); edProps(); });
-  if (g('ae-kv')) g('ae-kv').addEventListener('change', e => {
-    const s = e.target.value.trim(); if (!s) return; const num = /^[-+]?(\d+\.?\d*|\.\d+)$/.test(s);
-    try { if (!num) edCompile(s); } catch (er) { kerr.textContent = er.message; return; } kerr.textContent = ''; edPush();
-    for (const k of sel) { const c = Object.keys(clip.tracks).find(cc => clip.tracks[cc].includes(k)); k.v = num ? edUnshow(c, parseFloat(s)) : s; } edProps();
-  });
-  if (g('ae-ki')) g('ae-ki').addEventListener('change', e => { edPush(); for (const k of sel) { k.i = e.target.value; if (k.i === 'bezier' && !k.b) k.b = [.25, .1, .25, 1]; } g('ae-kbz').style.display = e.target.value === 'bezier' ? 'grid' : 'none'; });
-  if (g('ae-kb')) g('ae-kb').addEventListener('change', e => { const a = e.target.value.split(',').map(x => parseFloat(x)); if (a.length === 4 && a.every(Number.isFinite)) { edPush(); for (const k of sel) k.b = [clamp(a[0], 0, 1), a[1], clamp(a[2], 0, 1), a[3]]; } });
-  if (g('ae-kdup')) g('ae-kdup').addEventListener('click', () => { edPush(); const nk = []; for (const c of Object.keys(clip.tracks)) for (const k of clip.tracks[c].slice()) if (ED.sel.has(k)) { const d = JSON.parse(JSON.stringify(k)); d.t = +(d.t + .2).toFixed(4); clip.tracks[c].push(d); nk.push(d); clip.tracks[c].sort((a, b) => a.t - b.t); } ED.sel = new Set(nk); edProps(); });
-  if (g('ae-kdel')) g('ae-kdel').addEventListener('click', edDelSel);
-  const parsePath = txt => { const s2 = (txt || '').trim(); if (!s2) return null; const a = (new Function('return ' + s2.replace(/(^|[^\d])\.(\d)/g, '$10.$2')))(); if (!Array.isArray(a) || !a.length || !a.every(k => Array.isArray(k) && k.length >= 4)) throw new Error('Formato: [[t,x,y,z,giro],...]'); return a; };
-  for (const k of ['apos', 'vpos']) if (g('ae-' + k)) g('ae-' + k).addEventListener('change', e => { try { const a = parsePath(e.target.value); g('ae-perr').textContent = ''; edPush(); ED.att.paths = Object.assign({}, ED.att.paths); if (a) ED.att.paths[k] = a; else delete ED.att.paths[k]; } catch (er) { g('ae-perr').textContent = er.message; } });
-  if (g('ae-ppos')) g('ae-ppos').addEventListener('click', () => { edPush(); const t = +edTimeSnap(ED.time).toFixed(3), cur = hermArr(edPath('vpos'), ED.time), ks = (ED.att.paths && ED.att.paths.vpos ? ED.att.paths.vpos.slice() : edPath('vpos').map(x => x.slice())).filter(k => Math.abs(k[0] - t) > 1e-3); ks.push([t, +cur[0].toFixed(3), +cur[1].toFixed(3), +cur[2].toFixed(3), +cur[3].toFixed(3)]); ks.sort((a, b) => a[0] - b[0]); ED.att.paths = Object.assign({}, ED.att.paths, { vpos: ks }); edProps(); });
-  if (g('ae-pcopy')) g('ae-pcopy').addEventListener('click', () => { const txt = 'apos: ' + JSON.stringify(edPath('apos')) + ',\nvpos: ' + JSON.stringify(edPath('vpos')) + ','; try { navigator.clipboard.writeText(txt); edMsg('Código copiado (apos y vpos)'); } catch (er) { prompt('Copia este código', txt); } });
-  if (g('ae-contacts')) g('ae-contacts').addEventListener('change', e => { edPush(); clip.contacts = e.target.value.split(',').map(x => parseFloat(x)).filter(Number.isFinite); });
-  if (g('ae-cloop')) g('ae-cloop').addEventListener('change', e => { edPush(); clip.loop = e.target.checked; });
-  const setV = (c, val) => { const t = edTimeSnap(ED.time); if (!ED.slPush) { edPush(); ED.slPush = true; setTimeout(() => { ED.slPush = false; }, 600); } const k = edSetKey(c, t, edUnshow(c, val)); if (typeof k.v !== 'number') k.v = edUnshow(c, val); edTree(); };
-  document.querySelectorAll('#ae-props input[data-c]').forEach(r => r.addEventListener('input', e => { setV(r.dataset.c, +e.target.value); const n = document.querySelector('#ae-props input[data-n="' + r.dataset.c + '"]'); if (n) n.value = e.target.value; }));
-  document.querySelectorAll('#ae-props input[data-n]').forEach(r => r.addEventListener('change', e => { setV(r.dataset.n, +e.target.value || 0); const s = document.querySelector('#ae-props input[data-c="' + r.dataset.n + '"]'); if (s) s.value = e.target.value; }));
-}
-// ----- línea de tiempo (lienzo)
-let ED_RH = 20; const ED_LW = 190, ED_ROW = 22;
-function edBindTimeline() {
-  const cv = ED.cv, x2t = x => (x - ED_LW) / ED.zoom + ED.scroll, t2x = t => (t - ED.scroll) * ED.zoom + ED_LW;
-  const rowAt = y => Math.floor((y - ED_RH + ED.vscroll) / ED_ROW), rowKeys = r => r.t === 'chan' ? [r.c] : Object.values(r.b.g).flat();
-  const hitKeys = (x, y) => {
-    const r = ED.rows[rowAt(y)]; if (!r) return null; let best = null, bd = 10;
-    for (const c of rowKeys(r)) for (const k of ED.clip.tracks[c] || []) { const d = Math.abs(t2x(k.t) - x); if (d < bd) { bd = d; best = k; } }
-    if (!best) return null; if (r.t === 'chan') return [best];
-    const out = []; for (const c of rowKeys(r)) for (const k of ED.clip.tracks[c] || []) if (Math.abs(k.t - best.t) < 5e-4) out.push(k); return out;
-  };
-  const inBox = b => {
-    const x0 = Math.min(b.x0, b.x1), x1 = Math.max(b.x0, b.x1), y0 = Math.min(b.y0, b.y1), y1 = Math.max(b.y0, b.y1), found = [];
-    if (ED.curves) { for (const p of ED.curvePts || []) if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1) found.push(p.k); return found; }
-    for (let i = Math.max(0, rowAt(y0)); i <= Math.min(ED.rows.length - 1, rowAt(y1)); i++) for (const c of rowKeys(ED.rows[i])) for (const k of ED.clip.tracks[c] || []) { const x = t2x(k.t); if (x >= x0 && x <= x1) found.push(k); }
-    return found;
-  };
-  const scrubTo = x => { ED.time = clamp(edTimeSnap(x2t(x)), 0, edLen()); ED.playing = false; };
-  cv.addEventListener('pointerdown', e => {
-    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; cv.setPointerCapture(e.pointerId);
-    if (y < ED_RH) { ED.drag = { m: 'scrub' }; scrubTo(x); return; }
-    if (x < ED_LW) { const row = ED.rows[rowAt(y)]; if (row) { if (row.t === 'bone') { ED.selBone = row.b.id; ED.open[row.b.id] = !ED.open[row.b.id]; ED.selChan = null; } else { ED.selBone = row.b.id; ED.selChan = row.c; } edRebuild(); } return; }
-    if (ED.curves) {
-      const pt = (ED.curvePts || []).find(p => Math.hypot(p.x - x, p.y - y) < 10);
-      if (pt) { if (!e.shiftKey && !ED.sel.has(pt.k)) ED.sel.clear(); ED.sel.add(pt.k); edPush(); ED.drag = { m: 'curve', k: pt.k, c: pt.c, x0: x, y0: y, v0: pt.k.v, t0: pt.k.t }; edProps(); return; }
-      ED.drag = { m: 'box', x0: x, y0: y, x1: x, y1: y, add: e.shiftKey, moved: false, click: x }; return;
-    }
-    const ks = hitKeys(x, y), row = ED.rows[rowAt(y)];
-    if (ks) {
-      const all = ks.every(k => ED.sel.has(k)); if (!all) { if (!e.shiftKey) ED.sel.clear(); ks.forEach(k => ED.sel.add(k)); } else if (e.shiftKey) ks.forEach(k => ED.sel.delete(k));
-      edPush(); ED.drag = { m: 'move', x0: x, t0: new Map([...ED.sel].map(q => [q, q.t])) }; if (row) { ED.selBone = row.b.id; if (row.t === 'chan') ED.selChan = row.c; } edProps(); return;
-    }
-    ED.drag = { m: 'box', x0: x, y0: y, x1: x, y1: y, add: e.shiftKey, moved: false, click: x, row };
-  });
-  cv.addEventListener('pointermove', e => {
-    const d = ED.drag; if (!d) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-    if (d.m === 'scrub') scrubTo(x);
-    else if (d.m === 'box') { d.x1 = x; d.y1 = y; if (Math.hypot(x - d.x0, y - d.y0) > 4) d.moved = true; }
-    else if (d.m === 'move') { const dt = (x - d.x0) / ED.zoom; for (const [k, t0] of d.t0) k.t = +Math.max(0, edTimeSnap(t0 + dt)).toFixed(4); for (const c of Object.keys(ED.clip.tracks)) ED.clip.tracks[c].sort((a, b) => a.t - b.t); }
-    else if (d.m === 'curve') { const k = d.k; k.t = +Math.max(0, edTimeSnap(d.t0 + (x - d.x0) / ED.zoom)).toFixed(4); if (typeof d.v0 === 'number' && ED.curveScale) { k.v = d.v0 + edUnshow(d.c, -(y - d.y0) / ED.curveScale); } ED.clip.tracks[d.c].sort((a, b) => a.t - b.t); }
-  });
-  cv.addEventListener('pointerup', () => {
-    const d = ED.drag; ED.drag = null; if (!d) return;
-    if (d.m === 'box') {
-      if (d.moved) { const f = inBox(d); if (!d.add) ED.sel.clear(); f.forEach(k => ED.sel.add(k)); if (f.length) { const c = Object.keys(ED.clip.tracks).find(cc => ED.clip.tracks[cc].includes(f[0])), b = c && edBoneOf(c); if (b) ED.selBone = b.id; } edProps(); edTree(); }
-      else { const row = d.row; if (row) { ED.selBone = row.b.id; ED.selChan = row.t === 'chan' ? row.c : null; } if (!d.add) ED.sel.clear(); scrubTo(d.click); edProps(); edTree(); }
-    } else if (d.m !== 'scrub') edProps();
-  });
-  cv.addEventListener('dblclick', e => {
-    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; if (y < ED_RH) return; const row = ED.rows[rowAt(y)]; if (!row) return;
-    if (x < ED_LW) { ED.sel.clear(); for (const c of rowKeys(row)) for (const k of ED.clip.tracks[c] || []) ED.sel.add(k); edProps(); return; }
-    if (row.t !== 'chan' || ED.curves) return; edPush(); const t = clamp(edTimeSnap(x2t(x)), 0, edLen()), k = edSetKey(row.c, t, edEvalChan(ED.clip, row.c, t)); ED.sel.clear(); ED.sel.add(k); ED.selChan = row.c; ED.selBone = row.b.id; edProps(); edTree();
-  });
-  cv.addEventListener('wheel', e => { e.preventDefault(); if (e.ctrlKey) { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, t = x2t(x); ED.zoom = clamp(ED.zoom * (e.deltaY < 0 ? 1.15 : .87), 30, 1400); ED.scroll = t - (x - ED_LW) / ED.zoom; } else if (e.shiftKey) ED.scroll += e.deltaY / ED.zoom * .6; else ED.vscroll = clamp(ED.vscroll + e.deltaY * .6, 0, Math.max(0, ED.rows.length * ED_ROW - 150)); }, { passive: false });
-}
-function edSelAll() { ED.sel.clear(); for (const c of Object.keys(ED.clip.tracks)) for (const k of ED.clip.tracks[c]) ED.sel.add(k); edProps(); edMsg(ED.sel.size + ' claves seleccionadas'); }
-function edDraw() {
-  const cv = ED.cv; if (!cv || !ED.clip) return; const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.fillStyle = '#14161c'; g.fillRect(0, 0, W, H);
-  const t2x = t => (t - ED.scroll) * ED.zoom + ED_LW, clip = ED.clip;
-  g.font = '11px ui-monospace,Consolas,monospace'; g.textBaseline = 'middle';
-  // filas
-  ED.rows.forEach((r, i) => {
-    const y = ED_RH + i * ED_ROW - ED.vscroll; if (y + ED_ROW < ED_RH || y > H) return;
-    const selRow = r.t === 'chan' ? ED.selChan === r.c : ED.selBone === r.b.id && !ED.selChan;
-    g.fillStyle = selRow ? '#243049' : i % 2 ? '#171a21' : '#191c24'; g.fillRect(0, y, W, ED_ROW);
-    g.fillStyle = r.b.col; if (r.t === 'bone') { g.fillRect(8, y + 7, 8, 8); g.fillStyle = '#e6e9f0'; g.font = 'bold 12px "Chakra Petch",system-ui'; g.fillText((ED.open[r.b.id] ? '▾ ' : '▸ ') + r.b.n, 22, y + 11); } else { g.font = '11px "Chakra Petch",system-ui'; g.fillStyle = '#9aa4b8'; g.fillText((r.k === 'rot' ? 'Rot ' : r.k === 'pos' ? 'Pos ' : 'Esc ') + edAxis(r.c), 30, y + 11); g.fillStyle = r.b.col; g.fillRect(20, y + 9, 4, 4); }
-  });
-  // fondo de la pista y reglas
-  g.save(); g.beginPath(); g.rect(ED_LW, 0, W - ED_LW, H); g.clip();
-  g.fillStyle = '#1b1e26'; g.fillRect(ED_LW, 0, W - ED_LW, ED_RH);
-  if (ED.ref) {
-    const y0 = 20, h = ED_RH - 22, mid = y0 + h / 2 + 1, dur = ED.ref.buf.duration, pk = ED.ref.pk; g.fillStyle = '#10131a'; g.fillRect(ED_LW, y0, W - ED_LW, h + 2); g.strokeStyle = '#4dd2ff'; g.lineWidth = 1;
-    for (let x = ED_LW; x < W; x++) { const t = (x - ED_LW) / ED.zoom + ED.scroll - ED.ref.off; if (t < 0 || t > dur) continue; const i = Math.min(pk.length - 1, Math.floor(t / dur * pk.length)), a = Math.max(1, pk[i] * (h / 2)); g.beginPath(); g.moveTo(x + .5, mid - a); g.lineTo(x + .5, mid + a); g.stroke(); }
-    g.fillStyle = '#4dd2ff'; g.font = '10px ui-monospace,Consolas,monospace'; g.fillText('♪ ' + ED.ref.name, ED_LW + 6, y0 + 8); g.fillRect(t2x(ED.ref.off + dur) - 1, y0, 2, h + 2);
-  }
-  g.strokeStyle = '#262b36'; g.fillStyle = '#7e889c'; g.font = '10px ui-monospace,Consolas,monospace';
-  const step = ED.zoom > 900 ? .05 : ED.zoom > 450 ? .1 : ED.zoom > 220 ? .25 : ED.zoom > 100 ? .5 : 1, t0 = Math.floor(ED.scroll / step) * step;
-  for (let t = t0; t2x(t) < W; t += step) { const x = t2x(t); if (x < ED_LW) continue; g.beginPath(); g.moveTo(x, ED_RH); g.lineTo(x, H); g.stroke(); g.fillText(t.toFixed(step < .1 ? 2 : 2), x + 3, 10); }
-  g.fillStyle = 'rgba(255,255,255,.04)'; g.fillRect(t2x(clip.length), ED_RH, W, H);
-  g.strokeStyle = '#3a4560'; g.beginPath(); g.moveTo(t2x(0), ED_RH); g.lineTo(t2x(0), H); g.moveTo(t2x(clip.length), ED_RH); g.lineTo(t2x(clip.length), H); g.stroke();
-  for (const c of clip.contacts) { const x = t2x(c); g.fillStyle = '#ff5a5a'; g.fillRect(x - 1, ED_RH, 2, 6); }
-  // claves o curvas
-  const KC = k => typeof k.v === 'string' ? '#ff8bf0' : !k.i || k.i === 'catmull' ? '#ffd23f' : k.i === 'linear' ? '#7dff6a' : k.i === 'step' ? '#ff6a6a' : k.i === 'bezier' ? '#b06bff' : '#4dd2ff';
-  const drawKey = (x, y, k) => { g.save(); g.translate(x, y); const s = ED.sel.has(k); g.fillStyle = KC(k); g.strokeStyle = s ? '#fff' : '#0008'; g.lineWidth = s ? 2 : 1; g.beginPath(); if (k.i === 'step') g.rect(-4, -4, 8, 8); else { g.moveTo(0, -6); g.lineTo(5, 0); g.lineTo(0, 6); g.lineTo(-5, 0); g.closePath(); } g.fill(); g.stroke(); g.restore(); };
-  if (!ED.curves) {
-    ED.curvePts = null;
-    ED.rows.forEach((r, i) => { const y = ED_RH + i * ED_ROW - ED.vscroll + ED_ROW / 2; if (y < ED_RH - 8 || y > H + 8) return; const cs = r.t === 'chan' ? [r.c] : Object.values(r.b.g).flat(), seen = new Set(); for (const c of cs) for (const k of clip.tracks[c] || []) { const key = r.t === 'bone' ? k.t.toFixed(3) : null; if (key) { if (seen.has(key) && !ED.sel.has(k)) continue; seen.add(key); } drawKey(t2x(k.t), y, k); } });
-  } else {
-    const b = ED_BONES.find(x => x.id === ED.selBone), kind = ED.selChan ? edKindOf(ED.selChan) : 'rot', cs = ED.selChan ? [ED.selChan] : (b.g[kind] || []);
-    let mn = 1e9, mx = -1e9; const N = 140, tot = Math.max(.05, clip.length); for (const c of cs) for (let i = 0; i <= N; i++) { const v = edShow(c, edEvalChan(clip, c, tot * i / N)); mn = Math.min(mn, v); mx = Math.max(mx, v); } if (mn === 1e9) { mn = -1; mx = 1; } if (mx - mn < .01) { mn -= .5; mx += .5; }
-    const top = ED_RH + 14, bot = H - 14, sc = (bot - top) / (mx - mn); ED.curveScale = sc; const vy = v => bot - (v - mn) * sc;
-    g.strokeStyle = '#2a3040'; g.fillStyle = '#6f7a90'; for (let i = 0; i <= 4; i++) { const v = mn + (mx - mn) * i / 4, y = vy(v); g.beginPath(); g.moveTo(ED_LW, y); g.lineTo(W, y); g.stroke(); g.fillText(v.toFixed(2), ED_LW + 4, y - 6); }
-    ED.curvePts = []; const cols = ['#ff6a6a', '#7dff6a', '#4dd2ff'];
-    cs.forEach((c, ci) => { g.strokeStyle = cols[ci % 3]; g.lineWidth = 1.6; g.beginPath(); for (let i = 0; i <= N * 2; i++) { const t = tot * i / (N * 2), x = t2x(t), y = vy(edShow(c, edEvalChan(clip, c, t))); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.lineWidth = 1; for (const k of clip.tracks[c] || []) { const kx = t2x(k.t), ky = vy(edShow(c, edKeyVal(clip, c, k, k.t))); drawKey(kx, ky, k); ED.curvePts.push({ x: kx, y: ky, k, c }); } });
-    g.fillStyle = '#9aa4b8'; g.fillText(cs.map(c => edAxis(c)).join(' · ') + ' (' + ED_KIND[kind] + ')', ED_LW + 6, H - 6);
-  }
-  if (ED.drag && ED.drag.m === 'box' && ED.drag.moved) { const d = ED.drag; g.fillStyle = 'rgba(62,139,255,.18)'; g.strokeStyle = '#6aa6ff'; g.lineWidth = 1; g.fillRect(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0)); g.strokeRect(Math.min(d.x0, d.x1) + .5, Math.min(d.y0, d.y1) + .5, Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0)); }
-  // cabezal
-  const px = t2x(ED.time); g.strokeStyle = '#3e8bff'; g.lineWidth = 2; g.beginPath(); g.moveTo(px, 0); g.lineTo(px, H); g.stroke(); g.fillStyle = '#3e8bff'; g.beginPath(); g.moveTo(px - 6, 0); g.lineTo(px + 6, 0); g.lineTo(px, 11); g.closePath(); g.fill();
-  g.restore(); g.strokeStyle = '#2b303b'; g.beginPath(); g.moveTo(ED_LW, 0); g.lineTo(ED_LW, H); g.stroke();
-  g.fillStyle = '#1b1e26'; g.fillRect(0, 0, ED_LW, ED_RH); g.fillStyle = '#7e889c'; g.font = '10px "Chakra Petch",system-ui'; g.fillText('CANALES · ' + (ED.curves ? 'CURVAS' : 'CLAVES'), 8, 10);
-}
-function edLoop() {
-  if (!ED.on) return; requestAnimationFrame(edLoop); edDraw();
-  const fps = +document.getElementById('ae-fps').value || 60, f = Math.round(ED.time * fps), tot = Math.round(ED.clip.length * fps), m = Math.floor(ED.time / 60), s = Math.floor(ED.time % 60);
-  document.getElementById('ae-time').textContent = m + ':' + String(s).padStart(2, '0') + ':' + String(f % fps).padStart(2, '0') + ' / ' + tot; document.getElementById('ae-play').textContent = ED.playing ? '❚❚' : '▶';
-  const me = document.getElementById('ae-msg'); if (ED.msgT > 0) { ED.msgT -= 1 / 60; if (ED.msgT <= 0) me.style.opacity = 0; }
-  if (!ED.sliderBusy && ED.playing) { document.querySelectorAll('#ae-props input[data-c]').forEach(r => { const v = edShow(r.dataset.c, edEvalChan(ED.clip, r.dataset.c, ED.time)); r.value = v.toFixed(3); const n = document.querySelector('#ae-props input[data-n="' + r.dataset.c + '"]'); if (n && document.activeElement !== n) n.value = +v.toFixed(3); }); }
-}
-// pose en el modelo de la vista previa (la llama updateShow)
-function edShowFrame(f, dt) {
-  if (ED.playing && !ED.audPlaying) edRefStart(); if (!ED.playing && ED.audPlaying) edRefStop(); ED.audPlaying = ED.playing;
-  const L = edLen();
-  if (ED.playing) { ED.time += dt * ED.speed; if (ED.time >= L) { if (ED.loop) { ED.time %= L; edRefStart(); } else { ED.time = L; ED.playing = false; } } }
-  const t = ED.time, ap = hermArr(edPath('apos'), t), vp = hermArr(edPath('vpos'), t), A = L2W(ED_ZERO, ED.rotY, ap[0], ap[1], ap[2]), V = L2W(ED_ZERO, ED.rotY, vp[0], vp[1], vp[2]);
-  for (const j of JOINTS) f.anim.x[j] = edEvalChan(ED.att, j, t);
-  if (f.spear && !f.spearOut) { setSpear(f, true); f.spear.visible = true; }
-  f.anim.bbR6 = true; f.anim.apply(); f.model.root.position.set(A.x, .1 + A.y, A.z); f.model.root.rotation.y = ED.rotY + ap[3];
-  if (f.model.gripRot) f.model.gripRot.rotation.x = f.anim.x.sx;
-  const vf = ED.vfig; if (vf) {
-    for (const j of JOINTS) vf.anim.x[j] = ED.vic ? edEvalChan(ED.vic, j, t) : edDef(j);
-    vf.anim.bbR6 = true; vf.anim.apply(); vf.model.root.position.set(V.x, .1 + V.y, V.z); vf.model.root.rotation.y = ED.rotY + Math.PI + vp[3]; vf.model.root.visible = true;
-  }
-  const mx = vf ? (A.x + V.x) / 2 : A.x, mz = vf ? (A.z + V.z) / 2 : A.z;
-  SH.parts.update(dt); SH.camZ += (ED.camZ - SH.camZ) * Math.min(1, dt * 6); SH.cam.position.set(mx, 1.7, mz + SH.camZ); SH.cam.lookAt(mx, 0.85, mz);
-  SH.key.intensity += (.95 - SH.key.intensity) * Math.min(1, dt * 4);
-}
-
-edLoadSaved();
-
+// ===== Editor de animaciones (modo desarrollador, estilo Blockbench): claves, interpolaciones, fórmulas y curvas: vive en js/editores/editor_animaciones.js =====
+const { ED, ED_BONES, ED_CACHE, ED_DEFPATH, ED_EASE, ED_EASE_ES, ED_FN, ED_INTERPS, ED_KIND, ED_LW, ED_ROT, ED_ROW, ED_SETS, ED_ZERO, edAddKeys, edAxis, edBack, edBezier, edBindProps, edBindTimeline, edBoneOf, edBounceOut, edBuild, edClose, edComicInit, edCompile, edCompileClip, edCopy, edDR, edDef, edDeg, edDelClip, edDelSel, edDraw, edDup, edEase, edElastic, edEvalChan, edExport, edFromGame, edImportFile, edKey, edKeyVal, edKeysOf, edKindOf, edLen, edLoadObj, edLoadSaved, edLoop, edMakeVic, edMsg, edNoise, edOpen, edOpenClip, edPair, edPaste, edPath, edPoint, edProps, edPush, edRebuild, edRebuildPartial, edRedo, edRefFile, edRefOptions, edRefSet, edRefStart, edRefStop, edRefUse, edRestore, edRestoreSnap, edRun, edSaveGame, edSelAll, edSetKey, edSetTarget, edShow, edShowFrame, edSnap, edStore, edTimeSnap, edTree, edUndo, edUnshow, edVicBuild, edVicDispose } = CF_EDITORES.crearEditorAnimaciones({ $, Animator, CHARACTER_VOICE_FILES, CHARACTER_VOICE_META, CHARS, CHAR_IDS, DEV, G, JAVI_BB_CACHE, JDEF, JOINTS, L2W, SH, SND, SND_LIST, V3, VOICE_PACKS, bbSet, buildModel, charSkin, clamp, copyCanvas, disposeModel, hermArr, initAudio, setSpear, showSelect, voiceRel, get AC() { return AC; } });
 // ===== Selector de personajes (estilo Zenless Zone Zero): tarjetas inclinadas, pastillas Base / Habilidades / Skin y botón vertical =====
 (function selStyle() { const st = document.createElement('style'); st.id = 'selstyle'; st.textContent = `
 #menu{grid-template-columns:minmax(260px,1fr) minmax(340px,470px) 76px;grid-template-rows:auto minmax(0,1fr);gap:10px 18px;padding-right:0}
@@ -16785,249 +14820,8 @@ function step(dt) {
   pressed.clear();
 }
 let last = performance.now();
-// ================= Minijuego: vóley playa =================
-// Se entra pisando una de las dos plataformas de la cancha. Con otro jugador en la plataforma contraria es 1 contra 1 entre humanos
-// (el que entró primero a la sala manda la física de la pelota y la publica; el otro envía sus golpes); si nadie se une, juega un bot.
-const VBC = { x: 64, z: 83, hw: 4.5, hl: 8.5, net: 2.43, g: 13, r: .34, win: 7 };
-const VB = { on: false, mode: '', role: '', my: '', opp: null, bot: null, padT: 0, botT: 0, ph: 0, t: 0, sc: { N: 0, S: 0 }, srv: 'N', last: '', since: 9, id: 0, seq: 0, pt: 0, ptW: '', ptWhy: '',
-  vhSeq: 0, lastVh: 0, vhOut: null, ready: false, snapS: -1, botMiss: false, over: '' };
-const VB_PADS = { N: { x: VBC.x, z: VBC.z - 12.4 }, S: { x: VBC.x, z: VBC.z + 12.4 } };
-const VB_NEUTRAL = () => ({ mx: 0, mz: 0, jump: false, dash: false, m1: false, block: false, skill: -1, ult: false, up: false });
-const vbOther = t => t === 'N' ? 'S' : 'N';
-function vbInit() {
-  if (VB.ready) return; VB.ready = true;
-  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 64; const g = cv.getContext('2d');
-  ['#e8453c', '#ffffff', '#2f7fd6', '#ffd23f', '#ffffff', '#3bb36b'].forEach((c, i) => { g.fillStyle = c; g.fillRect(i * 128 / 6, 0, 128 / 6 + 1, 64); });
-  VB.ball = { p: new V3(), v: new V3(), mesh: new THREE.Mesh(new THREE.SphereGeometry(VBC.r, 18, 12), new THREE.MeshToonMaterial({ map: new THREE.CanvasTexture(cv), gradientMap: CITY_GRAD })) };
-  VB.ball.mesh.castShadow = true; VB.ball.mesh.visible = false; scene.add(VB.ball.mesh);
-  VB.shadow = new THREE.Mesh(new THREE.CircleGeometry(.4, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .35, depthWrite: false }));
-  VB.shadow.rotation.x = -Math.PI / 2; VB.shadow.visible = false; scene.add(VB.shadow);
-  const h = document.createElement('div'); h.id = 'vbhud';
-  h.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;text-align:center;font-family:"Chakra Petch",sans-serif;color:#fff;text-shadow:0 2px 6px #000a;display:none';
-  document.body.appendChild(h); VB.hud = h;
-}
-function vbHud(html) {
-  if (!VB.hud) return;
-  if (!html) { VB.hud.style.display = 'none'; return; }
-  VB.hud.style.display = 'block'; if (VB.hud._h !== html) { VB.hud.innerHTML = html; VB.hud._h = html; }
-}
-const vbBox = t => `<div style="display:inline-block;background:rgba(10,18,30,.74);border:2px solid #7ad7ff;padding:6px 16px;border-radius:6px;font-weight:700;font-size:18px">${t}</div>`;
-function vbNames() { const me = (G.player && G.player.name) || 'Tú', op = VB.opp ? VB.opp.name : 'Bot'; return { N: VB.my === 'N' ? me : op, S: VB.my === 'S' ? me : op }; }
-function vbScoreHud(extra) {
-  const n = vbNames();
-  return `<div style="display:inline-flex;gap:14px;align-items:center;background:rgba(10,18,30,.74);border:2px solid #7ad7ff;padding:6px 18px;border-radius:6px;font-weight:700;font-size:20px"><span style="color:#ffd23f">${n.N}</span><b style="font-size:30px">${VB.sc.N} – ${VB.sc.S}</b><span style="color:#ff9a9a">${n.S}</span></div>` +
-    `<div style="margin-top:6px;font-size:17px">${extra || ''}</div>`;
-}
-function vbSpot(team, serving) { const d = team === 'N' ? -1 : 1; return serving ? { x: VBC.x, z: VBC.z + d * (VBC.hl + 1.3) } : { x: VBC.x, z: VBC.z + d * 5 }; }
-function vbPlace() {   // mi jugador (y el bot) a su puesto de saque o de recepción
-  const p = G.player, me = vbSpot(VB.my, VB.srv === VB.my);
-  p.pos.set(me.x, groundAt(me.x, me.z), me.z); p.vel.set(0, 0, 0); p.yaw = p.prevYaw = VB.my === 'N' ? 0 : Math.PI; cam.yaw = p.yaw; if (p.action) endAction(p);
-  if (VB.bot) { const bt = vbOther(VB.my), s = vbSpot(bt, VB.srv === bt); VB.bot.pos.set(s.x, 0, s.z); VB.bot.vel.set(0, 0, 0); VB.bot.yaw = VB.bot.prevYaw = bt === 'N' ? 0 : Math.PI; }
-}
-function vbServe() {   // solo manda la física: el que juega contra el bot o el anfitrión del 1 contra 1
-  VB.ph = 1; VB.t = 0; VB.last = ''; VB.botMiss = Math.random() < .18; VB.ball.v.set(0, 0, 0);
-  vbPlace();
-}
-function vbStart(team, other, role) {
-  vbInit();
-  Object.assign(VB, { on: true, my: team, role, opp: other || null, mode: other ? 'pvp' : 'bot', sc: { N: 0, S: 0 }, srv: Math.random() < .5 ? 'N' : 'S', ph: 0, t: 0, last: '', pt: 0, snapS: -1, lastVh: 0, vhSeq: 0, vhOut: null, over: '', since: 9 });
-  VB.id = role === 'host' ? Math.floor(performance.now()) : 0;
-  if (!other) vbSpawnBot(vbOther(team));
-  VB.ball.mesh.visible = true; VB.shadow.visible = true;
-  showBanner('VÓLEY PLAYA', '#7ad7ff', `Primero a ${VBC.win} · clic golpea · Espacio+clic remata`);
-  playSnd('whistle', .7);
-  if (role === 'host') vbServe();
-}
-function vbSpawnBot(team) {
-  const d = new Fighter({ name: 'Bot Playa', ch: DUMMY_CH, lvlVar: 0 });
-  d.dummy = 'vb'; d.vbBot = true; d.iframes = 1e9; d.flourT = 1e9; d.ai.P = aiParams(1);
-  const s = vbSpot(team, false); d.pos.set(s.x, 0, s.z); d.home = d.pos.clone(); d.yaw = d.prevYaw = team === 'N' ? 0 : Math.PI;
-  G.fighters.push(d); VB.bot = d; VB.opp = d; burst(chestOf(d), 24, DUMMY_CH.color, 6, .2, .6, -.2);
-}
-function vbEnd(why) {
-  if (VB.bot) { try { VB.bot.dispose(); } catch (e) { } const k = G.fighters.indexOf(VB.bot); if (k >= 0) G.fighters.splice(k, 1); VB.bot = null; }
-  const was = VB.on; VB.on = false; VB.opp = null; VB.padT = 0; VB.botT = 0; VB.ph = 0;
-  if (VB.ball) { VB.ball.mesh.visible = false; VB.shadow.visible = false; }
-  vbHud(null);
-  if (was && why === 'rival') showBanner('VÓLEY TERMINADO', '#ff9a9a', 'Tu rival se fue');
-}
-// --- golpe (solo en quien manda la física). pos = posición del jugador; (ax,az) = hacia dónde apunta
-function vbHitBall(team, pos, ax, az, jump, tol = 3.2) {
-  const B = VB.ball, serve = VB.ph === 1;
-  if (VB.ph !== 1 && VB.ph !== 2) return false;
-  if (serve) { if (team !== VB.srv) return false; }
-  else {
-    if (VB.last === team) return false;
-    if ((team === 'N' && B.p.z > VBC.z + .8) || (team === 'S' && B.p.z < VBC.z - .8)) return false;
-    if (Math.hypot(B.p.x - pos.x, B.p.z - pos.z) > tol || B.p.y > pos.y + 4 || B.p.y < pos.y - .6) return false;
-  }
-  const dir = team === 'N' ? 1 : -1, spike = !serve && jump && B.p.y > 2 && pos.y > .35, g = VBC.g;
-  let T = serve ? 1.75 : spike ? .72 : 1.4;
-  const tz = VBC.z + dir * (serve ? 4.5 + Math.random() * 3.5 : spike ? 1.2 + Math.random() * 3.6 : 2.5 + Math.random() * 5);
-  const tx = clamp(pos.x + ax * 7 + (Math.random() - .5) * 2.2, VBC.x - VBC.hw + .6, VBC.x + VBC.hw - .6);
-  if (serve) B.p.y = Math.max(B.p.y, 1.5);
-  let vx = 0, vy = 0, vz = 0;
-  for (let k = 0; k < 9; k++) {
-    vx = (tx - B.p.x) / T; vz = (tz - B.p.z) / T; vy = (VBC.r - B.p.y + .5 * g * T * T) / T;
-    const tn = (VBC.z - B.p.z) / vz;
-    if (tn > 0 && tn < T && B.p.y + vy * tn - .5 * g * tn * tn < VBC.net + .6) { T *= 1.13; continue; }
-    break;
-  }
-  B.v.set(vx, vy, vz);
-  VB.last = team; VB.since = 0; if (VB.ph === 1) { VB.ph = 2; VB.t = 0; }
-  if (team === VB.my) VB.botMiss = Math.random() < .17;
-  playSnd('vhit', spike ? 1 : .8, B.p); burst(B.p.clone(), spike ? 14 : 7, spike ? '#ffb347' : '#fff3c4', 5, .13, .3, 0);
-  if (spike) { ringAt(B.p.clone(), '#ffb347', 1.6, .3); shakeFrom(B.p, .12); }
-  return true;
-}
-function vbPointFx(w, why) {
-  const n = vbNames(), nm = w === 'N' ? n.N : n.S;
-  VB.msg = `PUNTO PARA <b style="color:${w === VB.my ? '#7dff9a' : '#ff9a9a'}">${nm}</b> · ${why === 'RED' ? 'tocó la red' : why === 'FUERA' ? 'fuera' : 'cayó al suelo'}`;
-  playSnd('whistle', .55);
-}
-function vbPoint(w, why) {
-  VB.sc[w]++; VB.ph = 3; VB.t = 0; VB.pt++; VB.ptW = w; VB.ptWhy = why; VB.srv = w;
-  vbPointFx(w, why);
-  if (VB.sc[w] >= VBC.win) { VB.ph = 4; vbOver(w); }
-}
-function vbOver(w) {
-  VB.over = w; const won = w === VB.my, p = G.player;
-  if (won) { showBanner('¡GANASTE!', '#ffd91a', `Vóley playa ${VB.sc.N} – ${VB.sc.S}`); p.hp = p.maxHp; p.ult = Math.min(100, p.ult + 50); playSnd('applause', .8); }
-  else showBanner('PERDISTE', '#ff9a9a', 'Revancha: vuelve a una plataforma');
-  VB.t = 0;
-}
-function vbPin() {   // en el saque la pelota acompaña al sacador
-  const B = VB.ball, f = VB.srv === VB.my ? G.player : VB.opp;
-  if (f) { B.p.set(f.pos.x + Math.sin(f.yaw) * .5, f.pos.y + 1.55, f.pos.z + Math.cos(f.yaw) * .5); B.v.set(0, 0, 0); }
-}
-function vbSim(dt) {   // física completa (quien manda)
-  const B = VB.ball; VB.t += dt; VB.since += dt;
-  if (VB.ph === 1) {
-    vbPin();
-    if (VB.bot && VB.srv !== VB.my && VB.t > 1.3) vbHitBall(VB.srv, VB.bot.pos, (Math.random() - .5) * .8, 0, false);
-    return;
-  }
-  const n = 3, h = dt / n;
-  for (let i = 0; i < n; i++) {
-    const pz = B.p.z; B.v.y -= VBC.g * h; B.p.addScaledVector(B.v, h);
-    if (VB.ph === 2 && (pz - VBC.z) * (B.p.z - VBC.z) < 0 && Math.abs(B.p.x - VBC.x) < VBC.hw + .6 && B.p.y < VBC.net + VBC.r) { vbPoint(vbOther(VB.last), 'RED'); B.v.z *= -.25; B.v.x *= .5; }
-    if (B.p.y <= VBC.r) {
-      B.p.y = VBC.r;
-      if (VB.ph === 2) {
-        const inb = Math.abs(B.p.x - VBC.x) <= VBC.hw && Math.abs(B.p.z - VBC.z) <= VBC.hl, side = B.p.z < VBC.z ? 'N' : 'S';
-        vbPoint(inb ? vbOther(side) : vbOther(VB.last), inb ? 'SUELO' : 'FUERA');
-      }
-      B.v.y = Math.abs(B.v.y) * .45; B.v.x *= .6; B.v.z *= .6; if (B.v.y < 1) B.v.y = 0; playSnd('vland', .5, B.p);
-    }
-  }
-  if (VB.ph === 3 && VB.t > 2) vbServe();
-  if (VB.ph === 4 && VB.t > 3.5) vbEnd('fin');
-}
-function vbGuest(dt) {   // el que no manda: lee el estado que publica el anfitrión
-  const B = VB.ball, host = VB.opp, st = host && host.net && host.net.vb;
-  if (st && (VB.id === 0 || VB.id === st.id) && st.s !== VB.snapS) {
-    VB.snapS = st.s; VB.id = st.id; const prevPh = VB.ph;
-    VB.sc.N = st.a; VB.sc.S = st.b; VB.srv = st.sv; VB.ph = st.ph; VB.last = st.lt || '';
-    const np = new V3(st.bx, st.by, st.bz);
-    if (np.distanceTo(B.p) > 2 || prevPh !== VB.ph) B.p.copy(np); else B.p.lerp(np, .6);
-    B.v.set(st.vx, st.vy, st.vz);
-    if (VB.ph === 1 && prevPh !== 1) vbPlace();
-    if (st.pt !== VB.pt) { VB.pt = st.pt; VB.ptW = st.w; vbPointFx(st.w, st.why); }
-    if (VB.ph === 4 && prevPh !== 4) vbOver(st.w);
-  }
-  VB.t += dt;
-  if (VB.ph === 1) vbPin();
-  else if (VB.ph >= 2) { B.v.y -= VBC.g * dt; B.p.addScaledVector(B.v, dt); if (B.p.y < VBC.r) { B.p.y = VBC.r; B.v.y = Math.abs(B.v.y) * .45; B.v.x *= .6; B.v.z *= .6; } }
-  if (VB.ph === 4 && VB.t > 3.5) vbEnd('fin');
-  if (VB.ph === 0 && VB.t > 5) vbEnd('rival');
-}
-function vbPub() {
-  if (!VB.on || VB.role !== 'host' || VB.mode !== 'pvp') return undefined;
-  const B = VB.ball;
-  return { id: VB.id, s: ++VB.seq, a: VB.sc.N, b: VB.sc.S, sv: VB.srv, ph: VB.ph, bx: r2(B.p.x), by: r2(B.p.y), bz: r2(B.p.z), vx: r2(B.v.x), vy: r2(B.v.y), vz: r2(B.v.z), lt: VB.last, pt: VB.pt, w: VB.ptW, why: VB.ptWhy };
-}
-function vbPubHit() { return VB.on && VB.role === 'guest' && VB.vhOut && performance.now() - VB.vhOut.t < 2000 ? VB.vhOut : undefined; }
-function vbPlayerCtl(f, c) {
-  c.skill = -1; c.ult = false;
-  if (c.m1 && f.m1cd <= 0 && !f.action && !f.blocking && f.alive && VB.ph > 0) {
-    const F = fwd(cam.yaw), jump = !f.onGround;
-    if (VB.role === 'host') vbHitBall(VB.my, f.pos, F.x, F.z, jump);
-    else { VB.vhSeq++; VB.vhOut = { n: VB.vhSeq, ax: r2(F.x), az: r2(F.z), j: jump ? 1 : 0, t: performance.now() }; }
-  }
-  return c;
-}
-function vbPredict() {   // dónde y cuándo bajará la pelota a la altura del golpe
-  const B = VB.ball, g = VBC.g, disc = B.v.y * B.v.y + 2 * g * (B.p.y - 1.15), t = disc > 0 ? Math.max(0, (B.v.y + Math.sqrt(disc)) / g) : 0;
-  return { t, x: B.p.x + B.v.x * t, z: B.p.z + B.v.z * t };
-}
-function vbBotCtl(f, dt) {
-  const c = VB_NEUTRAL(); if (!VB.on || f !== VB.bot) return c;
-  const team = vbOther(VB.my), B = VB.ball, sgn = team === 'N' ? -1 : 1, lo = team === 'N' ? VBC.z - 12.5 : VBC.z + 1.3, hi = team === 'N' ? VBC.z - 1.3 : VBC.z + 12.5;
-  const half = z => team === 'N' ? z < VBC.z - .6 : z > VBC.z + .6;
-  let tx = VBC.x, tz = VBC.z + sgn * 5, hurry = false;
-  if (VB.ph === 1 && VB.srv === team) { const s = vbSpot(team, true); tx = s.x; tz = s.z; }
-  else if (VB.ph === 2 && VB.last !== team) {
-    const pr = vbPredict();
-    if (half(pr.z) && !VB.botMiss) { tx = clamp(pr.x, VBC.x - VBC.hw - 1, VBC.x + VBC.hw + 1); tz = clamp(pr.z, lo, hi); hurry = true; }
-    else tx = VBC.x + (B.p.x - VBC.x) * .5;
-  }
-  const dx = tx - f.pos.x, dz = tz - f.pos.z, d = Math.hypot(dx, dz);
-  if (d > .3) { const k = Math.min(1, d / 1.2) * (hurry ? .68 : .55); c.mx = dx / d * k; c.mz = dz / d * k; }
-  if (VB.ph === 2 && VB.last !== team && f.m1cd <= 0 && !f.action && half(B.p.z) && !VB.botMiss) {
-    if (Math.hypot(B.p.x - f.pos.x, B.p.z - f.pos.z) < 2.7 && B.p.y < 3.6 && B.p.y > .35) {
-      const ax = clamp((VBC.x - (G.player.pos.x - VBC.x) * .8 - f.pos.x) / 7 + (Math.random() - .5) * .6, -1, 1);
-      if (vbHitBall(team, f.pos, ax, 0, B.p.y > 2.3)) { c.m1 = true; if (B.p.y > 2.3 && f.onGround) c.jump = true; }
-    }
-  }
-  if (VB.ph === 1 && VB.srv === team && VB.t > 1.2 && !f.action) c.m1 = true;
-  return c;
-}
-function vbLobby(p, dt) {
-  const at = t => p.alive && Math.hypot(p.pos.x - VB_PADS[t].x, p.pos.z - VB_PADS[t].z) < 1.8 && p.pos.y < 2;
-  const team = at('N') ? 'N' : at('S') ? 'S' : '';
-  if (!team) { VB.padT = 0; VB.botT = 0; vbHud(null); return; }
-  vbInit();
-  VB.padT += dt;
-  const oth = vbOther(team), remote = G.mp && NET.proxies ? [...NET.proxies.values()].find(px => px.alive && Math.hypot(px.pos.x - VB_PADS[oth].x, px.pos.z - VB_PADS[oth].z) < 2) : null;
-  if (VB.padT < 1) { vbHud(vbBox('🏐 Vóley playa · prepárate…')); return; }
-  if (remote) {
-    const theirs = +(remote.net && remote.net.jt) || Infinity;
-    const host = NET.joinT < theirs || (NET.joinT === theirs && String(NET.myPeer) < String(remote.peer));
-    vbStart(team, remote, host ? 'host' : 'guest'); return;
-  }
-  VB.botT += dt;
-  const left = Math.ceil(3 - VB.botT);
-  vbHud(vbBox(`🏐 Vóley playa · esperando rival (otro jugador en la plataforma de enfrente)… bot en ${Math.max(0, left)}`));
-  if (VB.botT >= 3) vbStart(team, null, 'host');
-}
-function updateVolley(dt) {
-  if (G.state !== 'play' || !G.player) { if (VB.on) vbEnd('abort'); vbHud(null); return; }
-  const p = G.player;
-  if (!VB.on) { if (!G.paused && !G.cine) vbLobby(p, dt); return; }
-  if (!p.alive || (VB.opp && !G.fighters.includes(VB.opp)) || (VB.mode === 'bot' && !VB.bot)) { vbEnd(p.alive ? 'rival' : 'abort'); return; }
-  if (VB.mode === 'pvp' && VB.opp && Math.hypot(VB.opp.pos.x - VBC.x, VB.opp.pos.z - VBC.z) > 30) { vbEnd('rival'); return; }
-  if (VB.role === 'host') {
-    vbSim(dt);
-    if (VB.mode === 'pvp') {
-      const g = VB.opp.net && VB.opp.net.vh;
-      if (g && g.n > VB.lastVh) { VB.lastVh = g.n; vbHitBall(vbOther(VB.my), VB.opp.pos, +g.ax || 0, +g.az || 0, !!g.j, 3.9); }
-    }
-  } else vbGuest(dt);
-  // quedarse en la propia mitad; sin daño entre jugadores
-  const lo = VB.my === 'N' ? VBC.z - 12.8 : VBC.z + .9, hi = VB.my === 'N' ? VBC.z - .9 : VBC.z + 12.8;
-  p.pos.z = clamp(p.pos.z, lo, hi); p.pos.x = clamp(p.pos.x, VBC.x - 8, VBC.x + 8); p.iframes = Math.max(p.iframes, .5);
-  if (VB.bot) { const bt = vbOther(VB.my), blo = bt === 'N' ? VBC.z - 12.8 : VBC.z + .9, bhi = bt === 'N' ? VBC.z - .9 : VBC.z + 12.8; VB.bot.pos.z = clamp(VB.bot.pos.z, blo, bhi); VB.bot.pos.x = clamp(VB.bot.pos.x, VBC.x - 8, VBC.x + 8); }
-  // pelota y sombra
-  const B = VB.ball; B.mesh.position.copy(B.p); B.mesh.rotation.x += B.v.z * dt * .5; B.mesh.rotation.z -= B.v.x * dt * .5;
-  VB.shadow.position.set(B.p.x, .06, B.p.z); const sc = clamp(1 - B.p.y / 9, .35, 1); VB.shadow.scale.set(sc, sc, 1); VB.shadow.material.opacity = .15 + .25 * sc;
-  // marcador
-  let extra = '';
-  if (VB.ph === 0) extra = 'Conectando…';
-  else if (VB.ph === 1) extra = VB.srv === VB.my ? '¡Tu saque! Haz clic para sacar' : 'Saca el rival: prepárate';
-  else if (VB.ph === 3 || VB.ph === 4) extra = VB.msg || '';
-  else extra = 'Clic: golpear · Espacio + clic: remate';
-  vbHud(vbScoreHud(extra));
-}
+// ===== Minijuego: vóley playa: vive en js/modos/voley.js =====
+const { VB, VBC, VB_NEUTRAL, VB_PADS, updateVolley, vbBotCtl, vbBox, vbEnd, vbGuest, vbHitBall, vbHud, vbInit, vbLobby, vbNames, vbOther, vbOver, vbPin, vbPlace, vbPlayerCtl, vbPoint, vbPointFx, vbPredict, vbPub, vbPubHit, vbScoreHud, vbServe, vbSim, vbSpawnBot, vbSpot, vbStart } = CF_MODOS.crearVoley({ CITY_GRAD, DUMMY_CH, Fighter, G, NET, V3, aiParams, burst, cam, chestOf, clamp, endAction, fwd, groundAt, playSnd, r2, ringAt, scene, shakeFrom, showBanner });
 // ===== Opciones por categorías (Sonido · Gráficos · Controles · Pantalla · Misceláneos) =====
 let showSettingsCat = () => {};
 {
@@ -17133,7 +14927,7 @@ function hudSyncUI() {
     wh.checked = SEA.whaleAuto !== false;
     if (!wh._bound) { wh._bound = true; wh.addEventListener('change', () => { SEA.whaleAuto = wh.checked; try { localStorage.setItem('bsb_sea_whale', wh.checked ? '1' : '0'); } catch (e) { } }); }
   }
-  const mz = $('mm-zoom'), mzv = $('mm-zoom-val');
+  const mz = $('mm-zoom'), mzv = $('mm-zoom-o');
   if (mz) {
     mz.value = MM.zoom;
     if (mzv) mzv.textContent = MM.zoom.toFixed(1) + '×';
@@ -17144,152 +14938,12 @@ bindsSyncUI();
 
 if ($('btn-whale-now')) $('btn-whale-now').addEventListener('click', () => {
   triggerWhaleEvent(true);
-  if (G.paused) pause(false);
+  if (G.paused) setPause(false);
 });
 
-// ===== Minimapa: la ciudad desde arriba con zoom centrado en el jugador =====
-// Desactivar cinemáticas: no se ven las cámaras animadas ni las escenas; se ve la acción desde fuera, como la ven los demás jugadores
-const CFG_CINE = { off: false };
-try { CFG_CINE.off = localStorage.getItem('bsb_nocine') === '1'; } catch (e) { }
-{
-  const nc = $('opt-nocine');
-  if (nc) { nc.checked = CFG_CINE.off; nc.addEventListener('change', () => { CFG_CINE.off = nc.checked; try { localStorage.setItem('bsb_nocine', CFG_CINE.off ? '1' : '0'); } catch (e) { } if (CFG_CINE.off && G.cine) { G.cine = null; endCamScript(); cineGrade(false); document.body.classList.remove('cine'); } }); }
-}
-const MM = { on: true, bg: null, bgW: 512, t: 0, cx: 0, cz: 16, half: 145, zoom: 2.0 };
-function mmApply() { const m = mapNow().mm; MM.cx = m.cx; MM.cz = m.cz; MM.half = m.half; MM.bgW = (worldBig() && MAPCUR.id !== 'A') ? 1024 : 512; MM.bg = null; }   // el minimapa sigue al mapa actual
-mmApply(); if (window.CF_BETA) CF_BETA.subscribe(() => mmApply());
-try {
-  MM.on = localStorage.getItem('bsb_minimap') !== '0';
-  const z0 = parseFloat(localStorage.getItem('bsb_mm_zoom'));
-  if (Number.isFinite(z0)) MM.zoom = clamp(z0, 1.0, 3.0);
-} catch (e) { }
-{
-  const fo = $('opt-fps'), mo = $('opt-mm'), mz = $('mm-zoom'), mzv = $('mm-zoom-val');
-  if (fo) { try { fo.checked = localStorage.getItem('bsb_fps') === '1'; } catch (e) { } fo.addEventListener('change', () => { FPS.on = fo.checked; try { localStorage.setItem('bsb_fps', FPS.on ? '1' : '0'); } catch (e) { } if (FPS.el) FPS.el.style.display = FPS.on ? 'block' : 'none'; }); }
-  if (mo) { mo.checked = MM.on; mo.addEventListener('change', () => { MM.on = mo.checked; try { localStorage.setItem('bsb_minimap', MM.on ? '1' : '0'); } catch (e) { } }); }
-  if (mz) {
-    mz.value = MM.zoom;
-    if (mzv) mzv.textContent = MM.zoom.toFixed(1) + '×';
-    mz.addEventListener('input', () => {
-      MM.zoom = clamp(parseFloat(mz.value) || 2.0, 1.0, 3.0);
-      if (mzv) mzv.textContent = MM.zoom.toFixed(1) + '×';
-      try { localStorage.setItem('bsb_mm_zoom', String(MM.zoom)); } catch (e) { }
-    });
-  }
-}
-hudSyncUI();
-const mmX = (x, W) => ((x - MM.cx) / MM.half * .5 + .5) * W, mmZ = (z, W) => ((z - MM.cz) / MM.half * .5 + .5) * W;
-function mmBackground(W) {
-  const c = document.createElement('canvas'); c.width = c.height = W; const g = c.getContext('2d', { willReadFrequently: true }), k = W / (2 * MM.half);
-  g.fillStyle = '#365a3c'; g.fillRect(0, 0, W, W);
-  // mar y arena (al sur, z positivo)
-  for (let px = 0; px < W; px++) {
-    const x = MM.cx + (px / W - .5) * 2 * MM.half, sz = mmZ(SHORE(x), W);
-    g.fillStyle = '#c9b27a'; g.fillRect(px, sz - 7 * k, 1, 7 * k + 1);
-    g.fillStyle = '#25638c'; g.fillRect(px, sz, 1, W - sz);
-  }
-  const mmB = worldBig() && MAPCUR.id !== 'A';
-  if (!mmB) {
-  // Islas del mar en el minimapa
-  g.fillStyle = '#727984'; g.beginPath(); g.arc(mmX(-82, W), mmZ(152, W), 12 * k, 0, TAU); g.fill();
-  g.fillStyle = '#ff5252'; g.beginPath(); g.arc(mmX(-82, W), mmZ(152, W), 3.2 * k, 0, TAU); g.fill();
-  g.fillStyle = '#dfc686'; g.beginPath(); g.arc(mmX(78, W), mmZ(144, W), 13 * k, 0, TAU); g.fill();
-  g.fillStyle = '#388e3c'; g.beginPath(); g.arc(mmX(78, W), mmZ(144, W), 5 * k, 0, TAU); g.fill();
-  }
-  if (worldBig() && CITY.mmExtra) CITY.mmExtra(g, (x, z, w, d) => g.fillRect(mmX(x - w / 2, W), mmZ(z - d / 2, W), w * k, d * k));
-  if (!mmB) {
-  // centro pavimentado y calles
-  g.fillStyle = '#4c545e'; g.beginPath(); g.arc(mmX(0, W), mmZ(0, W), CITY.core * k, 0, TAU); g.fill();
-  g.fillStyle = '#2c3138';
-  const road = (x, z, w, d) => g.fillRect(mmX(x - w / 2, W), mmZ(z - d / 2, W), w * k, d * k);
-  road(0, 0, 8, 2 * CITY.core); road(0, 0, 2 * CITY.core, 8);
-  for (const a of [-22, 22, -44, 44]) { const L = 2 * Math.floor(Math.sqrt(CITY.core * CITY.core - a * a) - 1.5); road(a, 0, 5, L); road(0, a, L, 5); }
-  g.fillStyle = '#6e9a62'; for (const pk of CITY.parks) road(pk.x, pk.z, pk.w, pk.d);
-  // edificios: más claros los más altos, con borde para que se lean como bloques
-  for (const b of CITY.buildings) {
-    const l = clamp(58 + (b.h || 8) * 1.1, 60, 86);
-    g.fillStyle = `hsl(220 10% ${l}%)`; road(b.x, b.z, b.w, b.d);
-    g.strokeStyle = '#0009'; g.lineWidth = 1; g.strokeRect(mmX(b.x - b.w / 2, W) + .5, mmZ(b.z - b.d / 2, W) + .5, b.w * k - 1, b.d * k - 1);
-  }
-  g.strokeStyle = '#ffffff22'; g.lineWidth = 2; g.beginPath(); g.arc(mmX(0, W), mmZ(0, W), CITY.bounds * k, 0, TAU); g.stroke();
-  }
-  return c;
-}
-function mmDraw() {
-  const cv = $('minimap'); if (!cv) return;
-  const vis = MM.on && !HUD_CFG.all && G.state === 'play' && !G.cine && !G.viewer && !STAGE.on && !!G.player;
-  cv.classList.toggle('hidden', !vis); $('hud').classList.toggle('mm', vis);
-  if (!vis) return;
-  if (G.player.abyss && window.CF_ABISMO && CF_ABISMO.mini && CF_ABISMO.mini(cv.getContext('2d'), cv.width, G.player, cam.yaw)) return;   // el abismo tiene su propio mapa
-  const W = cv.width, g = cv.getContext('2d');
-  if (!MM.bg && CITY.buildings.length) MM.bg = mmBackground(MM.bgW);
-  const p = G.player;
-  const zoom = clamp(MM.zoom || 2.0, 1.0, 3.0);
-  const viewHalf = MM.half / zoom;
-  // Centro de cámara del minimapa sigue al jugador con suavidad dentro de los límites del mundo
-  const maxOff = Math.max(0, MM.half - viewHalf);
-  const vcx = clamp(p.pos.x, MM.cx - maxOff, MM.cx + maxOff);
-  const vcz = clamp(p.pos.z, MM.cz - maxOff, MM.cz + maxOff);
-  const toX = x => ((x - vcx) / viewHalf * .5 + .5) * W;
-  const toZ = z => ((z - vcz) / viewHalf * .5 + .5) * W;
-
-  g.clearRect(0, 0, W, W);
-  if (MM.bg) {
-    const B = MM.bgW;
-    const sx = ((vcx - viewHalf - (MM.cx - MM.half)) / (2 * MM.half)) * B;
-    const sy = ((vcz - viewHalf - (MM.cz - MM.half)) / (2 * MM.half)) * B;
-    const sw = (viewHalf / MM.half) * B;
-    g.drawImage(MM.bg, sx, sy, sw, sw, 0, 0, W, W);
-  }
-  const clampP = v => clamp(v, 10, W - 10);
-  const px = clampP(toX(p.pos.x)), pz = clampP(toZ(p.pos.z)), cy = cam.yaw, R = 58;
-  // cono de lo que ve la cámara
-  const grd = g.createRadialGradient(px, pz, 4, px, pz, R); grd.addColorStop(0, '#ffffff55'); grd.addColorStop(1, '#ffffff00');
-  g.fillStyle = grd; g.beginPath(); g.moveTo(px, pz);
-  for (let i = 0; i <= 8; i++) { const a = cy - .55 + i / 8 * 1.1; g.lineTo(px + Math.sin(a) * R, pz + Math.cos(a) * R); }
-  g.closePath(); g.fill();
-
-  // Barcos, tiburones y ballena en el mar
-  if (SEA.boats) {
-    for (const b of SEA.boats) {
-      const bx = toX(b.mesh.position.x), bz = toZ(b.mesh.position.z);
-      if (bx > 4 && bx < W - 4 && bz > 4 && bz < W - 4) {
-        g.fillStyle = '#f5efe2'; g.fillRect(bx - 3, bz - 2, 6, 4);
-      }
-    }
-  }
-  if (SEA.sharks && SEA.sharksOn !== false) {
-    for (const s of SEA.sharks) {
-      if (!s.mesh.visible) continue;
-      const sx = toX(s.x), sz = toZ(s.z);
-      if (sx > 6 && sx < W - 6 && sz > 6 && sz < W - 6) {
-        g.fillStyle = '#ff5757';
-        g.beginPath(); g.arc(sx, sz, 3.2, 0, TAU); g.fill();
-      }
-    }
-  }
-  if (SEA.whale && SEA.whale.active) {
-    const wx = clampP(toX(SEA.whale.mesh.position.x)), wz = clampP(toZ(SEA.whale.mesh.position.z));
-    g.strokeStyle = '#4fd4ff'; g.lineWidth = 2.5;
-    g.beginPath(); g.arc(wx, wz, 9 + Math.sin(performance.now() * .01) * 3, 0, TAU); g.stroke();
-  }
-
-  // los demás: puntos del color de su personaje (si están fuera del zoom, se pegan al borde para orientarte)
-  for (const f of G.fighters) {
-    if (f === p || !f.alive || f.dummy) continue;
-    const rx = toX(f.pos.x), rz = toZ(f.pos.z);
-    const x = clampP(rx), z = clampP(rz), out = (rx !== x || rz !== z);
-    const r = f.remote ? 8 : (out ? 5.5 : 6.8);
-    g.beginPath(); g.arc(x, z, r + 2.2, 0, TAU); g.fillStyle = f.remote ? '#fff' : '#000b'; g.fill();
-    g.beginPath(); g.arc(x, z, r, 0, TAU); g.fillStyle = f.ch.color; g.fill();
-  }
-  // yo: flecha hacia donde miro
-  const F = fwd(p.yaw), Rr = { x: F.z, z: -F.x };
-  g.beginPath(); g.moveTo(px + F.x * 13, pz + F.z * 13); g.lineTo(px - F.x * 8 + Rr.x * 9, pz - F.z * 8 + Rr.z * 9); g.lineTo(px - F.x * 3.5, pz - F.z * 3.5); g.lineTo(px - F.x * 8 - Rr.x * 9, pz - F.z * 8 - Rr.z * 9); g.closePath();
-  g.fillStyle = p.alive ? '#d7ff2f' : '#888'; g.strokeStyle = '#000'; g.lineWidth = 3; g.stroke(); g.fill();
-}
-setInterval(mmDraw, 66);
-
+// ===== Minimapa: la ciudad desde arriba con zoom centrado en el jugador: vive en js/ui/minimapa.js =====
+const { CFG_CINE, MM, mmApply, mmBackground, mmDraw, mmX, mmZ } = CF_UI.crearMinimapa({ $, CITY, FPS, G, HUD_CFG, MAPCUR, SEA, SHORE, STAGE, TAU, cam, cineGrade, clamp, endCamScript, fwd, hudSyncUI, mapNow, worldBig });
+hudSyncUI();   // necesita MM: va después de crear el minimapa
 // ===== Libro: guía de combate con el motor REAL del juego =====
 // La vista previa no imita nada: mete a tu personaje y a un dummy en la plaza de la ciudad y apreta los mismos botones que apretarías vos
 // (golpe, bloqueo, esquiva, habilidades, G...) con el motor de la pelea: mismas animaciones, efectos, sonidos, cámara y cinemáticas.

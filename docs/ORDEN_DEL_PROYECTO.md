@@ -34,7 +34,12 @@ blockstrike/
 │   │   ├── escenario_ulti.js
 │   │   ├── efectos_combate.js
 │   │   └── calidad_post.js
-│   ├── game.js                 # Núcleo de juego (mapa, clima, IA, combate, HUD, loop)
+│   │   └── armas.js            # Armas de vóxeles (lanza, cetro, espada) y ojos brillantes
+│   ├── ui/                     # Interfaz separada de game.js: ventanitas.js (alert/confirm/prompt), minimapa.js
+│   ├── editores/               # Herramientas del modo desarrollador: editor_mapa, editor_audio, editor_animaciones, editor_expresiones
+│   ├── modos/                  # Modos de juego aparte: voley.js (vóley playa)
+│   ├── ambiente.js             # Clima, hora y rayos de la sala: el MISMO código en el juego y en el servidor
+│   ├── game.js                 # Núcleo de juego (mapa, IA, combate, HUD, loop). Crea los módulos de ui/, editores/, modos/ y graficos/ (ver tools/refactor/LEEME.md)
 │   ├── physics.js              # Física y colisiones
 │   ├── destruction.js          # Destrucción del escenario e impactos de agujeros
 │   ├── animations.js           # Keyframes generados para peleadores

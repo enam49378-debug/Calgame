@@ -12,6 +12,22 @@ Para cambiar la versión: `GAME_VERSION` en `js/game.js`, el texto de `#gamever`
 
 ---
 
+## v1.14.0 · 2026-11-23 · Código ordenado y arreglos
+- **Código más ordenado:** `js/game.js` bajó de 17.700 a unas 15.400 líneas. Las partes que estaban mezcladas ahora viven en su propio archivo, con el mismo patrón de `js/graficos/` (fábricas que `game.js` crea en su lugar, sin exponer nada en la consola):
+  - `js/ui/`: ventanitas (alert, confirm y prompt) y minimapa.
+  - `js/editores/`: editores de mapa, audio, animaciones y expresiones (modo desarrollador).
+  - `js/modos/voley.js`: el minijuego de vóley playa.
+  - `js/graficos/armas.js`: lanza, cetro, espada de vóxeles y ojos brillantes (antes estaban metidos dentro del editor de expresiones).
+- **Clima: un solo código para el juego y el servidor** (`js/ambiente.js`). Antes eran dos copias que se habían separado.
+- **Arreglo: el clima en multijugador en Selva Esmeralda y Valle Sakura.** El juego usaba el ciclo de clima del mapa y el servidor el de Ciudad Aurora, así que entre paquete y paquete el clima saltaba. Ahora el ciclo viaja dentro del estado y todos usan el mismo.
+- **Arreglo: el botón para llamar a la ballena** tiraba un error si el juego estaba en pausa.
+- **Arreglo: el número del zoom del minimapa** en Opciones no cambiaba al mover el control.
+- **Arreglo: cerrar el editor de animaciones** sin haberlo abierto tiraba un error.
+- Limpieza: se quitó la sala P2P vieja (usaba una librería que ya no se carga y nadie la llamaba), una propiedad rota de la API de habilidades (`_v`) y entradas repetidas en esa API.
+- Nuevo efecto para coreografías: `fx: 'screenbreak'` (la pantalla se rompe como vidrio y se desvanece).
+- Herramientas nuevas en `tools/refactor/` para seguir separando `game.js` de forma segura, y `npm run revisar` para buscar nombres que no existen (errores que solo saltan al ejecutarse esa línea).
+- Servidor: `servidor_oracle/subir_a_oracle.ps1` ahora también sube `js/ambiente.js` (hay que volver a correrlo para que el servidor use el clima compartido).
+
 ## v1.13.0 · 2026-11-21 · Cielo, nubes, sombras y arreglos
 - **Arreglo: el botón Amigos no aparecía** dentro de la partida (la pantalla de título lo dejaba invisible). Ahora sale en la barra de arriba junto a Guía.
 - **Arreglo: el cielo rojo de Redbird (Ojo del Cosmos)** se veía como un disco rojo cortado porque la cúpula del cielo crecía más allá de lo que alcanza la cámara. Ahora no cambia de tamaño.

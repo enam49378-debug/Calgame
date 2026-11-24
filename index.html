@@ -639,8 +639,18 @@ addEventListener('resize',function(){seed();draw()});seed();draw()})();
 <script defer src="js/titulo.js?v=6"></script>
 <script defer src="js/carga_partida.js?v=1"></script>
 <script defer src="config/servidor.js?v=3"></script>
-<script defer src="js/game.js?v=14.2"></script>
+<script defer src="js/ambiente.js?v=1"></script>
+<!-- partes del juego separadas de game.js (cada una es una fábrica que game.js crea en su lugar) -->
+<script defer src="js/ui/ventanitas.js?v=1"></script>
+<script defer src="js/ui/minimapa.js?v=3"></script>
+<script defer src="js/editores/editor_mapa.js?v=1"></script>
+<script defer src="js/editores/editor_audio.js?v=1"></script>
+<script defer src="js/modos/voley.js?v=1"></script>
+<script defer src="js/editores/editor_animaciones.js?v=2"></script>
+<script defer src="js/editores/editor_expresiones.js?v=1"></script>
+<script defer src="js/graficos/armas.js?v=1"></script>
+<script defer src="js/game.js?v=14.7"></script>
 
-<div id="gamever" aria-hidden="true">v1.13.0</div>
+<div id="gamever" aria-hidden="true">v1.14.0</div>
 </body>
 </html>

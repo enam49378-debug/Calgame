@@ -20,11 +20,16 @@
     "test:perfiles:v2": "node tests/perfiles-v2.cjs",
     "test:social:reglas": "node tests/social-reglas.cjs",
     "test:social": "node tests/social.cjs",
-    "test:tactil": "node tests/tactil.cjs"
+    "test:tactil": "node tests/tactil.cjs",
+    "revisar": "node tools/refactor/buscar_errores.js",
+    "test:servidor": "node tests/ambiente.cjs && node tests/arbitro.test.cjs && node tests/abismo-sim.test.cjs"
   },
   "devDependencies": {
     "playwright": "1.64.1",
     "@firebase/rules-unit-testing": "6.0.0",
-    "firebase": "13.2.0"
+    "firebase": "13.2.0",
+    "acorn": "8.14.0",
+    "acorn-walk": "8.3.4",
+    "eslint-scope": "8.2.0"
   }
 }
