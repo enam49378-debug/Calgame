@@ -1033,18 +1033,25 @@ def exterior_pro(name, m, W, D, Hc, H):
 
 
 def build_all(tex_source):
+    import sys as _sys
+    import gen_edificios as _G
+    import cafe_luna as _CAFE
+    _I = _sys.modules[__name__]
     info = {}
     for i, (name, fn, W, D, Hc, H, wall, inner, floor, ceil, trim, awn, board) in enumerate(SPECS):
         rng = random.Random(100 + i)
         m = Model(name)
-        glass_t = 'glass_dark' if name == 'torre_aurora' else 'glass'
-        shell(m, rng, W, D, Hc, H, wall=wall, inner=inner, floor=floor, ceil=ceil, trim=trim, glass_t=glass_t, awn=awn, board=board,
-              ww=2.6 if W > 20 else 2.4, upper_ww=1.5 if name != 'torre_aurora' else 1.9,
-              floor_h=3.6 if name == 'torre_aurora' else 2.9,
-              roof_kw=dict(ac=0, antenna=False, dish=False, vents=False, accent='gold') if name == 'torre_aurora' else None)
-        exterior_pro(name, m, W, D, Hc, H)
-        fn(m, rng, W, D, Hc)
-        if name == 'torre_aurora': tower_top(m, W, D, H)
+        if name == 'cafe':
+            _CAFE.build_cafe_luna(m, rng, W, D, Hc, H, _G, _I)
+        else:
+            glass_t = 'glass_dark' if name == 'torre_aurora' else 'glass'
+            shell(m, rng, W, D, Hc, H, wall=wall, inner=inner, floor=floor, ceil=ceil, trim=trim, glass_t=glass_t, awn=awn, board=board,
+                  ww=2.6 if W > 20 else 2.4, upper_ww=1.5 if name != 'torre_aurora' else 1.9,
+                  floor_h=3.6 if name == 'torre_aurora' else 2.9,
+                  roof_kw=dict(ac=0, antenna=False, dish=False, vents=False, accent='gold') if name == 'torre_aurora' else None)
+            exterior_pro(name, m, W, D, Hc, H)
+            fn(m, rng, W, D, Hc)
+            if name == 'torre_aurora': tower_top(m, W, D, H)
         m.W, m.D, m.H = W, D, H
         n = m.save(tex_source)
         info[name] = {'w': W, 'd': D, 'h': H, 'base': round(Hc - .3, 2), 'door': DW, 'cubos': n}
