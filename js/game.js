@@ -1876,6 +1876,7 @@ function destUpdate(dt) {
   return window.PHYSICS ? window.PHYSICS.destUpdate(dt) : undefined;
 }
 function worldDamage(c, r, power, dmg, dest, dir) {
+  if (typeof cityPropsImpulse === 'function') cityPropsImpulse(c, r, power || 14);
   return window.DESTRUCTION ? window.DESTRUCTION.worldDamage(c, r, power, dmg, dest, dir) : undefined;
 }
 function worldBreak(c, r, maxVol, carve, dir) {
@@ -3525,6 +3526,7 @@ function hitArea(att, c, r, o) {
   return n;
 }
 function explode(att, c, r, o) {
+  if (typeof cityPropsImpulse === 'function') cityPropsImpulse(c, r, 14);
   for (const g of enemiesOf(att)) {
     if (chestOf(g).distanceTo(c) < r + .5) applyHit(att, g, Object.assign({}, o, { dir: new V3(g.pos.x - c.x, 0, g.pos.z - c.z) }));
   }
@@ -6805,7 +6807,7 @@ function animate(f, dt) {
   if (bbSet(f.ch.id) && f.alive) javiMotionFx(f, dt, sp);
   updateAura(f, dt, T);
   updateFace(f, dt);
-  if (f.alive) m.root.visible = !f.cineHide && !(G.viewer && CHORE[VW.id].bbPreview && f===VW.vic) && !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
+  if (f.alive) m.root.visible = !f.cineHide && !(G.viewer && CHORE[VW.id].bbPreview && f===VW.vic) && !(f.iframes > .5 && f.ragdoll <= 0 && !f.action && !f.choreTrack && f.dashT <= 0 && Math.floor(G.time * 20) % 2 === 0);
   const fl = Math.max(0, f.flashT) / .12, aw = f.awak > 0 ? .12 + .08 * Math.sin(T * 8) : 0;
   if (fl > 0) m.mats.forEach(x => x.emissive.setRGB(fl * .9, fl * .9, fl * .9));
   else if (aw > 0) m.mats.forEach(x => x.emissive.set(f.ch.color).multiplyScalar(aw));
@@ -7351,6 +7353,8 @@ function syncFriendsBtnPlace() {
   }
 }
 
+// ===== Mejoras arquitectónicas de Ciudad Aurora y props con física 3D: vive en js/mundo/ciudad_pro.js =====
+const { CITY_PROPS, initCiudadPro, updateCityPro, cityPropsImpulse } = CF_MUNDO.crearCiudadPro({ V3, TAU, rand, clamp, scene, camera, CITY, CITY_PLAN, groundAt, pixTex, cityAnimeMaterial, addPropCull, emit, burst, sfx, G });
 // ===== Intro de entrada al mundo/partida: vive en js/combate/intro_entrada.js =====
 const { INTRO, INTROS, introStart, introTick, introStop, introActive } = CF_COMBATE.crearIntroEntrada({ V3, clamp, fwd, rightOf, scene, camera, groundAt, buildSpear, setSpear, burst, sfx, bbSet, javiBBTrack, buildTrack, G, cam, endCamScript });
 
@@ -10867,7 +10871,7 @@ function loop(now){
   if(G.over&&G.winner&&G.winner.victory&&G.fighters.includes(G.winner))frameTask('victoria',()=>animate(G.winner,rdt));
   frameTask('camara:efectos',()=>updateCamFx(rdt));frameTask('camara',()=>{updateCamera(rdt);if(GS.on)guideCam(rdt);});if(TRAVEL.on&&CF_A.MAPAS)frameTask('mapas:camara',()=>CF_A.MAPAS.cam(rdt));frameTask('cielo',skyFollow);frameTask('rayos_sol',()=>updateGodRays());
   frameTask('clima',()=>updateCityWeather(G.paused&&!G.mp?0:rdt));frameTask('ambiente',()=>updateAmbience(rdt));frameTask('musica',()=>updateMusic(rawDt>.5?.05:rdt));
-  frameTask('culling',()=>cityCull());frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('cartel_mall',()=>updateMallBillboard(rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
+  frameTask('culling',()=>cityCull());frameTask('playa',()=>updateBeach(rdt));frameTask('mar',()=>updateSea(rdt));frameTask('cartel_mall',()=>updateMallBillboard(rdt));frameTask('ciudad_pro',()=>updateCityPro(G.paused&&!G.mp?0:rdt));frameTask('bajoagua',()=>updateUnderwater(rdt));frameTask('voley',()=>updateVolley(rdt),()=>{if(VB.on)vbEnd('error');});
   if(G.hitstop>0&&G.chore&&G.chore.tg.model){const m=G.chore.tg.model.root;m.position.copy(G.chore.tg.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.14)*.035*pulse;m.position.y+=Math.sin(now*.18)*.018*pulse;}
   else if(G.hitstop>0&&ZZZ_U.beta.value>.5&&G.hitVictim&&G.hitVictim.model&&G.hitVictim.alive){const m=G.hitVictim.model.root;m.position.copy(G.hitVictim.pos);const pulse=Math.min(1,G.hitstop/.06);m.position.x+=Math.sin(now*.16)*.042*pulse;m.position.y+=Math.sin(now*.21)*.02*pulse;}
   else if(G.hitstop<=0&&G.hitVictim){if(G.hitVictim.model)G.hitVictim.model.root.position.copy(G.hitVictim.pos);G.hitVictim=null;}
@@ -10881,6 +10885,7 @@ function loop(now){
 LOADER.setProgress(22, 'Iniciando ciudad y motores...');
 buildSeaWorld();
 initMallBillboard();
+initCiudadPro();
 LOADER.setProgress(28, 'Generando texturas anime...');
 initWeatherControls();
 initPauseAudioControls();
