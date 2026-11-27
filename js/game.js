@@ -734,7 +734,7 @@ function cityGrassAt(x,z) {
   function loadBBModel(name){
     // Con servidor se lee el .bbmodel directo (los cambios hechos en Blockbench se ven al recargar); sin servidor (file://) se usa la copia ciudad/<nombre>.js
     const script=src=>new Promise((ok,fail)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=fail;document.head.appendChild(t);});
-    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js?v=3'),window.BB_MODELS?.[name]?0:script('ciudad/'+name+'.js?v=3')]).then(()=>window.BB_MODELS[name]);
+    const viaScript=()=>Promise.all([window.BB_ATLAS?0:script('ciudad/atlas.js?v=4'),window.BB_MODELS?.[name]?0:script('ciudad/'+name+'.js?v=4')]).then(()=>window.BB_MODELS[name]);
     // En tu equipo (servidor local) se lee el .bbmodel directo para ver al recargar lo que cambies en Blockbench; en internet se usan las copias .js (mucho más ligeras)
     const dev=/^(localhost|127\.|192\.168\.|10\.|\[::1\])/.test(location.hostname);
     if(!bbCache.has(name))bbCache.set(name,(dev?fetch('ciudad/'+name+'.bbmodel',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json();}):Promise.reject()).catch(viaScript)
