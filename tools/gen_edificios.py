@@ -336,7 +336,7 @@ def facade(m, W, D, y0, fh, side, wall, trim, glass_t, *, ww=1.25, wh=1.5, sill=
             place(m, side, c, wy0, .9, ww - .16, .08, 'door_navy', W, D, -.12 + .0)
             continue
         gh = wy1 - wy0 - .12
-        warm = rng is not None and rng.random() < .12
+        warm = rng is not None and rng.random() < .26
         place(m, side, c, wy0 + .06, gh, ww - .08, .05, 'glass_warm' if warm else glass_t, W, D, -.16 + .0)
         for uu in (c - ww / 2 + .04, c + ww / 2 - .04):
             place(m, side, uu, wy0, wy1 - wy0, .08, .09, frame, W, D, .045)
@@ -345,9 +345,14 @@ def facade(m, W, D, y0, fh, side, wall, trim, glass_t, *, ww=1.25, wh=1.5, sill=
         place(m, side, c, (wy0 + wy1) / 2 - .03, .06, ww - .1, .07, frame, W, D, .035)
         if ww > 1.1 and not ribbon:
             place(m, side, c, wy0, wy1 - wy0, .06, .07, frame, W, D, .035)
-        place(m, side, c, wy0 - .1, .1, ww + .24, .26, 'trim_stone', W, D, .13)
-        place(m, side, c, wy1, .12, ww + .3, .24, 'trim_stone', W, D, .12)
-        if planter and rng and rng.random() < .55:
+        # Alféizar con ménsulas (corbels) y dintel con clave central (keystone)
+        place(m, side, c, wy0 - .1, .1, ww + .28, .28, 'trim_stone', W, D, .14)
+        for sg in (-1, 1):
+            place(m, side, c + sg * (ww * .42), wy0 - .24, .14, .14, .22, 'trim_stone', W, D, .11)
+        place(m, side, c, wy1, .14, ww + .34, .26, 'trim_stone', W, D, .13)
+        if not ribbon:
+            place(m, side, c, wy1 + .02, .22, .22, .30, frame, W, D, .15)
+        if planter and rng and rng.random() < .62:
             place(m, side, c, wy0 - .34, .26, ww + .1, .22, 'pot', W, D, .3)
             place(m, side, c, wy0 - .08, .1, ww, .2, 'plant', W, D, .3)
             for k in range(3):
@@ -360,14 +365,20 @@ def facade(m, W, D, y0, fh, side, wall, trim, glass_t, *, ww=1.25, wh=1.5, sill=
             place(m, side, c, wy0 - .56, .38, .58, .06, 'vent', W, D, .43)
         if balcony:
             bw = ww + 1.0
-            place(m, side, c, y0, .16, bw, .95, 'concrete', W, D, .6)
-            place(m, side, c, y0 + .16, .06, bw, .06, 'metal_dark', W, D, 1.05)
-            place(m, side, c, y0 + .8, .06, bw, .06, 'metal_dark', W, D, 1.05)
-            n = int(bw / .22)
+            place(m, side, c, y0, .18, bw, 1.0, 'concrete', W, D, .62)
+            place(m, side, c, y0 - .1, .1, bw - .2, .75, 'trim_stone', W, D, .48)
+            place(m, side, c, y0 + .18, .06, bw, .06, 'metal_dark', W, D, 1.08)
+            place(m, side, c, y0 + .84, .08, bw + .06, .08, 'metal_dark', W, D, 1.08)
+            n = int(bw / .24)
             for k in range(n + 1):
-                place(m, side, c - bw / 2 + .03 + k * (bw - .06) / n, y0 + .16, .65, .045, .045, 'metal_dark', W, D, 1.05)
+                place(m, side, c - bw / 2 + .03 + k * (bw - .06) / n, y0 + .18, .66, .045, .045, 'metal_dark', W, D, 1.08)
             for sg in (-1, 1):
-                place(m, side, c + sg * (bw / 2 - .03), y0 + .16, .65, .045, .95, 'metal_dark', W, D, .6)
+                place(m, side, c + sg * (bw / 2 - .03), y0 + .18, .68, .09, .09, 'metal_dark', W, D, 1.08)
+                place(m, side, c + sg * (bw / 2 - .03), y0 + .18, .66, .05, .98, 'metal_dark', W, D, .62)
+            if rng and rng.random() < .45:
+                place(m, side, c, y0 + .18, .26, bw * .55, .24, 'pot', W, D, .90)
+                place(m, side, c, y0 + .44, .18, bw * .52, .24, 'plant', W, D, .90)
+                place(m, side, c, y0 + .62, .10, .14, .14, 'flower_pink' if rng.random() < .5 else 'flower_yellow', W, D, .90)
 
 
 def band(m, W, D, y, h, tile, out=.1):
@@ -397,22 +408,54 @@ def core(m, W, D, y0, y1, tile='shadow', inset=.3):
     m.cube(0, y0, 0, W - inset * 2, y1 - y0, D - inset * 2, tile)
 
 
-def roof(m, W, D, y, wall, rng, *, parapet=.55, ac=2, tank=False, antenna=True, stair=True, dish=True, accent='trim_white', vents=True):
+def roof(m, W, D, y, wall, rng, *, parapet=.55, ac=2, tank=False, antenna=True, stair=True, dish=True, accent='trim_white', vents=True, dentils=True, pergola=False, skylight=False):
     m.group('Techo')
     m.cube(0, y - .02, 0, W - .2, .12, D - .2, 'roof_tar')
-    m.cube(0, y - .35, 0, W + .5, .22, D + .5, 'trim_stone')
-    m.cube(0, y - .15, 0, W + .3, .2, D + .3, accent)
+    # Cornisa escalonada profesional (3 niveles + dentículos arquitectónicos)
+    m.cube(0, y - .42, 0, W + .32, .14, D + .32, accent)
+    m.cube(0, y - .28, 0, W + .58, .20, D + .58, 'trim_stone')
+    m.cube(0, y - .08, 0, W + .36, .18, D + .36, accent)
+    if dentils:
+        step = 1.15
+        nx = max(2, int((W - .8) / step))
+        nz = max(2, int((D - .8) / step))
+        for k in range(nx + 1):
+            ux = -W / 2 + .55 + k * (W - 1.1) / nx
+            for sz in (-1, 1):
+                m.cube(ux, y - .50, sz * (D / 2 + .18), .22, .16, .22, 'trim_stone')
+        for k in range(nz + 1):
+            uz = -D / 2 + .55 + k * (D - 1.1) / nz
+            for sx in (-1, 1):
+                m.cube(sx * (W / 2 + .18), y - .50, uz, .22, .16, .22, 'trim_stone')
     for sx in (-1, 1):
         m.cube(sx * (W / 2 - .09), y + .1, 0, .22, parapet, D + .3, wall)
     for sz in (-1, 1):
         m.cube(0, y + .1, sz * (D / 2 - .09), W + .3, parapet, .22, wall)
     for sx in (-1, 1):
         for sz in (-1, 1):
-            m.cube(sx * (W / 2 + .06), y + .1, sz * (D / 2 + .06), .34, parapet + .15, .34, 'trim_stone')
+            m.cube(sx * (W / 2 + .06), y + .1, sz * (D / 2 + .06), .38, parapet + .22, .38, 'trim_stone')
+            m.cube(sx * (W / 2 + .06), y + parapet + .32, sz * (D / 2 + .06), .26, .12, .26, accent)
     for sx in (-1, 1):
-        m.cube(sx * (W / 2 - .09), y + parapet + .1, 0, .3, .1, D + .36, 'trim_stone')
+        m.cube(sx * (W / 2 - .09), y + parapet + .1, 0, .32, .12, D + .38, 'trim_stone')
     for sz in (-1, 1):
-        m.cube(0, y + parapet + .1, sz * (D / 2 - .09), W + .36, .1, .3, 'trim_stone')
+        m.cube(0, y + parapet + .1, sz * (D / 2 - .09), W + .38, .12, .32, 'trim_stone')
+    if pergola and W >= 8 and D >= 8:
+        pw, pd = min(3.6, W * .42), min(2.8, D * .34)
+        px0, pz0 = -W * .16, D * .18
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                m.cube(px0 + sx * (pw / 2 - .12), y + .1, pz0 + sz * (pd / 2 - .12), .16, 2.2, .16, 'dark_planks')
+        for k in range(5):
+            m.cube(px0, y + 2.28, pz0 - pd / 2 + .12 + k * (pd - .24) / 4, pw + .3, .12, .14, 'oak_planks')
+        m.cube(px0, y + 2.12, pz0, .22, .22, .22, 'lamp')
+        for sx in (-1, 1):
+            m.cube(px0 + sx * (pw / 2 + .35), y + .1, pz0, .55, .45, 1.3, 'pot')
+            m.cube(px0 + sx * (pw / 2 + .35), y + .55, pz0, .6, .4, 1.32, 'plant')
+    if skylight and W >= 7 and D >= 7:
+        sw, sd = min(3.2, W * .36), min(2.6, D * .34)
+        m.cube(0, y + .1, 0, sw + .3, .25, sd + .3, 'metal_dark')
+        m.cube(0, y + .35, 0, sw, .35, sd, 'glass')
+        m.cube(0, y + .70, 0, sw * .7, .22, sd * .7, 'glass_warm')
     spots = []
 
     def put(r):
@@ -569,7 +612,7 @@ def A_ladrillo(m, rng, wall, trim, glass_t, accent):
         for k in range(12):
             m.cube(x - .15, y0 - 2.9 + k * .22, -.6, .3, .04, .04, 'metal_dark')
     m.cube(x, 0, 0, 1.1, .18, 2.4, 'concrete')
-    roof(m, W, D, H, wall, rng, ac=2, tank=True)
+    roof(m, W, D, H, wall, rng, ac=1, tank=True, pergola=True)
     pipes(m, W, D, H)
     m.W, m.D, m.H = W, D, H
 
@@ -581,26 +624,31 @@ def B_oficinas(m, rng, wall, trim, glass_t, accent):
     m.group('Pilastras')
     for sx in (-1, 1):
         for sz in (-1, 1):
-            m.cube(sx * (W / 2 - .25), 0, sz * (D / 2 - .25), .6, H, .6, 'concrete_dark')
+            m.cube(sx * (W / 2 - .25), 0, sz * (D / 2 - .25), .65, H, .65, 'concrete_dark')
+            # Franja LED vertical moderna en las 4 esquinas
+            m.cube(sx * (W / 2 + .09), 3.6, sz * (D / 2 + .09), .10, H - 4.0, .10, 'glow_cool')
     base_plinth(m, W, D, 'concrete_dark', .6)
     door_entrance(m, W, D, canopy=None, w=2.6, pillars=False, pots=False)
     m.group('Marquesina')
-    m.cube(0, 3.0, D / 2 + 1.0, 3.6, .22, 2.2, 'metal_dark')
-    m.cube(0, 3.2, D / 2 + 1.0, 3.6, .07, 2.2, 'glass')
+    m.cube(0, 3.0, D / 2 + 1.0, 4.0, .20, 2.2, 'metal_dark')
+    m.cube(0, 3.2, D / 2 + 1.0, 3.8, .08, 2.0, 'glass')
+    m.cube(0, 2.94, D / 2 + 1.95, 3.6, .06, .08, 'glow_cool')
     for sg in (-1, 1):
-        m.cube(sg * 1.7, 0, D / 2 + 2.0, .16, 3.0, .16, 'metal_dark')
+        m.cube(sg * 1.85, 0, D / 2 + 2.0, .18, 3.0, .18, 'metal_dark')
+        m.cube(sg * 1.85, 3.1, D / 2 + 1.1, .08, .08, 2.0, 'steel', rot=[22, 0, 0])
     for xx in (-4, 4):
-        m.cube(xx, 0, D / 2 + .35, .7, 1.3, .6, 'concrete')
-        m.cube(xx, 1.3, D / 2 + .35, .8, .5, .7, 'plant')
+        m.cube(xx, 0, D / 2 + .35, .75, 1.3, .65, 'concrete')
+        m.cube(xx, 1.3, D / 2 + .35, .85, .55, .75, 'plant')
     m.group('Rótulo')
-    m.cube(0, 3.6, D / 2 + .1, 4.2, .6, .12, 'sign_dark')
-    m.cube(0, 3.72, D / 2 + .17, 3.6, .36, .06, 'sign_gold')
-    roof(m, W, D, H, wall, rng, ac=3, tank=False, accent='concrete_dark', stair=False)
+    m.cube(0, 3.6, D / 2 + .1, 4.4, .65, .14, 'sign_dark')
+    m.cube(0, 3.74, D / 2 + .18, 3.8, .36, .06, 'sign_gold')
+    roof(m, W, D, H, wall, rng, ac=2, tank=False, accent='concrete_dark', stair=False, skylight=True)
     m.group('Techo')
-    m.cube(0, H + .1, -D / 4, 5.0, 1.7, 3.0, 'concrete_dark')
-    m.cube(0, H + 1.8, -D / 4, 5.4, .2, 3.4, 'trim_stone')
+    m.cube(0, H + .1, -D / 4, 5.2, 1.75, 3.0, 'concrete_dark')
+    m.cube(0, H + 1.85, -D / 4, 5.6, .2, 3.4, 'trim_stone')
+    m.cube(0, H + 1.76, -D / 4 + 1.65, 5.2, .08, .08, 'glow_cool')
     for k in range(5):
-        m.cube(-2 + k, H + .5, -D / 4 + 1.52, .6, .9, .05, 'glass_dark')
+        m.cube(-2 + k, H + .5, -D / 4 + 1.52, .65, .95, .05, 'glass_warm' if k % 2 == 0 else 'glass_dark')
     pipes(m, W, D, H)
     m.W, m.D, m.H = W, D, H
 
@@ -608,46 +656,59 @@ def B_oficinas(m, rng, wall, trim, glass_t, accent):
 @design
 def C_casa_tienda(m, rng, wall, trim, glass_t, accent):
     W, D = 8.0, 7.0
-    H = floors_body(m, rng, W, D, 2, wall, trim, glass_t, ground_h=3.4, fh=2.9, shop_front=True, ww=1.4, ac=.3, planter=True, shutters='awn_green')
-    corners(m, W, D, 0, H, trim)
+    H = floors_body(m, rng, W, D, 2, wall, trim, glass_t, ground_h=3.4, fh=2.9, shop_front=True, ww=1.4, ac=.25, planter=True, shutters='awn_green')
+    corners(m, W, D, 0, H, trim, quoin=True, tile2='trim_stone')
     base_plinth(m, W, D, 'br_brown', .55)
     door_entrance(m, W, D, canopy=None, w=2.2, steps=1, pots=True)
     m.group('Toldo')
-    m.cube(0, 2.95, D / 2 + .45, W - .6, .1, .9, accent or 'awn_green')
-    m.cube(0, 2.9, D / 2 + .91, W - .6, .14, .05, accent or 'awn_green')
+    m.cube(0, 2.95, D / 2 + .48, W - .5, .1, 1.0, accent or 'awn_green', rot=[12, 0, 0])
+    m.cube(0, 2.82, D / 2 + .95, W - .5, .14, .06, accent or 'awn_green')
+    for ux in (-2.4, 0, 2.4):
+        m.cube(ux, 2.78, D / 2 + .78, .16, .16, .16, 'lamp')
     m.group('Balcón')
-    m.cube(0, 3.4, D / 2 + .5, 3.4, .15, 1.0, 'concrete')
+    m.cube(0, 3.4, D / 2 + .52, 3.6, .16, 1.04, 'concrete')
     for k in range(14):
-        m.cube(-1.6 + k * .246, 3.55, D / 2 + .95, .05, .8, .05, 'metal_dark')
-    m.cube(0, 4.35, D / 2 + .95, 3.4, .06, .06, 'metal_dark')
+        m.cube(-1.65 + k * .254, 3.56, D / 2 + .98, .05, .82, .05, 'metal_dark')
+    m.cube(0, 4.38, D / 2 + .98, 3.6, .08, .08, 'metal_dark')
     for sg in (-1, 1):
-        m.cube(sg * 1.65, 3.55, D / 2 + .5, .05, .8, .9, 'metal_dark')
-    m.cube(0, 3.55, D / 2 + .86, 3.2, .3, .24, 'pot')
-    m.cube(0, 3.85, D / 2 + .86, 3.2, .18, .26, 'plant')
+        m.cube(sg * 1.72, 3.56, D / 2 + .52, .06, .82, .96, 'metal_dark')
+    m.cube(0, 3.56, D / 2 + .88, 3.2, .3, .24, 'pot')
+    m.cube(0, 3.86, D / 2 + .88, 3.2, .18, .26, 'plant')
     for k in range(7):
-        m.cube(-1.5 + k * .5, 4.0, D / 2 + .86, .12, .12, .12, 'flower_pink' if k % 2 else 'flower_yellow')
-    roof(m, W, D, H, wall, rng, ac=1, tank=False, stair=False)
+        m.cube(-1.5 + k * .5, 4.02, D / 2 + .88, .12, .12, .12, 'flower_pink' if k % 2 else 'flower_yellow')
+    roof(m, W, D, H, wall, rng, ac=1, tank=False, stair=False, parapet=.45)
+    # Tejado mansarda europeo con buhardilla iluminada
+    m.group('Mansarda')
+    for k in range(3):
+        m.cube(0, H + .1 + k * .48, 0, W - .6 - k * 1.0, .48, D - .6 - k * .9, 'concrete_dark')
+    m.cube(0, H + 1.54, 0, W - 3.4, .18, D - 3.0, 'trim_stone')
+    m.cube(0, H + .32, D / 2 - .55, 1.8, 1.15, .9, trim)
+    m.cube(0, H + .46, D / 2 - .08, 1.1, .78, .06, 'glass_warm')
+    m.cube(0, H + 1.48, D / 2 - .55, 2.0, .18, 1.1, 'concrete_dark')
     m.group('Chimenea')
-    m.cube(-2.4, H + .1, -1.5, 1.0, 2.1, 1.0, 'br_red')
-    m.cube(-2.4, H + 2.2, -1.5, 1.2, .2, 1.2, 'trim_stone')
+    m.cube(-2.4, H + .1, -1.5, 1.0, 2.3, 1.0, 'br_red')
+    m.cube(-2.4, H + 2.4, -1.5, 1.25, .22, 1.25, 'trim_stone')
     m.W, m.D, m.H = W, D, H
 
 
 @design
 def D_torre_res(m, rng, wall, trim, glass_t, accent):
     W = D = 9.0
-    H = floors_body(m, rng, W, D, 6, wall, trim, glass_t, ground_h=3.4, fh=2.8, ww=1.25, balcony_from=1, balcony_sides='SN', ac=.25)
-    corners(m, W, D, 0, H, 'trim_stone', w=.4)
+    H = floors_body(m, rng, W, D, 6, wall, trim, glass_t, ground_h=3.4, fh=2.8, ww=1.25, balcony_from=1, balcony_sides='SNE', ac=.22, planter=True)
+    corners(m, W, D, 0, H, 'trim_stone', w=.45)
     base_plinth(m, W, D)
     door_entrance(m, W, D, canopy='metal_dark', w=2.4, depth=1.6, pillars=True)
     m.group('Corona')
-    m.cube(0, H + .1, 0, W - 2.2, 1.2, D - 2.2, wall)
-    m.cube(0, H + 1.3, 0, W - 1.6, .22, D - 1.6, 'trim_stone')
+    m.cube(0, H + .1, 0, W - 2.0, 1.35, D - 2.0, wall)
+    m.cube(0, H + 1.45, 0, W - 1.4, .22, D - 1.4, 'trim_stone')
+    # Franja luminosa cálida rodeando la corona
+    m.cube(0, H + 1.32, 0, W - 1.8, .12, D - 1.8, 'glow')
     for sg in (-1, 1):
-        m.cube(sg * 2.2, H + .4, (D - 2.2) / 2 + .01, 1.0, .6, .05, glass_t)
-    m.cube(2.0, H + 1.5, 1.0, 1.8, 1.4, 1.8, 'tank')
-    m.cube(2.0, H + 2.9, 1.0, 2.0, .12, 2.0, 'metal_dark')
-    roof(m, W, D, H, wall, rng, ac=2, tank=False, stair=False)
+        m.cube(sg * 2.2, H + .45, (D - 2.0) / 2 + .02, 1.1, .7, .05, 'glass_warm')
+        m.cube(sg * 2.2, H + .45, -(D - 2.0) / 2 - .02, 1.1, .7, .05, 'glass_warm')
+    m.cube(2.0, H + 1.65, 1.0, 1.8, 1.4, 1.8, 'tank')
+    m.cube(2.0, H + 3.05, 1.0, 2.0, .12, 2.0, 'metal_dark')
+    roof(m, W, D, H, wall, rng, ac=1, tank=False, stair=False, pergola=True)
     m.W, m.D, m.H = W, D, H
 
 
@@ -655,11 +716,16 @@ def D_torre_res(m, rng, wall, trim, glass_t, accent):
 def E_artdeco(m, rng, wall, trim, glass_t, accent):
     W, D = 9.0, 8.0
     H1 = floors_body(m, rng, W, D, 3, wall, 'gold', glass_t, ground_h=3.6, fh=3.0, ww=1.2, frame='gold')
-    base_plinth(m, W, D, 'night', .6)
-    door_entrance(m, W, D, canopy='sign_gold', w=2.4, depth=1.2, pillars=True)
+    base_plinth(m, W, D, 'night', .65)
+    door_entrance(m, W, D, canopy='sign_gold', w=2.4, depth=1.3, pillars=True)
     m.group('Pilastras doradas')
     for xx in (-3.3, -1.1, 1.1, 3.3):
-        m.cube(xx, 3.6, D / 2 + .05, .26, 5.4, .22, 'gold')
+        m.cube(xx, 3.6, D / 2 + .06, .28, 5.6, .24, 'gold')
+        m.cube(xx, 3.8, D / 2 + .18, .10, 5.2, .06, 'glow')
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            m.cube(sx * (W / 2 + .05), H1 + .5, sz * (D / 2 + .05), .42, 1.4, .42, 'gold')
+            m.cube(sx * (W / 2 + .05), H1 + 1.9, sz * (D / 2 + .05), .22, .6, .22, 'glow')
     W2, D2 = 6.6, 5.8
     roof(m, W, D, H1, wall, rng, ac=0, stair=False, tank=False, antenna=False, dish=False, accent='gold')
     m.group('Cuerpo alto')
@@ -670,62 +736,74 @@ def E_artdeco(m, rng, wall, trim, glass_t, accent):
         for side in 'SNEW':
             facade(m, W2, D2, y, 3.0, side, wall, 'gold', glass_t, ww=1.1, wh=2.0, sill=.5, rng=rng, frame='gold', minGap=.5)
         y += 3.0
-    m.cube(0, y, 0, W2 + .4, .22, D2 + .4, 'gold')
-    m.cube(0, y + .22, 0, W2 - .2, .8, D2 - .2, wall)
+    m.cube(0, y, 0, W2 + .45, .24, D2 + .45, 'gold')
+    m.cube(0, y - .12, 0, W2 + .2, .10, D2 + .2, 'glow')
+    m.cube(0, y + .24, 0, W2 - .2, .8, D2 - .2, wall)
     W3, D3 = 4.2, 3.6
     m.cube(0, y + 1.0, 0, W3, 1.6, D3, wall)
     for sg in (-1, 1):
         m.cube(sg * 1.2, y + 1.2, D3 / 2 + .02, .8, 1.2, .05, 'glass_warm')
-    m.cube(0, y + 2.6, 0, W3 + .3, .16, D3 + .3, 'gold')
+        m.cube(sg * 1.2, y + 1.2, -D3 / 2 - .02, .8, 1.2, .05, 'glass_warm')
+    m.cube(0, y + 2.6, 0, W3 + .36, .18, D3 + .36, 'gold')
     for k, s in enumerate((2.6, 1.8, 1.0, .5)):
-        m.cube(0, y + 2.76 + k * .45, 0, s, .45, s, 'gold' if k % 2 == 0 else wall)
-    m.cube(0, y + 4.6, 0, .1, 2.6, .1, 'gold')
-    m.cube(0, y + 7.0, 0, .2, .2, .2, 'sign_red')
+        m.cube(0, y + 2.78 + k * .45, 0, s, .45, s, 'gold' if k % 2 == 0 else ('glow' if k == 3 else wall))
+    m.cube(0, y + 4.6, 0, .12, 2.6, .12, 'gold')
+    m.cube(0, y + 7.0, 0, .24, .24, .24, 'sign_red')
     for sx in (-1, 1):
         for sz in (-1, 1):
-            m.cube(sx * (W2 / 2 - .1), H1, sz * (D2 / 2 - .1), .4, 6.4, .4, 'gold')
+            m.cube(sx * (W2 / 2 - .08), H1, sz * (D2 / 2 - .08), .44, 6.5, .44, 'gold')
+            m.cube(sx * (W2 / 2 + .08), H1 + 6.5, sz * (D2 / 2 + .08), .24, .8, .24, 'glow')
     m.W, m.D, m.H = W, D, y + 7.1
 
 
 @design
 def F_hotel(m, rng, wall, trim, glass_t, accent):
     W, D = 8.0, 9.0
-    H = floors_body(m, rng, W, D, 4, wall, trim, glass_t, ground_h=3.6, fh=2.9, ww=1.2, balcony_from=1, balcony_sides='S', ac=.2, planter=True)
+    H = floors_body(m, rng, W, D, 4, wall, trim, glass_t, ground_h=3.6, fh=2.9, ww=1.2, balcony_from=1, balcony_sides='S', ac=.15, planter=True)
     corners(m, W, D, 0, H, trim, quoin=True, tile2='trim_stone')
     base_plinth(m, W, D)
     door_entrance(m, W, D, canopy=None, w=2.4, pots=True)
+    # Alfombra roja elegante en la entrada del hotel
     m.group('Marquesina')
-    m.cube(0, 2.9, D / 2 + 1.2, 4.6, .14, 2.4, 'sign_red')
-    m.cube(0, 3.04, D / 2 + 1.2, 4.7, .08, 2.5, 'trim_white')
+    m.cube(0, .03, D / 2 + 1.3, 1.8, .05, 2.5, 'carpet_red')
+    m.cube(0, 2.9, D / 2 + 1.2, 4.8, .16, 2.4, 'sign_red')
+    m.cube(0, 3.06, D / 2 + 1.2, 4.9, .10, 2.5, 'gold')
     for sg in (-1, 1):
         for zz in (.6, 2.1):
-            m.cube(sg * 2.1, 0, D / 2 + zz, .22, 2.9, .22, 'trim_white')
-    m.cube(0, 2.4, D / 2 + 2.35, 4.4, .45, .06, 'sign_gold')
+            m.cube(sg * 2.15, 0, D / 2 + zz, .24, 2.9, .24, 'trim_white')
+            m.cube(sg * 2.15, 2.7, D / 2 + zz, .32, .16, .32, 'gold')
+    m.cube(0, 2.4, D / 2 + 2.35, 4.6, .48, .08, 'sign_gold')
+    # Bombillas cálidas estilo gran hotel bordeando la marquesina
+    for k in range(9):
+        m.cube(-2.0 + k * .5, 2.34, D / 2 + 2.42, .12, .12, .06, 'lamp')
     m.group('Rótulo')
-    m.cube(0, H + .6, D / 2 - .3, 4.4, 1.3, .2, 'sign_dark')
-    m.cube(0, H + .72, D / 2 - .18, 4.0, .9, .06, 'sign_red')
-    for k in range(7):
-        m.cube(-1.8 + k * .6, H + .85, D / 2 - .12, .3, .4, .04, 'lamp')
+    m.cube(0, H + .6, D / 2 - .3, 4.8, 1.4, .22, 'sign_dark')
+    m.cube(0, H + .74, D / 2 - .17, 4.4, 1.0, .06, 'sign_red')
+    for k in range(8):
+        m.cube(-2.0 + k * .57, H + .95, D / 2 - .10, .32, .45, .05, 'lamp')
     for sg in (-1, 1):
-        m.cube(sg * 2.0, H + .1, D / 2 - .3, .14, .6, .14, 'metal_dark')
-    roof(m, W, D, H, wall, rng, ac=2, tank=True, stair=False)
+        m.cube(sg * 2.1, H + .1, D / 2 - .3, .16, .65, .16, 'metal_dark')
+    roof(m, W, D, H, wall, rng, ac=1, tank=True, stair=False, pergola=True)
     m.W, m.D, m.H = W, D, H
 
 
 @design
 def G_tienda_baja(m, rng, wall, trim, glass_t, accent):
     W, D = 8.0, 6.0
-    H = floors_body(m, rng, W, D, 2, wall, trim, glass_t, ground_h=3.4, fh=2.9, shop_front=True, ww=1.5, ac=.5, planter=True)
+    H = floors_body(m, rng, W, D, 2, wall, trim, glass_t, ground_h=3.4, fh=2.9, shop_front=True, ww=1.5, ac=.35, planter=True)
+    corners(m, W, D, 0, H, trim, w=.35)
     base_plinth(m, W, D, 'br_brown', .5)
     door_entrance(m, W, D, canopy=None, w=2.0, steps=1)
     m.group('Toldo')
     for sg in (-1, 1):
-        m.cube(sg * 2.7, 2.95, D / 2 + .45, 2.2, .1, .9, accent or 'awn_blue')
-        m.cube(sg * 2.7, 2.9, D / 2 + .91, 2.2, .14, .05, accent or 'awn_blue')
+        m.cube(sg * 2.7, 2.95, D / 2 + .48, 2.3, .1, 1.0, accent or 'awn_blue', rot=[12, 0, 0])
+        m.cube(sg * 2.7, 2.82, D / 2 + .95, 2.3, .14, .05, accent or 'awn_blue')
+        m.cube(sg * 2.7, 2.78, D / 2 + .78, .18, .14, .18, 'lamp')
     m.group('Rótulo')
-    m.cube(0, 3.4, D / 2 + .1, W - .8, .5, .1, 'sign_dark')
-    m.cube(0, 3.46, D / 2 + .16, W - 1.2, .38, .05, 'sign_gold')
-    roof(m, W, D, H, wall, rng, ac=2, tank=False, stair=True)
+    m.cube(0, 3.4, D / 2 + .1, W - .6, .58, .14, 'sign_dark')
+    m.cube(0, 3.48, D / 2 + .18, W - 1.0, .40, .06, 'sign_gold')
+    m.cube(0, 3.98, D / 2 + .22, W - .6, .08, .12, 'gold')
+    roof(m, W, D, H, wall, rng, ac=1, tank=False, stair=True, skylight=True)
     m.W, m.D, m.H = W, D, H
 
 
@@ -738,13 +816,21 @@ def H_pabellon(m, rng, wall, trim, glass_t, accent):
     for side in 'SNEW':
         facade(m, W, D, 0, 3.6, side, wall, trim, glass_t, ww=1.6, wh=1.6, sill=.9, rng=rng, door=(side == 'S'), minGap=1.0)
         facade(m, W, D, 3.6, 3.9, side, wall, trim, glass_t, ww=2.2, wh=1.8, sill=1.0, rng=rng, ribbon=True, minGap=.8)
-    band(m, W, D, 3.55, .16, accent or 'sign_teal', .12)
-    corners(m, W, D, 0, 7.5, 'trim_stone', w=.5)
+    band(m, W, D, 3.55, .20, accent or 'sign_teal', .14)
+    band(m, W, D, 3.45, .08, 'neon_cyan', .16)
+    corners(m, W, D, 0, 7.5, 'trim_stone', w=.55)
     base_plinth(m, W, D)
-    door_entrance(m, W, D, canopy='metal_dark', w=3.0, depth=1.8, pillars=True)
+    door_entrance(m, W, D, canopy='metal_dark', w=3.0, depth=1.9, pillars=True)
     m.group('Rótulo')
-    m.cube(0, 3.8, D / 2 + .12, 6.0, 1.1, .14, accent or 'sign_teal')
-    roof(m, W, D, 7.5, wall, rng, ac=4, tank=False, stair=True)
+    m.cube(0, 3.85, D / 2 + .14, 6.4, 1.15, .18, 'sign_dark')
+    m.cube(0, 3.95, D / 2 + .24, 5.8, .92, .06, accent or 'sign_teal')
+    m.cube(0, 4.98, D / 2 + .24, 6.4, .09, .10, 'neon_cyan')
+    roof(m, W, D, 7.5, wall, rng, ac=3, tank=False, stair=True)
+    # Techo deportivo abovedado con tragaluces largos de cristal
+    m.group('Bóveda')
+    m.cube(0, 7.6, 0, 8.6, .65, 13.0, 'metal_dark')
+    m.cube(0, 8.25, 0, 6.2, .55, 12.4, 'glass')
+    m.cube(0, 8.80, 0, 3.4, .28, 12.0, 'steel')
     m.W, m.D, m.H = W, D, 7.5
 
 
@@ -757,32 +843,43 @@ def I_museo(m, rng, wall, trim, glass_t, accent):
     for side in 'SNEW':
         facade(m, W, D, 0, 3.4, side, wall, trim, glass_t, ww=1.2, wh=2.0, sill=.7, rng=rng, minGap=1.0, door=(side == 'S'))
         facade(m, W, D, 3.4, 2.6, side, wall, trim, glass_t, ww=1.2, wh=1.4, sill=.7, rng=rng, minGap=1.0)
-    corners(m, W, D, 0, 6.0, trim, w=.5)
+    corners(m, W, D, 0, 6.0, trim, w=.55, quoin=True, tile2='trim_stone')
     m.group('Pórtico')
     for i in range(4):
         xx = -3.6 + i * 2.4
-        m.cube(xx, .4, D / 2 + 1.4, .9, .3, .9, 'trim_stone')
-        m.cube(xx, .7, D / 2 + 1.4, .7, 3.6, .7, 'trim_white')
-        m.cube(xx, 4.3, D / 2 + 1.4, .9, .25, .9, 'trim_stone')
+        m.cube(xx, .4, D / 2 + 1.4, .95, .32, .95, 'trim_stone')
+        m.cube(xx, .72, D / 2 + 1.4, .72, 3.6, .72, 'marble')
+        m.cube(xx, 4.32, D / 2 + 1.4, .96, .28, .96, 'gold')
         for k in range(4):
-            m.cube(xx, 1.0 + k * .8, D / 2 + 1.4, .78, .06, .78, 'trim_stone')
-    m.cube(0, 4.55, D / 2 + 1.4, 10.4, .5, 1.5, 'trim_white')
-    m.cube(0, 5.05, D / 2 + 1.4, 10.6, .2, 1.7, 'trim_stone')
+            m.cube(xx, 1.0 + k * .8, D / 2 + 1.4, .80, .06, .80, 'trim_stone')
+    m.cube(0, 4.60, D / 2 + 1.4, 10.6, .5, 1.55, 'trim_white')
+    m.cube(0, 5.10, D / 2 + 1.4, 10.8, .22, 1.75, 'gold')
     for k in range(5):
-        m.cube(0, 5.25 + k * .3, D / 2 + 1.4, 9.6 - k * 1.8, .3, 1.5, 'trim_white')
-    m.cube(0, 5.3, D / 2 + 2.15, 2.0, .9, .05, 'gold')
+        m.cube(0, 5.32 + k * .3, D / 2 + 1.4, 9.6 - k * 1.8, .3, 1.5, 'trim_white')
+    m.cube(0, 5.38, D / 2 + 2.18, 2.2, .95, .08, 'gold')
     for i in range(3):
-        m.cube(0, i * .16, D / 2 + 2.5 + (2 - i) * .45, 8.4, .16, .9, 'concrete')
+        m.cube(0, i * .16, D / 2 + 2.5 + (2 - i) * .45, 8.6, .16, .95, 'marble')
+    # Pedestales con lámparas clásicas flanqueando la escalinata
     for sg in (-1, 1):
-        m.cube(sg * 4.7, 1.0, D / 2 + .15, .9, 2.6, .06, 'sign_red')
-        m.cube(sg * 4.7, 3.6, D / 2 + .15, .9, .08, .08, 'gold')
+        m.cube(sg * 4.5, 0, D / 2 + 3.0, .65, 1.2, .65, 'trim_stone')
+        m.cube(sg * 4.5, 1.2, D / 2 + 3.0, .20, .8, .20, 'metal_dark')
+        m.cube(sg * 4.5, 2.0, D / 2 + 3.0, .42, .45, .42, 'lamp')
+        m.cube(sg * 4.5, 2.45, D / 2 + 3.0, .50, .12, .50, 'gold')
+        m.cube(sg * 4.7, 1.0, D / 2 + .15, .95, 2.8, .06, 'sign_red')
+        m.cube(sg * 4.7, 3.8, D / 2 + .15, 1.05, .10, .10, 'gold')
     base_plinth(m, W, D)
     m.group('Rótulo')
-    m.cube(0, 3.9, D / 2 + .1, 5.0, .55, .1, 'sign_dark')
-    roof(m, W, D, 6.0, wall, rng, ac=3, tank=False, stair=False)
-    m.group('Techo')
-    m.cube(0, 6.2, 0, 4.0, 1.0, 5.0, 'glass')
-    m.cube(0, 7.2, 0, 4.4, .2, 5.4, 'trim_stone')
+    m.cube(0, 3.9, D / 2 + .1, 5.2, .58, .12, 'sign_dark')
+    m.cube(0, 3.98, D / 2 + .18, 4.6, .38, .05, 'sign_gold')
+    roof(m, W, D, 6.0, wall, rng, ac=2, tank=False, stair=False)
+    # Cúpula escalonada de vidrio y oro sobre el techo central
+    m.group('Cúpula')
+    m.cube(0, 6.1, 0, 5.4, .9, 6.2, 'trim_white')
+    m.cube(0, 7.0, 0, 5.6, .18, 6.4, 'gold')
+    m.cube(0, 7.18, 0, 4.2, 1.05, 4.8, 'glass')
+    m.cube(0, 8.23, 0, 2.8, .65, 3.2, 'glass_warm')
+    m.cube(0, 8.88, 0, 1.3, .45, 1.3, 'gold')
+    m.cube(0, 9.33, 0, .35, .45, .35, 'lamp')
     m.W, m.D, m.H = W, D, 6.0
 
 

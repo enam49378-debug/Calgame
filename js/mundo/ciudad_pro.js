@@ -234,21 +234,13 @@ window.CF_MUNDO.crearCiudadPro = function crearCiudadPro(D) {
       const face = b.z < 0 ? 1 : -1;
       const topY = b.h + 0.04;
 
-      // Azoteas (evitando tapar la pista de ascensor de Torre Aurora)
-      if (b.label !== 'TORRE AURORA' && b.label !== 'CENTRO COMERCIAL') {
-        const sideX = (idx % 2 === 0 ? 1 : -1) * Math.max(1.2, b.w * 0.26);
-        const sideZ = -face * Math.max(1.0, b.d * 0.24);
-        addRoofAC(b.x + sideX, topY, b.z + sideZ, face > 0 ? 0 : Math.PI);
-        if (b.w >= 9 && b.d >= 8 && b.h >= 8) {
-          addWaterTank(b.x - sideX * 0.9, topY, b.z + sideZ * 0.7);
-        }
-        if (b.h >= 12) {
-          addRoofAntenna(b.x + sideX * 0.4, topY, b.z - sideZ * 0.7, b.h >= 16 ? 5.2 : 3.6);
-        }
-      } else if (b.label === 'TORRE AURORA') {
-        // Dos balizas de aviación en las esquinas superiores de Torre Aurora
+      // Los .bbmodel ya traen sus azoteas rediseñadas (pérgolas, cúpulas, tanques, AC);
+      // aquí solo ponemos balizas parpadeantes en torres altas y neones verticales laterales.
+      if (b.label === 'TORRE AURORA') {
         addRoofAntenna(b.x - b.w * 0.36, b.h + 0.2, b.z - b.d * 0.34, 6.2);
         addRoofAntenna(b.x + b.w * 0.36, b.h + 0.2, b.z - b.d * 0.34, 6.2);
+      } else if (b.h >= 16) {
+        addRoofAntenna(b.x + (idx % 2 === 0 ? 1 : -1) * Math.max(1.0, b.w * 0.25), topY, b.z - face * Math.max(1.0, b.d * 0.25), 3.8);
       }
 
       // Carteles neón verticales en locales con nombre

@@ -400,11 +400,15 @@ def window_deco(m, W, D, side, c, ww, y0, y1, glass_t, frame='trim_white', awn=N
     for k in range(1, n):
         place(m, side, c - ww / 2 + k * ww / n, y0, y1 - y0, .07, .08, frame, W, D, .04)
     place(m, side, c, (y0 + y1) / 2, .07, ww, .08, frame, W, D, .04)
-    place(m, side, c, y0 - .11, .11, ww + .3, .3, 'trim_stone', W, D, .15)
-    place(m, side, c, y1, .13, ww + .36, .26, 'trim_stone', W, D, .13)
+    place(m, side, c, y0 - .11, .11, ww + .32, .32, 'trim_stone', W, D, .16)
+    for sg in (-1, 1):
+        place(m, side, c + sg * (ww * .44), y0 - .26, .15, .15, .24, 'trim_stone', W, D, .12)
+    place(m, side, c, y1, .14, ww + .38, .28, 'trim_stone', W, D, .14)
+    place(m, side, c, y1 + .02, .22, .22, .32, frame, W, D, .16)
     if awn:
-        place(m, side, c, y1 + .14, .1, ww + .5, 1.0, awn, W, D, .6)
-        place(m, side, c, y1 + .02, .14, ww + .5, .06, awn, W, D, 1.08)
+        place(m, side, c, y1 + .16, .1, ww + .56, 1.05, awn, W, D, .62)
+        place(m, side, c, y1 + .03, .14, ww + .56, .06, awn, W, D, 1.12)
+        place(m, side, c, y1 + .02, .12, .18, .18, 'lamp', W, D, .76)
 
 
 def wall_side(m, W, D, side, y1, wall, inner, openings, glass_t, frame='trim_white', awn=None, rng=None):
@@ -472,10 +476,16 @@ def shell(m, rng, W, D, Hc, H, *, wall, inner, floor, ceil, trim='trim_white', g
     slab(m, -W / 2 + T, W / 2 - T, -D / 2 + T, D / 2 - T, Hc - .3, .3, {'ceil_white': 'ceil_lit', 'ceil_dark': 'ceil_lit_dark', 'ceil_wood': 'ceil_lit_wood'}.get(ceil, ceil))
     beams(m, W, D, Hc - .3, beam)
     m.group('Cartel')
-    m.cube(0, DH + .2, D / 2 + .1, 4.4, 1.15, .16, board); m.cube(0, DH + .2, D / 2 + .22, 4.6, .08, .1, 'gold'); m.cube(0, DH + 1.27, D / 2 + .22, 4.6, .08, .1, 'gold')
-    m.cube(0, DH + .15, -D / 2 - .1, 2.6, .5, .12, 'neon_green') if False else None
+    m.cube(0, DH + .2, D / 2 + .1, 4.6, 1.18, .18, board); m.cube(0, DH + .2, D / 2 + .24, 4.8, .09, .12, 'gold'); m.cube(0, DH + 1.30, D / 2 + .24, 4.8, .09, .12, 'gold')
+    for ux in (-1.6, 0, 1.6):
+        m.cube(ux, DH + 1.44, D / 2 + .42, .16, .10, .38, 'metal_dark')
+        m.cube(ux, DH + 1.36, D / 2 + .56, .18, .12, .18, 'lamp')
     for sg in (-1, 1):
-        m.cube(sg * (DW / 2 + .6), 2.0, D / 2 + .2, .16, .35, .16, 'metal_dark'); m.cube(sg * (DW / 2 + .6), 2.0, D / 2 + .36, .2, .2, .2, 'glow')
+        m.cube(sg * (DW / 2 + .6), 2.0, D / 2 + .2, .18, .38, .18, 'metal_dark'); m.cube(sg * (DW / 2 + .6), 2.0, D / 2 + .38, .22, .22, .22, 'glow')
+        # Maceteros elegantes flanqueando la puerta (sin invadir el paso libre de 3.2 m)
+        m.cube(sg * (DW / 2 + .85), 0, D / 2 + .55, .56, .48, .56, 'pot')
+        m.cube(sg * (DW / 2 + .85), .48, D / 2 + .55, .62, .48, .62, 'plant')
+        m.cube(sg * (DW / 2 + .85), .92, D / 2 + .55, .20, .18, .20, 'flower_pink' if sg < 0 else 'flower_yellow')
     # planta alta (decorativa, sólida)
     up = upper_wall or wall
     m.group('Planta alta')
@@ -485,9 +495,10 @@ def shell(m, rng, W, D, Hc, H, *, wall, inner, floor, ceil, trim='trim_white', g
     fh = (H - Hc) / n
     for i in range(n):
         for side in 'SNEW':
-            facade(m, W, D, Hc + i * fh, fh, side, up, trim, glass_t, ww=upper_ww, wh=min(1.5, fh - 1.1), sill=.75, rng=rng, minGap=.8)
-    band(m, W, D, Hc - .08, .22, trim, .14)
-    roof(m, W, D, H, up, rng, **dict(dict(ac=3, tank=False, stair=False, accent=trim), **(roof_kw or {})))
+            facade(m, W, D, Hc + i * fh, fh, side, up, trim, glass_t, ww=upper_ww, wh=min(1.5, fh - 1.1), sill=.75, rng=rng, minGap=.8, planter=(H < 15))
+    band(m, W, D, Hc - .10, .24, trim, .16)
+    band(m, W, D, Hc - .24, .10, 'trim_stone', .12)
+    roof(m, W, D, H, up, rng, **dict(dict(ac=2, tank=False, stair=False, accent=trim, pergola=(W <= 16 and H < 15)), **(roof_kw or {})))
 
 
 # ------------------------------------------------------------------ interiores -----------------------
@@ -933,6 +944,94 @@ def tower_top(m, W, D, H):
     m.col(5.0, -4.6, 5.0, 3.0, 2.6, y); m.col(-2.6, -5.2, 1.8, 1.8, 3.2, y)
 
 
+def exterior_pro(name, m, W, D, Hc, H):
+    """Detalles arquitectónicos exteriores únicos para cada edificio icónico (sin invadir puertas ni interiores)."""
+    m.group('Detalles exteriores')
+    zF = D / 2
+    if name == 'cafe':
+        # Pérgola frontal de madera sobre la entrada + lucecitas cálidas + pizarra de menú
+        m.cube(0, DH + .08, zF + .85, DW + 1.4, .14, 1.5, 'oak_planks')
+        for k in range(5):
+            m.cube(-2.0 + k * 1.0, DH + .18, zF + .85, .12, .12, 1.65, 'dark_planks')
+            m.cube(-2.0 + k * 1.0, DH - .06, zF + 1.45, .14, .16, .14, 'lamp')
+        for sg in (-1, 1):
+            m.cube(sg * (DW / 2 + .55), 0, zF + 1.45, .16, DH + .08, .16, 'dark_planks')
+        # Pizarra caballete de café al costado
+        m.cube(DW / 2 + 1.55, 0, zF + .65, .72, 1.05, .12, 'dark_planks')
+        m.cube(DW / 2 + 1.55, .14, zF + .72, .58, .76, .04, 'menu_board')
+    elif name == 'arcade':
+        # Marco neón cyberpunk 3D rodeando la fachada frontal y el borde superior
+        m.cube(0, Hc - .06, zF + .22, W + .3, .14, .14, 'neon_cyan')
+        m.cube(0, H - .14, zF + .30, W + .4, .16, .16, 'neon_pink')
+        for sg in (-1, 1):
+            m.cube(sg * (W / 2 + .12), .5, zF + .16, .16, H - .7, .16, 'neon_pink')
+            m.cube(sg * (DW / 2 + .24), 0, zF + .24, .18, DH + .15, .18, 'neon_cyan')
+        m.cube(0, DH + .12, zF + .26, DW + .7, .16, .18, 'neon_yellow')
+        m.cube(0, DH + 1.55, zF + .26, 3.8, .16, .14, 'neon_cyan')
+    elif name == 'ramen':
+        # Alero japonés inclinado + cortinas noren sobre la puerta + faroles rojos colgantes
+        m.cube(0, DH + .25, zF + .80, W - 1.2, .18, 1.55, 'concrete_dark', rot=[16, 0, 0])
+        m.cube(0, DH + .06, zF + 1.48, W - 1.0, .14, .12, 'dark_planks')
+        # Cortina noren alta (y=2.55..3.05: se camina por debajo sin tapar)
+        for k in range(4):
+            m.cube(-1.05 + k * .70, 2.55, zF + .22, .60, .52, .06, 'noren')
+        for ux in (-5.2, -3.2, 3.2, 5.2):
+            m.cube(ux, DH - .05, zF + 1.25, .05, .28, .05, 'metal_dark')
+            m.cube(ux, DH - .58, zF + 1.25, .36, .52, .36, 'lantern')
+            m.cube(ux, DH - .64, zF + 1.25, .28, .08, .28, 'sign_red')
+    elif name == 'mercado':
+        # Marquesina fresca + cajones de fruta en los costados
+        m.cube(0, DH + .12, zF + .78, DW + 1.6, .14, 1.4, 'awn_green', rot=[10, 0, 0])
+        for sg in (-1, 1):
+            cx = sg * (W / 2 - 1.35)
+            m.cube(cx, 0, zF + .55, 1.2, .62, .75, 'oak_planks')
+            m.cube(cx, .62, zF + .55, 1.05, .22, .62, 'orange_fruit' if sg < 0 else 'tomato')
+    elif name == 'biblioteca':
+        # Columnas clásicas y frontón triangular sobre la entrada
+        for sg in (-1, 1):
+            cx = sg * (DW / 2 + .55)
+            m.cube(cx, 0, zF + 1.15, .62, .28, .62, 'trim_stone')
+            m.cube(cx, .28, zF + 1.15, .44, DH + .22, .44, 'marble')
+            m.cube(cx, DH + .50, zF + 1.15, .66, .24, .66, 'gold')
+        m.cube(0, DH + .74, zF + .85, DW + 2.0, .28, 1.5, 'trim_white')
+        for k in range(4):
+            m.cube(0, DH + 1.02 + k * .26, zF + 1.15, DW + 1.6 - k * 1.1, .26, .65, 'trim_white')
+        m.cube(0, DH + 1.15, zF + 1.50, 1.1, .55, .06, 'gold')
+    elif name == 'taller':
+        # Vigas industriales de acero, franjas de peligro y focos cálidos de galpón
+        for sx in (-1, 1):
+            m.cube(sx * (W / 2 + .08), 0, zF - 1.0, .24, H, .24, 'steel')
+            m.cube(sx * (W / 2 + .08), 0, -zF + 1.0, .24, H, .24, 'steel')
+        for sg in (-1, 1):
+            m.cube(sg * (DW / 2 + .35), 0, zF + .16, .35, DH, .12, 'hazard')
+        m.cube(0, DH + .12, zF + .75, DW + 1.8, .18, 1.35, 'steel')
+        for ux in (-1.4, 1.4):
+            m.cube(ux, DH - .04, zF + 1.25, .36, .16, .22, 'glow_orange')
+    elif name == 'centro_comercial':
+        # Gran pórtico de cristal y acero + franjas luminosas modernas + tragaluz central
+        for sg in (-1, 1):
+            m.cube(sg * (DW / 2 + .85), 0, zF + 1.55, .48, Hc + .6, .48, 'steel')
+            m.cube(sg * (DW / 2 + .85), .4, zF + 1.82, .12, Hc, .08, 'glow_cool')
+        m.cube(0, Hc + .45, zF + 1.05, DW + 3.2, .32, 2.0, 'steel')
+        m.cube(0, Hc + .77, zF + 1.05, DW + 2.6, .12, 1.6, 'glass')
+        m.cube(0, Hc + .35, zF + 2.08, DW + 3.0, .12, .08, 'glow_cool')
+        band(m, W, D, Hc + .18, .12, 'glow_cool', .18)
+        # Tragaluz central en la azotea (lejos del cartel publicitario)
+        m.cube(-5.5, H + .1, 0, 5.2, .55, 4.6, 'glass')
+        m.cube(5.5, H + .1, 0, 5.2, .55, 4.6, 'glass')
+    elif name == 'torre_aurora':
+        # Costillas verticales de acero y líneas luminosas subiendo los 46 m de Torre Aurora
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                m.cube(sx * (W / 2 + .18), 0, sz * (D / 2 + .18), .52, H + .8, .52, 'steel')
+                m.cube(sx * (W / 2 + .46), 4.0, sz * (D / 2 + .46), .14, H - 3.6, .14, 'glow_cool')
+                m.cube(sx * (W / 2 + .18), H + .8, sz * (D / 2 + .18), .34, 1.6, .34, 'gold')
+                m.cube(sx * (W / 2 + .18), H + 2.4, sz * (D / 2 + .18), .24, .5, .24, 'glow')
+        for yy in (14, 26, 38, H - .2):
+            band(m, W, D, yy, .16, 'gold', .22)
+            band(m, W, D, yy + .18, .10, 'glow_cool', .24)
+
+
 def build_all(tex_source):
     info = {}
     for i, (name, fn, W, D, Hc, H, wall, inner, floor, ceil, trim, awn, board) in enumerate(SPECS):
@@ -943,6 +1042,7 @@ def build_all(tex_source):
               ww=2.6 if W > 20 else 2.4, upper_ww=1.5 if name != 'torre_aurora' else 1.9,
               floor_h=3.6 if name == 'torre_aurora' else 2.9,
               roof_kw=dict(ac=0, antenna=False, dish=False, vents=False, accent='gold') if name == 'torre_aurora' else None)
+        exterior_pro(name, m, W, D, Hc, H)
         fn(m, rng, W, D, Hc)
         if name == 'torre_aurora': tower_top(m, W, D, H)
         m.W, m.D, m.H = W, D, H
