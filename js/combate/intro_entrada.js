@@ -6,7 +6,7 @@ window.CF_COMBATE = window.CF_COMBATE || {};
 window.CF_COMBATE.crearIntroEntrada = function crearIntroEntrada(D) {
   'use strict';
   const { V3, clamp, fwd, rightOf, scene, camera, groundAt, buildSpear, setSpear, burst, sfx,
-          bbSet, javiBBTrack, buildTrack, G, cam, endCamScript, CFG_CINE } = D;
+          bbSet, javiBBTrack, buildTrack, G, cam, endCamScript } = D;
 
   // Escenas de entrada personalizadas (convertidas desde BBS .dat)
   const INTROS = {

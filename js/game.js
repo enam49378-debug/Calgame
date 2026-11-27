@@ -7352,7 +7352,7 @@ function syncFriendsBtnPlace() {
 }
 
 // ===== Intro de entrada al mundo/partida: vive en js/combate/intro_entrada.js =====
-const { INTRO, INTROS, introStart, introTick, introStop, introActive } = CF_COMBATE.crearIntroEntrada({ V3, clamp, fwd, rightOf, scene, camera, groundAt, buildSpear, setSpear, burst, sfx, bbSet, javiBBTrack, buildTrack, G, cam, endCamScript, CFG_CINE });
+const { INTRO, INTROS, introStart, introTick, introStop, introActive } = CF_COMBATE.crearIntroEntrada({ V3, clamp, fwd, rightOf, scene, camera, groundAt, buildSpear, setSpear, burst, sfx, bbSet, javiBBTrack, buildTrack, G, cam, endCamScript });
 
 async function startMatch() {
   initAudio(); requestLock();
